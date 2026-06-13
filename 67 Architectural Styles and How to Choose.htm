@@ -106,7 +106,7 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
@@ -186,7 +186,7 @@
 <p><span class="key">What it is.</span> Less a single style than the <em>condition</em> the styles above share once components run on multiple machines connected by an unreliable network. A system is distributed when its components fail independently and communicate over a network that can drop, delay, duplicate, or reorder messages.</p>
 <p><span class="key">Why it is harder.</span> The defining difficulty is <span class="key">partial failure</span>: in a monolith a component is either up or down with everything else; in a distributed system one node can be down, slow, or unreachable while the rest run &mdash; and a caller often <em>cannot tell which</em>. This is the heart of the FLP result and the reason consensus exists. See <a href="30 Consensus and Raft.htm">Consensus &amp; Raft</a> and <a href="31 Consistency Models and PACELC.htm">Consistency Models &amp; PACELC</a>.</p>
 <p>The <span class="key">fallacies of distributed computing</span> (Deutsch/Gosling) are the canonical list of wrong assumptions engineers make: the network is reliable; latency is zero; bandwidth is infinite; the network is secure; topology doesn't change; there is one administrator; transport cost is zero; the network is homogeneous. Every one of these is false, and every one has produced a famous outage.</p>
-<div class="callout warn"><span class="lbl">Watch out</span>"Distributed" is a cost, not a feature. You go distributed when a single machine cannot meet your scale, availability, or geographic requirements &mdash; and then you pay for it forever in consistency, debugging, and operational complexity. The whole "distributed systems theory" section of this course exists because this tax is unavoidable once you cross the network.</div>
+<div class="callout warn"><span class="lbl">Watch out</span>"Distributed" is a cost, not a feature. You go distributed when a single machine cannot meet your scale, availability, or geographic requirements &mdash; and then you pay for it forever in consistency, debugging, and operational complexity. The whole "distributed systems theory" section of this course exists because this cost is unavoidable once you cross the network.</div>
 
 <h2 id="eda">7. Event-Driven Architecture</h2>
 <p><span class="key">What it is.</span> Components communicate primarily by producing and reacting to <span class="key">events</span> &mdash; immutable facts about something that happened ("PaymentCaptured"). It generalizes pub/sub into an architectural philosophy where state changes propagate as a stream of events.</p>
@@ -218,7 +218,7 @@
 <tr><td>Client&ndash;Server</td><td>Sync request/response</td><td>Client&rarr;server</td><td>Almost all web/mobile apps</td><td>Server is the bottleneck</td></tr>
 <tr><td>SOA</td><td>Sync via ESB</td><td>Central (ESB)</td><td>Enterprise legacy integration</td><td>Heavy, centralized bus</td></tr>
 <tr><td>Monolith</td><td>In-process calls</td><td>Tight, one deploy</td><td>New products, small teams</td><td>Scales/deploys as one unit</td></tr>
-<tr><td>Microservices</td><td>Sync + async, per-service DB</td><td>Loose, independent deploy</td><td>Large orgs, team autonomy</td><td>Distribution &amp; ops tax</td></tr>
+<tr><td>Microservices</td><td>Sync + async, per-service DB</td><td>Loose, independent deploy</td><td>Large orgs, team autonomy</td><td>Distribution &amp; ops cost</td></tr>
 <tr><td>Pub/Sub</td><td>Async via topics</td><td>Decoupled, fan-out</td><td>One event &rarr; many reactions</td><td>Hard end-to-end visibility</td></tr>
 <tr><td>Distributed</td><td>Over the network</td><td>Independent failure</td><td>Scale beyond one machine</td><td>Partial failure everywhere</td></tr>
 <tr><td>Event-Driven</td><td>Async events (facts)</td><td>Inverted dependency</td><td>Loose domains, audit/replay</td><td>Implicit, hard-to-trace flow</td></tr>
@@ -231,7 +231,7 @@
 <p>No style is "best." The right choice falls out of a handful of forcing questions:</p>
 <ul>
 <li><span class="key">Team size &amp; coupling.</span> One small team, one product? Start with a (modular) monolith. Many teams blocked on each other's releases? That organizational pain is the real argument for microservices &mdash; not the technology.</li>
-<li><span class="key">Scale.</span> Does one machine still comfortably hold the load? Stay non-distributed as long as you can &mdash; you avoid the entire distributed-systems tax. Cross into distributed only when scale, geography, or availability genuinely demand it.</li>
+<li><span class="key">Scale.</span> Does one machine still comfortably hold the load? Stay non-distributed as long as you can &mdash; you avoid the entire distributed-systems cost. Cross into distributed only when scale, geography, or availability genuinely demand it.</li>
 <li><span class="key">Latency vs throughput.</span> Need an answer <em>now</em>? Synchronous request/response (client&ndash;server, sync microservices). Need to move enormous volume where staleness is fine? Batch. Need fresh results continuously without a single owner? Streaming.</li>
 <li><span class="key">Consistency needs.</span> Need strong, multi-entity transactions? A monolith with one database is dramatically simpler than sagas. Can you tolerate eventual consistency? Event-driven and pub/sub become attractive and let you decouple.</li>
 <li><span class="key">Operational maturity.</span> Distributed, event-driven, and streaming architectures demand observability, tracing, CI/CD, and on-call discipline. If you don't have that muscle yet, a style that needs it will fail in operations regardless of how elegant the design looks on a whiteboard.</li>
@@ -253,10 +253,7 @@
 <div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (29).png" alt="Comparing and choosing among architectural styles" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A radial diagram of software architecture styles (CQRS, layered, microkernel, microservices, event-driven, DDD, space-based, etc.) with small sketches for each. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 </div>
-<div class="navfoot">
-<a href="66 Designing a Metrics and Monitoring System.htm">&lsaquo; Prev: Designing a Metrics and Monitoring System</a>
-<a class="nx" href="68 Choosing a Database.htm">Next: Choosing a Database &rsaquo;</a>
-</div>
+<div class="navfoot"><a href="66 Designing a Metrics and Monitoring System.htm">&lsaquo; Prev: Designing a Metrics and Monitoring System</a><a class="nx" href="68 Choosing a Database.htm">Next: Choosing a Database &rsaquo;</a></div>
 </div>
 </div>
 </div>

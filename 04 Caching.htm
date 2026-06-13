@@ -105,7 +105,7 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
@@ -244,7 +244,7 @@
 </style>
 <div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed Redis / Memcached</td><td>ElastiCache</td><td>Memorystore</td><td>Azure Cache for Redis</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
 <div class="mastery">
-<h2>Mastery check</h2>
+<h2>Principal-level mastery check</h2>
 <ul>
 <li>Can you contrast <b>write-through</b>, <b>write-back</b>, and <b>write-around</b> on three axes — write latency, durability/data-loss window, and read-hit rate for freshly written keys — and pick the right one for a financial ledger vs. a metrics-ingest pipeline vs. a write-heavy log store?</li>
 <li>Why does a single popular key expiring cause a <b>cache stampede</b> (thundering herd) where thousands of requests hammer the DB at once, and how do you prevent it — per-key locks / single-flight, probabilistic early recomputation (XFetch with the <i>e<sup>-(delta·beta)·ln(rand)</sup></i> rule), stale-while-revalidate, or jittered TTLs?</li>
@@ -256,7 +256,7 @@
 </ul>
 <p style="margin:12px 0 0;font-size:14px;color:#5b6472">Go deeper: <a href="53 Designing a Distributed Cache.htm">53 Distributed Cache</a></p>
 </div>
-<div class="navfoot"><a href="03 Load Balancing.htm">&lsaquo; Prev: Load Balancing</a><a class="nx" href="05 Sharding or Data Partitioning.htm">Next: Sharding / Data Partitioning &rsaquo;</a></div>
+<div class="navfoot"><a href="03 Load Balancing.htm">&lsaquo; Prev: Load Balancing</a><a class="nx" href="05 Sharding or Data Partitioning.htm">Next: Sharding or Data Partitioning &rsaquo;</a></div>
 </div>
 </div>
 </div>

@@ -104,7 +104,7 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
@@ -205,7 +205,7 @@
 <li><b>Local (document-partitioned) secondary index.</b> Each partition indexes only its own documents. Writes are cheap — one local index update, same partition. Reads are expensive: the query must fan out to <em>every</em> partition and merge (<em>scatter-gather</em>), because matching rows can live anywhere. This is Elasticsearch and Cassandra's default. Good for write-heavy workloads where read latency tail is tolerable.</li>
 <li><b>Global (term-partitioned) secondary index.</b> The index itself is partitioned by the indexed term, so all <code>color = red</code> entries sit together and a read hits one partition. Reads are fast and targeted. Writes pay: a single document update may touch multiple index partitions (one per indexed field), so writes become distributed and are usually made asynchronous — meaning the global index is eventually consistent with the base data. DynamoDB's GSIs are exactly this, and Amazon documents their async, eventually-consistent nature.</li>
 </ul>
-<div class="box"><b>The real trade-off</b>Local index = cheap writes, expensive scatter-gather reads. Global index = fast reads, expensive distributed writes that are usually eventually consistent. You are choosing which operation pays the cross-partition tax.</div>
+<div class="box"><b>The real trade-off</b>Local index = cheap writes, expensive scatter-gather reads. Global index = fast reads, expensive distributed writes that are usually eventually consistent. You are choosing which operation pays the cross-partition cost.</div>
 
 <h3>Directory-based / lookup-table partitioning</h3>
 <p>Instead of computing a key's home from a function, store the mapping explicitly in a directory service (the partition map). This is what fixed-partition systems effectively do, and it is the foundation of Bigtable/HBase (the META region maps key ranges to tablet servers) and Vitess (the topology + VSchema). The directory gives you maximum flexibility — arbitrary, non-algorithmic placement, and the ability to move any partition anywhere — at the cost of a lookup hop and a piece of critical, highly-available infrastructure. The directory must not be a single point of failure: it is replicated and aggressively cached on clients, with cache invalidation on map changes. Most production lookup paths are "client cache hit → go straight to the right node; on a stale-shard error, re-fetch the map."</p>
@@ -235,7 +235,7 @@
 </style>
 <div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed sharded / distributed SQL</td><td>Aurora, RDS (read replicas)</td><td>Cloud Spanner, AlloyDB</td><td>Azure SQL (Hyperscale), Cosmos DB</td></tr><tr><td>Managed sharded NoSQL</td><td>DynamoDB</td><td>Bigtable, Firestore</td><td>Cosmos DB</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
 <div class="mastery">
-<h2>Mastery check</h2>
+<h2>Principal-level mastery check</h2>
 <ul>
 <li>Why is <code>hash(key) % N</code> the classic wrong answer for shard placement? Walk through what happens when N goes from 8 to 9 nodes &mdash; what fraction of keys remap, why does that melt your cache and saturate the network, and how does <a href="12 Consistent Hashing.htm">consistent hashing</a> (with virtual nodes) reduce the churn to roughly 1/N?</li>
 <li>When would you pick <b>range partitioning</b> over <b>hash partitioning</b>, and vice versa? Be concrete: range gives you efficient scans (<code>WHERE ts BETWEEN ...</code>) but invites hot shards on monotonic keys; hash spreads load evenly but kills range queries. Which one does a time-series store want, and which one does a user-by-id lookup want?</li>

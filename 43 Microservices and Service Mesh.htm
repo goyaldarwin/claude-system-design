@@ -106,12 +106,12 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part C: Modern Architecture &nbsp;&rsaquo;&nbsp; Microservices and Service Mesh</div>
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; Microservices and Service Mesh</div>
 
 <h1>Microservices and Service Mesh</h1>
 <p class="sub"><em>When to split a monolith, how to draw the seams, and what the network layer owes you once you do.</em></p>
@@ -124,7 +124,7 @@
 <li><a href="#monovsmicro">Monolith vs microservices: the real trade space</a></li>
 <li><a href="#conway">Conway's law and team topology</a></li>
 <li><a href="#ddd">Decomposition: bounded contexts, not nouns</a></li>
-<li><a href="#data">Database-per-service and the consistency tax</a></li>
+<li><a href="#data">Database-per-service and the consistency cost</a></li>
 <li><a href="#comms">Inter-service communication: sync vs async</a></li>
 <li><a href="#mesh">Service mesh: pushing concerns into the network</a></li>
 <li><a href="#strangler">The strangler-fig migration</a></li>
@@ -136,7 +136,7 @@
 <h2 id="why">Why this decision matters more than the tech</h2>
 <p>Microservices is an <span class="key">organizational</span> decision dressed up as an architectural one. The technology — containers, gRPC, Envoy — is the easy part. The hard part is that you are trading a single failure domain and ACID transactions for a distributed system with partial failure, eventual consistency, and an order-of-magnitude increase in operational surface area. A principal engineer is expected to know that this trade is frequently a <span class="key">bad</span> one, and to be able to say so to a room that wants to hear "yes."</p>
 
-<div class="callout note"><span class="lbl">Key insight</span> Microservices do not make your system faster, more reliable, or simpler. They buy exactly one thing: <strong>independent deployability of teams</strong>. Every other property (scalability, fault isolation) is achievable in a well-built monolith. If you do not have multiple teams stepping on each other in a shared deploy pipeline, you are paying the distributed-systems tax for nothing.</p></div>
+<div class="callout note"><span class="lbl">Key insight</span> Microservices do not make your system faster, more reliable, or simpler. They buy exactly one thing: <strong>independent deployability of teams</strong>. Every other property (scalability, fault isolation) is achievable in a well-built monolith. If you do not have multiple teams stepping on each other in a shared deploy pipeline, you are paying the distributed-systems cost for nothing.</p></div>
 
 <h2 id="monovsmicro">Monolith vs microservices: the real trade space</h2>
 <p>The honest framing is a modular monolith versus a fleet of services. Both can have clean module boundaries; the difference is whether those boundaries are enforced by the compiler/linker (monolith) or by the network (microservices).</p>
@@ -180,7 +180,7 @@
 <li><strong>Failure isolation</strong>: a high-traffic, failure-prone subsystem (e.g., third-party payment integration) is a good extraction candidate so its failures do not take down checkout.</li>
 </ul>
 
-<h2 id="data">Database-per-service and the consistency tax</h2>
+<h2 id="data">Database-per-service and the consistency cost</h2>
 <p>The non-negotiable rule of microservices: <span class="key">each service owns its data and exposes it only via its API</span>. No shared database, no other service reading your tables directly. The shared database is the back door through which coupling re-enters; if Service B queries Service A's schema, you can never change that schema without breaking B, and you are back to a monolith with extra network hops.</p>
 
 <div class="callout warn"><span class="lbl">Pitfall</span> "We'll just give them a read replica of our DB" is the most seductive way to destroy your service boundaries. It feels harmless and it permanently couples the consumer to your physical schema. Say no.</div>
@@ -262,7 +262,7 @@ spec:
 
 <div class="callout warn"><span class="lbl">Pitfall</span> Retries configured at multiple layers <em>multiply</em>. If the mesh retries twice and the application library also retries three times and the gateway retries twice, one failing request becomes 12 attempts — a retry storm that turns a brief blip into a self-inflicted outage. Pick <strong>one</strong> layer to own retries (usually the mesh) and disable it everywhere else. Always cap with a retry budget.</div>
 
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> The mesh is not free. Every hop now traverses two extra Envoy proxies, adding ~0.5–2ms p50 and a tail-latency penalty, plus memory/CPU per sidecar (Envoy is ~50–100MB per pod). For a 5-service system, a mesh is over-engineering — a shared client library is cheaper. The mesh earns its keep at scale (dozens+ of services, polyglot teams) where uniformity and out-of-band upgrades outweigh the overhead. Linkerd's Rust micro-proxy is lighter than Envoy if footprint dominates; sidecar-less / ambient mesh and eBPF approaches (Cilium, Istio ambient) aim to cut the per-pod tax.</div>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> The mesh is not free. Every hop now traverses two extra Envoy proxies, adding ~0.5–2ms p50 and a tail-latency penalty, plus memory/CPU per sidecar (Envoy is ~50–100MB per pod). For a 5-service system, a mesh is over-engineering — a shared client library is cheaper. The mesh earns its keep at scale (dozens+ of services, polyglot teams) where uniformity and out-of-band upgrades outweigh the overhead. Linkerd's Rust micro-proxy is lighter than Envoy if footprint dominates; sidecar-less / ambient mesh and eBPF approaches (Cilium, Istio ambient) aim to cut the per-pod cost.</div>
 
 <p>Note the mesh handles <em>east-west</em> (service-to-service) traffic. <em>North-south</em> (client-to-cluster) ingress is the job of an API gateway, which may itself be an Envoy-based gateway but lives at the edge doing auth, rate limiting, and request shaping. Don't conflate the two. The mesh complements the orchestration layer covered in <a href="46 Containers Kubernetes and Serverless.htm">Containers, Kubernetes and Serverless</a> — Kubernetes schedules the pods, the mesh governs the traffic between them.</p>
 
@@ -306,7 +306,7 @@ spec:
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1681190862984.jpeg" alt="API gateway evolution in microservice architectures" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A four-stage evolution of API architecture: monolith, direct access to microservices, gateway aggregation layer, and federated gateway. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 </div>
 <div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Service mesh</td><td>App Mesh</td><td>Anthos Service Mesh (Istio)</td><td>Open Service Mesh / Istio on AKS</td></tr><tr><td>Service discovery</td><td>Cloud Map</td><td>(GKE DNS / Service Directory)</td><td>(AKS DNS)</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="42 Probabilistic Data Structures.htm">&lsaquo; Prev: Probabilistic Data Structures</a><a class="nx" href="44 API Design REST gRPC GraphQL.htm">Next: API Design &rsaquo;</a></div>
+<div class="navfoot"><a href="64 Search and Elasticsearch.htm">&lsaquo; Prev: Search and Elasticsearch</a><a class="nx" href="44 API Design REST gRPC GraphQL.htm">Next: API Design REST gRPC GraphQL &rsaquo;</a></div>
 </div>
 </div>
 </div>

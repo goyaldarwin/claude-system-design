@@ -106,13 +106,13 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
 
-<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Consistency Models and PACELC</div>
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Consistency Models and PACELC</div>
 
 <h1>Consistency Models and PACELC</h1>
 <p class="sub"><em>A precise map of what "consistency" actually means, what it costs, and how to choose the right guarantee per use case.</em></p>
@@ -216,7 +216,7 @@
 
 <p>PACELC classifies a system with a pair: its partition behavior and its normal-operation behavior. The two halves are independent — a system can be PA/EC (sacrifice consistency under partition, but prefer consistency over latency normally).</p>
 
-<div class="callout note"><span class="lbl">Key insight</span> CAP made partition tolerance look like the central trade-off. PACELC reveals that for most systems most of the time, the real, continuous decision is <em>latency vs consistency</em>. Spanner's whole engineering effort (TrueTime, atomic clocks, commit-wait) is fundamentally about paying a small bounded latency tax to deliver EC — consistency in the no-partition case.</div>
+<div class="callout note"><span class="lbl">Key insight</span> CAP made partition tolerance look like the central trade-off. PACELC reveals that for most systems most of the time, the real, continuous decision is <em>latency vs consistency</em>. Spanner's whole engineering effort (TrueTime, atomic clocks, commit-wait) is fundamentally about paying a small bounded latency cost to deliver EC — consistency in the no-partition case.</div>
 
 <h2 id="classify">Classifying real systems</h2>
 <table>
@@ -227,7 +227,7 @@
 <tr><td><strong>DynamoDB / Dynamo</strong></td><td>PA/EL</td><td>Stays available under partition; prefers low latency normally (eventually consistent reads by default). Optional strongly-consistent reads flip it toward EC per-request.</td></tr>
 <tr><td><strong>Cassandra</strong></td><td>PA/EL (tunable)</td><td>Tunable per query via consistency levels. ONE = PA/EL; QUORUM/QUORUM with W+R&gt;N approximates linearizability per key; LOCAL_QUORUM tunes the latency/consistency knob.</td></tr>
 <tr><td><strong>Riak / Voldemort</strong></td><td>PA/EL</td><td>Dynamo lineage; sloppy quorums + hinted handoff favor availability and latency.</td></tr>
-<tr><td><strong>Google Spanner</strong></td><td>PC/EC</td><td>Consistency over availability under partition; consistency over latency normally. TrueTime + commit-wait + Paxos groups give strict serializability. Pays a latency tax (commit-wait ~ a few ms).</td></tr>
+<tr><td><strong>Google Spanner</strong></td><td>PC/EC</td><td>Consistency over availability under partition; consistency over latency normally. TrueTime + commit-wait + Paxos groups give strict serializability. Pays a latency cost (commit-wait ~ a few ms).</td></tr>
 <tr><td><strong>MongoDB</strong></td><td>PA/EC (default)</td><td>Single-primary replica set; under partition the minority side loses its primary and goes read-only (availability sacrificed on the minority); normally favors consistency by routing reads to primary. Read/write concerns tune both axes.</td></tr>
 <tr><td><strong>HBase / BigTable</strong></td><td>PC/EC</td><td>Single region server owns a region; strongly consistent; partition can make a region unavailable until reassigned.</td></tr>
 <tr><td><strong>etcd / ZooKeeper</strong></td><td>PC/EC</td><td>Raft/Zab consensus; refuses writes (and linearizable reads) on the minority side of a partition. Built for correctness, not availability. See <a href="36 Leader Election and Coordination.htm">Leader Election and Coordination</a>.</td></tr>

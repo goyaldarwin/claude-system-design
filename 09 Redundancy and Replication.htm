@@ -106,7 +106,7 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
@@ -181,7 +181,7 @@
 </ul>
 <p>Statement-based replication (ship the SQL) is the legacy third option and is dangerous: non-deterministic functions (<code>NOW()</code>, <code>RAND()</code>, auto-increment races) diverge replicas. Modern systems default to row-based for exactly this reason.</p>
 
-<h3>Read replicas: scaling reads and the staleness tax</h3>
+<h3>Read replicas: scaling reads and the staleness cost</h3>
 <p>Adding async read replicas is the standard lever to scale a read-heavy workload &mdash; fan reads across N replicas while writes stay funneled to the leader. The catch is that <em>every</em> replica is stale by its replication lag, so this only works for read-tolerant paths. The principal-level discipline is to <b>classify reads by staleness tolerance</b>: route account-balance-after-transfer or "did my comment post" reads to the leader (or a caught-up replica via LSN), and route analytics, feeds, and search to replicas. Beware the read-scaling ceiling: every replica still applies <em>100%</em> of the write volume, so replicas relieve read CPU/IO but never reduce write load &mdash; past that point you must shard, not just replicate.</p>
 
 <div class="seealso"><b>See also:</b> <a href="37 Replication Deep Dive.htm">Replication Deep Dive</a>, <a href="36 Leader Election and Coordination.htm">Leader Election &amp; Coordination</a>, <a href="31 Consistency Models and PACELC.htm">Consistency Models</a></div>
@@ -193,7 +193,7 @@
 .mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
 </style>
 <div class="mastery">
-<h2>Mastery check</h2>
+<h2>Principal-level mastery check</h2>
 <ul>
 <li>Can you state the precise data-loss window for <b>async</b> replication after a leader crash, and explain why <b>sync</b> replication trades that window for write latency and availability (one slow/dead follower stalls every commit)? When does semi-sync (ack from <em>one</em> of N) become the right middle ground?</li>
 <li>Why does <b>single-leader</b> give you a clean ordering and no write conflicts, while <b>multi-leader</b> and <b>leaderless</b> push the conflict-resolution problem onto you (LWW, version vectors, CRDTs)? For each, when is it the correct choice?</li>

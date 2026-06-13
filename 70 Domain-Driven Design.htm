@@ -106,7 +106,7 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
@@ -164,7 +164,7 @@
 <h3>Why contexts map to service and team boundaries</h3>
 <p><span class="key">Conway's Law</span> states that systems mirror the communication structure of the organizations that build them. DDD turns this from a curse into a design tool (the <span class="key">Inverse Conway Maneuver</span>): if you want a clean service boundary, you give one team full ownership of one bounded context, end to end. Because the team shares a ubiquitous language and a single model, the cognitive load stays bounded and they can evolve their service independently. A bounded context that spans two teams will accumulate coordination overhead and erode; two contexts crammed into one team's service will entangle. This is precisely the decomposition logic behind <a href="43 Microservices and Service Mesh.htm">Microservices &amp; Service Mesh</a>, and it is the lens to apply when reading <a href="67 Architectural Styles and How to Choose.htm">Architectural Styles &amp; How to Choose</a> &mdash; the choice between monolith, modular monolith, and microservices is really a choice about how many contexts share a deployable.</p>
 
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>A modular monolith keeps bounded contexts as in-process modules with enforced boundaries &mdash; you get the model clarity of DDD without the operational tax of a distributed system. Split a module into its own service only when its scaling, deployment cadence, or team-ownership needs genuinely diverge. "One context = one module" is cheap; "one context = one service" buys independence at the cost of network calls, distributed transactions, and operational surface.</div>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>A modular monolith keeps bounded contexts as in-process modules with enforced boundaries &mdash; you get the model clarity of DDD without the operational cost of a distributed system. Split a module into its own service only when its scaling, deployment cadence, or team-ownership needs genuinely diverge. "One context = one module" is cheap; "one context = one service" buys independence at the cost of network calls, distributed transactions, and operational surface.</div>
 
 <h2 id="tactical">Tactical DDD: the building blocks</h2>
 <p>Inside a single bounded context, tactical patterns shape the model:</p>
@@ -230,10 +230,7 @@ orderRepository.save(order);        // single atomic write</code></pre>
 <li>"Your org has three teams but you've proposed eight microservices. How will Conway's Law fight you here?"</li>
 </ul>
 
-<div class="navfoot">
-<a href="69 Choosing a Message Broker.htm">&lsaquo; Prev: Choosing a Message Broker</a>
-<a class="nx" href="63 Principal-Level Self-Assessment and Index.htm">Next: Principal Self-Assessment &amp; Index &rsaquo;</a>
-</div>
+<div class="navfoot"><a href="69 Choosing a Message Broker.htm">&lsaquo; Prev: Choosing a Message Broker</a><a class="nx" href="71 Designing a Recommendation System.htm">Next: Designing a Recommendation System &rsaquo;</a></div>
 </div>
 </div>
 </div>

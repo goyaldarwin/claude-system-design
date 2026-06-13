@@ -106,12 +106,12 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part C: Modern Architecture &nbsp;&rsaquo;&nbsp; Event-Driven Architecture</div>
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; Event-Driven Architecture</div>
 
 <h1>Event-Driven Architecture</h1>
 <p class="sub">Designing systems around the things that happened &mdash; and the discipline required to keep an asynchronous, eventually-consistent fabric from collapsing into an undebuggable mess.</p>
@@ -191,7 +191,7 @@
 <tr><td><span class="key">Event sourcing</span></td><td>The event <em>is</em> the system of record. State is the fold over the event log.</td><td>Rebuilds state by replaying events; projects to read models (CQRS).</td><td>Perfect audit/time-travel and replay, at the cost of schema-evolution pain, snapshotting, and query complexity.</td></tr>
 </table>
 <p><span class="key">Event-carried state transfer</span> is the default for most service-to-service integration: it removes the runtime callback, which is precisely the coupling you adopted EDA to escape. <span class="key">Event sourcing</span> is a much bigger commitment &mdash; the log of events is the truth, and current state is a derived projection. It shines for auditability (finance, see <a href="59 Designing a Payment System.htm">Designing a Payment System</a>) and for systems that need to reconstruct historical state, but it imposes real costs: you can never "just edit a row," replaying years of events requires <span class="key">snapshots</span>, and changing an event&rsquo;s meaning retroactively is genuinely hard.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>Event sourcing is frequently cargo-culted. If your team does not need a full audit log or temporal queries, you are paying its tax (eventual consistency between write and read models, upcasting old events, snapshot management) for benefits you will not use. Reach for event-carried state transfer first; adopt full event sourcing only where the audit log <em>is</em> the product requirement.</div>
+<div class="callout warn"><span class="lbl">Pitfall</span>Event sourcing is frequently cargo-culted. If your team does not need a full audit log or temporal queries, you are paying its cost (eventual consistency between write and read models, upcasting old events, snapshot management) for benefits you will not use. Reach for event-carried state transfer first; adopt full event sourcing only where the audit log <em>is</em> the product requirement.</div>
 
 <h2 id="dualwrite">Delivery guarantees and the dual-write problem</h2>
 <p>Every EDA must answer: what delivery guarantee does the broker give, and does my application preserve it end-to-end?</p>
@@ -268,7 +268,7 @@ COMMIT;
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (6).png" alt="Event sourcing pattern" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Comparison of normal CRUD system vs Event Sourcing design with event store, event log, and rebuilt views. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 </div>
 <div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Event bus / routing</td><td>EventBridge</td><td>Eventarc / Pub/Sub</td><td>Event Grid</td></tr><tr><td>Serverless event handler</td><td>Lambda</td><td>Cloud Functions</td><td>Azure Functions</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="44 API Design REST gRPC GraphQL.htm">&lsaquo; Prev: API Design</a><a class="nx" href="46 Containers Kubernetes and Serverless.htm">Next: Containers, Kubernetes and Serverless &rsaquo;</a></div>
+<div class="navfoot"><a href="44 API Design REST gRPC GraphQL.htm">&lsaquo; Prev: API Design REST gRPC GraphQL</a><a class="nx" href="46 Containers Kubernetes and Serverless.htm">Next: Containers Kubernetes and Serverless &rsaquo;</a></div>
 </div>
 </div>
 </div>

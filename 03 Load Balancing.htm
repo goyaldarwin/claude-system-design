@@ -104,7 +104,7 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
@@ -223,7 +223,7 @@
 
 <h3>Client-side LB and the service-mesh sidecar</h3>
 <p>The modern internal alternative removes the centralized middlebox entirely. In <strong>client-side load balancing</strong> the caller gets the full backend list (from service discovery) and runs the algorithm itself &mdash; no extra network hop, no shared bottleneck, and per-call decisions with full knowledge. gRPC and Finagle ship this natively. The downside is fat clients: every language needs the logic, and policy changes require redeploying callers.</p>
-<p>A <strong>service mesh</strong> (Istio/Linkerd) resolves that by moving the logic into a per-pod <em>sidecar proxy</em> (Envoy): the application makes a plain localhost call, and the sidecar does discovery, P2C balancing, mTLS, retries, circuit breaking, and outlier ejection &mdash; driven by a central control plane, so policy changes without app redeploys. You pay a per-hop latency and resource tax (a proxy beside every pod) for uniform, language-agnostic, observable L7 traffic management. This is the dominant pattern for east-west traffic in <a href="46 Containers Kubernetes and Serverless.htm">Kubernetes</a> today.</p>
+<p>A <strong>service mesh</strong> (Istio/Linkerd) resolves that by moving the logic into a per-pod <em>sidecar proxy</em> (Envoy): the application makes a plain localhost call, and the sidecar does discovery, P2C balancing, mTLS, retries, circuit breaking, and outlier ejection &mdash; driven by a central control plane, so policy changes without app redeploys. You pay a per-hop latency and resource cost (a proxy beside every pod) for uniform, language-agnostic, observable L7 traffic management. This is the dominant pattern for east-west traffic in <a href="46 Containers Kubernetes and Serverless.htm">Kubernetes</a> today.</p>
 
 <div class="seealso"><b>See also:</b> <a href="49 Resilience Patterns.htm">Resilience Patterns</a>, <a href="43 Microservices and Service Mesh.htm">Service Mesh</a>, <a href="51 Multi-Region and Disaster Recovery.htm">Multi-Region &amp; DR</a>, <a href="46 Containers Kubernetes and Serverless.htm">Kubernetes</a></div>
 </div>
@@ -247,7 +247,7 @@
 <li>A <span class="key">service registry</span> &mdash; etcd, Consul, ZooKeeper, or your cloud's internal one &mdash; holds the live set of healthy backend IPs.</li>
 <li>When a server boots it <span class="key">registers itself</span> ("I am <code>10.0.3.7:8080</code>, healthy"). The LB <span class="key">watches</span> the registry and updates its backend pool automatically &mdash; within seconds, no human edits a file.</li>
 </ul>
-<div class="box"><b>Why the registry is hard</b> The registry is the source of truth for "who is alive," so it must stay correct and available even when the network is misbehaving &mdash; which is exactly the <a href="01 Why System Design Matters.htm">"no shared truth" tax</a>. That is why registries run on <a href="30 Consensus and Raft.htm">consensus (Raft/ZAB)</a>: a majority must agree on membership. See also <a href="36 Leader Election and Coordination.htm">Leader Election &amp; Coordination</a>.</div>
+<div class="box"><b>Why the registry is hard</b> The registry is the source of truth for "who is alive," so it must stay correct and available even when the network is misbehaving &mdash; which is exactly the <a href="01 Why System Design Matters.htm">"no shared truth" bottleneck</a>. That is why registries run on <a href="30 Consensus and Raft.htm">consensus (Raft/ZAB)</a>: a majority must agree on membership. See also <a href="36 Leader Election and Coordination.htm">Leader Election &amp; Coordination</a>.</div>
 
 <h3>2. A server's hardware dies. What happens?</h3>
 <p>You are right that you cannot simply re-host the app on dead hardware &mdash; the box is gone. The sequence that makes this a <em>non-event</em> is automated:</p>
@@ -295,7 +295,7 @@
 
 <div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Layer-4 / network LB</td><td>Network Load Balancer (NLB)</td><td>Network/Passthrough LB</td><td>Azure Load Balancer</td></tr><tr><td>Layer-7 / application LB</td><td>Application Load Balancer (ALB)</td><td>Cloud Load Balancing (HTTPS)</td><td>Application Gateway</td></tr><tr><td>Global / DNS load balancing</td><td>Route 53</td><td>Cloud Load Balancing (global) / Cloud DNS</td><td>Traffic Manager / Front Door</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
 <div class="mastery">
-<h2>Mastery check</h2>
+<h2>Principal-level mastery check</h2>
 <ul>
 <li>Can you explain the difference between an L4 and an L7 load balancer in terms of <em>what decision is made on what data</em>, and give one concrete case where each is the right choice (e.g. TLS passthrough / non-HTTP vs. content-based routing or per-request fairness over an HTTP/2 connection)?</li>
 <li>Why does pinning a long-lived HTTP/2 or gRPC connection at L4 risk hot-spotting a single backend, and how does L7 (or per-request rebalancing) fix it?</li>

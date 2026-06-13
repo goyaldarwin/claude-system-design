@@ -106,12 +106,12 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part C: Modern Architecture &nbsp;&rsaquo;&nbsp; API Design: REST, gRPC, GraphQL</div>
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; API Design: REST, gRPC, GraphQL</div>
 
 <h1>API Design: REST, gRPC, GraphQL</h1>
 <p class="sub">The contract is the product &mdash; how to model resources, evolve schemas without breaking callers, pick the right protocol, and make retries safe.</p>
@@ -134,7 +134,7 @@
 </div>
 
 <h2 id="why">Why API design is a principal-level concern</h2>
-<p>An API is the most expensive thing your team will ship, because it is the hardest to take back. Internal code can be refactored freely; a published interface is a <span class="key">promise to every caller you do not control</span>. Mobile clients sit in app stores for years. Partner integrations are written once and never touched. A poorly modeled or non-evolvable API becomes a permanent tax: every future change requires coordination across teams, versioned shims, and migration windows that drag for quarters.</p>
+<p>An API is the most expensive thing your team will ship, because it is the hardest to take back. Internal code can be refactored freely; a published interface is a <span class="key">promise to every caller you do not control</span>. Mobile clients sit in app stores for years. Partner integrations are written once and never touched. A poorly modeled or non-evolvable API becomes a permanent cost: every future change requires coordination across teams, versioned shims, and migration windows that drag for quarters.</p>
 <p>The principal-level skill is not knowing REST verbs &mdash; it is designing a contract that can <span class="key">evolve under load without breaking callers</span>, that makes safe retries trivial, and that does not leak your internal data model. Protocol choice (REST vs gRPC vs GraphQL) is downstream of those concerns. This lesson treats them as a toolkit, not a religion.</p>
 <div class="callout note"><span class="lbl">Key insight</span>The three styles are not competitors so much as fits for different boundaries: <span class="key">REST</span> for public/partner edges and resource CRUD, <span class="key">gRPC</span> for high-throughput service-to-service inside the mesh (see <a href="43 Microservices and Service Mesh.htm">Microservices and Service Mesh</a>), and <span class="key">GraphQL</span> for client-facing aggregation across many backends. Large systems run all three at once.</div>
 

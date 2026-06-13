@@ -107,7 +107,7 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
@@ -257,7 +257,7 @@
 <p>For a video platform serving recommendations to the home page: item embeddings and candidate sources are computed nightly in the offline plane and pushed into an HNSW index plus a co-occurrence KV store. Real-time counters (what you've watched this session) stream through Kafka into the online feature store within seconds. On request, an edge service fetches user features, runs the user tower once, hits the ANN index and co-occurrence store to gather ~1,000 candidates, sends them to a ranking model server that scores each with a multi-task network, blends the objective heads into a single score, then a re-ranking service applies diversity, removes already-watched items, injects a small fraction of exploration candidates, and returns ~20 items &mdash; all in well under 100&nbsp;ms. Every impression and engagement is logged back into Kafka, closing the loop. New models ship behind A/B tests with retention and satisfaction guardrails, not just offline NDCG.</p>
 
 <div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed ML training / serving</td><td>SageMaker</td><td>Vertex AI</td><td>Azure Machine Learning</td></tr><tr><td>Vector / ANN search</td><td>OpenSearch (k-NN)</td><td>Vertex AI Vector Search</td><td>Azure AI Search (vectors)</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="mastery" id="mastery"><h2>Mastery check</h2>
+<div class="mastery" id="mastery"><h2>Principal-level mastery check</h2>
 <ul>
 <li>Why can't you simply run your best ranking model over the entire item corpus for every request? Put numbers on it &mdash; cost per item, corpus size, latency budget &mdash; and explain how the funnel resolves the conflict.</li>
 <li>What is a two-tower model, and which systems property of it lets you serve retrieval over a billion items in single-digit milliseconds? What expressiveness does it sacrifice, and which stage recovers it?</li>

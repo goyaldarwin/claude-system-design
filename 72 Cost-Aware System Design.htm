@@ -107,7 +107,7 @@
 <a class="lk active" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
@@ -116,7 +116,7 @@
 
 <h1>Cost-Aware System Design</h1>
 <p class="sub"><em>Treating cost as a first-class design axis &mdash; the trade-offs, models, and instincts that separate a design that works from one that works affordably.</em></p>
-<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">The bottleneck</a> <b>Cost.</b> <span>cost is the tax under all the others — every technique here is also a line on a recurring bill.</span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">The bottleneck</a> <b>Cost.</b> <span>cost is the bottleneck under all the others — every technique here is also a line on a recurring bill.</span></div>
 
 <div class="toc"><h4>In this lesson</h4>
 <ul>
@@ -164,7 +164,7 @@
 <h2 id="egress">Data transfer: the silent killer</h2>
 <p>Egress deserves its own section because it is the cost that hides best. It does not appear as a box on your architecture diagram, it is not provisioned, and you only discover it when the invoice arrives. There are three tiers, and they compound:</p>
 <ol>
-<li><span class="key">Cross-AZ</span> &mdash; traffic between availability zones in the same region is typically billed in <em>both</em> directions. A chatty service that hops zones on every call pays a tax on each hop.</li>
+<li><span class="key">Cross-AZ</span> &mdash; traffic between availability zones in the same region is typically billed in <em>both</em> directions. A chatty service that hops zones on every call pays a cost on each hop.</li>
 <li><span class="key">Cross-region</span> &mdash; replicating data or routing requests between regions is materially more expensive than cross-AZ, and is the dominant hidden cost of going multi-region.</li>
 <li><span class="key">Internet egress</span> &mdash; data leaving the cloud to end users is the most expensive of all, often $0.05&ndash;$0.09/GB at typical tiers. Ingress is almost always free, which is exactly why egress is where the margin is taken.</li>
 </ol>
@@ -224,7 +224,7 @@
 
 <div class="callout note"><span class="lbl">Key insight</span> The cheapest design and the best design are usually not the same design &mdash; but the best design is one whose cost you understood and chose on purpose. The failure mode is not spending money; it is spending money you didn't know you were spending on a property you didn't need.</div>
 
-<div class="mastery" id="mastery"><h2>Mastery check</h2>
+<div class="mastery" id="mastery"><h2>Principal-level mastery check</h2>
 <ul>
 <li>Can you sketch, for a given component (compute, object storage, managed DB, cache), what actually drives its bill &mdash; and name the dimension most teams overlook?</li>
 <li>Why is data egress so often the largest hidden line item, and how would you find and reduce it in an existing architecture?</li>
@@ -236,7 +236,7 @@
 </ul>
 </div>
 
-<div class="navfoot"><a href="71 Designing a Recommendation System.htm">&lsaquo; Prev: Designing a Recommendation System</a><a class="nx" href="63 Principal-Level Self-Assessment and Index.htm">Next: Self-Assessment &amp; Index &rsaquo;</a></div>
+<div class="navfoot"><a href="71 Designing a Recommendation System.htm">&lsaquo; Prev: Designing a Recommendation System</a><a class="nx" href="63 Principal-Level Self-Assessment and Index.htm">Next: Principal-Level Self-Assessment and Index &rsaquo;</a></div>
 
 </div>
 </div>

@@ -106,7 +106,7 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
@@ -313,7 +313,7 @@
 <h3>Distributed rate limiting: why it races and how Redis fixes it</h3>
 <p>The lesson flags the read-then-write race. At principal level you must name the fix precisely. With N rate-limiter nodes hitting a shared Redis, two requests can both <code>GET</code> count=99, both decide "under limit," both <code>SET</code> 100 &mdash; letting 101 through. The naive answers (Redis <code>WATCH</code>/optimistic locking, or a distributed lock) both serialize requests for the same key and add a round trip.</p>
 <div class="box"><b>The production answer: atomic Lua (or INCR)</b>Redis executes a Lua script atomically &mdash; single-threaded, no interleaving. The entire check-and-increment becomes one round trip with no race window. The simplest fixed-window form is even cheaper: <code>INCR key</code> returns the new value atomically, and you <code>EXPIRE key 60</code> only when it was first created. For sliding window log, a Lua script does <code>ZREMRANGEBYSCORE</code> (purge old) + <code>ZCARD</code> (count) + <code>ZADD</code> (insert) in one shot. This is exactly the atomicity the lesson's hashtable-locking section is groping toward &mdash; Lua makes the lock implicit and node-local to Redis.</div>
-<div class="box"><b>Clock skew &amp; the local-vs-global tension</b>Sliding-window math depends on timestamps. If rate-limiter nodes use their own wall clocks, skew corrupts the window &mdash; always source time from Redis (<code>TIME</code> command) or a single authority. A second tension: a centralized Redis is a latency tax and a single point of failure on every request. High-QPS systems (Envoy, Cloudflare) use a two-tier scheme: an in-memory <em>local</em> limiter absorbs most traffic with approximate counts, periodically reconciling with the global store. You trade a small amount of accuracy (a node may briefly allow slightly over its share) for surviving a Redis outage and shedding the per-request round trip &mdash; see <a href="04 Caching.htm">04 Caching</a> on write-back semantics, which the lesson invokes for exactly this latency reason.</div>
+<div class="box"><b>Clock skew &amp; the local-vs-global tension</b>Sliding-window math depends on timestamps. If rate-limiter nodes use their own wall clocks, skew corrupts the window &mdash; always source time from Redis (<code>TIME</code> command) or a single authority. A second tension: a centralized Redis is a latency cost and a single point of failure on every request. High-QPS systems (Envoy, Cloudflare) use a two-tier scheme: an in-memory <em>local</em> limiter absorbs most traffic with approximate counts, periodically reconciling with the global store. You trade a small amount of accuracy (a node may briefly allow slightly over its share) for surviving a Redis outage and shedding the per-request round trip &mdash; see <a href="04 Caching.htm">04 Caching</a> on write-back semantics, which the lesson invokes for exactly this latency reason.</div>
 
 <h3>Where to enforce: gateway vs service</h3>
 <table>
@@ -332,7 +332,7 @@
 </div>
 
 <div class="mastery">
-<h2>Mastery check</h2>
+<h2>Principal-level mastery check</h2>
 <ul>
 <li>Can you place all five algorithms (fixed window, sliding window log, sliding window counter, token bucket, leaky bucket) on a memory-vs-accuracy axis and explain which one a system like Stripe or NGINX actually uses, and why?</li>
 <li>Why does fixed window allow up to twice the configured limit, and can you describe the exact request pattern that exploits the window boundary &mdash; and how the sliding-window-counter interpolation formula defeats it?</li>
@@ -344,7 +344,7 @@
 </ul>
 </div>
 
-<div class="navfoot"><a href="22 Designing Typeahead Suggestion.htm">&lsaquo; Prev: Typeahead Suggestion</a><a class="nx" href="24 Designing Twitter Search.htm">Next: Designing Twitter Search &rsaquo;</a></div>
+<div class="navfoot"><a href="22 Designing Typeahead Suggestion.htm">&lsaquo; Prev: Designing Typeahead Suggestion</a><a class="nx" href="24 Designing Twitter Search.htm">Next: Designing Twitter Search &rsaquo;</a></div>
 </div>
 </div>
 </div>

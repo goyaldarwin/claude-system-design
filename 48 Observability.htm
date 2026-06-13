@@ -106,12 +106,12 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; Observability</div>
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Reliability &amp; Operations &nbsp;&rsaquo;&nbsp; Observability</div>
 
 <h1>Observability</h1>
 <p class="sub"><em>Understanding systems you cannot fully predict: the three pillars, what they cost, and how to alert without drowning your on-call.</em></p>
@@ -123,7 +123,7 @@
 <li><a href="#metrics">Pillar 1: Metrics</a></li>
 <li><a href="#logs">Pillar 2: Logs</a></li>
 <li><a href="#traces">Pillar 3: Traces</a></li>
-<li><a href="#cardinality">The Cardinality Tax</a></li>
+<li><a href="#cardinality">The Cardinality Cost</a></li>
 <li><a href="#correlation">Correlating Across Pillars</a></li>
 <li><a href="#alerting">Alerting That Pages a Human</a></li>
 <li><a href="#otel">OpenTelemetry and the Wire</a></li>
@@ -202,7 +202,7 @@ log.info("checkout_failed", Map.of(
 
 <div class="callout note"><span class="lbl">Key insight</span> The whole point of tracing is debugging the <em>anomalous</em> request, so uniform head sampling defeats the purpose &mdash; it throws away the needles and keeps the hay. Production-grade setups use tail-based sampling (or a hybrid: cheap head sampling to thin the firehose, tail decision for the keep/drop) so that <strong>every error and every p99+ outlier is retained</strong>. This is the single highest-leverage tracing decision and a high-leverage decision.</p></div>
 
-<h2 id="cardinality">The Cardinality Tax</h2>
+<h2 id="cardinality">The Cardinality Cost</h2>
 <p><span class="key">Cardinality</span> is the number of distinct values a dimension can take. It is the dominant cost driver in observability and the source of the most expensive operational mistakes. The killer arithmetic: in a time-series database, every unique label combination is a separate series, and the cost is <strong>multiplicative across labels</strong>.</p>
 <pre><code>http_requests_total{
   route,          //   200 routes
@@ -282,7 +282,7 @@ service:
 </ul>
 
 <div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Metrics & monitoring</td><td>CloudWatch</td><td>Cloud Monitoring</td><td>Azure Monitor</td></tr><tr><td>Distributed tracing</td><td>X-Ray</td><td>Cloud Trace</td><td>Application Insights</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="47 SLI SLO SLA and Error Budgets.htm">&lsaquo; Prev: SLI, SLO, SLA and Error Budgets</a><a class="nx" href="49 Resilience Patterns.htm">Next: Resilience Patterns &rsaquo;</a></div>
+<div class="navfoot"><a href="47 SLI SLO SLA and Error Budgets.htm">&lsaquo; Prev: SLI SLO SLA and Error Budgets</a><a class="nx" href="49 Resilience Patterns.htm">Next: Resilience Patterns &rsaquo;</a></div>
 
 </div>
 </div>

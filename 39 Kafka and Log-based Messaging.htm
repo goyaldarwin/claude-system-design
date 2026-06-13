@@ -106,12 +106,12 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part B: Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Kafka and Log-based Messaging</div>
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Kafka and Log-based Messaging</div>
 
 <h1>Kafka and Log-based Messaging</h1>
 <p class="sub"><em>The distributed commit log as a primitive: how an append-only, partitioned, replicated log replaces queues, becomes the source of truth, and pins down delivery and ordering semantics.</em></p>
@@ -275,7 +275,7 @@ while (true) {
 <div class="callout ok"><span class="lbl">What strong engineers do</span> They reach for a queue (SQS/RabbitMQ) when the workload is "distribute discrete tasks to workers, ack-and-delete, maybe retry with a DLQ" — e.g. a <a href="58 Designing a Distributed Job Scheduler.htm">job scheduler</a> or <a href="57 Designing a Notification System.htm">notification</a> fan-out. They reach for Kafka when the workload is "a durable, replayable stream of events that many independent consumers project into their own views" — analytics, CDC, event sourcing. They never claim Kafka "replaces all queues"; they name the per-message routing/priority/DLQ features Kafka lacks.</div>
 
 <h2 id="kraft">KRaft: removing ZooKeeper</h2>
-<p>For most of its life Kafka depended on <span class="key">ZooKeeper</span> for cluster metadata: broker membership, topic/partition configs, the controller election, and ISR/leadership state. ZooKeeper was an operational tax (a separate cluster to run, tune, and secure) and a scalability ceiling — the controller had to load all metadata from ZK, capping practical partition counts around the low hundreds of thousands.</p>
+<p>For most of its life Kafka depended on <span class="key">ZooKeeper</span> for cluster metadata: broker membership, topic/partition configs, the controller election, and ISR/leadership state. ZooKeeper was an operational cost (a separate cluster to run, tune, and secure) and a scalability ceiling — the controller had to load all metadata from ZK, capping practical partition counts around the low hundreds of thousands.</p>
 
 <p><span class="key">KRaft</span> (KIP-500, production-ready in 3.3, ZK removed entirely in 4.0) replaces ZooKeeper with a built-in <a href="30 Consensus and Raft.htm">Raft</a> consensus quorum among dedicated controller nodes. Cluster metadata is itself stored as an internal Kafka log (the <code>__cluster_metadata</code> topic) that the controller quorum replicates via Raft. Brokers become followers of that metadata log rather than polling ZooKeeper.</p>
 <ul>
@@ -305,7 +305,7 @@ while (true) {
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (2).png" alt="Zero-copy optimization in log-based messaging" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Compares Kafka reads with and without zero-copy, showing buffer copies through OS/socket/NIC vs direct disk-to-NIC path. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 </div>
 <div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed Kafka</td><td>MSK (Managed Streaming for Kafka)</td><td>(Kafka via Confluent / self-managed)</td><td>Event Hubs (Kafka-compatible)</td></tr><tr><td>Cloud-native log stream</td><td>Kinesis Data Streams</td><td>Pub/Sub</td><td>Event Hubs</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="38 Storage Engines LSM vs B-Tree.htm">&lsaquo; Prev: Storage Engines: LSM vs B-Tree</a><a class="nx" href="40 Stream Processing and CDC.htm">Next: Stream Processing and CDC &rsaquo;</a></div>
+<div class="navfoot"><a href="38 Storage Engines LSM vs B-Tree.htm">&lsaquo; Prev: Storage Engines LSM vs B-Tree</a><a class="nx" href="40 Stream Processing and CDC.htm">Next: Stream Processing and CDC &rsaquo;</a></div>
 
 </div>
 </div>

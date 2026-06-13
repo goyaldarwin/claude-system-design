@@ -106,16 +106,16 @@
 <a class="lk" data-file="72 Cost-Aware System Design.htm" href="72 Cost-Aware System Design.htm"><span class="n">72</span>Cost-Aware System Design</a>
 </div>
 <div class="grp"><h5>Self-assessment</h5>
-<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; Multi-Region and Disaster Recovery</div>
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Reliability &amp; Operations &nbsp;&rsaquo;&nbsp; Multi-Region and Disaster Recovery</div>
 
 <h1>Multi-Region and Disaster Recovery</h1>
 <p class="sub">Surviving the loss of an entire region &mdash; and proving you can &mdash; without quietly buying yourself a split-brain or a six-figure replication bill.</p>
-<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">The bottleneck</a> <b>Partial failure &amp; latency.</b> <span>surviving a whole region, paid in a consistency/latency tax and a cost multiplier.</span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">The bottleneck</a> <b>Partial failure &amp; latency.</b> <span>surviving a whole region, paid in a consistency/latency price and a cost multiplier.</span></div>
 
 <div class="toc">
 <h4>In this lesson</h4>
@@ -123,7 +123,7 @@
 <li><a href="#why">Why a region disappears</a></li>
 <li><a href="#rporto">RPO and RTO drive everything</a></li>
 <li><a href="#topologies">Active-passive vs active-active</a></li>
-<li><a href="#replication">Cross-region replication and the consistency tax</a></li>
+<li><a href="#replication">Cross-region replication and the consistency cost</a></li>
 <li><a href="#routing">Global routing: GeoDNS and anycast</a></li>
 <li><a href="#strategies">The four DR strategies</a></li>
 <li><a href="#failover">Failover orchestration and split-brain</a></li>
@@ -168,7 +168,7 @@
 
 <div class="callout warn"><span class="lbl">Pitfall</span>&ldquo;Active-active&rdquo; with naive bidirectional async replication on a normal RDBMS is a trap. Two regions accept conflicting writes to the same row, replication carries both, and you silently corrupt data or deadlock. Active-active demands a conflict strategy <em>by design</em>, not bolted on. If you cannot name yours, you have active-passive with extra steps.</div>
 
-<h2 id="replication">Cross-region replication and the consistency tax</h2>
+<h2 id="replication">Cross-region replication and the consistency cost</h2>
 <p>The unavoidable physics: a packet between, say, us-east and eu-west takes ~70&ndash;90&nbsp;ms one way. <span class="key">Synchronous</span> replication across that link means every write waits a full round trip for the remote ack &mdash; 150+&nbsp;ms added to <em>every</em> commit. <span class="key">Asynchronous</span> replication acks locally and ships the change in the background, keeping writes fast but creating <span class="key">replication lag</span> &mdash; the window of data you lose if the primary dies mid-flight. That window <em>is</em> your RPO.</p>
 
 <p>This is exactly <a href="31 Consistency Models and PACELC.htm">PACELC</a> stated operationally: <strong>P</strong>artition &rarr; choose <strong>A</strong>vailability or <strong>C</strong>onsistency; <strong>E</strong>lse (normal operation) &rarr; choose <strong>L</strong>atency or <strong>C</strong>onsistency. Cross-region replication forces the &ldquo;E&rdquo; clause into your face on the steady-state path, not just during failures.</p>
@@ -253,7 +253,7 @@
 <div class="callout warn"><span class="lbl">Pitfall</span>Beware the shared global dependency that quietly defeats your whole design: one DNS provider, one IAM control plane, one shared message bus, one global config service. If a single component spans all regions and it fails, your beautiful multi-region topology fails as one unit. Map every global singleton and ask &ldquo;what is its blast radius?&rdquo;</div>
 
 <h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They start from RPO/RTO numbers tied to business impact and let those derive the topology &mdash; never reaching for &ldquo;active-active everywhere&rdquo; reflexively. They immediately name the cross-region latency tax and which write paths can or cannot pay it. They proactively raise split-brain and propose a third-region arbiter plus fencing rather than waiting to be prompted. They distinguish physical disasters (region loss) from logical ones (bad deploys, data corruption) and note that replication does not protect against the latter. And they treat failback and DR testing as first-class deliverables, not afterthoughts.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They start from RPO/RTO numbers tied to business impact and let those derive the topology &mdash; never reaching for &ldquo;active-active everywhere&rdquo; reflexively. They immediately name the cross-region latency cost and which write paths can or cannot pay it. They proactively raise split-brain and propose a third-region arbiter plus fencing rather than waiting to be prompted. They distinguish physical disasters (region loss) from logical ones (bad deploys, data corruption) and note that replication does not protect against the latter. And they treat failback and DR testing as first-class deliverables, not afterthoughts.</div>
 <ul>
 <li>Your standby promotes itself during a network partition while the primary is actually alive. Walk me through exactly how your design prevents the resulting split-brain &mdash; and how it reconciles state when the partition heals.</li>
 <li>Marketing pushes a config that corrupts a key table; it replicates to every region in 200&nbsp;ms. Your hot standby is now corrupted too. What in your architecture saves you, and what is your real RPO for <em>logical</em> disasters?</li>
