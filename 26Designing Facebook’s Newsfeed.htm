@@ -234,6 +234,75 @@ Since we have a huge number of new posts every day and our read load is extremel
 <p><strong>b.	Sharding feed data</strong><br>
 For feed data, which is being stored in memory, we can partition it based on UserID.&nbsp;We can try storing all the data of a user on one server. when storing, we can pass the UserID to our hash function that will map the user to a cache server where we will store the user's feed objects. Also, for any given user, since we don't expect to store more than 500 FeedItmeIDs, we wouldn't run into a scenario where feed data for a user doesn't fit on a single server. To get the feed of a user, we would always have to query only one server. For future growth and replication, we must use <a href="12 Consistent Hashing.htm" target="_blank">Consistent Hashing</a>.</p>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The basic answer above stops at "rank by signals." The real Newsfeed is a multi-stage retrieval-and-ranking system serving ~2B daily users, where every architectural choice is a fight between <strong>read latency</strong>, <strong>write amplification</strong>, and <strong>ranking freshness</strong>. The hard parts are all in how you reconcile those three.</p>
+
+<h3>1. Chronological vs ML-ranked, and the ranking pipeline</h3>
+<p>Facebook abandoned pure chronological feed around 2013 because chronological feed has a brutal failure mode: a single high-frequency poster (a page posting 40x/day) drowns out the friend who posts once a week, and engagement collapses. ML ranking solves relevance but introduces a <em>candidate explosion</em> problem — you cannot score the 10,000+ eligible stories for an active user against a heavy model. So the pipeline is staged:</p>
+<div class="box"><b>The funnel (each stage cheaper-per-item than the next)</b>
+<strong>Inventory</strong> (everything eligible: friends' posts, pages, groups, ads) &rarr; <strong>Retrieval / candidate generation</strong> (cheap heuristics + cached fan-out lists cut to ~hundreds) &rarr; <strong>Lightweight (L1) scoring</strong> (a small model ranks candidates, keeps top ~500) &rarr; <strong>Heavy (L2) scoring</strong> (a deep multi-task model predicts P(like), P(comment), P(share), P(hide), P(meaningful-interaction) per story) &rarr; <strong>Re-ranking / business rules</strong> (diversity, ad insertion, "you've seen this," integrity filters).</div>
+<p>The final score is roughly <code>&Sigma; weight_i &times; P(action_i)</code> — a weighted combination of predicted-action probabilities, where Facebook publicly re-weighted toward "Meaningful Social Interactions" in 2018 (comments/reshares worth more than passive likes). Two principal-level consequences: (a) the heavy model only ever sees a few hundred candidates, so <em>retrieval quality caps ranking quality</em> — a great story that never gets retrieved can never be shown; (b) latency budget is ~tens of ms for the whole funnel, which is why scoring is staged rather than scoring everything with the big model.</p>
+
+<h3>2. Fan-out strategies and the hybrid for high-degree nodes</h3>
+<p>This is the canonical push-vs-pull decision, identical in shape to <a href="20 Designing Twitter.htm">Twitter's</a> timeline problem.</p>
+<table>
+<tr><th>Strategy</th><th>Write cost</th><th>Read cost</th><th>Best for</th><th>Failure mode</th></tr>
+<tr><td><strong>Fan-out-on-write (push)</strong></td><td>High — one write per follower into each follower's feed cache</td><td>Very low — feed is precomputed, single read</td><td>Normal users (most accounts)</td><td>Celebrity with 100M followers &rarr; 100M writes per post; "hot" write storms</td></tr>
+<tr><td><strong>Fan-out-on-read (pull)</strong></td><td>Low — just store the post once</td><td>High — gather + merge + rank N followees' posts at read time</td><td>Celebrities / very high-degree producers</td><td>Active user following many people &rarr; expensive scatter-gather on every refresh</td></tr>
+<tr><td><strong>Hybrid</strong></td><td>Mixed</td><td>Mixed</td><td>Production reality</td><td>Complexity: merge logic + maintaining the celebrity list</td></tr>
+</table>
+<div class="box"><b>The hybrid that actually ships</b>Push for the long tail; <strong>pull for high-degree nodes</strong>. When a user refreshes, their feed cache holds precomputed stories from normal followees, and the system <em>pull-merges</em> recent posts from the handful of celebrities/pages they follow at read time. This bounds write amplification (you never fan a celebrity post out to 100M caches) while keeping reads cheap for the 99% case. The threshold ("follower count > X" flips a producer to pull) is itself a tuned parameter.</div>
+
+<h3>3. Feed generation timing: pull / push / hybrid</h3>
+<p>Separate from <em>who</em> fans out is <em>when</em> the feed is materialized:</p>
+<p><strong>Push (precompute on write):</strong> feed is ready before the user asks &mdash; lowest read latency, but wastes compute for inactive users (you fanned out to someone who hasn't opened the app in a month). <strong>Pull (compute on read):</strong> generate feed when the user opens the app &mdash; no wasted work, freshest possible, but a cold read is slow. <strong>Hybrid (the production answer):</strong> precompute and cache feeds for <em>active</em> users (recent login), and lazily pull-generate for dormant users. This is why a returning-after-weeks user sees a brief loading spinner the first refresh.</p>
+<div class="box"><b>Freshness vs precompute tension</b>If you precompute too eagerly, ranking signals (likes accumulating on a story over the last 5 minutes) are stale by read time. Production systems precompute the <em>candidate list</em> but defer or refresh the <em>scoring</em> at read time so the model sees current engagement counts. Pure push gives stale ranks; pure pull gives latency. The hybrid splits the difference: cheap-to-cache structure, fresh-to-compute scores.</p></div>
+
+<h3>4. Aggregation &amp; dedup of stories</h3>
+<p>Raw ranked items are not what users see. Two transforms happen post-ranking. <strong>Aggregation:</strong> "Alice and 6 others commented on this," or bundling 12 photos from one album into a single story instead of 12 feed entries &mdash; this protects feed diversity from a single chatty event. <strong>Dedup:</strong> the same external link or reshared post can arrive via multiple paths (a friend shared it, a group posted it, a page you follow posted it); the feed must collapse these to one entry and avoid re-showing a story the user already scrolled past. Dedup needs a per-user "seen" set (often a Bloom filter or bounded recent-seen cache keyed by story ID) consulted during re-ranking &mdash; cheap membership test, tolerable false-positive rate.</p>
+
+<h3>5. Caching the generated feed</h3>
+<p>Per the base design, each user's feed is a bounded list (~500 FeedItemIDs) of <em>IDs only</em>, kept in an in-memory store (Redis/Memcached-class) and sharded by UserID via <a href="12 Consistent Hashing.htm">consistent hashing</a> so one user's feed lives on one server &mdash; a single-key read. Storing IDs (not full posts) keeps the feed cache small; post bodies and media are hydrated separately from the post store / CDN. Cache the rendered top-of-feed for active users; evict feeds for long-dormant users (they'll be lazily regenerated). The bounded size also means you never need to materialize an unbounded history &mdash; older items fall off and are reconstructed on demand if the user scrolls far.</p>
+
+<h3>6. Cold-start: the new-user problem</h3>
+<div class="box"><b>Why cold-start breaks the funnel</b>A brand-new user has no friends, no engagement history, and no fan-out lists &mdash; the retrieval stage returns near-empty, and the ML model has zero personalization signal. An empty feed on day one is a churn event.</div>
+<p>Mitigations: seed the feed with <strong>globally popular / trending content</strong> and <strong>population-level priors</strong> (what users in the same region/cohort engage with), aggressively surface <strong>friend/page suggestions</strong> (PYMK) to bootstrap the social graph, and weight <strong>onboarding-declared interests</strong> heavily until behavioral signal accumulates. The same pattern recurs for cold <em>items</em> (a brand-new post has no engagement features) &mdash; the model leans on producer reputation and content-type priors until real engagement arrives. This is an explore/exploit problem: you must show under-evaluated content to learn its quality, at the cost of short-term ranking precision.</p>
+
+<div class="seealso"><b>Go deeper:</b> <a href="20 Designing Twitter.htm">20 Twitter</a>, <a href="57 Designing a Notification System.htm">57 Notifications</a>, <a href="41 Batch and Big Data Processing.htm">41 Batch</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you state when fan-out-on-write beats fan-out-on-read, and explain precisely why pure push collapses for a 100M-follower celebrity &mdash; then describe the threshold-based hybrid that production systems actually use?</li>
+<li>Why does the <em>celebrity (high-degree node) problem</em> recur in nearly every social-feed design, and what is the underlying invariant that forces a hybrid rather than a single clean strategy?</li>
+<li>Can you walk the ranking pipeline end-to-end (inventory &rarr; retrieval &rarr; L1 lightweight scoring &rarr; L2 heavy scoring &rarr; re-ranking) and explain why retrieval quality, not the heavy model, ultimately caps feed quality?</li>
+<li>Why does precomputing the feed too eagerly produce <em>stale ranks</em>, and how does deferring scoring to read time resolve the freshness-vs-precompute tension?</li>
+<li>Can you explain why the new-user cold-start returns a near-empty feed, and name three signals that bootstrap it before behavioral data exists?</li>
+<li>Why do aggregation and dedup happen <em>after</em> ranking rather than before, and what data structure lets you cheaply suppress already-seen stories per user?</li>
+<li>Why does the feed cache store only FeedItemIDs (not full posts), and how does that choice interact with the 500-item bound and per-user UserID sharding?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="25 Designing a Web Crawler.htm">&lsaquo; Prev: Web Crawler</a><a class="nx" href="27 Designing Yelp or Nearby Friends.htm">Next: Designing Yelp / Nearby Friends &rsaquo;</a></div>
 </div>
 </div>

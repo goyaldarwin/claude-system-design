@@ -233,6 +233,84 @@ A successful insertion returns the URL through which the paste can be accessed, 
 <div class="sechead">12. Security and Permissions</div>
 <p>Please see <a href="15 Designing a URL Shortening service like TinyURL.htm" target="_blank">Designing a URL Shortening service</a>.</p>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The original chapter says "store the contents of the paste and the generated key in the database" and later hedges with "block storage or an SQL-like database." At principal level this hand-wave is the most important decision in the whole design. Pastebin is fundamentally a <em>small-metadata, large-immutable-blob, read-heavy</em> system, and the architecture that wins is the one that splits those two concerns onto storage tiers with completely different cost and access profiles.</p>
+
+<h3>The metadata/blob split is the core decision</h3>
+<p>There are two logically distinct objects per paste: a tiny <strong>metadata record</strong> (key, owner, expiry, view count, content-type, ~100 bytes) and the <strong>paste body</strong> (10 KB average, up to 10 MB). Storing the body inline in the metadata row is the trap most candidates fall into.</p>
+
+<div class="box"><b>Why blob-in-S3, not blob-in-DB</b>
+A 10 MB BLOB inside a MySQL/Postgres row bloats the row, evicts hot pages from the buffer pool, blows up replication payloads, and makes every <code>SELECT *</code> accidentally fetch megabytes. Object storage (S3, GCS) is purpose-built for this: ~$0.023/GB-month vs. provisioned SSD for a primary DB at 5-10x that, eleven-nines durability via erasure coding, and a CDN can front it directly. The metadata DB stays small enough to live entirely in RAM, so key lookups are sub-millisecond.</div>
+
+<table>
+<tr><th>Concern</th><th>Metadata DB (MySQL / Cassandra / Dynamo)</th><th>Blob store (S3 / GCS)</th></tr>
+<tr><td>Stores</td><td>key, owner, expiry, content-type, view count, S3 object pointer</td><td>raw paste bytes (immutable)</td></tr>
+<tr><td>Row/object size</td><td>~100 bytes — fits in RAM at billions of rows</td><td>10 KB avg, up to 10 MB</td></tr>
+<tr><td>Access pattern</td><td>point lookup by key, write-once + counter updates</td><td>write-once, read-many, never mutated</td></tr>
+<tr><td>Cost driver</td><td>IOPS / RAM</td><td>GB-month + egress (offload to CDN)</td></tr>
+<tr><td>Scaling unit</td><td>shard by key</td><td>effectively infinite; partition by key prefix</td></tr>
+</table>
+
+<p>The read path becomes: lookup metadata by key &rarr; check expiry &rarr; get S3 object (or serve from cache/CDN) &rarr; increment view counter asynchronously. The metadata lookup and the blob fetch scale independently, which is exactly the "scale them individually" the chapter alludes to but never makes concrete.</p>
+
+<h3>Key generation: reuse the URL-shortener KGS verbatim</h3>
+<p>The Key Generation Service here is identical to the shortener's — pre-generate base64 keys offline into a key-DB, hand out blocks, move issued keys to a used table. The principal-level points the chapter glosses:</p>
+<div class="box"><b>Why pre-generation beats generate-and-retry</b>
+Generate-on-write means every insert risks a duplicate-key collision and a retry round-trip; under load the collision probability climbs as the keyspace fills. Pre-generation makes key issuance a contention-free <code>O(1)</code> dequeue with zero collisions by construction. The cost is a KGS to operate — solved with a hot standby and per-app-server key caching (losing a cache of keys is harmless against 68.7B total). See the shortener lesson for the full KGS rationale.</div>
+<p>One Pastebin-specific wrinkle: custom aliases share the same keyspace, so a write that supplies a custom URL must do a conditional insert (<code>INSERT ... IF NOT EXISTS</code> / Dynamo conditional write) to atomically reject duplicates — you cannot pull those from the KGS.</p>
+
+<h3>Expiration &amp; cleanup at scale</h3>
+<p>"See the URL shortener" undersells this. Eagerly scanning billions of rows for expired pastes is a non-starter. The patterns that actually work:</p>
+<table>
+<tr><th>Strategy</th><th>How it works</th><th>Trade-off</th></tr>
+<tr><td><strong>Lazy / on-read</strong></td><td>Check <code>expiry &lt; now</code> at read time; if expired return 404 and enqueue for deletion</td><td>Expired-but-unread pastes linger, consuming storage indefinitely</td></tr>
+<tr><td><strong>TTL-native store</strong></td><td>DynamoDB TTL or Cassandra per-row TTL auto-evicts metadata; S3 lifecycle policy expires objects by tag/prefix</td><td>DynamoDB TTL deletes within ~48h, not exactly at expiry — must still gate reads on the stored expiry</td></tr>
+<tr><td><strong>Sweeper job</strong></td><td>Low-priority batch scans a secondary index on expiry, deletes metadata + issues S3 deletes</td><td>Must throttle to avoid competing with live traffic; partition the scan</td></tr>
+</table>
+<div class="box"><b>The decoupling that matters</b>
+Delete the metadata row first (makes the paste instantly unreachable and frees the keyspace), then delete the S3 object asynchronously via a lifecycle rule or queue. Never block a user delete on the blob delete. Reclaimed keys can optionally be recycled back into the KGS, though with a 68.7B keyspace it is rarely worth the complexity.</div>
+
+<h3>Read-heavy caching</h3>
+<p>The 5:1 read:write ratio plus the 80/20 hot-paste rule (the chapter's ~10 GB working set) makes this cache-friendly. Because paste bodies are <em>immutable</em>, caching is trivially correct — there is no invalidation problem, only eviction. Cache full <code>{metadata + body}</code> entries in Redis/Memcached keyed by paste key; for large or popular pastes, push the body to a CDN and let edge nodes absorb the read fan-out entirely, so origin sees only cache misses and writes.</p>
+
+<h3>Data model &amp; size limits — why they exist</h3>
+<p>The 10 MB body cap and the custom-URL length cap are not arbitrary. The body cap bounds worst-case egress, blob cost, and memory if anything ever buffers a paste in app RAM; it also caps abuse (no using Pastebin as free file hosting). The custom-alias length cap keeps the keyspace and index uniform so custom and generated keys coexist in one table without a second lookup path.</p>
+
+<div class="seealso"><b>Go deeper:</b> <a href="65 Object Storage and CDN.htm">65 Object Storage &amp; CDN</a>, <a href="15 Designing a URL Shortening service like TinyURL.htm">15 URL Shortener</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li><strong>Can you</strong> articulate why the paste body belongs in S3 while only a ~100-byte pointer-and-metadata row stays in the database — and quantify what goes wrong (buffer-pool eviction, replication bloat, cost) if you store a 10 MB body inline in the DB instead?</li>
+<li><strong>Why does</strong> pre-generating keys with a KGS beat generating a random key on each write and retrying on collision, and what is the failure mode of the KGS plus how do you mitigate it?</li>
+<li><strong>Can you</strong> explain how a custom alias must be inserted differently from a KGS-issued key (conditional/atomic insert) and why it cannot simply be drawn from the key-DB?</li>
+<li><strong>Can you</strong> compare lazy on-read expiry, native TTL (DynamoDB/Cassandra + S3 lifecycle), and a sweeper job — and explain why you delete the metadata row before the blob, never the reverse?</li>
+<li><strong>Why does</strong> caching work so cleanly for Pastebin compared to a mutable system — i.e., why immutability of paste bodies eliminates the cache-invalidation problem and leaves only eviction?</li>
+<li><strong>Can you</strong> name three concrete ways Pastebin differs from a URL shortener despite sharing the KGS — the large immutable blob tier, the body/alias size limits, and the read path that fetches content rather than redirecting?</li>
+<li><strong>Can you</strong> trace the full read path (key lookup &rarr; expiry check &rarr; cache/CDN &rarr; S3 origin &rarr; async view-count increment) and identify which step the CDN absorbs under the 80/20 hot-paste load?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="15 Designing a URL Shortening service like TinyURL.htm">&lsaquo; Prev: URL Shortener</a><a class="nx" href="17 Designing Instagram.htm">Next: Designing Instagram &rsaquo;</a></div>
 </div>
 </div>

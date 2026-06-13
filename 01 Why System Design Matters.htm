@@ -151,6 +151,22 @@
 <p>Work through the building blocks first until the vocabulary feels natural, then let your interests pull you toward theory, data systems, or the worked design problems. When you read a design problem, try to sketch your own architecture before reading the walkthrough &mdash; the gap between your version and the one presented is where the real learning happens. Keep the four threads &mdash; scale, trade-offs, failure, cost &mdash; in mind on every page, because mastering them is the whole point.</p>
 <p>Next, head to <a href="02 System Design Basics.htm">System Design Basics</a> to ground the core vocabulary, and when you are ready to put it all together on a real problem, work through the step-by-step design framework in <a href="14 A Framework for Approaching System Design.htm">the Design Framework</a>.</p>
 
+<style>
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ol{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+<div class="mastery">
+<h2>How to use this course</h2>
+<ol>
+<li><strong>Read the fundamentals end to end first.</strong> Lessons 02&ndash;14 (load balancing, caching, partitioning, CAP, consistent hashing) are the vocabulary every later page assumes. Don&rsquo;t skip ahead until these feel natural &mdash; the theory and design lessons will be opaque without them.</li>
+<li><strong>Layer in the theory before the deep dives.</strong> Distributed-systems theory (30&ndash;36) explains <em>why</em> the building blocks behave as they do under failure. Read it before the data-intensive deep dives (37&ndash;42, 64), which lean on consensus, consistency models, and ordering.</li>
+<li><strong>Attempt each design problem before reading the walkthrough.</strong> When you reach a problem (15&ndash;29 or the advanced set 53&ndash;62, 66), spend 20&ndash;30 minutes sketching your own architecture &mdash; estimate scale, pick components, name the bottlenecks &mdash; <em>then</em> compare against the presented design. The gap between your version and theirs is where the real learning happens.</li>
+<li><strong>Use the Mastery checks to self-test.</strong> Most lessons end with a Mastery block of principal-level questions. Answer them out loud as if explaining to a colleague in a design review; if you can&rsquo;t justify a trade-off cold, that&rsquo;s your signal to revisit the page.</li>
+<li><strong>Keep the four threads in mind on every page.</strong> Scale, trade-offs, failure, and cost run through everything. For each design choice, ask what it costs elsewhere &mdash; naming the trade-off is half the skill.</li>
+<li><strong>Revisit, don&rsquo;t cram.</strong> Systems judgment compounds. Come back to the fundamentals after working a few design problems; concepts that felt abstract the first time become instinct, and you&rsquo;ll read the same page with new eyes.</li>
+</ol>
+</div>
 <div class="navfoot"><a href="index.html">&lsaquo; Prev: Course index</a><a class="nx" href="02 System Design Basics.htm">Next: System Design Basics &rsaquo;</a></div>
 </div>
 </div>

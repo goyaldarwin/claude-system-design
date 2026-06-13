@@ -249,6 +249,80 @@
 <p><strong><em>How about if we combine the above two schemes?</em></strong></p>
 <p><strong>Hybrid:</strong> A right approach could be to do both per-IP and per-user rate limiting, as they both have weaknesses when implemented alone. Though, this will result in more cache entries with more details per entry hence requiring more memory and storage.</p>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The lesson presents fixed window, sliding window, and sliding window with counters. In a real design discussion you should be able to place all five canonical algorithms on a memory/accuracy/burst spectrum and explain why one production system (Stripe, GitHub, Cloudflare, Envoy) picks each. The choice is rarely about correctness in isolation &mdash; it is about how the algorithm behaves at the window boundary, under concurrency, and under bursty traffic.</p>
+
+<h3>The five algorithms on one spectrum</h3>
+<table>
+<tr><th>Algorithm</th><th>Memory / key</th><th>Accuracy at boundary</th><th>Burst behavior</th><th>Where it shows up</th></tr>
+<tr><td><b>Fixed window</b></td><td>O(1) &mdash; one counter + timestamp (~12 B)</td><td>Worst: allows up to 2&times; limit across the boundary</td><td>Permits a full burst at window start</td><td>Naive API gateways, simple <code>INCR</code> + <code>EXPIRE</code> in Redis</td></tr>
+<tr><td><b>Sliding window log</b></td><td>O(N) &mdash; one timestamp per request (12 KB+ for 500/hr)</td><td>Exact &mdash; ground truth</td><td>Perfectly smooth, no edge artifacts</td><td>Rarely used at scale; correct but memory-hostile</td></tr>
+<tr><td><b>Sliding window counter</b></td><td>O(buckets) &mdash; ~1.6 KB for 60 minute-buckets</td><td>Approximate (weighted interpolation of prev + current bucket)</td><td>Smoothed; slight over/under at boundary</td><td>Cloudflare's published approach; GitHub-style limits</td></tr>
+<tr><td><b>Token bucket</b></td><td>O(1) &mdash; token count + last-refill timestamp</td><td>N/A (rate-based, not window-based)</td><td><b>Allows controlled bursts</b> up to bucket capacity</td><td>AWS API Gateway, Stripe, Envoy <code>local_ratelimit</code></td></tr>
+<tr><td><b>Leaky bucket</b></td><td>O(1) &mdash; queue depth + leak timestamp</td><td>N/A (smooths output rate)</td><td><b>No bursts</b> &mdash; enforces a constant outflow</td><td>NGINX <code>limit_req</code> (leaky-bucket semantics), traffic shaping</td></tr>
+</table>
+
+<div class="box"><b>The window-boundary attack</b>Fixed window's failure mode is concrete: with a 100-req/min limit, a client sends 100 requests at 11:00:59 and 100 more at 11:01:00 &mdash; 200 requests in ~2 seconds, all accepted, because the counter resets on the minute boundary. Sliding window counter defeats this by weighting the previous bucket: <code>count = curr + prev * (overlap_fraction)</code>. If 25% of the rolling window still falls in the previous minute, you count 25% of that minute's requests, smoothing the spike without storing every timestamp.</div>
+
+<h3>Token bucket vs leaky bucket &mdash; the burst question</h3>
+<p>These two are constantly confused because both use a "bucket" metaphor, but they solve opposite problems:</p>
+<div class="box"><b>Token bucket = burst-tolerant</b>Tokens refill at a steady rate (e.g. 10/sec) up to a capacity (e.g. 100). A request consumes a token. An idle client accumulates tokens, so it can fire a burst of up to 100 requests instantly, then settles to 10/sec. This matches real client behavior &mdash; users are bursty, not uniform &mdash; which is why Stripe and AWS API Gateway use it. The capacity parameter <em>is</em> your burst allowance.</div>
+<div class="box"><b>Leaky bucket = output-smoothing</b>Requests enter a fixed-size queue and drain ("leak") at a constant rate. Excess requests overflow and are dropped. The output rate is rigidly constant regardless of input burstiness &mdash; ideal when the <em>downstream</em> (a payment processor, a fragile legacy service) cannot tolerate spikes. The cost is added latency (requests wait in the queue) and the need to manage queue memory.</div>
+<p>Rule of thumb: token bucket protects against <em>average</em> overuse while permitting bursts; leaky bucket protects a <em>downstream</em> by guaranteeing a smooth output. If a requirement says "we must never exceed 50 writes/sec to the database," that is leaky bucket. If they say "users can burst but must average 10/sec," that is token bucket.</p>
+
+<h3>Distributed rate limiting: why it races and how Redis fixes it</h3>
+<p>The lesson flags the read-then-write race. At principal level you must name the fix precisely. With N rate-limiter nodes hitting a shared Redis, two requests can both <code>GET</code> count=99, both decide "under limit," both <code>SET</code> 100 &mdash; letting 101 through. The naive answers (Redis <code>WATCH</code>/optimistic locking, or a distributed lock) both serialize requests for the same key and add a round trip.</p>
+<div class="box"><b>The production answer: atomic Lua (or INCR)</b>Redis executes a Lua script atomically &mdash; single-threaded, no interleaving. The entire check-and-increment becomes one round trip with no race window. The simplest fixed-window form is even cheaper: <code>INCR key</code> returns the new value atomically, and you <code>EXPIRE key 60</code> only when it was first created. For sliding window log, a Lua script does <code>ZREMRANGEBYSCORE</code> (purge old) + <code>ZCARD</code> (count) + <code>ZADD</code> (insert) in one shot. This is exactly the atomicity the lesson's hashtable-locking section is groping toward &mdash; Lua makes the lock implicit and node-local to Redis.</div>
+<div class="box"><b>Clock skew &amp; the local-vs-global tension</b>Sliding-window math depends on timestamps. If rate-limiter nodes use their own wall clocks, skew corrupts the window &mdash; always source time from Redis (<code>TIME</code> command) or a single authority. A second tension: a centralized Redis is a latency tax and a single point of failure on every request. High-QPS systems (Envoy, Cloudflare) use a two-tier scheme: an in-memory <em>local</em> limiter absorbs most traffic with approximate counts, periodically reconciling with the global store. You trade a small amount of accuracy (a node may briefly allow slightly over its share) for surviving a Redis outage and shedding the per-request round trip &mdash; see <a href="04 Caching.htm">04 Caching</a> on write-back semantics, which the lesson invokes for exactly this latency reason.</div>
+
+<h3>Where to enforce: gateway vs service</h3>
+<table>
+<tr><th>Location</th><th>Pros</th><th>Cons</th></tr>
+<tr><td><b>API gateway / edge</b> (Kong, Envoy, Cloudflare)</td><td>Rejects abuse before it consumes app resources; centralized policy; protects against DDoS at L7</td><td>Coarse-grained &mdash; doesn't know business context (which tenant, which expensive operation)</td></tr>
+<tr><td><b>Service / middleware</b></td><td>Fine-grained &mdash; can limit by tenant, by endpoint cost, by business rule; sees authenticated identity</td><td>Abuse already crossed the network and consumed connection/CPU before being rejected</td></tr>
+</table>
+<div class="box"><b>The principal answer is "both"</b>A cheap coarse limit at the edge (per-IP, to shed obvious floods and DDoS) plus a fine-grained authenticated limit at the service tier (per-user, per-API-key, per operation cost). This mirrors the lesson's IP-vs-user hybrid conclusion &mdash; the edge handles the IP layer, the service handles the user layer. Rate limiting is one layer of a defense-in-depth posture; see <a href="52 Security in System Design.htm">52 Security</a>.</div>
+
+<h3>What to return when you throttle</h3>
+<p>Returning <code>429 Too Many Requests</code> is necessary but not sufficient. A well-behaved limiter returns:</p>
+<div class="box"><b>Headers that let clients self-regulate</b><code>Retry-After: 30</code> (seconds, or an HTTP date) tells the client exactly when to retry &mdash; without it, clients hammer in a tight retry loop and worsen the overload. The de-facto standard trio is <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, and <code>X-RateLimit-Reset</code> (the IETF <code>RateLimit-*</code> draft is standardizing these). GitHub and Stripe both expose these so SDKs can back off proactively rather than reactively.</div>
+<p>Pair this with <b>exponential backoff + jitter</b> on the client and a <b>circuit breaker</b> so a throttled dependency doesn't cascade &mdash; rate limiting and these resilience patterns are two halves of overload protection. See <a href="49 Resilience Patterns.htm">49 Resilience Patterns</a>. One more subtlety: decide whether throttled requests should <em>fail open</em> (if the rate-limiter/Redis is down, allow traffic to protect availability) or <em>fail closed</em> (reject to protect the backend). The lesson's "rate limiter must always work" non-functional requirement pushes toward fail-open with a local fallback limiter.</p>
+
+<div class="seealso"><b>Go deeper:</b> <a href="49 Resilience Patterns.htm">49 Resilience Patterns</a>, <a href="52 Security in System Design.htm">52 Security</a>, <a href="04 Caching.htm">04 Caching</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you place all five algorithms (fixed window, sliding window log, sliding window counter, token bucket, leaky bucket) on a memory-vs-accuracy axis and explain which one a system like Stripe or NGINX actually uses, and why?</li>
+<li>Why does fixed window allow up to twice the configured limit, and can you describe the exact request pattern that exploits the window boundary &mdash; and how the sliding-window-counter interpolation formula defeats it?</li>
+<li>Why does distributed rate limiting race when N nodes share a counter, and can you explain why a Redis Lua script (or atomic <code>INCR</code>) eliminates the race without a distributed lock?</li>
+<li>Can you articulate the difference between token bucket and leaky bucket in terms of <em>burst tolerance vs output smoothing</em>, and pick the right one given a requirement phrased as "users can burst" versus "the downstream must never spike"?</li>
+<li>Where would you enforce rate limiting &mdash; edge gateway, service tier, or both &mdash; and why does the answer connect to the lesson's IP-vs-user hybrid conclusion?</li>
+<li>Why is <code>Retry-After</code> (and the <code>X-RateLimit-*</code> header trio) more than cosmetic, and what client behavior does its absence provoke?</li>
+<li>Given the "rate limiter must always work" requirement, can you reason through fail-open vs fail-closed and design a two-tier local+global scheme that survives a Redis outage?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="22 Designing Typeahead Suggestion.htm">&lsaquo; Prev: Typeahead Suggestion</a><a class="nx" href="24 Designing Twitter Search.htm">Next: Designing Twitter Search &rsaquo;</a></div>
 </div>
 </div>

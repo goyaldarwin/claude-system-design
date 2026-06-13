@@ -226,6 +226,25 @@
 <div class="seealso"><b>See also:</b> <a href="38 Storage Engines LSM vs B-Tree.htm">Storage Engines</a>, <a href="31 Consistency Models and PACELC.htm">Consistency Models &amp; PACELC</a>, <a href="55 Designing a Key-Value Store.htm">Key-Value Store</a>, <a href="37 Replication Deep Dive.htm">Replication</a></div>
 </div>
 
+<style>
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you defend a database choice purely from the dominant access pattern (read whole aggregate vs multi-hop traversal vs append-only time-ordered writes) without ever invoking which engine the team already knows?</li>
+<li>What specifically does NewSQL (Spanner, CockroachDB, TiDB) change about the old SQL-vs-NoSQL trade-off &mdash; how does it give you horizontal scale <em>and</em> distributed ACID, and what is the cost (TrueTime / commit-wait latency, write amplification across Raft groups)?</li>
+<li>Why does tunable consistency (Cassandra/DynamoDB R + W &gt; N) let one store behave strongly consistent for some queries and eventually consistent for others &mdash; and what latency and availability do you trade at each setting?</li>
+<li>For each NoSQL family, can you name the physical layout that makes it genuinely win &mdash; document = aggregate boundary matches read boundary (no JOIN); wide-column = LSM + time-partitioning for write throughput; graph = index-free adjacency for variable-depth traversal; key-value = O(1) hash on a known key?</li>
+<li>Why is "schema-less" misleading &mdash; where does the schema actually move to, and what does that cost you at read time and during evolution?</li>
+<li>When is polyglot persistence justified, and what concrete failure modes (dual writes, cross-store consistency, more operational surface) does it add &mdash; and why should you try read replicas and routing <em>before</em> adding a second engine?</li>
+<li>Can you explain why a relational database with proper indexes and partitioning often outscales a NoSQL store for the same workload, making "we need NoSQL to scale" frequently the wrong premise?</li>
+</ul>
+<p style="margin:14px 0 0;font-size:14px;">Go deeper: <a href="68 Choosing a Database.htm">68 Choosing a Database</a></p>
+</div>
+
 <div class="navfoot"><a href="09 Redundancy and Replication.htm">&lsaquo; Prev: Redundancy &amp; Replication</a><a class="nx" href="11 CAP Theorem.htm">Next: CAP Theorem &rsaquo;</a></div>
 </div>
 </div>

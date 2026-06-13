@@ -241,6 +241,88 @@ Bloom filters are a probabilistic data structure for set membership testing that
 <p>Since the Lambda page continuously collects the tax, eventually it will be the page with the largest amount of credit, and we'll have to "crawl" it. By crawling the Lambda page, we just take its credits and distribute them equally to all the pages in our database.</p>
 <p>Since bot traps only give internal links credits and they rarely get credit from the outside, they will continually leak credits (from taxation) to the Lambda page. The Lambda page will distribute that credits out to all the pages in the database evenly, and upon each cycle, the bot trap page will lose more and more credits until it has so little credits that it almost never gets crawled again. This will not happen with good pages because they often get credits from backlinks found on other pages.</p>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>A real planet-scale crawler (Googlebot, Bingbot, Common Crawl's Apache Nutch, Internet Archive's Heritrix) is dominated by two forces the high-level design glosses over: <strong>politeness</strong> (you must not look like a DDoS to any single origin) and <strong>prioritization</strong> (you can never crawl everything, so you crawl the <em>right</em> things). Almost every design decision below is a consequence of one of those two.</p>
+
+<h3>The crawl frontier is two queues, not one</h3>
+<p>The naive "FIFO of URLs" hides a tension: BFS gives good coverage and naturally finds high-authority pages early (they have many inbound links), but a pure global FIFO will hammer a popular host because thousands of its URLs cluster together in the queue. The Mercator/Najork design that every modern crawler descends from splits the frontier into two stages:</p>
+<ul>
+<li><strong>Front queues (priority):</strong> <em>F</em> queues, one per priority band. A prioritizer assigns each URL a band from a score (PageRank/host authority, change rate, depth, whether it's a sitemap entry). High-priority URLs land in low-numbered queues.</li>
+<li><strong>Back queues (politeness):</strong> <em>B</em> queues, with the invariant that <strong>each back queue holds URLs for exactly one host</strong>. A back-queue selector picks the next back queue whose host is allowed to be hit (its earliest-allowed time has passed), pulls a URL, fetches it, and refills the back queue from the front queues. A min-heap keyed on "next-eligible-fetch-time per host" drives the scheduler.</li>
+</ul>
+
+<div class="box"><b>Politeness math</b>Default Googlebot-style politeness is roughly <strong>one request per host every few seconds</strong>, OR a delay proportional to the page's own fetch latency (if a page took 2s to download, wait ~10x = 20s before the next hit on that host). At 6,200 pages/sec across, say, 1M live hosts in flight, each host is touched far below its rate limit — the global throughput comes from <em>parallelism across hosts</em>, never from speed against one host. This is why the per-host back-queue invariant matters: it makes politeness a structural property, not a runtime check you can forget.</div>
+
+<h3>URL dedup at 15B scale: why a Bloom filter, and its sharp edges</h3>
+<p>The "URL-seen" set is the hottest data structure in the crawler — every extracted link hits it, and there are ~50–100 links per page. Storing 15B canonical URLs as full strings is hundreds of GB and slow; storing 64-bit checksums (the doc's approach) is ~120GB and forces a disk/DB hop on misses. A Bloom filter compresses membership to a few bits per element entirely in RAM.</p>
+
+<table>
+<tr><th>Approach</th><th>Memory for 15B URLs</th><th>Error mode</th><th>Notes</th></tr>
+<tr><td>Full URL strings in a hash set</td><td>~1–2 TB</td><td>None</td><td>Needs sharding + disk; cache-miss latency dominates</td></tr>
+<tr><td>64-bit checksum set</td><td>~120 GB</td><td>~0 (collision negligible)</td><td>Doc's choice; still big, needs LRU cache + backing store</td></tr>
+<tr><td>Bloom filter, p=1%</td><td>~17 GB (~9.6 bits/elem)</td><td><strong>False positive</strong> → URL silently dropped</td><td>RAM-resident, O(k) hashes per lookup, no deletes</td></tr>
+<tr><td>Bloom filter, p=0.1%</td><td>~26 GB (~14.4 bits/elem)</td><td>False positive</td><td>Lower drop rate, more RAM</td></tr>
+</table>
+
+<div class="box"><b>The asymmetry that makes Bloom filters correct here</b>A Bloom filter <strong>cannot produce false negatives</strong> — if it says "not seen," it is definitely not seen. The only error is a false positive: it claims a brand-new URL was "already seen," so you skip it and that page never gets crawled. For a web crawler this is acceptable: at p=1% you silently lose ~1% of unique pages, but you never re-crawl or loop. Contrast with a payment-dedup system where a false "already processed" would drop a real transaction — there the asymmetry is unacceptable and you'd never use a plain Bloom filter. Production crawlers tune <em>p</em> down (or use scalable/partitioned Bloom filters that grow) precisely to cap how much of the web they're willing to miss. See <a href="42 Probabilistic Data Structures.htm">42 Probabilistic Structures</a> for sizing formulas and counting/scalable variants.</div>
+
+<h3>DNS is the silent bottleneck</h3>
+<p>The doc flags DNS as "a big bottleneck" but understates it: standard <code>getaddrinfo</code>/glibc resolution is <strong>synchronous and blocks the worker thread</strong>, and a cold lookup can take 50–500ms — far longer than the fetch itself for a small page. At 6,200 pages/sec that's thousands of concurrent blocked threads. Real crawlers run an <strong>asynchronous, custom DNS resolver</strong> (Mercator built its own) plus an aggressive local cache keyed on hostname, honoring TTLs but often extending them because crawl correctness tolerates slightly stale IPs. They also pre-resolve hosts as soon as a URL enters the frontier, not at fetch time, so the IP is warm by the time the back-queue scheduler releases the URL.</p>
+
+<h3>robots.txt: cache it, respect it, and handle its failure modes</h3>
+<ul>
+<li>Fetch <code>/robots.txt</code> once per host and cache the parsed rules (Googlebot caches up to ~24h). Without caching you'd double your request volume to every host.</li>
+<li><strong>Fail-open vs fail-closed:</strong> if robots.txt returns 5xx or times out, polite crawlers treat the host as <em>temporarily disallowed</em> (fail-closed) rather than crawling freely — a server erroring out is a signal to back off. A 404 means "no restrictions" (fail-open).</li>
+<li>Respect <code>Crawl-delay</code> directives and pull seed URLs from declared sitemaps — sitemaps are the cheapest, highest-signal source of fresh URLs and let you skip blind link discovery.</li>
+</ul>
+
+<h3>Distributed crawling &amp; coordination</h3>
+<p>Partition the frontier by <strong>hash of canonical hostname</strong>, not by URL. This is non-negotiable: it co-locates all URLs of one host on one node, which (a) keeps the per-host politeness invariant local — no cross-node coordination to rate-limit a host — and (b) keeps that host's robots.txt cache, DNS entry, and back queue on one machine. Use <a href="12 Consistent Hashing.htm">consistent hashing</a> so adding/removing a crawl node reshuffles only ~1/N of hosts. Coordination needs are deliberately minimal — the strength of host-partitioning is that nodes barely talk to each other; cross-node traffic is just extracted links being routed to their owning node (often via a durable queue — see <a href="08 Queues.htm">08 Queues</a>).</p>
+
+<div class="box"><b>Failure mode: the hot-host / power-law problem</b>Web hosts follow a power law — a few hosts (a giant wiki, a forum, a CDN-fronted domain) own millions of URLs. Hash-by-host pins all of them to <em>one</em> node, which becomes a hotspot while it crawls that host slowly under politeness limits, and its frontier balloons on disk while peers idle. Mitigations: split a mega-host across back queues by path prefix, cap per-host frontier depth, demote low-value deep URLs, or detect and shard the elephant host specially. This is the crawler's version of the celebrity/hot-key problem.</div>
+
+<h3>Crawler traps</h3>
+<p>Traps are URLs that generate infinite unique links: calendars with "next month" forever, faceted-search URLs (<code>?color=red&amp;size=9&amp;sort=price...</code> in every combination), session IDs baked into paths, or symlink cycles. Defenses layer up: a <strong>max crawl depth / path-length limit</strong>, a <strong>per-host URL budget</strong>, query-parameter canonicalization (strip session IDs, sort params, drop tracking params), and detecting near-duplicate content via shingling/SimHash so a trap producing cosmetically-different pages still gets caught by the document-dedup test. The doc's <strong>AOPIC credit system</strong> is the elegant economic defense: traps only receive internal credit, leak a 10% tax to the Lambda page every cycle, and starve until they're effectively never selected — while genuinely linked pages keep earning external credit.</p>
+
+<h3>Freshness vs coverage, and storing the content</h3>
+<p>You can't crawl 15B pages <em>and</em> keep them all fresh — these compete for the same fetch budget. Mature crawlers estimate each page's <strong>change rate</strong> (from observed diffs across past crawls, HTTP <code>Last-Modified</code>/<code>ETag</code> conditional GETs, and sitemap <code>lastmod</code>) and schedule re-crawls proportionally: a news homepage every few minutes, a static PDF once a quarter. Conditional GETs (<code>If-Modified-Since</code>) let unchanged pages return <code>304 Not Modified</code> with no body, reclaiming bandwidth for new coverage.</p>
+<p>For the ~2 PB of crawled content, the right home is <strong>append-only blob/object storage</strong> (S3-class, or WARC files like Common Crawl ships), not a relational DB — you write once, read for indexing, and rarely update. Metadata and checksums live in a separate indexed store. Heavy compression (gzip/zstd on HTML text gets 5–8x) is what turns 1.5 PB raw into something economical. Downstream indexing/PageRank then runs as a <a href="41 Batch and Big Data Processing.htm">batch / big-data</a> job over those blobs, decoupled from the live crawl loop.</p>
+
+<div class="seealso"><b>Go deeper:</b> <a href="42 Probabilistic Data Structures.htm">42 Probabilistic Structures</a>, <a href="08 Queues.htm">08 Queues</a>, <a href="41 Batch and Big Data Processing.htm">41 Batch Processing</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you explain why the frontier is split into <em>front (priority)</em> and <em>back (politeness)</em> queues, and what invariant the back queues enforce per host? If you used a single global FIFO instead, what failure would you observe against a popular domain?</li>
+<li>Why does politeness make <em>parallelism across hosts</em> — not request speed against any one host — the thing that delivers 6,200 pages/sec? How would you compute the per-host delay from a page's own fetch latency?</li>
+<li>Why is a Bloom filter the right structure for the URL-seen test, given that its only error is a false positive? Can you state concretely what a false positive <em>costs</em> the crawler, and why the same false-positive asymmetry would be unacceptable in a payment-dedup system?</li>
+<li>Why must the distributed frontier be partitioned by <em>hash of hostname</em> rather than by URL? What three things does host-partitioning keep local, and why does that minimize cross-node coordination?</li>
+<li>Why does hash-by-host create a hotspot, and what does the power-law distribution of web hosts have to do with it? Name two mitigations.</li>
+<li>Can you describe three distinct kinds of crawler trap and the layered defenses (depth limits, URL budgets, parameter canonicalization, AOPIC credit) that contain them? Why does AOPIC specifically starve a trap over time?</li>
+<li>Why does freshness compete with coverage for the same budget, and how do change-rate estimation plus conditional GETs (<code>304 Not Modified</code>) let you reclaim fetch capacity?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="24 Designing Twitter Search.htm">&lsaquo; Prev: Twitter Search</a><a class="nx" href="26Designing Facebook’s Newsfeed.htm">Next: Designing Facebook's Newsfeed &rsaquo;</a></div>
 </div>
 </div>

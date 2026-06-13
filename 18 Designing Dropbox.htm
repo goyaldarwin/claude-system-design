@@ -280,6 +280,84 @@ Alternatively, deduplication hash calculations can be done in real-time as the c
 <div class="sechead">12. Security, Permissions and File Sharing</div>
 <p>One of primary concern users will have while storing their files in the cloud would be the privacy and security of their data. Especially since in our system users can share their files with other users or even make them public to share it with everyone. To handle this, we will be storing permissions of each file in our metadata DB to reflect what files are visible or modifiable by any user.</p>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The single most consequential design decision in Dropbox is <b>fixed-size chunking</b> (the real client uses 4&nbsp;MB blocks). Every downstream property &mdash; deduplication, delta sync, resumable upload, parallelism &mdash; falls out of this one choice. Get chunking wrong and you cannot retrofit the others.</p>
+
+<h3>Why chunk? Four properties from one decision</h3>
+<table>
+<tr><th>Property</th><th>How chunking enables it</th></tr>
+<tr><td>Deduplication</td><td>Each chunk is content-addressed by hash (e.g. SHA-256). Identical chunks &mdash; across versions, files, or even users &mdash; store once. Editing 1&nbsp;line of a 1&nbsp;GB file re-uploads only the changed 4&nbsp;MB block.</td></tr>
+<tr><td>Delta sync</td><td>Client diffs the new chunk list against the old; uploads only chunks whose hash changed. A 2&nbsp;KB edit costs ~4&nbsp;MB over the wire (one block), not 1&nbsp;GB.</td></tr>
+<tr><td>Resumable upload</td><td>A dropped connection at 80% means re-sending one in-flight 4&nbsp;MB chunk, not the whole file. The metadata service tracks which chunk hashes have been committed.</td></tr>
+<tr><td>Parallelism</td><td>Chunks upload/download concurrently across many block servers, saturating bandwidth instead of one TCP stream's throughput.</td></tr>
+</table>
+
+<div class="box"><b>Fixed vs. content-defined chunking</b>Dropbox uses <i>fixed</i> 4&nbsp;MB boundaries for simplicity. The downside: inserting one byte at the start of a file shifts every boundary, so all chunks rehash and dedup collapses (the "boundary-shift" problem). Content-defined chunking (rolling hash / Rabin fingerprint, as in rsync and restic) sets boundaries on content patterns, so an insert only re-chunks locally. Dropbox accepts the fixed-size trade-off because most edits are appends or in-place, and fixed boundaries make the metadata trivially simple.</div>
+
+<h3>Metadata service vs. block storage: the load-bearing separation</h3>
+<p>The cleanest part of the architecture is splitting <b>two stores with opposite access patterns</b>. The metadata DB holds the file tree, chunk lists, version vectors, and permissions &mdash; small records, strongly consistent, transactional, frequently mutated. Block storage (Amazon S3 in Dropbox's early days, later their own Magic Pocket) holds immutable, content-addressed blobs &mdash; huge, write-once, served from a CDN. They scale, fail, and get backed up independently.</p>
+
+<div class="box"><b>Why immutability matters</b>Because blocks are addressed by content hash, they are never mutated &mdash; a "change" is a new block with a new hash plus a metadata pointer flip. This makes block storage idempotent (re-uploading a known hash is a no-op), trivially cacheable at the CDN edge, and safe to replicate aggressively. All the hard consistency lives in the small metadata DB. See <a href="65 Object Storage and CDN.htm">65 Object Storage &amp; CDN</a>.</div>
+
+<h3>Sync conflict resolution: client-side vs. server-side</h3>
+<p>When two clients edit the same file offline, you have a true write-write conflict. Dropbox's pragmatic answer is <b>not to merge</b>: it keeps both versions and renames one to <code>filename (Alice's conflicted copy 2026-06-13).ext</code>, surfacing the conflict to the human rather than risking silent data loss. This is the "last-writer-wins is unacceptable for user files" stance.</p>
+<table>
+<tr><th>Approach</th><th>Behavior</th><th>Trade-off</th></tr>
+<tr><td>Last-writer-wins</td><td>Newer timestamp overwrites</td><td>Silent data loss; unacceptable for documents</td></tr>
+<tr><td>Conflicted copy (Dropbox)</td><td>Keep both, rename one, let user resolve</td><td>No data loss, but clutter; user must merge manually</td></tr>
+<tr><td>CRDT auto-merge</td><td>Structure data so concurrent edits commute</td><td>Great for collaborative text (Google Docs, Notion), but generic binary files can't be CRDTs</td></tr>
+</table>
+<div class="box"><b>Why not CRDTs for files?</b>CRDTs require knowing the data's semantics to define a commutative merge. A <code>.docx</code> or <code>.psd</code> is an opaque blob &mdash; there is no safe automatic merge, so Dropbox falls back to conflicted copies. Real-time collaborative editors that <i>do</i> merge (Google Docs) operate on a structured document model, not a file blob. See <a href="35 CRDTs.htm">35 CRDTs</a>.</div>
+
+<h3>The notification channel: how clients learn of changes</h3>
+<p>A client needs to know "a file you care about changed" without hammering the server. Dropbox runs a dedicated <b>long-poll notification server</b> separate from the metadata service. The client opens a long-poll connection that the server holds open (e.g. 30&ndash;60s); when a relevant change lands, the server responds immediately, the client closes and reissues the poll. On the response, the client then pulls the actual metadata diff from the metadata service.</p>
+<div class="box"><b>Why long-poll and not WebSockets?</b>The change signal is low-frequency and one-directional (server&rarr;client "something changed"). Long-poll reuses ordinary HTTP, survives proxies/firewalls, and is cheap to scale to tens of millions of mostly-idle connections &mdash; you don't need full-duplex WebSocket framing for a heartbeat. The pull-after-notify pattern also keeps the notification server stateless and tiny. See <a href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm">13 Long-Poll/WS/SSE</a>.</div>
+
+<h3>Bandwidth optimization &amp; failure modes</h3>
+<p>Beyond delta sync, the client compresses chunks before upload and applies <b>cross-user dedup at the storage layer</b> &mdash; if any user already uploaded a chunk with that hash, the new uploader only commits the pointer (this is also the basis of the classic "hash-only upload" privacy concern). LAN sync lets co-located clients fetch chunks from each other instead of round-tripping to the cloud.</p>
+<table>
+<tr><th>Failure mode</th><th>Consequence</th><th>Mitigation</th></tr>
+<tr><td>Metadata/block split-brain</td><td>Metadata points to a chunk that didn't commit</td><td>Commit chunks to block storage <i>first</i>, flip metadata pointer last (write-ahead ordering)</td></tr>
+<tr><td>Clock skew across clients</td><td>Wrong "newer" version chosen</td><td>Use version vectors / logical clocks, not wall-clock timestamps</td></tr>
+<tr><td>Hash collision</td><td>Two different chunks dedup to one</td><td>Cryptographic hash (SHA-256) makes accidental collision negligible</td></tr>
+<tr><td>Thundering-herd on shared-folder edit</td><td>N clients all long-poll then pull at once</td><td>Jittered poll re-issue; CDN absorbs the block pulls</td></tr>
+</table>
+
+<div class="seealso"><b>Go deeper:</b> <a href="65 Object Storage and CDN.htm">65 Object Storage &amp; CDN</a>, <a href="35 CRDTs.htm">35 CRDTs</a>, <a href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm">13 Long-Poll/WS/SSE</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you explain how a single design choice &mdash; fixed-size chunking &mdash; simultaneously enables deduplication, delta sync, resumable upload, and parallel transfer? Walk the chain from each property back to the chunk.</li>
+<li>Why does editing one byte at the <i>front</i> of a large file defeat dedup under fixed-size chunking, and how does content-defined chunking (rolling hash) avoid that boundary-shift problem?</li>
+<li>Why are metadata and block storage separated into two stores, and why is it essential that blocks be immutable and content-addressed? What property of the system lets the CDN cache them safely?</li>
+<li>Why does Dropbox resolve a write-write conflict by creating a "conflicted copy" instead of either last-writer-wins or an automatic merge? Why can't generic binary files use CRDTs the way Google Docs text can?</li>
+<li>Why does the notification channel use long-polling rather than WebSockets, and why does the client <i>pull</i> the metadata diff after the notify rather than receiving the change inline?</li>
+<li>If the metadata pointer were flipped before the chunk was committed to block storage, what failure could occur &mdash; and why does write-ahead ordering (chunk first, pointer last) prevent it?</li>
+<li>Why should sync use version vectors / logical clocks instead of wall-clock timestamps to decide which version is newer across multiple clients?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="17 Designing Instagram.htm">&lsaquo; Prev: Instagram</a><a class="nx" href="19 Designing Facebook Messenger.htm">Next: Designing Facebook Messenger &rsaquo;</a></div>
 </div>
 </div>

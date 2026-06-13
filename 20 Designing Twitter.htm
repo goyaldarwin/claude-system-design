@@ -248,6 +248,78 @@ A successful post will return the URL to access that tweet. Otherwise, an approp
 <p><strong>Moments:</strong> Get top news for different websites for past 1 or 2 hours, figure out related tweets, prioritize them, categorize them (news, support, financials, entertainment, etc.) using ML – supervised learning or Clustering. Then we can show these articles as trending topics in Moments.</p>
 <p><strong>Search:</strong> Search involves Indexing, Ranking, and Retrieval of tweets. A similar solution is discussed in our next problem <a href="24 Designing Twitter Search.htm" target="_blank">Design Twitter Search</a>.</p>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The lesson presents timeline generation as a merge-on-read across TweetID shards. That model is correct for a small service but inverts the actual economics at scale: Twitter is read-heavy by ~280:1 (the lesson's own numbers: 28B reads/day vs 100M writes/day). You almost never want to do the expensive work (gather + sort + rank) at read time when reads outnumber writes by two orders of magnitude. The real design pushes work to write time. This is the single most important insight the original lesson under-develops.</p>
+
+<h3>Fan-out: write vs read vs hybrid</h3>
+<div class="box"><b>Fan-out-on-write (push)</b>When a user tweets, the tweet ID is pushed into a precomputed, per-follower home-timeline list. Reads become an O(1) cache lookup of an already-materialized list. This is what makes the 200ms timeline SLA achievable for the median user. Cost: a single tweet from a user with N followers triggers N list inserts.</div>
+<div class="box"><b>Fan-out-on-read (pull)</b>Store tweets once per author; at read time gather the latest tweets from everyone the viewer follows, merge-sort by time/rank. No write amplification, but read latency scales with follow count and requires scatter-gather across shards. This is the lesson's TweetID-sharding model.</div>
+<div class="box"><b>The celebrity problem</b>Pure push breaks for high-fanout accounts. A celebrity with 100M followers (Cristiano Ronaldo, Elon Musk) would trigger 100M list writes per tweet. At even a modest tweet rate this is a write storm that creates a "thundering herd" of cache mutations and unbounded fan-out latency — a follower could see the tweet minutes after others. This is the canonical failure mode of naive push.</div>
+
+<p>The production answer is <b>hybrid fan-out</b>: push for the vast majority of users, pull for a small set of celebrity accounts. At read time, a viewer's home timeline = (precomputed pushed list) merged with (a small pull-and-merge of the handful of celebrities they follow). Because a viewer follows only a few mega-accounts, the read-time merge stays cheap.</p>
+
+<table>
+<tr><th>Dimension</th><th>Fan-out-on-write (push)</th><th>Fan-out-on-read (pull)</th><th>Hybrid (production)</th></tr>
+<tr><td>Read latency</td><td>Very low (precomputed)</td><td>High (scatter-gather + sort)</td><td>Low (cached + tiny merge)</td></tr>
+<tr><td>Write amplification</td><td>O(followers) — fatal for celebrities</td><td>O(1)</td><td>O(followers) for normal users only</td></tr>
+<tr><td>Best for</td><td>Normal users (median ~hundreds of followers)</td><td>Celebrities / very high fanout</td><td>Everyone, routed by follower count</td></tr>
+<tr><td>Wasted work</td><td>Pushing to inactive/dormant followers</td><td>Re-merging on every refresh</td><td>Skip push to dormant accounts; pull hot accounts</td></tr>
+</table>
+
+<div class="box"><b>Optimization: don't push to the dead</b>Of 1B accounts, only 200M are daily active. Pushing a tweet into the home-timeline list of a dormant account wastes memory and write IOPS. Production systems skip fan-out to inactive followers and lazily reconstruct (pull) their timeline if they return.</div>
+
+<h3>The home-timeline cache</h3>
+<p>The lesson's cache section caches <em>tweet objects</em> keyed by OwnerID. The more important cache is the <b>home timeline</b> itself — the per-user materialized list of tweet IDs the push path writes into. Critically, you cache <b>IDs, not bodies</b>: a timeline entry is a tweet ID + author ID (~16 bytes), and bodies are hydrated from the tweet cache on read. This keeps each user's list tiny and lets one tweet body be shared across millions of timelines instead of duplicated.</p>
+<div class="box"><b>Bounded lists</b>Home-timeline lists are capped (e.g. ~800 most-recent entries). You don't materialize an infinite history — older pages fall back to pull. This bounds memory: 200M active users × 800 IDs × ~16 bytes is in the low-terabyte range, fits across a Redis fleet, and bounds the cost of a celebrity de-fan-out should one occur.</div>
+
+<h3>Redis-backed timelines</h3>
+<p>Real implementations (Twitter's was Redis-based) store each home timeline as a Redis list/sorted-set. A tweet fan-out is an <code>LPUSH</code> + <code>LTRIM</code> (or <code>ZADD</code> + <code>ZREMRANGEBYRANK</code>) per follower; a timeline read is a single <code>LRANGE</code>/<code>ZREVRANGE</code>. Sorted sets let you rank by score (recency or an ML rank signal) rather than pure insertion order. Lists are replicated and sharded by user ID; because each list is independent, the cache shards near-perfectly. See <a href="04 Caching.htm">04 Caching</a> for eviction and replication mechanics.</p>
+
+<h3>Tweet storage and sharding</h3>
+<p>The lesson lands on the right answer for IDs: a Snowflake-style 64-bit TweetID = <b>timestamp ‖ machine/sequence bits</b>. The key property it under-states is that <b>time-prefixed IDs are roughly sortable</b>, so "latest tweets" is a range scan and the ID itself encodes creation time (no separate timestamp index needed). Shard tweet bodies by TweetID (spreads write load, avoids the hot-user problem of UserID sharding) but keep the per-author tweet list separately so celebrity pulls are a single-shard read rather than a scatter-gather.</p>
+<div class="box"><b>Failure mode: clock skew &amp; sequence exhaustion</b>Snowflake IDs assume monotonic clocks. A backwards NTP step on an ID-generator node can produce duplicate or out-of-order IDs; production generators refuse to issue IDs until the clock catches up. Sequence-bit exhaustion within a millisecond (more tweets/ms than the sequence space) must block-and-wait, not wrap.</div>
+
+<h3>How the social graph drives fan-out</h3>
+<p>Fan-out is fundamentally a graph traversal: "who follows this author?" must be answered for every tweet. This makes the <b>follower-list store</b> a first-class system, not an afterthought. It must answer "followers of X" (for push) and "followees of Y" (for pull) cheaply — typically an adjacency-list store sharded by user, often denormalized in both directions. The follower-count on this graph is also the routing signal that decides push vs pull per account.</p>
+
+<h3>Trending and search</h3>
+<p>Trending is a streaming heavy-hitters problem, not a batch one: you can't sort all hashtags by frequency at scale. Use approximate counting (Count-Min Sketch) over sliding windows to find top-K terms in near-real-time, weighted by velocity (rate of change) rather than raw volume so a term that's suddenly spiking beats an always-popular one. Search is a separate inverted-index pipeline. Both are deep topics — see <a href="24 Designing Twitter Search.htm">24 Twitter Search</a>.</p>
+
+<div class="seealso"><b>Go deeper:</b> <a href="26Designing Facebook’s Newsfeed.htm">26 Newsfeed</a>, <a href="24 Designing Twitter Search.htm">24 Twitter Search</a>, <a href="04 Caching.htm">04 Caching</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you explain why a read-heavy service with a ~280:1 read/write ratio should do timeline work at <em>write</em> time, and quantify the write amplification that creates for a normal user vs. a 100M-follower celebrity?</li>
+<li>Why does pure fan-out-on-write break for celebrities, and how exactly does a hybrid scheme (push for most, pull for celebrities) keep the read-time merge cheap for a viewer who follows several mega-accounts?</li>
+<li>Can you justify storing only tweet <em>IDs</em> (not bodies) in the home-timeline cache, and explain what hydration step that forces on the read path and why it's still a net win?</li>
+<li>Why are home-timeline lists bounded (e.g. ~800 entries), and what happens when a user pages past the cached window?</li>
+<li>Can you map the home-timeline design onto concrete Redis operations — which commands run on fan-out vs. on read, and when would you choose a sorted set over a list?</li>
+<li>Why is sharding tweet bodies by TweetID preferable to sharding by UserID, and what property of a Snowflake-style time-prefixed ID makes "fetch latest tweets" cheap without a separate timestamp index?</li>
+<li>Why does the follower/followee graph store need to answer lookups in <em>both</em> directions, and how does follower count on that graph become the routing signal between push and pull?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="19 Designing Facebook Messenger.htm">&lsaquo; Prev: Facebook Messenger</a><a class="nx" href="21 Designing Youtube or Netflix.htm">Next: Designing YouTube / Netflix &rsaquo;</a></div>
 </div>
 </div>

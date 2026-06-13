@@ -219,6 +219,24 @@
 <div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (34).png" alt="Load balancing algorithms" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A &#x27;Load Balancing Algorithms&#x27; diagram showing round robin, sticky session, weighted round robin, IP/URL hash, least connections, and least time. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 </div>
+<style>
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you explain the difference between an L4 and an L7 load balancer in terms of <em>what decision is made on what data</em>, and give one concrete case where each is the right choice (e.g. TLS passthrough / non-HTTP vs. content-based routing or per-request fairness over an HTTP/2 connection)?</li>
+<li>Why does pinning a long-lived HTTP/2 or gRPC connection at L4 risk hot-spotting a single backend, and how does L7 (or per-request rebalancing) fix it?</li>
+<li>Why should you avoid sticky sessions as a default &mdash; what does cookie-pinning couple availability to, and how does externalizing session state (e.g. Redis) restore stateless autoscaling and draining?</li>
+<li>How do active health checks and passive outlier ejection complement each other, and why can aggressive ejection <em>cause</em> a cascading failure? What two safeguards (<code>max_ejection_percent</code>, panic threshold) prevent the self-inflicted outage?</li>
+<li>Why does <code>hash(key) % N</code> trigger a cache-miss storm when <code>N</code> changes, and how does consistent hashing (or Maglev) limit reshuffle to ~<code>1/N</code> of keys while preserving cache affinity? What breaks this, and how does bounded-load consistent hashing patch it?</li>
+<li>Why is power-of-two-choices the modern mesh default over global least-connections &mdash; what herd problem does it avoid with O(1) state?</li>
+<li>In what ways is a single LB both a SPOF and a throughput ceiling, and how do a floating VIP (VRRP), ECMP + Direct Server Return, and client-side / sidecar balancing each remove it?</li>
+<li>Go deeper: <a href="49 Resilience Patterns.htm">49 Resilience</a></li>
+</ul>
+</div>
 <div class="navfoot"><a href="02 System Design Basics.htm">&lsaquo; Prev: System Design Basics</a><a class="nx" href="04 Caching.htm">Next: Caching &rsaquo;</a></div>
 </div>
 </div>

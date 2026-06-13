@@ -244,6 +244,102 @@ markTweetFavorite(user_id, tweet_id, timestamp, …)</code></pre>
 
 <div class="seealso"><b>See also:</b> <a href="05 Sharding or Data Partitioning.htm">Sharding &amp; Partitioning</a>, <a href="04 Caching.htm">Caching</a>, <a href="10 SQL vs. NoSQL.htm">SQL vs. NoSQL</a>, <a href="31 Consistency Models and PACELC.htm">Consistency Models &amp; PACELC</a>, <a href="49 Resilience Patterns.htm">Resilience Patterns</a>, <a href="47 SLI SLO SLA and Error Budgets.htm">SLOs &amp; Error Budgets</a></div>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal deep dive</span>
+<h2>The estimation numbers worth memorizing</h2>
+
+<p>The framework lives or dies on Step 2. A design review will forgive a wrong component choice far sooner than they will forgive an estimate you cannot defend. The trick is not arithmetic speed — it is having a small set of <strong>anchor numbers</strong> in your head so you can reach a defensible order of magnitude in under five minutes. Everything below is the kind of thing strong engineers carry around without looking up.</p>
+
+<h3>Powers of two and time, the two cheat sheets</h3>
+
+<table>
+<tr><th>Power</th><th>Approx value</th><th>Name</th></tr>
+<tr><td>2<sup>10</sup></td><td>~1 thousand</td><td>1 KB</td></tr>
+<tr><td>2<sup>20</sup></td><td>~1 million</td><td>1 MB</td></tr>
+<tr><td>2<sup>30</sup></td><td>~1 billion</td><td>1 GB</td></tr>
+<tr><td>2<sup>40</sup></td><td>~1 trillion</td><td>1 TB</td></tr>
+<tr><td>2<sup>50</sup></td><td>~1 quadrillion</td><td>1 PB</td></tr>
+</table>
+
+<p>And the single most useful conversion in all of capacity planning: <strong>1 day &asymp; 86,400 seconds &asymp; 10<sup>5</sup> s</strong>. So "1 million events per day" is ~12/sec; "1 billion per day" is ~12k/sec; "100 billion per day" is ~1.2M/sec. Memorize the 1B/day &rarr; 12k/sec mapping and you can scale anything mentally. Months are ~2.6M seconds, years ~31.5M (&asymp;&pi;&times;10<sup>7</sup>, a genuinely handy mnemonic).</p>
+
+<h3>Jeff Dean's latency ladder (still the mental model)</h3>
+
+<p>These numbers from Google have shifted a little with hardware but the <em>ratios</em> are what matter, and the ratios are eternal:</p>
+
+<table>
+<tr><th>Operation</th><th>Latency</th><th>Intuition</th></tr>
+<tr><td>L1 cache reference</td><td>~1 ns</td><td>baseline</td></tr>
+<tr><td>Main memory reference</td><td>~100 ns</td><td>100&times; L1</td></tr>
+<tr><td>Read 1 MB sequentially from RAM</td><td>~3&ndash;10 &micro;s</td><td>&mdash;</td></tr>
+<tr><td>SSD random read</td><td>~16&ndash;100 &micro;s</td><td>~1000&times; RAM</td></tr>
+<tr><td>Round trip within same datacenter</td><td>~0.5 ms</td><td>&mdash;</td></tr>
+<tr><td>Read 1 MB sequentially from SSD</td><td>~1 ms</td><td>&mdash;</td></tr>
+<tr><td>Disk (spinning) seek</td><td>~10 ms</td><td>~20&times; DC round trip</td></tr>
+<tr><td>Round trip CA &harr; Netherlands</td><td>~150 ms</td><td>speed of light tax</td></tr>
+</table>
+
+<div class="box"><b>Why this matters in the framework</b>The latency ladder is what lets Step 6 reason about whether a design can hit a Step 1 SLO. "p99 under 200 ms" with a cross-continent round trip (150 ms) leaves you almost no budget — so the design must serve from a regional replica or CDN edge. The ladder converts an abstract SLO into a hard constraint on topology.</div>
+
+<h3>Reusable byte budgets</h3>
+
+<p>Real estimation needs payload sizes. Carry these: a tweet/short row ~1&nbsp;KB; a chat message ~100&nbsp;bytes&ndash;1&nbsp;KB; a thumbnail ~10&nbsp;KB; a web-sized photo ~200&nbsp;KB&ndash;1&nbsp;MB; a minute of 1080p video ~10&ndash;50&nbsp;MB; a UUID 16&nbsp;bytes; a 64-bit ID 8&nbsp;bytes. The instant photos and video enter scope (Step 1), the storage line in your table jumps by 100&ndash;1000&times; — which is exactly why scoping media in or out is the most consequential question you ask.</p>
+
+<h3>The estimation drill, timed</h3>
+
+<p>The framework's Step 2 in practice: (1) state DAU and writes/user/day &rarr; writes/day; (2) divide by 10<sup>5</sup> &rarr; average write QPS; (3) multiply by a peak factor (2&ndash;10&times;, daily-active products often spike ~3&times; at peak hour); (4) apply the read:write ratio &rarr; read QPS; (5) writes/day &times; payload &rarr; storage/day, &times;365 &rarr; storage/year; (6) multiply storage by your <a href="09 Redundancy and Replication.htm">replication factor</a> (commonly 3) — a number people forget and undercount disk by 3&times;. Round aggressively. The goal is the right power of ten, not three significant figures.</p>
+
+<h3>Non-functional requirements that actually change the design</h3>
+
+<p>The hardest discipline in Step 1 is translating fuzzy NFRs into architectural forks. Each row below is a question whose answer flips a major design decision:</p>
+
+<table>
+<tr><th>NFR</th><th>The fork it creates</th></tr>
+<tr><td>Consistency</td><td>Strong &rarr; quorum/leader reads, lower availability under partition; eventual &rarr; replicas + read-repair, cheaper and faster. See <a href="11 CAP Theorem.htm">CAP</a> and <a href="31 Consistency Models and PACELC.htm">PACELC</a>.</td></tr>
+<tr><td>Availability target</td><td>99.9% (~8.8 h/yr down) vs 99.99% (~52 min) vs 99.999% (~5 min) — each extra nine roughly multiplies cost and forces multi-AZ then multi-region. See <a href="51 Multi-Region and Disaster Recovery.htm">Multi-Region &amp; DR</a>.</td></tr>
+<tr><td>Latency (p99, not avg)</td><td>Tight tail &rarr; caching, edge serving, no synchronous fan-out on the hot path; loose &rarr; simpler synchronous design.</td></tr>
+<tr><td>Durability</td><td>"Never lose a write" &rarr; replicated WAL + sync replication + backups; "best effort" &rarr; async, cheaper.</td></tr>
+<tr><td>Read:write ratio</td><td>Read-heavy &rarr; precompute/cache/replicas (fan-out on write); write-heavy &rarr; optimize ingest, fan-out on read.</td></tr>
+<tr><td>RPO / RTO</td><td>How much data you can lose / how fast you must recover — drives backup cadence, sync vs async cross-region replication.</td></tr>
+</table>
+
+<div class="box"><b>Failure-mode reflex</b>For Step 7, internalize the difference between average and tail behavior under partial failure. A dependency at 99% availability called synchronously by 10 services in a request path yields ~0.99<sup>10</sup> &asymp; 90% — the request-level availability collapses. This single arithmetic fact is the entire argument for timeouts, circuit breakers, async boundaries, and graceful degradation in <a href="49 Resilience Patterns.htm">Resilience Patterns</a>.</div>
+
+<h3>A worked sanity check: do the numbers even fit on one box?</h3>
+
+<p>Before sketching a distributed monster, always ask whether one machine could do it. A modern server: ~64&ndash;128 vCPU, ~256&nbsp;GB&ndash;2&nbsp;TB RAM, NVMe doing ~500k&ndash;1M IOPS, ~10&ndash;100&nbsp;Gbps NIC. A well-tuned Postgres/MySQL primary handles tens of thousands of simple QPS; Redis does ~100k&ndash;1M ops/sec single-threaded per shard. If your estimate lands at 5k QPS and 50&nbsp;GB, a single replicated primary with a cache is the honest answer — reaching for <a href="05 Sharding or Data Partitioning.htm">sharding</a> and Kafka there is the cargo-cult anti-pattern the lesson warns about. Distribution is a cost you pay only when one box demonstrably cannot fit the numbers.</p>
+
+<div class="seealso"><b>Goes deeper in:</b> <a href="68 Choosing a Database.htm">Choosing a Database</a> &middot; <a href="67 Architectural Styles and How to Choose.htm">Architectural Styles &amp; How to Choose</a> &middot; <a href="47 SLI SLO SLA and Error Budgets.htm">SLI/SLO/SLA &amp; Error Budgets</a> &middot; <a href="51 Multi-Region and Disaster Recovery.htm">Multi-Region &amp; DR</a> &middot; <a href="49 Resilience Patterns.htm">Resilience Patterns</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Given a fresh problem ("design a service that ingests 2 billion IoT events/day, each ~500 bytes"), can you produce average QPS, peak QPS, and storage/year — including the replication factor — in under five minutes, showing each step?</li>
+<li>Can you list at least five non-functional requirements and, for each, name the specific design decision it flips (e.g. how a strong-vs-eventual consistency choice changes the read path)?</li>
+<li>For a stated SLO of "p99 latency under 100 ms," can you use the latency ladder to argue why a single synchronous cross-region round trip already violates it, and what topology change fixes it?</li>
+<li>Can you explain why a read:write ratio of 100:1 leads to a fundamentally different architecture (fan-out on write, cache, replicas) than a ratio of 1:1, and sketch both?</li>
+<li>Given a request path that synchronously calls eight dependencies each at 99.9% availability, can you compute the request-level availability and name the resilience patterns that decouple it from that product?</li>
+<li>Before proposing a distributed design, can you justify with concrete single-machine capacity numbers whether one replicated primary plus a cache would suffice — and articulate when distribution is actually warranted?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm">&lsaquo; Prev: Long-Polling vs WebSockets vs SSE</a><a class="nx" href="15 Designing a URL Shortening service like TinyURL.htm">Next: Designing a URL Shortening Service &rsaquo;</a></div>
 </div>
 </div>

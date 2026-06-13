@@ -177,6 +177,25 @@
 <div class="seealso"><b>See also:</b> <a href="37 Replication Deep Dive.htm">Replication Deep Dive</a>, <a href="36 Leader Election and Coordination.htm">Leader Election &amp; Coordination</a>, <a href="31 Consistency Models and PACELC.htm">Consistency Models</a></div>
 </div>
 
+<style>
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you state the precise data-loss window for <b>async</b> replication after a leader crash, and explain why <b>sync</b> replication trades that window for write latency and availability (one slow/dead follower stalls every commit)? When does semi-sync (ack from <em>one</em> of N) become the right middle ground?</li>
+<li>Why does <b>single-leader</b> give you a clean ordering and no write conflicts, while <b>multi-leader</b> and <b>leaderless</b> push the conflict-resolution problem onto you (LWW, version vectors, CRDTs)? For each, when is it the correct choice?</li>
+<li>Can you explain why <b>replication lag</b> breaks read-your-writes consistency, and name three fixes &mdash; route post-write reads to the leader, track the client's last-seen LSN/position and only read from a caught-up replica, or pin a session to one replica?</li>
+<li>Why does monotonic-reads violation (a user sees data, refreshes, and it "disappears") happen when reads bounce across replicas at different lag, and how does session stickiness solve it?</li>
+<li>Can you describe how <b>split-brain</b> arises (a network partition leaves two nodes each believing they're leader) and why <b>fencing</b> &mdash; a monotonically increasing fencing token rejected by storage if stale, or STONITH &mdash; is required because a lease/heartbeat timeout alone cannot prevent a paused-then-resumed old leader from issuing a write?</li>
+<li>Can you reason about the read-scaling ceiling &mdash; why adding async read replicas relieves read load but never write load (every replica applies 100% of writes), and at what point you must shard instead of replicate?</li>
+<li>Why does a quorum system need <b>W + R &gt; N</b> for read-after-write consistency, and what goes wrong (stale reads, lost updates) when you weaken it to W + R &le; N for latency?</li>
+</ul>
+<p style="margin:14px 0 0;font-size:14px;color:#5b6472;">Go deeper: <a href="37 Replication Deep Dive.htm">37 Replication Deep Dive</a></p>
+</div>
+
 <div class="navfoot"><a href="08 Queues.htm">&lsaquo; Prev: Queues</a><a class="nx" href="10 SQL vs. NoSQL.htm">Next: SQL vs. NoSQL &rsaquo;</a></div>
 </div>
 </div>

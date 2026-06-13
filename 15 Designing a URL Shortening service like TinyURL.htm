@@ -278,6 +278,72 @@ Using base64 encoding, an 8 letter long key would result in 64^8 ~= 281 trillion
 <p>Can users create private URLs or allow a particular set of users to access a URL?</p>
 <p>We can store permission level (public/private) with each URL in the database. We can also create a separate table to store UserIDs that have permission to see a specific URL. If a user does not have permission and try to access a URL, we can send an error (HTTP 401) back. Given that, we are storing our data in a NoSQL wide-column database like Cassandra, the key for the table storing permissions would be the 'Hash' (or the KGS generated 'key'), and the columns will store the UserIDs of those users that have permissions to see the URL.</p>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The whole design collapses into one decision: <b>how do you mint a short, unique key on the write path without two servers ever handing out the same one?</b> Everything else &mdash; the database, the cache, the redirect &mdash; is downstream of that choice. Three families exist, and they fail in different ways.</p>
+
+<h3>Key-generation approaches</h3>
+<table>
+<tr><th>Approach</th><th>How it works</th><th>Collision risk</th><th>Coordination cost</th><th>Predictability</th></tr>
+<tr><td><b>Hash + truncate</b> (e.g. MD5/SHA &rarr; base62, keep first 6&ndash;8 chars)</td><td>Hash the long URL, encode, slice to length</td><td><b>Real.</b> Truncating destroys the hash's uniqueness guarantee; birthday collisions at ~62<sup>n/2</sup>. Must read-before-write or retry-on-conflict on every insert</td><td>None for the hash itself, but the collision check is an extra DB round-trip per write</td><td>Same URL &rarr; same key (good for idempotency, bad &mdash; leaks that two requests are the same)</td></tr>
+<tr><td><b>Counter + base62</b></td><td>A global monotonic counter; base62-encode the integer</td><td><b>Zero by construction</b></td><td><b>High.</b> A single counter is a global serialization point &mdash; the classic write bottleneck</td><td>Sequential keys are guessable (enumeration attack); also leaks total volume</td></tr>
+<tr><td><b>KGS pre-generation</b> (Key Generation Service)</td><td>Offline job pre-computes all 6-char base62 keys into a "used/unused" store; app servers grab keys in <i>blocks</i></td><td><b>Zero</b> &mdash; keys are unique by enumeration and marked used atomically</td><td><b>Amortized away.</b> Servers fetch e.g. 1,000 keys at a time, so the KGS is hit once per 1,000 writes, not once per write</td><td>Keys come from a shuffled pool, so non-sequential</td></tr>
+</table>
+
+<div class="box"><b>The write-path bottleneck &amp; its fix</b>
+A naive <i>counter</i> or <i>hash-then-check-collision</i> design forces every write to touch a shared, serialized resource (the counter row, or a uniqueness read). At billions of URLs this is the single point that caps throughput and adds latency. The <b>KGS removes it</b>: pre-generation moves the expensive uniqueness work <i>offline</i>, and block allocation means the hot path is a local, in-memory <code>pop()</code> from a server's pre-fetched chunk. Trade-off: keys handed to a server that then crashes are lost &mdash; acceptable, since 68B+ keys (62<sup>6</sup> &asymp; 56.8 billion) is a vast space. Run two KGS replicas with separate key ranges so it is not itself a SPOF.</div>
+
+<h3>301 vs 302 &mdash; the analytics decision</h3>
+<div class="box"><b>Why 302, not 301</b>
+A <b>301 (permanent)</b> tells the browser and every intermediary "this short URL <i>is</i> the long URL, forever" &mdash; so the client caches it and <b>future clicks never hit your servers again.</b> Great for redirect latency, fatal for analytics and for ever changing/expiring the target. A <b>302 (temporary)</b> forces the browser back to your service on every click, so you capture click counts, geo, referrer, device. The cost is load: every click is a round-trip you must serve. TinyURL/Bitly use 302 precisely because the click data is the product. If you don't care about analytics and want max speed, 301 is cheaper.</div>
+
+<h3>Caching &mdash; the 80/20 rule &amp; eviction</h3>
+<p>Reads dominate massively (a write-once, read-many workload; ratios of 100:1 are typical). Per the Pareto observation, <b>~20% of URLs generate ~80% of the traffic</b>, so you cache aggressively. If you serve ~20K redirects/sec and the daily read volume is, say, ~17B/day, caching 20% of one day's hot set keeps the working set in memory at a few hundred GB &mdash; spread across a Redis/Memcached fleet. On a cache miss: read from DB, then populate the cache. <b>Eviction: LRU</b> fits naturally because the hot set drifts (a viral link is hot for hours then cold). Replicate cache nodes so a single node loss doesn't stampede the DB.</p>
+
+<h3>Why a NoSQL / key-value store fits</h3>
+<div class="box"><b>No joins, no transactions, pure point lookups</b>
+The access pattern is <code>GET key &rarr; long_url</code> &mdash; a single-key lookup with no relational joins and no multi-row transactions. That is exactly the shape a <b>key-value / wide-column store</b> (DynamoDB, Cassandra) is built for: it gives horizontal scale via consistent hashing, high write throughput, and tunable availability without the overhead of a relational engine you'd never use. A SQL DB works at small scale but the b-tree index and ACID machinery buy you nothing here while limiting horizontal scale. Shard by the hash key itself for even distribution.</div>
+
+<h3>Rate limiting &amp; abuse</h3>
+<p>Shorteners are a phishing and spam magnet &mdash; the short link hides the destination. Defenses: <b>per-IP / per-API-key rate limits</b> (token bucket) on the create endpoint to stop bulk minting; scan target URLs against malware/phishing blocklists (e.g. Google Safe Browsing) at creation and on redirect; and a takedown/blocklist path so a flagged key returns an interstitial warning instead of redirecting. Rate limiting also protects the KGS block allocator from exhaustion attacks.</p>
+
+<h3>Scaling to billions</h3>
+<p>6-char base62 = ~56.8B keys; bump to 7 chars for ~3.5T if you'll exhaust it. Stateless app servers behind a load balancer scale horizontally. The DB shards by key. Old/expired links are reaped by a lazy cleanup (delete on access if expired) plus a periodic sweep, and <b>their keys are returned to the KGS pool</b> for reuse rather than wasted.</p>
+
+<div class="seealso"><b>Go deeper:</b> <a href="56 Designing a Unique ID Generator.htm">56 ID Generation</a>, <a href="04 Caching.htm">04 Caching</a>, <a href="55 Designing a Key-Value Store.htm">55 Key-Value Store</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you explain how a KGS hands out unique keys to many app servers <b>without any coordination on the hot path</b> &mdash; and what happens to the block of keys held by a server that crashes?</li>
+<li>Why does <b>302 (temporary)</b> get chosen over <b>301 (permanent)</b> when click analytics matter, and what exactly do you lose with each choice?</li>
+<li>Can you do the cache-sizing math: given a read:write ratio and a daily read volume, why does caching <b>~20% of URLs</b> capture <b>~80% of traffic</b>, and why is <b>LRU</b> the right eviction policy here?</li>
+<li>Why is a <b>single global counter</b> a write-path bottleneck, and how does block-based key allocation from a KGS eliminate it while keeping keys unique?</li>
+<li>Why does a <b>key-value / wide-column store</b> fit this workload better than a relational DB &mdash; which relational features would you literally never use?</li>
+<li>Can you describe two abuse vectors specific to a shortener (phishing, bulk minting) and the concrete defenses (Safe Browsing checks, token-bucket rate limits, takedown interstitials)?</li>
+<li>Why are <b>hash-and-truncate</b> keys collision-prone despite the hash being unique, and what extra cost does the collision check add to every write?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="14 A Framework for Approaching System Design.htm">&lsaquo; Prev: A Framework for Approaching System Design</a><a class="nx" href="16 Designing Pastebin.htm">Next: Designing Pastebin &rsaquo;</a></div>
 </div>
 </div>

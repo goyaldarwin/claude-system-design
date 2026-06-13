@@ -216,6 +216,24 @@
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (31).png" alt="Data partitioning and sharding strategies" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A hand-drawn &#x27;DB Sharding&#x27; sheet showing partition strategies (vertical/horizontal) and sharding types: range-based, directory-based, key/hash-based. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2023-10-01 at 11.44.57 AM.jpg" alt="Database sharding strategies" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Text explaining three database sharding strategies: range-based, key/hash-based, and directory-based. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 </div>
+<style>
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Why is <code>hash(key) % N</code> the classic wrong answer for shard placement? Walk through what happens when N goes from 8 to 9 nodes &mdash; what fraction of keys remap, why does that melt your cache and saturate the network, and how does <a href="12 Consistent Hashing.htm">consistent hashing</a> (with virtual nodes) reduce the churn to roughly 1/N?</li>
+<li>When would you pick <b>range partitioning</b> over <b>hash partitioning</b>, and vice versa? Be concrete: range gives you efficient scans (<code>WHERE ts BETWEEN ...</code>) but invites hot shards on monotonic keys; hash spreads load evenly but kills range queries. Which one does a time-series store want, and which one does a user-by-id lookup want?</li>
+<li>What exactly is the <b>hot-shard / celebrity</b> problem, and can you name three mitigations &mdash; salting/key-splitting the hot key into N sub-keys, isolating the hot tenant onto a dedicated shard, and adding a per-key cache or replica fan-out in front of it? What does each one cost you in read/write complexity?</li>
+<li>Contrast <b>local secondary indexes</b> (document-partitioned: index lives with its shard, so writes are cheap but reads scatter-gather across all shards) with <b>global secondary indexes</b> (term-partitioned: reads hit one shard but writes touch multiple). Why does DynamoDB's GSI being eventually consistent fall directly out of this trade-off?</li>
+<li>Can you describe how to <b>reshard a live system with zero downtime</b>? Lay out the dual-write phase, the backfill of historical data, and the cutover &mdash; and explain why the backfill must be idempotent and last-writer-wins by version, and why you replay the CDC/binlog over the snapshot to catch in-flight mutations.</li>
+<li>Why does a shard key, once chosen, become so hard to change &mdash; and how does that pressure your data model toward denormalization and choosing a key that co-locates the rows a single request needs (e.g. all of one customer's orders on one shard)?</li>
+<li>How do you keep <b>cross-shard transactions</b> correct? Why do most systems avoid distributed 2PC by designing the partition key so a logical transaction stays inside one shard, and what do you fall back to (sagas, outbox) when it genuinely cannot?</li>
+<li>Go deeper: <a href="12 Consistent Hashing.htm">12 Consistent Hashing</a></li>
+</ul>
+</div>
 <div class="navfoot"><a href="04 Caching.htm">&lsaquo; Prev: Caching</a><a class="nx" href="06 Indexes.htm">Next: Indexes &rsaquo;</a></div>
 </div>
 </div>

@@ -191,6 +191,87 @@ A JSON containing information about a list of status messages matching the searc
 <p>How about if we want to rank the search results by social graph distance, popularity, relevance, etc?</p>
 <p>Let&rsquo;s assume we want to rank statuses on popularity, like, how many likes or comments a status is getting, etc. In such a case our ranking algorithm can calculate a &lsquo;popularity number&rsquo; (based on the number of likes etc.), and store it with the index. Each partition can sort the results based on this popularity number before returning results to the aggregator server. The aggregator server combines all these results, sort them based on the popularity number and sends the top results to the user.</p>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The lesson treats the index as a "big distributed hash table" mapping word &rarr; list of StatusIDs. That is the right mental model, but the gap between that one sentence and a system that survives the real Twitter firehose is where all the engineering lives. Twitter actually built this twice: the original <strong>Earlybird</strong> (a heavily modified Lucene that powers real-time search) and the batch <strong>Lucene</strong>-on-Hadoop indexes for older tweets. Both lessons below are drawn from how those systems behave under load.</p>
+
+<h3>The inverted index, precisely</h3>
+<p>An inverted index inverts the natural document&rarr;words mapping into a words&rarr;documents mapping. Two pieces:</p>
+<div class="box"><b>Dictionary (term dictionary)</b>Maps each term to a pointer. For 500K terms this is tiny (the lesson's 2.5&nbsp;MB) and lives fully in RAM, often as a finite-state transducer (Lucene's FST) so prefixes share storage.</div>
+<div class="box"><b>Postings list</b>Per term, the sorted list of document IDs containing it (plus per-doc payloads: term frequency, positions for phrase queries, field flags). This is the 21&nbsp;TB. Postings are <em>delta-encoded</em> (store gaps between sorted DocIDs, not absolute IDs) and bit-packed, so a list of 292B IDs compresses to a fraction of the naive 5&nbsp;bytes/ID the lesson assumes.</div>
+<p>A query like <code>cricket AND india</code> fetches both postings lists and intersects them. Because lists are sorted, intersection is a merge — and with <strong>skip lists</strong> embedded in the postings you can leapfrog over runs of the longer list, turning an O(n+m) merge into roughly O(m&nbsp;log(n/m)) for the shorter list <code>m</code>. This is why search is fast despite billion-entry lists.</p>
+
+<h3>Real-time indexing of the firehose</h3>
+<p>The lesson's design quietly assumes statuses are already stored, then indexed. Twitter's hard requirement is that a tweet is <em>searchable within ~1&ndash;10 seconds</em> of posting. That breaks the textbook "build an immutable index segment, then serve it" model, because traditional Lucene segments are write-once and merging is expensive.</p>
+<div class="box"><b>Earlybird's trick</b>Maintain a small mutable in-memory segment that accepts single-document appends, with postings stored in an <em>unsorted</em>, append-friendly layout optimized for write throughput; periodically freeze it into a read-optimized compressed segment and start a fresh mutable one. Recently-frozen and active segments are searched together. This is the same write-optimized&rarr;read-optimized lifecycle you see in an LSM tree.</div>
+<p>The plumbing that carries 400M+ writes/day into the indexers is a log: tweets land on a durable, partitioned commit log (Kafka-class), indexers consume their partitions and apply updates. This decouples ingest spikes from index-build latency and lets a rebuilt index server <em>replay</em> the log from a checkpoint rather than brute-forcing the whole DB — a much better fault-recovery story than the section&nbsp;7 "iterate the entire database" approach. See <a href="40 Stream Processing and CDC.htm">40 Stream Processing</a> and <a href="39 Kafka and Log-based Messaging.htm">39 Kafka</a>.</p>
+
+<h3>Term-sharding vs document-sharding — the central decision</h3>
+<p>The lesson presents both but doesn't fully weigh them. This is the single most important trade-off in the design:</p>
+<table>
+<tr><th>Dimension</th><th>Term-partitioned (shard by word)</th><th>Document-partitioned (shard by StatusID)</th></tr>
+<tr><td>Query fan-out</td><td>Only shards holding the query terms (low fan-out)</td><td><strong>Every shard</strong> (scatter-gather to all N)</td></tr>
+<tr><td>Multi-term query (AND)</td><td>Postings live on different shards &rarr; must ship huge lists across the network to intersect</td><td>Each shard intersects locally, ships only matches</td></tr>
+<tr><td>Hot terms</td><td>One shard owns <code>covid</code> / a trending hashtag &rarr; brutal hotspot</td><td>Load spreads naturally across all shards</td></tr>
+<tr><td>Write path</td><td>One tweet's words scatter to many shards</td><td>One tweet indexed entirely on one shard (local write)</td></tr>
+<tr><td>Tail latency</td><td>Few shards, but skewed</td><td>Bounded by the <em>slowest</em> of N shards</td></tr>
+<tr><td>Used by</td><td>Rare in practice</td><td>Earlybird, Elasticsearch, Google web search</td></tr>
+</table>
+<div class="box"><b>Why production systems pick document-partitioning</b>Term-partitioning's killer flaw is multi-term queries: intersecting <code>cricket AND india</code> when the two postings lists live on different machines means shipping one of two billion-entry lists over the network per query. Document-partitioning keeps the intersection local; you pay for fan-out instead, which you mitigate by replicating each shard and routing to replicas. This is exactly the lesson's "Sharding based on the status object," and the reason a centralized aggregator is unavoidable.</div>
+
+<h3>Scatter-gather, tail latency, and the aggregator</h3>
+<p>Document-partitioned search means every query hits all N index shards and an aggregator merges results. The catch is the <strong>tail-latency amplification</strong> Jeff Dean popularized: if one shard has a p99 of 1&nbsp;s and you query 100 of them, the <em>query's</em> p99 is dominated by the worst shard — at 100 shards you almost always hit at least one slow one. Mitigations: <em>hedged requests</em> (fire to a replica after a short delay, take the first to answer), tied requests, and returning partial results once enough shards respond. The aggregator also needs <strong>early termination</strong> — with results sorted by recency or score per shard, it can stop once it has enough top-K without draining every postings list.</p>
+
+<h3>Ranking and relevance — early vs late binding</h3>
+<p>The lesson stores a single "popularity number" with the index and sorts on it. Real ranking is richer and forces an <em>early-binding vs late-binding</em> decision:</p>
+<div class="box"><b>Early binding (pre-compute at index time)</b>Bake a static score (popularity, author authority, freshness boost) into the postings, so shards can early-terminate against a pre-sorted list. Fast, but the score is stale and query-independent — it can't know <em>your</em> social graph or the query terms' weight.</div>
+<div class="box"><b>Late binding (score at query time)</b>Retrieve a candidate set cheaply, then run an expensive ranker (BM25/TF-IDF for textual relevance, plus signals like engagement velocity, social-graph distance, personalization) over only the top candidates. This is the standard two-phase <em>retrieve-then-rank</em> design: a cheap recall stage followed by an expensive precision stage on a few hundred docs.</div>
+<p>Twitter does both: Earlybird applies a lightweight per-shard score for early termination, then a re-ranking stage on the aggregated candidates. The reason you can afford the expensive ranker is that late binding only runs it on the survivors, not on billions of postings. <a href="64 Search and Elasticsearch.htm">64 Search &amp; Elasticsearch</a> covers BM25 and Elasticsearch's query/filter context, which is the same recall-then-precision split.</p>
+
+<h3>Failure modes the lesson under-weights</h3>
+<table>
+<tr><th>Failure</th><th>Consequence</th><th>Mitigation</th></tr>
+<tr><td>Hot term under term-sharding</td><td>One shard saturates; query latency for that term spikes for everyone</td><td>Document-partition instead; or replicate hot-term shards heavily</td></tr>
+<tr><td>Index rebuild via full DB scan (section&nbsp;7)</td><td>Hours of unavailability; queries silently miss tweets on that shard</td><td>Replay the commit log from a checkpoint; keep a replica serving during rebuild</td></tr>
+<tr><td>One slow shard in scatter-gather</td><td>Tail-latency amplification &rarr; whole query is slow</td><td>Hedged/tied requests; partial results; per-shard deadlines</td></tr>
+<tr><td>Trending event (e.g. World Cup goal)</td><td>Write spike + query spike on the same terms simultaneously</td><td>Decouple ingest via log buffer; cache trending-query result sets with short TTL</td></tr>
+<tr><td>Deletes / edits</td><td>Immutable segments can't update in place</td><td>Tombstone the DocID in a deletes bitset, filter at query time, reclaim on segment merge</td></tr>
+</table>
+
+<div class="seealso"><b>Go deeper:</b> <a href="64 Search and Elasticsearch.htm">64 Search &amp; Elasticsearch</a>, <a href="40 Stream Processing and CDC.htm">40 Stream Processing</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you explain, given a query <code>cricket AND india</code>, exactly what the dictionary and the two postings lists do — and why keeping postings sorted lets you intersect them with skip-list leapfrogging instead of scanning both lists end to end?</li>
+<li>Why does almost every production search system (Earlybird, Elasticsearch, Google) choose <strong>document-partitioning over term-partitioning</strong>, even though term-partitioning has lower query fan-out? What specifically breaks for a multi-term AND query under term-partitioning?</li>
+<li>Document-partitioning forces a scatter-gather to all N shards. Can you explain why that makes the <em>query's</em> p99 worse than any single shard's p99, and name two mitigations (hint: hedged requests, partial results)?</li>
+<li>Why does the firehose's "searchable within seconds" requirement break the textbook write-once-segment model, and how does a mutable in-memory segment that later freezes into a compressed one (the same lifecycle as an LSM tree) solve it?</li>
+<li>Why is replaying a commit log from a checkpoint a strictly better way to rebuild a dead index shard than the lesson's "iterate the whole database and re-hash" approach?</li>
+<li>Can you distinguish <strong>early-binding</strong> ranking (static score baked into postings, enabling early termination) from <strong>late-binding</strong> ranking (expensive scorer run only on retrieved candidates), and explain why the cheap-recall-then-expensive-precision split is what makes rich relevance affordable at this scale?</li>
+<li>How do you handle deletes and edits in an index built from immutable segments, and why is a tombstone bitset filtered at query time preferable to mutating the segment in place?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="23 Designing an API Rate Limiter (_New_).htm">&lsaquo; Prev: API Rate Limiter</a><a class="nx" href="25 Designing a Web Crawler.htm">Next: Designing a Web Crawler &rsaquo;</a></div>
 </div>
 </div>

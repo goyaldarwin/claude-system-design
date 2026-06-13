@@ -222,6 +222,24 @@
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2024-12-04 at 9.05.08 AM.jpg" alt="Cache failure modes and mitigations" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Diagram of four cache failure modes — thundering herd, cache penetration, cache breakdown, cache crash — with solutions. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (18).png" alt="Caching fundamentals and strategies" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A comprehensive mind map of caching covering cache strategies, replacement/invalidation, deployment, challenges, and distributed caching. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 </div>
+<style>
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you contrast <b>write-through</b>, <b>write-back</b>, and <b>write-around</b> on three axes — write latency, durability/data-loss window, and read-hit rate for freshly written keys — and pick the right one for a financial ledger vs. a metrics-ingest pipeline vs. a write-heavy log store?</li>
+<li>Why does a single popular key expiring cause a <b>cache stampede</b> (thundering herd) where thousands of requests hammer the DB at once, and how do you prevent it — per-key locks / single-flight, probabilistic early recomputation (XFetch with the <i>e<sup>-(delta·beta)·ln(rand)</sup></i> rule), stale-while-revalidate, or jittered TTLs?</li>
+<li>Why does plain <b>LRU</b> get polluted by a one-time scan of cold keys, and what does <b>W-TinyLFU</b> (the policy behind Caffeine) do differently with its frequency sketch and admission window that pushes hit ratios closer to optimal — and when would simple <b>LFU</b> or <b>LRU</b> still be the right call?</li>
+<li>Can you describe the <b>hot-key problem</b> — one key (a celebrity profile, a flash-sale SKU) saturating a single Redis shard's CPU/NIC — and the mitigations: key-splitting/replication across N copies, a local in-process L1 tier in front of the shared cache, or request coalescing at the edge?</li>
+<li>Why does <b>cache-aside</b> have a consistency race where a concurrent reader can repopulate a stale value <i>after</i> a writer deletes it, leaving the cache permanently wrong until TTL — and how do delete-after-write ordering, versioned writes, or short TTL bounds limit the damage?</li>
+<li>Can you explain why you should <b>delete (invalidate)</b> rather than <b>update</b> the cache on a write, and when a write-through update is nonetheless safe?</li>
+<li>Why is <b>cache penetration</b> (repeated lookups of keys that don't exist) a separate failure from a stampede, and why is a Bloom filter or negative-caching the fix rather than a bigger cache?</li>
+</ul>
+<p style="margin:12px 0 0;font-size:14px;color:#5b6472">Go deeper: <a href="53 Designing a Distributed Cache.htm">53 Distributed Cache</a></p>
+</div>
 <div class="navfoot"><a href="03 Load Balancing.htm">&lsaquo; Prev: Load Balancing</a><a class="nx" href="05 Sharding or Data Partitioning.htm">Next: Sharding / Data Partitioning &rsaquo;</a></div>
 </div>
 </div>

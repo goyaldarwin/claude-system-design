@@ -229,6 +229,71 @@ We can have a large number of logical partitions to accommodate future data grow
 <p>We can introduce a cache for metadata servers to cache hot database rows. We can use Memcache to cache the data and Application servers before hitting database can quickly check if the cache has desired rows. Least Recently Used (LRU) can be a reasonable cache eviction policy for our system. Under this policy, we discard the least recently viewed row first.</p>
 <p><strong>How can we build more intelligent cache?</strong> If we go with 80-20 rule, i.e., 20% of daily read volume for photos is generating 80% of traffic which means that certain photos are so popular that the majority of people reads them. This dictates we can try caching 20% of daily read volume of photos and metadata.</p>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The lesson treats timeline generation as a single "pre-generate and store" step. In reality the central design decision — and the one production punishes you for getting wrong — is <em>when</em> the fan-out happens: at write time or at read time. Everything downstream (storage cost, write amplification, read latency, the celebrity problem) falls out of that choice.</p>
+
+<h3>Fan-out-on-write vs fan-out-on-read</h3>
+<div class="box"><b>Fan-out-on-write (push)</b>When a user posts, the system writes that photo's ID into the precomputed timeline of every follower. A read is then a single sequential lookup of one materialized list — extremely cheap. Instagram's home feed and Twitter's timeline both lean heavily on this because <em>reads massively outnumber writes</em> (the lesson's own 1M DAU / 23 writes-per-sec asymmetry).</div>
+<div class="box"><b>Fan-out-on-read (pull)</b>Nothing is precomputed. At read time the server gathers the people you follow, queries each one's recent photos, then merges and ranks. Cheap writes, expensive and high-variance reads — you fan out across N followee shards on every feed open.</div>
+
+<table>
+<tr><th>Dimension</th><th>Fan-out-on-write (push)</th><th>Fan-out-on-read (pull)</th></tr>
+<tr><td>Read latency</td><td>Low, predictable — one list read</td><td>High, variable — scatter-gather over followees</td></tr>
+<tr><td>Write cost</td><td>O(followers) writes per post — write amplification</td><td>O(1) — just store the photo</td></tr>
+<tr><td>Storage</td><td>High — every post duplicated into many timelines</td><td>Low — store once</td></tr>
+<tr><td>Staleness</td><td>Feed materialized; easy to serve instantly</td><td>Always fresh, computed on demand</td></tr>
+<tr><td>Best for</td><td>Normal users with bounded follower counts</td><td>Very active accounts followed by few; celebrities</td></tr>
+</table>
+
+<h3>The celebrity / hot-user problem (why pure push breaks)</h3>
+<p>Pure fan-out-on-write collapses at the tail of the follower distribution. The lesson hints at "hot users" but doesn't quantify the blow-up: a celebrity with 400M followers posting once would trigger ~400M timeline writes, all of which must land before the post is "seen" — a single insert turns into a multi-minute write storm that delays the post and can saturate the cache and write path. The follower graph is power-law: a handful of accounts have nine-figure follower counts while the median user has a few hundred.</p>
+<div class="box"><b>Hybrid resolution</b>Push for normal users; <em>pull</em> for celebrities. A regular follower's timeline is materialized from the accounts they follow that are below a follower threshold. At read time, the server <em>additionally</em> merges in fresh posts from the small set of celebrities that user follows (a cheap, cacheable per-celebrity query) and ranks the union. This caps write amplification at the cost of a bounded read-time merge — the same hybrid the lesson's "Push/Pull/Hybrid" section gestures at, now grounded in the graph shape.</div>
+<div class="box"><b>Failure mode: thundering herd on a viral post</b>Even hybrid push can stampede: a sudden-viral post from a borderline account triggers a huge fan-out while simultaneously every follower's client polls for it. Mitigations: rate-cap fan-out fan-out workers, dedupe via an idempotency key per (post, follower), and serve the post from CDN/cache so the read path never touches the metadata DB. See <a href="57 Designing a Notification System.htm">Notifications</a> for the same fan-out tension.</div>
+
+<h3>Why photos never touch the app server</h3>
+<p>A 200KB photo streamed through application servers would burn the very connection budget the lesson worries about (the "500 connections per web server" limit). The principal pattern decouples the <em>bytes</em> from the <em>metadata</em>:</p>
+<div class="box"><b>Upload path</b>Client requests a <em>pre-signed URL</em> from the app server, then PUTs the bytes <em>directly</em> to the object store (S3/equivalent). The app server only writes the small metadata row (PhotoID, location, owner, timestamp). The heavy I/O bypasses your fleet entirely.</div>
+<div class="box"><b>Read path</b>The feed returns metadata + an object-store/CDN URL; the client fetches pixels from the nearest CDN PoP. App servers serve kilobytes of JSON, never megabytes of JPEG. This is what makes a read-heavy photo service affordable — see <a href="65 Object Storage and CDN.htm">Object Storage &amp; CDN</a>.</div>
+
+<h3>Metadata sharding &amp; ID design</h3>
+<p>The lesson's two schemes — shard by UserID vs shard by PhotoID — encode a real trade-off. Shard-by-UserID keeps a user's photos co-located (good for "show my profile grid") but creates hot shards for prolific/celebrity users and uneven storage. Shard-by-PhotoID spreads load evenly but scatters a single user's photos across shards. The time-ordered PhotoID (epoch-seconds prefix + per-second sequence) is the quiet hero: it makes "latest first" a primary-key range scan with no secondary sort, which is exactly why feed merges stay cheap. Generating those IDs safely (no single point of failure) is its own problem — see the unique-ID techniques referenced from the Twitter and URL-shortener lessons.</p>
+<div class="box"><b>Consistency posture</b>The NFRs explicitly trade consistency for availability: a missing photo for a few seconds is acceptable, a lost upload is not. That justifies eventually-consistent timelines (Cassandra-style wide-column stores, async fan-out) while demanding durable, replicated object storage with read-after-write durability for the bytes themselves.</p></div>
+
+<div class="seealso"><b>Go deeper:</b> <a href="26Designing Facebook’s Newsfeed.htm">26 Newsfeed</a>, <a href="65 Object Storage and CDN.htm">65 Object Storage &amp; CDN</a>, <a href="57 Designing a Notification System.htm">57 Notifications</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you explain, in terms of the read/write ratio, <em>why</em> Instagram defaults to fan-out-on-write rather than computing every feed at read time — and quantify the write amplification a single post causes for a user with 500 followers vs one with 50M?</li>
+<li>Why does a pure push (fan-out-on-write) model break for celebrity accounts, and exactly which part of the hybrid model rescues it — what work moves back to read time?</li>
+<li>Can you trace the upload path and explain why the 200KB photo bytes never flow through an application server, and what specifically would break (connection budget, latency, cost) if they did?</li>
+<li>Why does encoding epoch-seconds into the PhotoID turn "fetch the latest 100 photos" into a primary-key range scan, and what would you lose by sharding on UserID instead of PhotoID?</li>
+<li>Can you describe the thundering-herd failure when a borderline account's post goes viral, and name two mitigations that keep the metadata DB out of the hot read path?</li>
+<li>Why is it acceptable for a follower to not see a photo for a few seconds, but never acceptable to lose an uploaded photo — and how does that asymmetry shape your choice of datastore for timelines vs for the photo bytes?</li>
+<li>Can you justify when you'd shard metadata by UserID (profile grids, co-location) versus by PhotoID (even load), and what the time-ordered ID lets you avoid in either case?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="16 Designing Pastebin.htm">&lsaquo; Prev: Pastebin</a><a class="nx" href="18 Designing Dropbox.htm">Next: Designing Dropbox &rsaquo;</a></div>
 </div>
 </div>

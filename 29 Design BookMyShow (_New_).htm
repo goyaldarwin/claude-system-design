@@ -337,6 +337,88 @@ Whenever ActiveReservationsService crashes, we can read all the active reservati
 <li>Expire all waiting users who want to reserve more seats than the available seats. For this, WaitingUserService has to iterate through the Linked HashMap of all the waiting users.</li>
 </ol>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The entire system collapses to one hard problem: <strong>two users must never own the same seat</strong>, and this must hold under a burst of thousands of requests hitting the <em>same</em> few rows the instant a hot show opens. Everything else &mdash; search, catalogue, the seat map &mdash; is read-heavy and trivially cacheable. The booking path is the only place real money and real contention collide. Get the concurrency model wrong and you either double-sell (a refund, an angry customer, a chargeback) or you over-lock and the whole show grinds to a halt while one slow client holds a lock.</p>
+
+<div class="box"><b>The core invariant</b>
+A seat for a given <code>ShowID</code> is in exactly one of three states at any instant: <code>FREE</code>, <code>HELD</code> (by one session, with an expiry), or <code>BOOKED</code> (paid, permanent). Every transition must be atomic and observed by all readers. The bug to fear is the lost update / phantom: two transactions both read <code>FREE</code>, both write <code>HELD</code>.</p></div>
+
+<h3>Three ways to guarantee the invariant</h3>
+
+<table>
+<tr><th>Strategy</th><th>How it works</th><th>Wins</th><th>Costs / failure mode</th></tr>
+<tr><td><strong>Pessimistic locking</strong> (the lesson's <code>SERIALIZABLE</code> approach)</td><td><code>SELECT ... FOR UPDATE</code> on the seat rows inside a txn; concurrent txns block until commit.</td><td>Simple, correct, no retry logic. Fine at moderate QPS.</td><td>Under a thundering herd the hot rows become a serialization point. Lock held across a slow app round-trip = head-of-line blocking. <code>SERIALIZABLE</code> can also deadlock or abort with serialization failures you must retry.</td></tr>
+<tr><td><strong>Optimistic concurrency (OCC)</strong></td><td>Read seat + a <code>version</code>; on write do <code>UPDATE ... WHERE id=? AND version=?</code>. Zero rows affected &rarr; someone else won, retry.</td><td>No locks held during user think-time; great when conflicts are <em>rare</em>.</td><td>On a hot show conflicts are the <em>common</em> case, so you get a retry storm &mdash; OCC degrades exactly when you need it most.</td></tr>
+<tr><td><strong>Reservation-with-timeout (seat hold)</strong></td><td>A short atomic write flips <code>FREE&rarr;HELD</code> with a TTL; the slow steps (think-time, payment) happen <em>outside</em> any DB lock. Hold auto-expires.</td><td>Decouples the millisecond-scale conflict resolution from the minutes-scale payment flow. This is what BookMyShow / Ticketmaster actually do.</td><td>Need a reliable expiry mechanism and idempotent confirm; a crash mid-flow must not strand a seat as <code>HELD</code> forever.</td></tr>
+</table>
+
+<div class="box"><b>The seat-hold pattern in practice</b>
+The hold is the only step that must be globally serialized, and it is <em>cheap</em> &mdash; a single conditional write. A common high-throughput implementation: a Redis key per seat, <code>SET show:99:seat:54 &lt;sessionId&gt; NX PX 300000</code>. <code>NX</code> makes it atomic (only one session can create the key); <code>PX</code> sets the 5-minute TTL so a hold self-expires even if the client vanishes. The relational <code>Booking</code> row is written on <em>confirm</em>, not on hold &mdash; so the DB never sees the contention. The lesson's in-memory Linked HashMap is the single-server version of exactly this idea; Redis (or a partitioned hold service) is the distributed version. See <a href="62 Designing a Distributed Locking Service.htm">62 Distributed Locking</a> for why a naive Redis lock needs fencing tokens to survive a primary failover.</p></div>
+
+<h3>Thundering herd on a hot show</h3>
+<p>When tickets for a blockbuster (or a Taylor Swift tour &mdash; Ticketmaster's 2022 Eras Sale fielded ~3.5 billion requests and melted) open at 10:00:00, the load is not uniform: it is a vertical spike onto a few hundred rows. Defenses, layered:</p>
+
+<div class="box"><b>Waiting room / virtual queue</b>
+Don't let the herd reach the booking tier at all. Admit users through a token-issuing queue (a la Ticketmaster's "Smart Queue", or a Cloudflare Waiting Room). Each admitted user gets a signed token granting a time window; the booking service rejects anyone without a valid token. This converts an uncontrollable spike into a steady, capacity-matched drip and is the single most important scaling decision for this system.</p></div>
+
+<ol>
+<li><strong>Front the seat-map reads with a cache + CDN.</strong> 99% of the herd is just <em>looking</em>. Serve the seat-availability snapshot from Redis/edge with a 1&ndash;2s TTL; accept slight staleness on reads, enforce truth only at hold-time.</li>
+<li><strong>Shard the hold service by <code>ShowID</code>.</strong> (The lesson's consistent-hashing partitioning.) One show's frenzy can't starve another's. A single mega-show may still need its seats spread across shards or its own dedicated capacity.</li>
+<li><strong>Fail fast and clearly.</strong> A losing hold attempt should return instantly ("seat just taken, pick another") rather than queue behind a lock &mdash; the lesson's three-way <code>ReserveSeats</code> response is exactly this.</li>
+<li><strong>First-come-first-serve waiting list</strong> (the <code>WaitingUsersService</code>) absorbs users for seats that <em>might</em> free up when holds expire, served fairly via the head of the Linked HashMap.</li>
+</ol>
+
+<h3>Hold &rarr; pay &rarr; confirm: a saga, not a transaction</h3>
+<p>You cannot wrap "hold the seat" and "charge the card" in one ACID transaction &mdash; the payment lives in an external gateway (Stripe/Razorpay), takes seconds-to-minutes, and may involve a 3-D Secure redirect. This is a textbook distributed transaction handled as a <strong>saga</strong> with compensations rather than a 2PC:</p>
+
+<table>
+<tr><th>Step</th><th>Forward action</th><th>Compensation if a later step fails</th></tr>
+<tr><td>1. Hold</td><td><code>FREE&rarr;HELD</code> with 5-min TTL</td><td>Let TTL expire (or release explicitly) &rarr; back to <code>FREE</code></td></tr>
+<tr><td>2. Charge</td><td>Call payment gateway with an idempotency key</td><td>Refund / void the authorization</td></tr>
+<tr><td>3. Confirm</td><td><code>HELD&rarr;BOOKED</code>, write <code>Booking</code> row, issue ticket</td><td>(terminal) on confirm failure after a successful charge &rarr; auto-refund + alert</td></tr>
+</table>
+
+<div class="box"><b>Idempotency is non-negotiable</b>
+The dangerous window is between a successful charge and a successful confirm. A client retry, a duplicated message, or a gateway webhook delivered twice must not double-charge or double-book. Two keys do the work: (1) an <em>idempotency key</em> on the payment call so the gateway dedupes a retried charge; (2) a unique constraint <code>(ShowID, SeatID)</code> with <code>Status=BOOKED</code> in the DB so a duplicate confirm is rejected at the storage layer, not just in app code. Prefer authorize-on-hold + capture-on-confirm so an unpaid expiry never leaves a real charge. See <a href="59 Designing a Payment System.htm">59 Payment System</a> for exactly-once charge semantics and <a href="32 Distributed Transactions.htm">32 Distributed Transactions</a> for saga orchestration vs. choreography.</p></div>
+
+<div class="box"><b>The "stranded HELD seat" failure mode</b>
+If the hold lives only in an in-memory map (as in the base lesson) and that server crashes, the seat is logically held with no owner and no expiry to fire. Mitigations: persist the hold's expiry in the <code>Booking</code> row (the lesson's recovery path), use a TTL-backed store (Redis) as the source of truth so expiry is intrinsic, and run a reconciliation sweeper that releases <code>HELD</code> rows whose timestamp is past. The lesson's 5-second server-side buffer (client never times out after the server) is a smaller version of the same defensive instinct &mdash; never let two parties disagree about whether a hold is still alive.</p></div>
+
+<div class="seealso"><b>Go deeper:</b> <a href="62 Designing a Distributed Locking Service.htm">62 Distributed Locking</a>, <a href="32 Distributed Transactions.htm">32 Distributed Transactions</a>, <a href="59 Designing a Payment System.htm">59 Payment System</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you explain, in terms of the three seat states (<code>FREE</code>/<code>HELD</code>/<code>BOOKED</code>), the exact race that causes a double-booking &mdash; and name the single atomic operation that prevents it?</li>
+<li>Why does optimistic concurrency degrade precisely on a hot show, while a reservation-with-timeout hold thrives there? When would you still pick pessimistic <code>SELECT ... FOR UPDATE</code>?</li>
+<li>Why can't "hold the seat" and "charge the card" live in one ACID transaction, and how does a saga with compensations close that gap? What are the compensating actions for each step?</li>
+<li>Can you describe the dangerous window between a successful charge and a successful confirm, and the two distinct mechanisms (idempotency key vs. unique DB constraint) that make the flow safe under retries and duplicate webhooks?</li>
+<li>Why is a virtual waiting room / token queue a more effective answer to a thundering herd than simply adding more booking servers? What does each admitted token grant?</li>
+<li>If the server holding an in-memory hold crashes, why might a seat be stranded as <code>HELD</code> forever &mdash; and what three mechanisms recover it? Why the 5-second server-side expiry buffer?</li>
+<li>Why partition the hold service and database by <code>ShowID</code> rather than <code>MovieID</code>, and what's the residual problem when a single show is itself the hotspot?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="28 Designing Uber backend.htm">&lsaquo; Prev: Uber Backend</a><a class="nx" href="30 Consensus and Raft.htm">Next: Consensus &amp; Raft &rsaquo;</a></div>
 </div>
 </div>

@@ -247,6 +247,98 @@ A JSON containing information about a list of businesses matching the search que
 <p>Remember that we didn't build our system to update place's data frequently. With this design, how can we modify popularity of a place in our QuadTree? Although we can search a place and update its popularity in the QuadTree, it would take a lot of resources and can affect search requests and system throughput. Assuming popularity of a place is not expected to reflect in the system within a few hours, we can decide to update it once or twice a day, especially when the load on the system is minimum.</p>
 <p>Our next problem <a href="28 Designing Uber backend.htm">Designing Uber backend</a> discusses dynamic updates of the QuadTree in detail.</p>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The QuadTree story in the lesson is correct but it is only one point on a much larger design space. In production, the choice of spatial index, the static-vs-dynamic nature of your objects, and how you shard the index together determine whether your p99 is 5&nbsp;ms or 500&nbsp;ms. Here is the depth the original lesson skips.</p>
+
+<h3>The four geospatial indexing schemes you actually see in industry</h3>
+<p>Every proximity system reduces a 2D problem to a 1D problem (so it can use ordinary B-tree / sorted-string indexes and range scans) <em>or</em> to a tree of buckets. The big four:</p>
+
+<table>
+<tr><th>Scheme</th><th>How it works</th><th>Strengths</th><th>Weaknesses</th><th>Used by</th></tr>
+<tr><td><b>Geohash</b></td><td>Recursively interleave lat/long bits, Base32-encode into a string. A shared prefix = nearby in space. Length 6 ≈ 1.2&nbsp;km cell, length 7 ≈ 150&nbsp;m, length 8 ≈ 38&nbsp;m.</td><td>Trivial to store as a string column; prefix range-scan on any B-tree/Redis sorted set; no custom tree code.</td><td>Cells are non-uniform in area; <em>boundary problem</em> — two points 1&nbsp;m apart can have totally different prefixes; must query the 8 neighbor cells too. Edge/pole distortion.</td><td>Redis GEO commands (geohash + sorted set), Elasticsearch geo, older Tinder/Bukalapak builds.</td></tr>
+<tr><td><b>QuadTree</b></td><td>Recursively split a cell into 4 children once it exceeds a capacity (e.g. 500). Leaves hold the points.</td><td>Adapts to density automatically; dense downtown gets fine cells, ocean gets coarse cells; bounded fanout per query.</td><td>In-memory structure to rebuild on crash; tree is mutable so moving objects mean delete+reinsert + possible rebalancing; harder to shard than a flat key.</td><td>The classic Yelp / proximity-server answer; many in-house place indexes.</td></tr>
+<tr><td><b>S2 (Google)</b></td><td>Projects the sphere onto 6 cube faces, then a Hilbert curve over a quadtree per face → a 64-bit <code>cell id</code>. 30 levels; level 12 ≈ 3&nbsp;km², level 16 ≈ 12,000&nbsp;m².</td><td>True spherical geometry (no lat/long distortion at poles); Hilbert curve keeps spatial locality far better than geohash's Z-order; a region = a small set of cell-id ranges → range scans on any KV store.</td><td>Conceptually heavy; need the S2 library; pick-the-right-level tuning.</td><td>Google Maps, Foursquare, Pokémon GO's "cells", many ride-hail backends.</td></tr>
+<tr><td><b>H3 (Uber)</b></td><td>Hexagonal hierarchical grid. Each hex has 6 neighbors all equidistant; 16 resolutions, res&nbsp;9 ≈ 0.1&nbsp;km².</td><td>Uniform neighbor distance (no diagonal-vs-orthogonal asymmetry that squares have) → cleaner radius queries, smoothing, and ML features on top of cells.</td><td>Hexagons can't perfectly subdivide into smaller hexagons (a parent hex ≠ exact union of 7 children), so containment is approximate across levels; 12 pentagons exist on the globe as artifacts.</td><td>Uber surge/ETA/supply-demand, marketing geo-analytics, increasingly the default for "bucket the world" analytics.</td></tr>
+</table>
+
+<div class="box"><b>The boundary problem — the #1 correctness bug</b>The naive "find my cell, return its contents" is wrong: the nearest restaurant may sit in the adjacent cell, a meter across the border. <em>Every</em> scheme must query the home cell plus its neighbors (8 for square geohash/quad, 6 for H3), then filter by true great-circle (Haversine) distance and sort. Forgetting the neighbor sweep produces a system that "works" in testing and silently drops the closest result in production.</p></div>
+
+<div class="box"><b>Z-order vs Hilbert locality</b>Geohash uses a Z-order (Morton) curve, which has nasty "jumps" — adjacent cells can be far apart on the 1D line, so a small geographic box maps to many disjoint key ranges. S2's Hilbert curve keeps neighbors numerically close, so the same box becomes a handful of contiguous ranges → far fewer range scans. This is the concrete reason S2 outperforms raw geohash on a KV store at scale.</p></div>
+
+<h3>Static vs dynamic location data — the design fork</h3>
+<p>The lesson's own line — <em>"if we intend to build a service where objects do change their location frequently… then we might come up with a very different design"</em> — is the whole game. The two halves of the prompt are actually two different systems:</p>
+
+<table>
+<tr><th>Dimension</th><th>Yelp (static places)</th><th>Nearby Friends (moving objects)</th></tr>
+<tr><td>Write rate</td><td>Tiny — a place is added once, edited rarely. Read:write ≫ 1000:1.</td><td>Every user emits a location ping every 5–30&nbsp;s. Millions of writes/s.</td></tr>
+<tr><td>Index mutability</td><td>Build the QuadTree once, treat as read-only; rebuild offline.</td><td>Index churns constantly — a friend crosses a cell boundary → delete from old cell, insert into new. Rebalancing a QuadTree on every move is fatal.</td></tr>
+<tr><td>Storage</td><td>Durable DB + in-memory index. Persistence matters.</td><td>Ephemeral. Store last position in Redis (GEOADD) or an in-memory grid with TTL; stale positions just expire. Durability barely matters.</td></tr>
+<tr><td>Query semantics</td><td>"Restaurants within 2&nbsp;km, sorted by rating." Radius is large, results stable.</td><td>"Which of <em>my friends</em> are within 1&nbsp;km right now." Constrained to a social graph; needs push (pub/sub), not just pull.</td></tr>
+<tr><td>Right tool</td><td>QuadTree / S2 over a relational or document store.</td><td>Redis GEO + pub/sub, or a fixed grid keyed by geohash/H3 cell with per-cell fan-out to subscribers; positions decay.</td></tr>
+</table>
+
+<div class="box"><b>Why moving objects break the QuadTree</b>A QuadTree's value is adaptive subdivision, but subdivision/merge is expensive. With millions of objects moving every few seconds you'd be splitting and merging nodes continuously, holding locks on hot nodes. Nearby-Friends instead uses a <em>fixed-resolution</em> grid (no rebalancing) and accepts non-uniform cell occupancy, because an O(1) "move object from cell A to cell B" beats a self-balancing tree. See <a href="28 Designing Uber backend.htm">28 Uber Backend</a>, which is the moving-objects design in full.</p></div>
+
+<h3>Anatomy of the proximity query</h3>
+<p>A correct nearby-search is four steps, not one:</p>
+<table>
+<tr><th>Step</th><th>What happens</th><th>Cost / gotcha</th></tr>
+<tr><td>1. Locate</td><td>Convert (lat, long) → cell id / geohash / leaf node containing the user.</td><td>O(tree depth) or O(1) bit math. Cheap.</td></tr>
+<tr><td>2. Expand</td><td>Compute the home cell + neighbor cells (and coarser cells if radius &gt; cell). For a radius bigger than a cell you "cover" the query circle with a set of cells (S2 <code>RegionCoverer</code>, H3 <code>kRing</code>).</td><td>This is where the boundary bug lives. The number of cells to cover scales with (radius / cell-edge)².</td></tr>
+<tr><td>3. Gather</td><td>Read candidate points from those cells (range scans / hash lookups / leaf walks).</td><td>Over-fetch: you grab a square/hex region but want a circle, so you pull ~27% extra (square) candidates.</td></tr>
+<tr><td>4. Refine</td><td>Compute true Haversine distance for each candidate, drop those outside the radius, sort by distance/rating, paginate.</td><td>The only step using exact geometry. Cheap per-candidate, but if step 2 over-covered you do too much of it.</td></tr>
+</table>
+
+<div class="box"><b>Pick the cell level to match the query</b>If a single cell is much smaller than the typical radius you scan thousands of cells; if it's much bigger you fetch a giant candidate set and filter most of it away. Rule of thumb: choose a resolution where the query radius spans roughly 1–3 cells, and store at one or two levels so different radii hit different levels.</p></div>
+
+<h3>Sharding the index and hot-region skew</h3>
+<p>The lesson offers shard-by-region vs shard-by-LocationID. The deeper trade-off:</p>
+<table>
+<tr><th></th><th>Shard by region (geo)</th><th>Shard by LocationID (hash)</th></tr>
+<tr><td>Query fan-out</td><td>Low — a nearby query touches 1–3 region servers.</td><td>High — points for one area are scattered across all servers, so every query hits <em>every</em> shard and an aggregator merges. Read amplification = N shards.</td></tr>
+<tr><td>Load distribution</td><td>Skewed — Manhattan/SF shard is white-hot, Pacific Ocean shard is idle. Classic <em>hot-region</em> problem.</td><td>Even — hashing spreads both data and load uniformly. No hot shard.</td></tr>
+<tr><td>Data balance</td><td>Hard — regions grow unevenly; needs resplitting.</td><td>Naturally balanced by the hash.</td></tr>
+</table>
+
+<div class="box"><b>The fundamental tension</b>Geo-sharding minimizes fan-out but creates hot regions; hash-sharding kills hot regions but forces scatter-gather across every shard. Real systems pick geo-sharding (because low fan-out latency wins) and then attack the hot region separately: split the busy region into finer cells assigned to more servers, add read replicas for that region, and front it with cache (the lesson's LRU/Memcache layer). Uber's approach is dynamic — supply-demand drives how finely a region is cut. See <a href="05 Sharding or Data Partitioning.htm">05 Sharding</a> for partitioning strategy and <a href="28 Designing Uber backend.htm">28 Uber Backend</a> for the dynamic version.</p></div>
+
+<div class="box"><b>Consistent hashing for elasticity</b>If you hash-shard, use consistent hashing (lesson 12) so adding a server reshuffles only ~1/N of cells, not the whole map. With plain modulo-N hashing, changing the server count rehashes everything and invalidates the entire in-memory index.</p></div>
+
+<div class="seealso"><b>Go deeper:</b> <a href="28 Designing Uber backend.htm">28 Uber Backend</a>, <a href="05 Sharding or Data Partitioning.htm">05 Sharding</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li>Can you explain why a geohash prefix tells you two points are near, and why two points one meter apart can still have completely different prefixes — and what the neighbor-cell sweep does about it?</li>
+<li>Why does S2's Hilbert curve translate a query box into fewer contiguous key ranges than geohash's Z-order curve, and why does that matter on a KV store?</li>
+<li>Can you state the one property H3's hexagons give you that square grids (geohash/QuadTree) cannot — and the price H3 pays for it across resolution levels?</li>
+<li>Why would you choose a fixed-resolution grid for Nearby Friends but an adaptive QuadTree for Yelp? What specifically breaks if you run moving objects through a self-balancing QuadTree?</li>
+<li>Walk through the four steps of a proximity query (locate, expand, gather, refine). At which step does the classic "closest result silently dropped" bug occur, and which step is the only one that uses exact great-circle distance?</li>
+<li>Why does choosing a cell resolution far smaller — or far larger — than the typical query radius both hurt performance, in different ways?</li>
+<li>Why does geo-sharding minimize query fan-out but create hot regions, while hash-sharding eliminates hot regions but forces a scatter-gather across every shard? What concrete tactics tame a hot downtown region under geo-sharding?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="26Designing Facebook’s Newsfeed.htm">&lsaquo; Prev: Facebook's Newsfeed</a><a class="nx" href="28 Designing Uber backend.htm">Next: Designing Uber Backend &rsaquo;</a></div>
 </div>
 </div>

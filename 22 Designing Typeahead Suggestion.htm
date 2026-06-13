@@ -201,6 +201,96 @@ Server 3, BXB-CDA</p>
 <div class="sechead">11. Personalization</div>
 <p>Users will receive some typeahead suggestions based on their historical searches, location, language, etc. We can store the personal history of each user separately on the server and cache them on the client too. The server can add these personalized terms in the final set, before sending it to the user. Personalized searches should always come before others.</p>
 
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The core lesson treats the trie as a black box: "store strings in a trie, precompute top-k, update offline." That recipe is correct, but the engineering substance lives in the second-order decisions — what shape the in-memory structure actually takes, how the read path stays under 100ms while the write path runs an hour behind, and what breaks when a single prefix becomes a hotspot. This is roughly the architecture behind Google's autocomplete, Elasticsearch's <em>completion suggester</em>, and the LinkedIn/Twitter typeahead services.</p>
+
+<h3>Why a trie at all — and why not a B-tree or a SQL <code>LIKE 'cap%'</code></h3>
+<p>A prefix query is fundamentally a <em>tree traversal</em> problem. A trie reaches the node for prefix <code>cap</code> in O(len(prefix)) = O(3) pointer hops, completely independent of how many terms are indexed. A SQL <code>WHERE term LIKE 'cap%'</code> against a B-tree index is also fast for the prefix scan itself (it's a range seek), but it then has to <em>scan and sort all matching rows by frequency</em> at query time — which for a hot prefix like <code>"a"</code> could be millions of rows. The trie's win is that you precompute the answer and attach it to the prefix node, turning a sort-millions problem into a pointer dereference.</p>
+
+<div class="box"><b>The real reason it's in memory</b>The structure is small — the lesson estimates ~25 GB for a year of Google-scale terms, and that's before radix compression. 25 GB fits in RAM on a single modern box. There is no reason to pay a disk seek (even an SSD's ~100µs) on the read path when the whole index is RAM-resident. The trie isn't chosen for asymptotic cleverness; it's chosen because it lets you serve a prefix query without touching disk and without sorting at request time.</p></div>
+
+<h3>Radix tree, not a naive character trie</h3>
+<p>A node-per-character trie wastes enormous space: every node carries a child-pointer map (a 26-entry array or a hash map), and chains of single-child nodes (<code>c→a→p→t→a→i→n</code>) are pure overhead. Production systems use a <strong>radix tree (compressed trie / Patricia trie)</strong> that merges single-child chains into one edge labelled with a substring. This is exactly the merge the lesson shows in its second diagram — it's not an optional optimization, it's the default. It cuts node count by 5–10x and improves cache locality (fewer pointer chases per traversal).</p>
+
+<h3>Top-k: precompute vs. query-time — the central trade-off</h3>
+<p>This is the decision the whole design pivots on.</p>
+<table>
+<tr><th>Approach</th><th>Read latency</th><th>Memory cost</th><th>When it wins</th></tr>
+<tr><td><b>Query-time traversal</b> (walk the whole subtree, collect terminals, sort by freq, take 10)</td><td>O(subtree size) — unbounded; a short prefix like <code>"s"</code> means traversing millions of nodes</td><td>Minimal — only frequency per terminal</td><td>Small / cold datasets, or when memory is the binding constraint</td></tr>
+<tr><td><b>Precompute top-k per node</b> (store 10 winning suggestions at every internal node)</td><td>O(len(prefix)) — bounded, sub-millisecond</td><td>~10 entries × every node; large multiplier</td><td>Google-scale read traffic; this is what you ship</td></tr>
+</table>
+<p>The storage trick the lesson mentions matters: don't store the full phrase at each node's top-10 list — store a <em>reference to the terminal node</em> plus a frequency. The phrase is reconstructed by walking parent pointers back up from the terminal. This turns "10 copies of a 30-char string per node" into "10 pointers + 10 ints per node," which is what makes the precompute approach affordable.</p>
+
+<div class="box"><b>Failure mode: the unbounded short prefix</b>If you ship query-time traversal and forget to cap it, the prefix <code>""</code> or <code>"a"</code> becomes an availability incident — a single keystroke triggers a multi-million-node traversal on the read path, blowing your latency budget and pinning a CPU. Either precompute top-k, or hard-cap traversal depth/breadth and accept approximate results for very short prefixes.</p></div>
+
+<h3>Updating the trie from query logs — strictly offline</h3>
+<p>At 60K QPS, mutating the live trie per search is a non-starter: writes would contend with reads on the same in-memory structure, and you'd be re-bubbling top-k lists up to the root on every keystroke. The discipline is <strong>read path and write path never share a mutable structure</strong>:</p>
+<table>
+<tr><th>Stage</th><th>What happens</th></tr>
+<tr><td>1. Log + sample</td><td>Append queries to a log (this is exactly a Kafka topic in practice). Sample if you only care about terms above a frequency floor — logging every 1000th query means anything searched &lt;1000× never qualifies, which is the cut you wanted anyway.</td></tr>
+<tr><td>2. Aggregate (MapReduce / Spark / stream job)</td><td>Compute per-term frequency deltas over the window (hourly). Use an <b>Exponential Moving Average</b> so fresh queries outweigh stale ones and old terms decay out naturally — better than a hard sliding window that needs you to subtract the expired tail.</td></tr>
+<tr><td>3. Rebuild / patch</td><td>Build a new trie snapshot (or patch a copy) with updated frequencies and recomputed top-k lists, bottom-up so each parent merges its children's winners.</td></tr>
+<tr><td>4. Atomic swap</td><td>Hot-swap the new trie in. Two patterns below.</td></tr>
+</table>
+
+<div class="box"><b>The swap: copy-on-server vs. master/slave</b>Pattern A: each server builds an updated copy locally, then flips a pointer to it and GCs the old one — simple, but you double the memory of that server during the build (50 GB box to hold two 25 GB tries). Pattern B: a master/replica pair where you update the idle replica, promote it, then catch up the old master — no memory doubling per box, but more orchestration. The atomic pointer swap is what gives readers a consistent view with zero locking; a reader either sees the entire old trie or the entire new one, never a half-built one.</p></div>
+
+<h3>Sharding the trie by prefix</h3>
+<p>The index fits on one box today, but you replicate and shard for throughput, latency, and blast-radius reasons. Three strategies, in increasing sophistication:</p>
+<ol>
+<li><b>Static range by first letter</b> (A→server1, B→server2). Dead simple, but guarantees skew — <code>"s"</code> and <code>"c"</code> prefixes dwarf <code>"x"</code> and <code>"z"</code>, so servers are wildly unbalanced.</li>
+<li><b>Range by server capacity</b> (server fills until full, then the next range starts on server 2: A–AABC, AABD–BXA, …). Balances <em>storage</em> but not <em>load</em> — a viral prefix still lands entirely on one shard and hotspots it.</li>
+<li><b>Hash of the term</b> (consistent hashing). Scatters terms randomly, killing hotspots — but now <em>every prefix query must fan out to every shard</em> and an aggregator merges the partial top-10s. You've traded a hotspot for fan-out cost on every read.</li>
+</ol>
+<div class="box"><b>The aggregator and the merge</b>With range partitioning, a short prefix like <code>"a"</code> may span multiple shards (server 1 holds A–AABC, server 2 holds AABD onward), so even range sharding needs a fan-out + merge for short prefixes. An <b>aggregator tier</b> between the load balancer and trie servers collects partial top-10 lists and merges them into a global top-10. The merge is correct only because each shard returns its top-10 <em>with frequencies</em> — you can't merge ranked lists without the underlying scores.</p></div>
+
+<h3>Client-side: debouncing, cancellation, caching, and the latency budget</h3>
+<p>A surprising amount of perceived speed is won on the client before a request ever leaves the browser:</p>
+<table>
+<tr><th>Technique</th><th>What it buys</th></tr>
+<tr><td><b>Debounce</b> (wait ~50ms of keystroke silence before firing)</td><td>Collapses a burst of fast typing into one request; a fast typist hitting 5 keys in 200ms generates 1 query, not 5.</td></tr>
+<tr><td><b>Cancel in-flight requests</b></td><td>When a newer keystroke arrives, abort the stale request so you never render suggestions for a prefix the user already moved past.</td></tr>
+<tr><td><b>Local caching of recent suggestions</b></td><td>Recent prefixes have very high reuse (backspacing, re-typing); serve from local cache with zero network round-trip.</td></tr>
+<tr><td><b>Early connection + prefetch</b></td><td>Open the TCP/TLS connection on page load, so the first keystroke doesn't pay handshake latency. Prefetch likely next-prefix results.</td></tr>
+<tr><td><b>Edge / CDN cache of head prefixes</b></td><td>Push the hottest prefixes' answers to CDN/ISP edges so common queries never reach origin.</td></tr>
+</table>
+<div class="box"><b>The &lt;100ms latency budget — where it goes</b>If the target is "suggestions feel instant" (~100ms perceived), the budget is tight: ~debounce wait (50ms, overlaps typing) + network RTT (often 20–80ms alone) + server processing. That leaves the trie lookup itself only a few milliseconds of headroom — which is precisely why the index must be RAM-resident, top-k must be precomputed (no request-time sort), and the head prefixes must be cached at the edge. There is no budget for a disk seek, a database query, or a subtree scan. Every "expensive" decision in this design exists to defend single-digit-millisecond server time.</p></div>
+
+<div class="seealso"><b>Go deeper:</b> <a href="64 Search and Elasticsearch.htm">64 Search &amp; Elasticsearch</a>, <a href="42 Probabilistic Data Structures.htm">42 Probabilistic Structures</a></div>
+</div>
+
+<div class="mastery">
+<h2>Mastery check</h2>
+<ul>
+<li><b>Can you</b> explain why a trie (specifically a radix-compressed one) beats a SQL <code>LIKE 'cap%'</code> on a B-tree index for prefix suggestions — and identify the one part of the work the trie moves from request time to build time?</li>
+<li><b>Why does</b> storing precomputed top-k at every node justify its large memory multiplier, and what reference trick keeps that cost from exploding (instead of storing full phrases at each node)?</li>
+<li><b>Can you</b> trace the offline update pipeline end to end — log/sample → aggregate (MapReduce/stream) → rebuild → atomic swap — and explain why the read path and write path must never share a mutable structure at 60K QPS?</li>
+<li><b>Why does</b> an Exponential Moving Average beat a hard sliding window for keeping frequencies fresh as terms rise and fall?</li>
+<li><b>Can you</b> account for the &lt;100ms latency budget, naming where the milliseconds actually go (debounce, RTT, server) and why that leaves no room for a disk seek or a request-time subtree sort?</li>
+<li><b>Why does</b> sharding by hash of the term kill hotspots but force a fan-out + aggregator merge on every query — and why does range sharding still need fan-out for short prefixes?</li>
+<li><b>Can you</b> describe the failure mode of an uncapped query-time traversal on a one-character prefix, and the two ways to defend against it?</li>
+</ul>
+</div>
+
 <div class="navfoot"><a href="21 Designing Youtube or Netflix.htm">&lsaquo; Prev: YouTube / Netflix</a><a class="nx" href="23 Designing an API Rate Limiter (_New_).htm">Next: Designing an API Rate Limiter &rsaquo;</a></div>
 </div>
 </div>
