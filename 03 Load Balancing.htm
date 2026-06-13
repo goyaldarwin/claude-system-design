@@ -229,6 +229,63 @@
 .mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
 .mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
 </style>
+<div class="pdeep">
+<span class="tag">What the diagram hides</span>
+<h2>From a box-and-arrow to a system that actually runs</h2>
+<p>It takes one second to draw a load-balancer box with arrows to three server boxes. It takes a team to make that drawing real, because every arrow is a protocol and every box hides software the diagram never shows. Walk the questions the drawing silently skips &mdash; this is the leap from <em>sketching</em> systems to <em>operating</em> them.</p>
+
+<h3>1. How does the LB even know the servers' IP addresses?</h3>
+<p>The naive assumption is a hardcoded list of backend IPs in the LB's config. Real systems never do this, because servers are created and destroyed constantly. Instead they use <span class="key">service discovery</span>:</p>
+<ul>
+<li>A <span class="key">service registry</span> &mdash; etcd, Consul, ZooKeeper, or your cloud's internal one &mdash; holds the live set of healthy backend IPs.</li>
+<li>When a server boots it <span class="key">registers itself</span> ("I am <code>10.0.3.7:8080</code>, healthy"). The LB <span class="key">watches</span> the registry and updates its backend pool automatically &mdash; within seconds, no human edits a file.</li>
+</ul>
+<div class="box"><b>Why the registry is hard</b> The registry is the source of truth for "who is alive," so it must stay correct and available even when the network is misbehaving &mdash; which is exactly the <a href="01 Why System Design Matters.htm">"no shared truth" tax</a>. That is why registries run on <a href="30 Consensus and Raft.htm">consensus (Raft/ZAB)</a>: a majority must agree on membership. See also <a href="36 Leader Election and Coordination.htm">Leader Election &amp; Coordination</a>.</div>
+
+<h3>2. A server's hardware dies. What happens?</h3>
+<p>You are right that you cannot simply re-host the app on dead hardware &mdash; the box is gone. The sequence that makes this a <em>non-event</em> is automated:</p>
+<ul>
+<li>The dead server stops answering <span class="key">health checks</span> (the LB periodically opens a TCP connection or sends <code>GET /health</code>; no / 404 response &rarr; mark it <em>down</em> and stop routing to it &mdash; "outlier ejection").</li>
+<li>It also stops sending <span class="key">heartbeats</span> to the registry, whose lease/TTL <span class="key">expires</span> the entry &mdash; so the registry, and therefore the LB, forget it.</li>
+<li>An <span class="key">orchestrator</span> (e.g. Kubernetes) notices the node is gone and <span class="key">reschedules</span> the application onto a healthy node. The replacement comes up with a <em>new IP</em>, registers itself, and the LB picks it up &mdash; automatically.</li>
+</ul>
+<div class="box"><b>The key shift</b> You never "tell the LB the new IP" by hand. Servers tell a registry; the LB watches the registry; an orchestrator replaces dead nodes. The manual chore you imagined is exactly what all the extra software exists to eliminate.</div>
+
+<h3>3. What if the load balancer itself fails?</h3>
+<p>Drawing one LB box quietly reintroduces the single point of failure the LB was meant to remove. Real designs make the LB itself redundant, and the technique depends on the layer:</p>
+<table>
+<tr><th>Layer</th><th>How the LB is made highly available</th></tr>
+<tr><td>Within a datacenter</td><td>Run two or more LB instances sharing a <span class="key">floating / virtual IP (VIP)</span>. A heartbeat protocol &mdash; <span class="key">VRRP</span> (often via <code>keepalived</code>) &mdash; lets a standby instantly take over the VIP if the active one dies.</td></tr>
+<tr><td>At the edge / globally</td><td><span class="key">DNS</span> with health checks (e.g. Route&nbsp;53) hands out healthy LB addresses; <span class="key">anycast</span> announces one IP from many locations via <span class="key">BGP</span>, so the network itself routes around a dead site.</td></tr>
+<tr><td>Managed cloud LB</td><td>AWS ALB/NLB, Google GLB are themselves horizontally-scaled redundant fleets &mdash; "one box" is an illusion the cloud maintains for you.</td></tr>
+</table>
+<div class="box"><b>The principle (from lesson 01)</b> Redundancy never <em>removes</em> the single point of failure &mdash; it <em>moves</em> it. You push it from the LB to the VIP-failover mechanism, then to DNS, then to anycast/BGP. There is no bottom; you stop when the remaining failure probability is acceptable. Every "highly available" component is this trick applied recursively.</div>
+
+<h3>4. Which protocols are actually on the wire?</h3>
+<ul>
+<li><span class="key">Client &harr; LB &harr; server:</span> TCP for an <a href="#">L4</a> LB (forwards packets by IP/port); HTTP/HTTPS for an L7 LB (understands requests, routes by URL/header, terminates TLS). This is the L4-vs-L7 split above.</li>
+<li><span class="key">Health checks:</span> periodic TCP connect or HTTP <code>GET /health</code>.</li>
+<li><span class="key">LB failover:</span> VRRP / keepalived for the VIP.</li>
+<li><span class="key">Service registry:</span> servers register over HTTP/gRPC; the registry replicates internally via <a href="30 Consensus and Raft.htm">Raft/ZAB</a>; membership and failure detection often use a <a href="34 Anti-Entropy and Gossip.htm">gossip protocol (SWIM)</a>.</li>
+<li><span class="key">The plumbing you never think about:</span> <span class="key">DNS</span> (name &rarr; IP), <span class="key">ARP</span> (IP &rarr; MAC on the local network), <span class="key">BGP/OSPF</span> (routing between networks), and <span class="key">NTP</span> (clock sync &mdash; quietly critical, because so much breaks when clocks drift &mdash; see <a href="33 Time Clocks and Ordering.htm">Time, Clocks &amp; Ordering</a>).</li>
+</ul>
+
+<h3>5. Who writes the load-balancing software, and what else runs on every node?</h3>
+<p>The LB is a real program someone built and operates: <span class="key">HAProxy</span>, <span class="key">NGINX</span>, or <span class="key">Envoy</span> (the modern data plane behind most service meshes); hardware appliances like <span class="key">F5 BIG-IP</span>; or a managed cloud LB. In a <a href="43 Microservices and Service Mesh.htm">service mesh</a> there is no central LB box at all &mdash; an <span class="key">Envoy sidecar</span> runs next to every service and does client-side load balancing.</p>
+<p>And the box labelled "server" is not just running your application. In production it also runs a quiet stack of supporting software &mdash; this is what the diagram hides most of all:</p>
+<table>
+<tr><th>Software on a typical node</th><th>Why it's there</th></tr>
+<tr><td>Service-registry agent (e.g. Consul agent)</td><td>registers the node, runs local health checks</td></tr>
+<tr><td>Gossip / membership daemon (SWIM)</td><td>so nodes know who else is alive without a central poller</td></tr>
+<tr><td>Service-mesh sidecar (Envoy/Linkerd)</td><td>mTLS, retries, timeouts, client-side LB for all its traffic</td></tr>
+<tr><td>Observability agents</td><td>metrics exporter, log shipper, tracing agent (see <a href="48 Observability.htm">Observability</a>)</td></tr>
+<tr><td>Orchestrator agent (kubelet)</td><td>places/restarts containers, reports node health, drives the "node died &rarr; reschedule" loop</td></tr>
+<tr><td>NTP, config/secrets agents, CNI networking</td><td>clock sync, configuration, and giving each container its IP in the first place</td></tr>
+</table>
+<div class="box"><b>The takeaway</b> Every box in a system diagram is a computer running far more than your app, and every arrow is a protocol with a failure mode. The drawing is a <em>summary</em>, not the system. The skill that separates building from sketching is being able to expand any box and any arrow into the operational reality underneath &mdash; service discovery, health checking, failover, and the agents that make "replace the dead node" automatic.</div>
+<div class="seealso"><b>Go deeper:</b> <a href="36 Leader Election and Coordination.htm">36 Leader Election &amp; Coordination</a>, <a href="43 Microservices and Service Mesh.htm">43 Microservices &amp; Service Mesh</a>, <a href="46 Containers Kubernetes and Serverless.htm">46 Containers &amp; Kubernetes</a>, <a href="49 Resilience Patterns.htm">49 Resilience Patterns</a></div>
+</div>
+
 <div class="mastery">
 <h2>Mastery check</h2>
 <ul>
