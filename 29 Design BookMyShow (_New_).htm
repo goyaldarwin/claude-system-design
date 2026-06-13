@@ -252,7 +252,7 @@ Here is a sample list of movies and their shows:</p>
 <strong>session_id (string):</strong> User&rsquo;s session ID to track this reservation. Once the reservation time expires, user&rsquo;s reservation on the server will be removed using this ID.<br>
 <strong>movie_id (string):</strong> Movie to reserve.<br>
 <strong>show_id (string):</strong> Show to reserve.<br>
-<strong>seats_to_reserve (number):</strong> An array containing seat IDs to reserve.</p>
+<strong>seats_to_reserve (array of numbers):</strong> An array containing seat IDs to reserve.</p>
 <p><strong>Returns:</strong> (JSON)<br>
 Returns the status of the reservation, which would be one of the following: 1) &ldquo;Reservation Successful&rdquo; 2) &ldquo;Reservation Failed - Show Full,&rdquo; 3) &ldquo;Reservation Failed - Retry, as other users are holding reserved seats&rdquo;.</p>
 
@@ -302,7 +302,7 @@ Returns the status of the reservation, which would be one of the following: 1) &
 <p class="legacy-note">The original lesson had an interactive step-by-step animation of the ticket booking workflow here; shown above as static content.</p>
 
 <p><strong>How would the server keep track of all the active reservation that haven&rsquo;t been booked yet? And how would the server keep track of all the waiting customers?</strong><br>
-We need two daemon services, one to keep track of all active reservations and to remove any expired reservation from the system, let&rsquo;s call it&nbsp;<strong>ActiveReservationService</strong>. The other service would be keeping track of all the waiting user requests, and as soon as the required number of seats become available, it&rsquo;ll notify the (the longest waiting) user to choose the seats, let&rsquo;s call it&nbsp;<strong>WaitingUserService</strong>.</p>
+We need two daemon services, one to keep track of all active reservations and to remove any expired reservation from the system, let&rsquo;s call it&nbsp;<strong>ActiveReservationsService</strong>. The other service would be keeping track of all the waiting user requests, and as soon as the required number of seats become available, it&rsquo;ll notify the (the longest waiting) user to choose the seats, let&rsquo;s call it&nbsp;<strong>WaitingUsersService</strong>.</p>
 
 <h2 id="a-activereservationsservice">a. ActiveReservationsService</h2>
 <p>We can keep all the reservations of a &lsquo;show&rsquo; in memory in a <a href="https://docs.oracle.com/javase/7/docs/api/java/util/LinkedHashMap.html" target="_blank">Linked HashMap</a> in addition to keeping all the data in the database. We would need a Linked HashMap so that we can jump to any reservation to remove it when the booking is complete. Also, since we will have expiry time associated with each reservation, the head of the linked HashTable will always point to the oldest reservation record, so that the reservation can be expired when the timeout is reached.</p>
@@ -334,8 +334,8 @@ BEGIN TRANSACTION;
     update Booking ...
 
 COMMIT TRANSACTION;</code></pre>
-<p>&lsquo;Serializable&rsquo; is the highest isolation level and guarantees safety from <a href="https://en.wikipedia.org/wiki/Isolation_(database_systems)#Dirty_reads" target="_blank">Dirty</a>, <a href="https://en.wikipedia.org/wiki/Isolation_(database_systems)#Non-repeatable_reads" target="_blank">Nonrepeatable</a> and <a href="https://en.wikipedia.org/wiki/Isolation_(database_systems)#Phantom_reads" target="_blank">Phantoms</a> reads. One thing to note here, within a transaction if we read rows we get a write lock on them so that they can&rsquo;t be updated by anyone else.</p>
-<p>Once the above database transaction is successful, we can start tracking the reservation in ActiveReservationService.</p>
+<p>&lsquo;Serializable&rsquo; is the highest isolation level and guarantees safety from <a href="https://en.wikipedia.org/wiki/Isolation_(database_systems)#Dirty_reads" target="_blank">Dirty</a>, <a href="https://en.wikipedia.org/wiki/Isolation_(database_systems)#Non-repeatable_reads" target="_blank">Nonrepeatable</a> and <a href="https://en.wikipedia.org/wiki/Isolation_(database_systems)#Phantom_reads" target="_blank">Phantoms</a> reads. One thing to note here, within a transaction if we read rows we acquire a shared/range lock on them that blocks other transactions from updating them.</p>
+<p>Once the above database transaction is successful, we can start tracking the reservation in ActiveReservationsService.</p>
 
 <h2 id="10-fault-tolerance">Fault Tolerance</h2>
 <p><strong>What happens when ActiveReservationsService or WaitingUsersService crashes?</strong><br>
@@ -344,19 +344,19 @@ Whenever ActiveReservationsService crashes, we can read all the active reservati
 
 <h2 id="11-data-partitioning">Data Partitioning</h2>
 <p><strong>Database partitioning:</strong> If we partition by &lsquo;MovieID&rsquo; then all the Shows of a movie will be on a single server. For a very hot movie, this could cause a lot of load on that server. A better approach would be to partition based on ShowID, this way the load gets distributed among different servers.</p>
-<p><strong>ActiveReservationService and WaitingUserService partitioning:</strong> Our web servers will manage all the active users&rsquo; sessions and handle all the communication with the users. We can use Consistent Hashing to allocate application servers for both ActiveReservationService and WaitingUserService based upon the &lsquo;ShowID&rsquo;. This way, all reservations and waiting users of a particular show will be handled by a certain set of servers. Let&rsquo;s assume for load balancing our <a href="12 Consistent Hashing.htm" target="_blank">Consistent Hashing</a> allocates three servers for any Show, so whenever a reservation is expired, the server holding that reservation will do following things:</p>
+<p><strong>ActiveReservationsService and WaitingUsersService partitioning:</strong> Our web servers will manage all the active users&rsquo; sessions and handle all the communication with the users. We can use Consistent Hashing to allocate application servers for both ActiveReservationsService and WaitingUsersService based upon the &lsquo;ShowID&rsquo;. This way, all reservations and waiting users of a particular show will be handled by a certain set of servers. Let&rsquo;s assume for load balancing our <a href="12 Consistent Hashing.htm" target="_blank">Consistent Hashing</a> allocates three servers for any Show, so whenever a reservation is expired, the server holding that reservation will do following things:</p>
 <ol>
 <li>Update database to remove the Booking (or mark it expired) and update the seats&rsquo; Status in &lsquo;Show_Seats&rsquo; table.</li>
 <li>Remove the reservation from the Linked HashMap.</li>
 <li>Notify the user that their reservation has expired.</li>
-<li>Broadcast a message to all WaitingUserService servers that are holding waiting users of that Show to figure out the longest waiting user. Consistent Hashing scheme will tell what servers are holding these users.</li>
-<li>Send a message to the WaitingUserService server holding the longest waiting user to process their request if required seats have become available.</li>
+<li>Broadcast a message to all WaitingUsersService servers that are holding waiting users of that Show to figure out the longest waiting user. Consistent Hashing scheme will tell what servers are holding these users.</li>
+<li>Send a message to the WaitingUsersService server holding the longest waiting user to process their request if required seats have become available.</li>
 </ol>
 <p>Whenever a reservation is successful, following things will happen:</p>
 <ol>
 <li>The server holding that reservation sends a message to all servers holding waiting users of that Show so that they can expire all those waiting users that need more seats than the available seats.</li>
 <li>Upon receiving above message, all servers holding the waiting users will query the database to find how many free seats are available now. Database cache would greatly help here to run this query only once.</li>
-<li>Expire all waiting users who want to reserve more seats than the available seats. For this, WaitingUserService has to iterate through the Linked HashMap of all the waiting users.</li>
+<li>Expire all waiting users who want to reserve more seats than the available seats. For this, WaitingUsersService has to iterate through the Linked HashMap of all the waiting users.</li>
 </ol>
 
 <style>

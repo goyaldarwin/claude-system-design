@@ -187,7 +187,7 @@
 <h2 id="bottlenecks">The six bottlenecks &mdash; and the map of this course</h2>
 <p>Here is the unifying idea. Each of the three forces above imposes one or more <span class="key">bottlenecks</span> &mdash; unavoidable costs you must pay to build something that appears more capable and more reliable than any single computer. Every technique in this course is a method of relieving one bottleneck &mdash; and crucially, <em>each technique incurs a cost of its own.</em> Once you see the bottlenecks, the entire field organizes itself:</p>
 <table>
-<tr><th>The bottleneck</th><th>Imposed by</th><th>What it forces</th><th>Techniques that pay it</th></tr>
+<tr><th>The bottleneck</th><th>Imposed by</th><th>What it forces</th><th>Techniques that pay it down</th></tr>
 <tr><td><b>Latency</b></td><td>Memory hierarchy + speed of light</td><td>get the data closer / stop waiting</td><td>caching, CDN, replicas-near-users, indexes, async/queues, precompute</td></tr>
 <tr><td><b>Finite capacity</b></td><td>One box isn't big/fast enough + workload</td><td>split the work</td><td>sharding, partitioning, load balancing, consistent hashing, microservices</td></tr>
 <tr><td><b>Partial failure</b></td><td>Computers die independently</td><td>duplicate &amp; tolerate</td><td>redundancy, replication, retries, circuit breakers, multi-region, leader election</td></tr>

@@ -165,7 +165,7 @@
 <p><strong>Storage Estimates:</strong> Let&rsquo;s assume that every minute 500 hours worth of videos are uploaded to Youtube. If on average, one minute of video needs 50MB of storage (videos need to be stored in multiple formats), total storage needed for videos uploaded in a minute would be:</p>
 <blockquote>500 hours * 60 min * 50MB =&gt; 1500 GB/min (25 GB/sec)</blockquote>
 <p>These numbers are estimated, ignoring video compression and replication, which would change our estimates.</p>
-<p><strong>Bandwidth estimates:</strong> With 500 hours of video uploads per minute, assuming each video upload takes a bandwidth of 10MB/min, we would be getting 300GB of uploads every minute.</p>
+<p><strong>Bandwidth estimates:</strong> With 500 hours of video uploads per minute, assuming each video upload takes a bandwidth of 10MB/min, we would be getting 300GB of uploads every minute. (Note that 10MB/min is the single-source upload stream rate over the network, whereas the 50MB/min storage figure above includes all transcoded output formats, so the two are not directly comparable.)</p>
 <blockquote>500 hours * 60 mins * 10MB =&gt; 300GB/min (5GB/sec)</blockquote>
 <p>Assuming an upload:view ratio of 1:200, we would need 1TB/s outgoing bandwidth.</p>
 
@@ -259,7 +259,7 @@ Videos metadata can be stored in a SQL database. Following information should be
 <li>Over time, some users can end up storing a lot of videos compared to others. Maintaining a uniform distribution of growing user&rsquo;s data is quite difficult.</li>
 </ol>
 <p>To recover from these situations either we have to repartition/redistribute our data or used consistent hashing to balance the load between servers.</p>
-<p><strong>Sharding based on VideoID:</strong> Our hash function will map each VideoID to a random server where we will store that Video&rsquo;s metadata. To find videos of a user we will query all servers, and each server will return a set of videos. A centralized server will aggregate and rank these results before returning them to the user. This approach solves our problem of popular users but shifts it to popular videos.</p>
+<p><strong>Sharding based on VideoID:</strong> Our hash function will map each VideoID to a server, distributing metadata roughly uniformly across servers. To find videos of a user we will query all servers, and each server will return a set of videos. A centralized server will aggregate and rank these results before returning them to the user. This approach solves our problem of popular users but shifts it to popular videos.</p>
 <p>We can further improve our performance by introducing cache to store hot videos in front of the database servers.</p>
 
 <h2 id="9-video-deduplication">Video Deduplication</h2>
@@ -279,7 +279,7 @@ Videos metadata can be stored in a SQL database. Following information should be
 
 <h2 id="11-cache">Cache</h2>
 <p>To serve globally distributed users, our service needs a massive-scale video delivery system. Our service should push its content closer to the user using a large number of geographically distributed video cache servers. We need to have a strategy that would maximize user performance and also evenly distributes the load on its cache servers.</p>
-<p>We can introduce a cache for metadata servers to cache hot database rows. Using Memcache to cache the data and Application servers before hitting database can quickly check if the cache has the desired rows. Least Recently Used (LRU) can be a reasonable cache eviction policy for our system. Under this policy, we discard the least recently viewed row first.</p>
+<p>We can introduce a cache for metadata servers to cache hot database rows. Application servers can use Memcache to cache hot rows and quickly check the cache before hitting the database. Least Recently Used (LRU) can be a reasonable cache eviction policy for our system. Under this policy, we discard the least recently viewed row first.</p>
 <p><strong>How can we build more intelligent cache?</strong> If we go with 80-20 rule, i.e., 20% of daily read volume for videos is generating 80% of traffic, meaning that certain videos are so popular that the majority of people view them; It follows that we can try caching 20% of daily read volume of videos and metadata.</p>
 
 <h2 id="12-content-delivery-network-cdn">Content Delivery Network (CDN)</h2>

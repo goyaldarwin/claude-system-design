@@ -322,7 +322,7 @@
 
 <h2 id="mastery">Principal-level mastery check</h2>
 
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat security as a design dimension woven through the whole architecture, not a section bolted on at the end. They name trust boundaries explicitly and reason about blast radius ("if this service is popped, what can the attacker reach?"). They distinguish authN from authZ crisply, know the JWT revocation trade-off cold, and reach for envelope encryption and dynamic secrets without prompting. Critically, they choose <em>fail-closed</em> behavior for security controls and can articulate why &mdash; and they know which threats are theirs to solve versus the provider's.</p>
+<div class="callout ok"><span class="lbl">What strong engineers do</span><p>They treat security as a design dimension woven through the whole architecture, not a section bolted on at the end. They name trust boundaries explicitly and reason about blast radius ("if this service is popped, what can the attacker reach?"). They distinguish authN from authZ crisply, know the JWT revocation trade-off cold, and reach for envelope encryption and dynamic secrets without prompting. Critically, they choose <em>fail-closed</em> behavior for security controls and can articulate why &mdash; and they know which threats are theirs to solve versus the provider's.</p>
 <p style="margin-bottom:0">Weak engineers say "we'll use HTTPS and JWTs" and stop. Strong engineers ask: <em>how do we revoke a stolen token, rotate the signing key, contain a compromised service, and erase a user's data on request?</em></div>
 
 <p>Questions to test your own understanding:</p>

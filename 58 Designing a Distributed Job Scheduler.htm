@@ -153,7 +153,7 @@
 <div class="callout warn"><span class="lbl">Pitfall</span>It is tempting to jump straight to "a priority queue keyed by next-run-time." That's the easy 10%. The hard 90% is what happens when a worker grabbing the job dies mid-flight, when 4M jobs are all scheduled for midnight UTC, and when the leader that owns dispatch is partitioned away but still thinks it's the leader.</div>
 
 <h2 id="estimate">Back-of-the-envelope</h2>
-<p>Anchor the design in numbers. Suppose 100M recurring jobs averaging one fire per hour &mdash; that's ~28k fires/sec average. Peaks concentrate on round timestamps (top of the minute/hour), so a naive design sees 10&ndash;100&times; that load in a 1&nbsp;s window. If 60% of 100M jobs use a cron like <code>0 * * * *</code>, ~60M fires land in the same second every hour. <em>That</em> spike, not the average, sizes your system.</p>
+<p>Anchor the design in numbers. Suppose 100M recurring jobs averaging one fire per hour &mdash; that's ~28k fires/sec average. Peaks concentrate on round timestamps (top of the minute/hour), so a naive design typically sees 10&ndash;100&times; that load in a 1&nbsp;s window, and pathological clustering can push it far higher. If 60% of 100M jobs use a cron like <code>0 * * * *</code>, ~60M fires land in the same second every hour &mdash; thousands of times the average. <em>That</em> spike, not the average, sizes your system.</p>
 <table>
 <tr><th>Quantity</th><th>Estimate</th></tr>
 <tr><td>Registered jobs</td><td>100M</td></tr>

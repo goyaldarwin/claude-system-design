@@ -214,7 +214,7 @@
 <p><span class="key">Nails:</span> the relational model and SQL plus horizontal write scaling and strong (often serializable) consistency across shards.</p>
 <ul>
 <li><span class="key">Use when</span> you genuinely need both transactional integrity at relational-query richness <em>and</em> scale beyond a single primary, often with multi-region strong consistency &mdash; financial ledgers, global inventory.</li>
-<li><span class="key">Avoid when</span> a single Postgres primary with read replicas would do. NewSQL adds cost, operational complexity, and cross-region commit latency (a consensus round-trip per write &mdash; see <a href="30 Consensus and Raft.htm">Consensus &amp; Raft</a>). Do not pay for distributed transactions you do not need.</li>
+<li><span class="key">Avoid when</span> a single Postgres primary with read replicas would do. NewSQL adds cost, operational complexity, and cross-region commit latency (a consensus round-trip per write, plus two-phase commit on top of consensus for multi-shard transactions &mdash; see <a href="30 Consensus and Raft.htm">Consensus &amp; Raft</a>). Do not pay for distributed transactions you do not need.</li>
 </ul>
 
 <div class="callout tradeoff"><span class="lbl">The recurring trade-off</span>Every NoSQL family wins its niche by giving up query generality. Relational and NewSQL keep generality but pay in write-scaling effort (relational) or latency and cost (NewSQL). There is no free lunch: you are choosing <em>which</em> flexibility to sacrifice, not whether to sacrifice any.</div>
@@ -238,7 +238,7 @@
 <table>
 <tr><th>Workload</th><th>Access pattern</th><th>Consistency</th><th>Choice</th><th>Why</th></tr>
 <tr><td>Orders &amp; payments</td><td>Multi-row transactions, ad-hoc queries</td><td>Strong / serializable</td><td>PostgreSQL (or CockroachDB if global)</td><td>ACID, integrity, joins; default until scale forces NewSQL</td></tr>
-<tr><td>Product catalog</td><td>Read whole product aggregate by id</td><td>Read-your-writes OK</td><td>Document store / Postgres JSONB</td><td>Self-contained nested aggregate</td></tr>
+<tr><td>Product catalog</td><td>Read whole product aggregate by id</td><td>Read-your-writes OK</td><td>Document store / Postgres JSONB</td><td>Self-contained nested aggregate; JSONB keeps it inside the relational default</td></tr>
 <tr><td>Sessions &amp; cart</td><td>Point get/put by user key, sub-ms</td><td>Eventual fine</td><td>Redis</td><td>In-memory KV, TTL expiry</td></tr>
 <tr><td>Search box</td><td>Full-text, faceted, ranked</td><td>NRT lag acceptable</td><td>Elasticsearch (CDC-fed)</td><td>Inverted index, relevance</td></tr>
 <tr><td>Clickstream / activity</td><td>Huge write volume, time-ordered</td><td>Eventual</td><td>Cassandra</td><td>Write-optimized, linear scale</td></tr>

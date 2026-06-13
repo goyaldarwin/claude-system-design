@@ -122,7 +122,7 @@
 </ul></div>
 
 
-<p>Long-Polling, WebSockets, and Server-Sent Events are popular communication protocols between a client like a web browser and a web server. First, let's start with understanding what a standard HTTP web request looks like. Following are a sequence of events for regular HTTP request:</p>
+<p>Long-Polling, WebSockets, and Server-Sent Events are popular real-time communication techniques (and protocols) between a client like a web browser and a web server. First, let's start with understanding what a standard HTTP web request looks like. Following are a sequence of events for regular HTTP request:</p>
 <ol>
 <li>Client opens a connection and requests data from the server.</li>
 <li>The server calculates the response.</li>
@@ -208,14 +208,14 @@
 <table>
 <thead><tr><th>Property</th><th>Ajax Polling</th><th>HTTP Long-Polling</th><th>SSE (EventSource)</th><th>WebSocket</th></tr></thead>
 <tbody>
-<tr><td>Direction</td><td>Client→Server (pull)</td><td>Client→Server, server holds reply</td><td>Server→Client only (half-duplex)</td><td>Full-duplex, both ways anytime</td></tr>
+<tr><td>Direction</td><td>Client→Server (pull)</td><td>Client→Server, server holds reply</td><td>Server→Client only (one-way / simplex)</td><td>Full-duplex, both ways anytime</td></tr>
 <tr><td>Transport</td><td>Repeated HTTP requests</td><td>Repeated HTTP requests (hanging)</td><td>One long-lived HTTP/1.1 or HTTP/2 stream, <code>text/event-stream</code></td><td>TCP upgraded via HTTP <code>101 Switching Protocols</code></td></tr>
 <tr><td>Per-message overhead</td><td>Full HTTP headers each poll (often 500B–1KB of headers for an empty body)</td><td>Full headers per cycle, but only when data exists</td><td>Tiny framing (<code>data:</code> lines); no per-message headers after open</td><td>2–14 byte frame header; minimal</td></tr>
 <tr><td>Latency to deliver</td><td>Up to one poll interval (e.g. 500ms–2s stale)</td><td>~Immediate once event fires</td><td>~Immediate</td><td>~Immediate, sub-ms framing</td></tr>
 <tr><td>Reconnection</td><td>N/A (every request is new)</td><td>Client re-issues after each response/timeout (manual)</td><td>Built-in auto-reconnect + <code>Last-Event-ID</code> replay</td><td>Manual; you write reconnect + resync logic</td></tr>
 <tr><td>Proxy / firewall friendliness</td><td>Excellent (plain HTTP)</td><td>Excellent (plain HTTP)</td><td>Good (plain HTTP; some proxies buffer the stream — disable with <code>X-Accel-Buffering: no</code>)</td><td>Weakest — needs <code>Upgrade</code>/<code>Connection</code> headers to survive every hop; corporate proxies and old L7 LBs often strip them. WSS (TLS) tunnels through far better.</td></tr>
 <tr><td>Binary support</td><td>Yes (any payload)</td><td>Yes</td><td>No — UTF-8 text only (base64 binary if you must)</td><td>Yes — native binary frames</td></tr>
-<tr><td>Browser API</td><td><code>fetch</code>/<code>XHR</code></td><td><code>fetch</code>/<code>XHR</code></td><td><code>EventSource</code> (auto-reconnect, no IE)</td><td><code>WebSocket</code></td></tr>
+<tr><td>Browser API</td><td><code>fetch</code>/<code>XHR</code></td><td><code>fetch</code>/<code>XHR</code></td><td><code>EventSource</code> (auto-reconnect; no custom request headers natively)</td><td><code>WebSocket</code></td></tr>
 <tr><td>Best fit</td><td>Low-frequency, non-critical freshness (e.g. unread-count badge every 30s)</td><td>Infrequent events where push matters but volume is low (legacy chat, notifications)</td><td>One-way server streams: live scores, stock tickers, log tailing, LLM token streaming, progress bars</td><td>Bi-directional, high-frequency, low-latency: chat, multiplayer games, collaborative editing, trading</td></tr>
 </tbody>
 </table>
@@ -225,7 +225,7 @@
 <ul>
 <li><strong>Polling wins</strong> when staleness is acceptable and you want zero server-side connection state — a CDN can even cache the response. Cost is wasted requests; tune the interval to the freshness SLA.</li>
 <li><strong>Long-polling wins</strong> as the "universal fallback": it works anywhere HTTP works, needs no protocol upgrade, and approximates push. It's how Comet-era chat and many SDKs degrade gracefully. Cost: a held request consumes a server worker/thread unless you use async I/O.</li>
-<li><strong>SSE wins</strong> for server-push-only feeds. It is criminally underused: built-in reconnection with <code>Last-Event-ID</code> gives you at-least-once redelivery for free, and it rides HTTP/2 so a single connection multiplexes with your other requests. This is why <strong>LLM token streaming (including the responses you're reading) is almost always SSE, not WebSocket</strong> — the flow is one-directional and HTTP-native.</li>
+<li><strong>SSE wins</strong> for server-push-only feeds. It is criminally underused: built-in reconnection with <code>Last-Event-ID</code> gives the server the hook to replay missed events on reconnect (you still buffer them server-side), and it rides HTTP/2 so a single connection multiplexes with your other requests. This is why <strong>LLM token streaming (including the responses you're reading) is almost always SSE, not WebSocket</strong> — the flow is one-directional and HTTP-native.</li>
 <li><strong>WebSocket wins</strong> when both sides talk often and latency matters: Slack/Messenger chat, Figma multiplayer cursors, trading dashboards, game state. You pay with stateful connections, manual reconnect/resync, and proxy fragility.</li>
 </ul>
 

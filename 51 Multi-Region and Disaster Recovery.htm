@@ -141,7 +141,7 @@
 <li><span class="key">Bad deploys and poisoned data:</span> a config push or schema migration that replicates instantly to every AZ. Note this is a <em>logical</em> disaster &mdash; a hot standby that faithfully replicated the corruption is no help.</li>
 <li><span class="key">Regional capacity exhaustion</span> during a large-scale event affecting many tenants simultaneously.</li>
 </ul>
-<div class="callout note"><span class="lbl">Key insight</span>Multi-region is not &ldquo;more redundancy.&rdquo; It is a categorically different problem because the failure unit (the region) now has wide-area latency &mdash; 60&ndash;150&nbsp;ms round-trip between continents &mdash; which makes synchronous replication across regions a non-starter for most write paths. Everything downstream is a consequence of that latency.</div>
+<div class="callout note"><span class="lbl">Key insight</span>Multi-region is not &ldquo;more redundancy.&rdquo; It is a categorically different problem because the failure unit (the region) now has wide-area latency &mdash; 140&ndash;180&nbsp;ms round-trip between continents &mdash; which makes synchronous replication across regions a non-starter for most write paths. Everything downstream is a consequence of that latency.</div>
 
 <h2 id="rporto">RPO and RTO drive everything</h2>
 <p>Before drawing any boxes, a principal pins down two numbers per workload. They are the contract that dictates topology and cost.</p>
@@ -156,7 +156,7 @@
 <tr><td>Analytics / reporting</td><td>hours</td><td>hours</td><td>Pilot light or backup-restore</td></tr>
 <tr><td>Internal batch jobs</td><td>1 day</td><td>1 day</td><td>Backup-restore from object storage</td></tr>
 </table>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>RPO and RTO are bought with money and complexity, and the cost curve is steep near zero. Going from RPO = minutes (async replica) to RPO = 0 (synchronous quorum) often means accepting cross-region write latency on every transaction &mdash; see <a href="31 Consistency Models and PACELC.htm">PACELC</a> below. The principal's job is to push back on a blanket &ldquo;everything needs RPO 0&rdquo; and tie each target to actual business loss.</div>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>RPO and RTO are bought with money and complexity, and the cost curve is steep near zero. Going from RPO = minutes (async replica) to RPO = 0 (synchronous quorum) often means accepting cross-region write latency on every transaction &mdash; <a href="31 Consistency Models and PACELC.htm">PACELC</a>, discussed in the next section. The principal's job is to push back on a blanket &ldquo;everything needs RPO 0&rdquo; and tie each target to actual business loss.</div>
 
 <h2 id="topologies">Active-passive vs active-active</h2>
 

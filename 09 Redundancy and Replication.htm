@@ -140,8 +140,8 @@
 <table>
 <tr><th>Topology</th><th>Write path</th><th>Conflict handling</th><th>Representative systems</th></tr>
 <tr><td><b>Single-leader</b></td><td>All writes to one leader; replicated to followers</td><td>No write conflicts by construction &mdash; total order at the leader</td><td>PostgreSQL/MySQL primary-replica, MongoDB replica set, Kafka partition leader</td></tr>
-<tr><td><b>Multi-leader</b></td><td>Writes accepted at 2+ leaders (often per-region)</td><td>Concurrent writes to the same key <em>must</em> be merged: LWW, version vectors, or CRDTs</td><td>Active-active MySQL, CouchDB, Calvin-style; many multi-region setups</td></tr>
-<tr><td><b>Leaderless</b></td><td>Client writes to many replicas directly; quorum reads/writes</td><td>Conflicts surfaced via vector clocks / read-repair; app or DB resolves</td><td>Dynamo, Cassandra, Riak, ScyllaDB</td></tr>
+<tr><td><b>Multi-leader</b></td><td>Writes accepted at 2+ leaders (often per-region)</td><td>Concurrent writes to the same key <em>must</em> be merged: LWW, version vectors, or CRDTs</td><td>Active-active MySQL, CouchDB; many multi-region setups</td></tr>
+<tr><td><b>Leaderless</b></td><td>Client writes to many replicas directly; quorum reads/writes</td><td>Conflicts surfaced via vector clocks / read-repair; app or DB resolves. Read-after-write needs <code>W + R &gt; N</code> so read and write quorums overlap</td><td>Dynamo, Cassandra, Riak, ScyllaDB</td></tr>
 </table>
 <p>Single-leader is the default for a reason: a single ordering point makes <code>read-after-write</code> reasoning tractable. The moment you accept writes in more than one place &mdash; multi-leader or leaderless &mdash; you have <em>concurrent writes</em>, and concurrency is undefined order. You then must pick a deterministic merge rule. Last-write-wins (LWW) is seductive but lossy: it silently discards one of two genuinely concurrent updates, and it depends on clock skew you do not control. Version vectors detect concurrency precisely; CRDTs (e.g. an OR-Set or a PN-Counter) make merges associative/commutative/idempotent so that <em>order no longer matters</em> &mdash; the principled answer when you truly need multi-master writes.</p>
 
@@ -152,7 +152,7 @@
 <li><b>Asynchronous</b>: the leader acks immediately and ships changes in the background. Lowest latency and best availability, but a leader crash loses every write still in flight &mdash; the <em>data-loss window</em>.</li>
 <li><b>Semi-synchronous</b>: ack after <em>at least one</em> replica confirms (the rest async). This is the pragmatic middle ground &mdash; MySQL <code>rpl_semi_sync</code>, PostgreSQL <code>synchronous_standby_names</code> with <code>ANY 1 (...)</code>. You bound data loss to "a replica that also has to fail" without paying for all-replica acks.</li>
 </ul>
-<div class="box"><b>The async data-loss window</b>Under async replication, replication lag <em>is</em> your RPO. If a leader is lagging followers by 800&nbsp;ms of write volume and it dies, those 800&nbsp;ms of acknowledged-to-the-client writes are gone &mdash; the client believes they committed. This is precisely how GitHub's 2018 outage and many MySQL failovers lost data. Always state your RPO in terms of <em>worst-case observed lag</em>, not average.</div>
+<div class="box"><b>The async data-loss window</b>Under async replication, replication lag <em>is</em> your RPO. If a leader is lagging followers by 800&nbsp;ms of write volume and it dies, those 800&nbsp;ms of acknowledged-to-the-client writes are gone &mdash; the client believes they committed. This is precisely how many MySQL async failovers lose data. Always state your RPO in terms of <em>worst-case observed lag</em>, not average.</div>
 
 <h3>Replication lag and client-centric guarantees</h3>
 <p>Async followers are always somewhere in the past. Rather than forcing global linearizability (expensive), mature systems paper over lag with weaker, <em>per-client</em> guarantees:</p>

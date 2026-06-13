@@ -200,7 +200,7 @@
 <h2 id="9-data-sharding">Data Sharding</h2>
 <p>Let’s discuss different schemes for metadata sharding:</p>
 <p><strong>a. Partitioning based on UserID</strong><br>
-Let’s assume we shard based on the UserID so that we can keep all photos of a user on the same shard. If one DB shard is 4TB, we will have 712/4 =&gt; 178 shards. Let’s assume for future growths we keep 200 shards.</p>
+Let’s assume we shard based on the UserID so that we can keep all photos of a user on the same shard. If one DB shard is 4TB, we will have 712/4 =&gt; 178 shards (a rough illustrative figure; metadata is far smaller than the photo bytes, so this is sizing by the photo total as a worst case). Let’s assume for future growths we keep 200 shards.</p>
 <p>So we will find the shard number by UserID % 200 and then store the data there. To uniquely identify any photo in our system, we can append shard number with each PhotoID.</p>
 <p><strong>How can we generate PhotoIDs?</strong> Each DB shard can have its own auto-increment sequence for PhotoIDs, and since we will append ShardID with each PhotoID, it will make it unique throughout our system.</p>
 <p><strong>What are different issues with this partitioning scheme?</strong></p>

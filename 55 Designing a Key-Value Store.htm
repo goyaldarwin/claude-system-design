@@ -192,7 +192,7 @@ void put(Key key, Context context, Value value, ConsistencyLevel level)
   <li><strong>Heterogeneous hardware.</strong> A beefier node should own more of the ring.</li>
   <li><strong>Slow rebalancing.</strong> When a node joins, only one neighbor donates data — a single-source bottleneck.</li>
 </ul>
-<div class="callout note"><span class="lbl">Key insight</span> <span class="key">Virtual nodes (vnodes)</span> fix all three. Each physical node is assigned T positions on the ring (Dynamo: T&asymp;100–256). Load is now the average of T arcs (variance &darr; by &radic;T). A bigger machine gets more tokens. When a node joins, it takes T small slices from <em>many</em> donors in parallel, so rebalancing is fast and spread out. Cassandra defaults to 256 vnodes per node for exactly this reason.</div>
+<div class="callout note"><span class="lbl">Key insight</span> <span class="key">Virtual nodes (vnodes)</span> fix all three. Each physical node is assigned T positions on the ring (Dynamo: T&asymp;100–256). Load is now the average of T arcs (std-dev of load &darr; by &radic;T). A bigger machine gets more tokens. When a node joins, it takes T small slices from <em>many</em> donors in parallel, so rebalancing is fast and spread out. Cassandra defaults to 256 vnodes per node for exactly this reason.</div>
 <pre><code>ring: sorted list of (token, vnode) where token = hash(node_id + ":" + i), i in [0,T)
 owner(key):
     pos = hash(key)
@@ -211,7 +211,7 @@ owner(key):
   <li><strong>W</strong> — write quorum: a <code>put</code> succeeds once W replicas acknowledge.</li>
   <li><strong>R</strong> — read quorum: a <code>get</code> waits for R replicas to respond, then reconciles.</li>
 </ul>
-<div class="callout note"><span class="lbl">Key insight</span> <code>R + W &gt; N</code> guarantees the read and write quorums <em>overlap</em> on at least one node, so a read is guaranteed to see the latest acknowledged write — <span class="key">strong-ish</span> consistency without a leader. <code>W &gt; N/2</code> additionally prevents two concurrent writes from both succeeding on disjoint sets. Common configs: N=3,W=2,R=2 (balanced); N=3,W=3,R=1 (read-optimized, fragile to writes); N=3,W=1,R=1 (max availability, eventual only).</div>
+<div class="callout note"><span class="lbl">Key insight</span> <code>R + W &gt; N</code> guarantees the read and write quorums <em>overlap</em> on at least one node, so a read is guaranteed (under strict quorums) to see the latest acknowledged write — <span class="key">strong-ish</span> consistency without a leader. <code>W &gt; N/2</code> additionally prevents two concurrent writes from both succeeding on disjoint sets. Common configs: N=3,W=2,R=2 (balanced); N=3,W=3,R=1 (read-optimized, fragile to writes); N=3,W=1,R=1 (max availability, eventual only).</div>
 <table>
 <thead><tr><th>Config</th><th>Reads</th><th>Writes</th><th>Use case</th></tr></thead>
 <tbody>
@@ -269,7 +269,7 @@ owner(key):
 </ol>
 <h3>Read path</h3>
 <p>Check the memtable, then SSTables newest-to-oldest. A per-SSTable <span class="key">bloom filter</span> (a <a href="42 Probabilistic Data Structures.htm">probabilistic data structure</a>) cheaply rules out SSTables that can't contain the key, so a read usually touches one file. A sparse index locates the block within it.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> LSM trades <span class="key">read amplification</span> and <span class="key">space amplification</span> (a key may exist in several SSTables until compaction) for sequential, append-only writes — ideal for SSDs and write-heavy KV workloads. A B-tree gives O(1) read locality but suffers random-write amplification and in-place page updates. The full comparison, including leveled vs. size-tiered compaction and the RUM conjecture, is in <a href="38 Storage Engines LSM vs B-Tree.htm">Storage Engines: LSM vs B-Tree</a>.</div>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> LSM trades <span class="key">read amplification</span> and <span class="key">space amplification</span> (a key may exist in several SSTables until compaction) for sequential, append-only writes — ideal for SSDs and write-heavy KV workloads. A B-tree keeps each key in one place (a read touches a single page path) but suffers random-write amplification and in-place page updates. The full comparison, including leveled vs. size-tiered compaction and the RUM conjecture, is in <a href="38 Storage Engines LSM vs B-Tree.htm">Storage Engines: LSM vs B-Tree</a>.</div>
 <div class="callout warn"><span class="lbl">Pitfall</span> Deletes in an LSM are <em>tombstones</em>, not in-place removals. Combined with the leaderless replication model, this creates the classic <span class="key">deleted-data-resurrection</span> bug: if a tombstone is garbage-collected (after <code>gc_grace_seconds</code>) before anti-entropy propagates it to a replica that missed the delete, that replica's stale live value re-replicates the row back. The fix is to ensure repair completes within the grace window — a real operational constraint, not a theoretical one.</div>
 
 <h2 id="dynamo-vs-raft">Dynamo-style vs. Raft-style: which and why</h2>

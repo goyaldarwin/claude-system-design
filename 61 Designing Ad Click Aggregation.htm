@@ -170,7 +170,7 @@
 <tr><td>Dashboard read QPS</td><td>~hundreds</td><td>Aggregates fan out from a small number of dashboards</td></tr>
 </tbody>
 </table>
-<p>The 100:1 impression ratio matters: if impressions are in scope you are at <strong>100 billion events/day</strong>, ~1&ndash;1.5 M events/sec peak. That changes the storage tier and forces aggressive pre-aggregation rather than retaining raw impressions forever. State the assumption explicitly. Capacity math borrows directly from <a href="14 A Framework for Approaching System Design.htm">the estimation guide</a>.</p>
+<p>The 100:1 impression ratio matters: if impressions are in scope you are at <strong>100 billion events/day</strong>, ~1.2 M events/sec average (and ~6&ndash;12 M/s at peak). That changes the storage tier and forces aggressive pre-aggregation rather than retaining raw impressions forever. State the assumption explicitly. Capacity math borrows directly from <a href="14 A Framework for Approaching System Design.htm">the estimation guide</a>.</p>
 
 <h2 id="api">Event schema &amp; query API</h2>
 <p>The producer-supplied <code>click_id</code> is the linchpin of dedup &mdash; it must be generated once at click time (see <a href="56 Designing a Unique ID Generator.htm">Unique ID Generator</a>) and carried through retries unchanged.</p>
@@ -270,7 +270,7 @@ GET /v1/distinct?dimension=campaign&amp;id=42&amp;metric=unique_users&amp;window
 <h2 id="probabilistic">Distinct counts &amp; heavy hitters</h2>
 <p>Two metrics are infeasible to compute exactly at scale in real time, so we use sketches:</p>
 <h3>Unique users &mdash; HyperLogLog</h3>
-<p>Counting distinct users per campaign exactly would require holding every user_id in a set &mdash; gigabytes per high-traffic campaign. <span class="key">HyperLogLog</span> estimates cardinality in ~1.5 KB with ~2% error, and crucially HLL sketches are <strong>mergeable</strong>: per-minute sketches union into per-hour and per-day sketches without re-reading raw data. Store the sketch in each rollup bucket, not just the scalar count.</p>
+<p>Counting distinct users per campaign exactly would require holding every user_id in a set &mdash; gigabytes per high-traffic campaign. <span class="key">HyperLogLog</span> estimates cardinality in ~1&ndash;2 KB with a few-percent error, and crucially HLL sketches are <strong>mergeable</strong>: per-minute sketches union into per-hour and per-day sketches without re-reading raw data. Store the sketch in each rollup bucket, not just the scalar count.</p>
 <h3>Top-N ads &mdash; Count-Min Sketch</h3>
 <p>Top-N by clicks over a sliding window is a heavy-hitters problem. A <span class="key">Count-Min sketch</span> tracks approximate per-key frequencies in fixed memory (it over-counts, never under-counts), paired with a small heap of current top-N candidates to surface the top-N. Exact top-N would need a counter per ad_id &mdash; fine for thousands of ads, prohibitive when there are tens of millions of long-tail creatives.</p>
 <div class="callout tradeoff"><span class="lbl">Trade-off</span> Sketches trade <strong>bounded memory and mergeability</strong> for <strong>bounded error</strong>. That is the right trade for dashboards and trend detection. It is the <em>wrong</em> trade for billing, where ~2% error on spend is unacceptable &mdash; billing-critical counts (total clicks) are kept exact via the batch path. Know which metrics tolerate approximation and which do not.</div>

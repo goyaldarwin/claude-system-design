@@ -114,7 +114,7 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing an API Rate Limiter</div>
 <h1>Designing an API Rate Limiter</h1>
 <p class="sub"><em>Let's design an API Rate Limiter that throttles users based on the number of requests they send within a time window.</em></p>
-<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">The bottleneck</a> <b>Operability &amp; finite capacity.</b> <span>protecting a finite service by shedding load, paid in distributed counter coordination.</span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">The bottleneck</a> <b>Finite capacity.</b> <span>protecting a finite service by shedding load, paid in distributed counter coordination.</span></div>
 <div class="toc"><h4>In this lesson</h4>
 <ul>
   <li><a href="#1-what-is-a-rate-limiter">What is a Rate Limiter?</a></li>
@@ -179,7 +179,7 @@
 <p>Following are the two types of algorithms used for Rate Limiting:</p>
 <p><strong>Fixed Window Algorithm:</strong> In this algorithm, the time window is considered from the start of the time-unit to the end of the time-unit. For example, a period would be considered as 0-60 seconds for a minute irrespective of the time frame at which the API request has been made. In the diagram below, there are two messages between 0-1 second and three messages between 1-2 second. If we&rsquo;ve a rate limiting of two messages a second, this algorithm will throttle only &lsquo;m5&rsquo;.</p>
 <p class="legacy-note">The original lesson showed a timeline diagram here illustrating the Fixed Window algorithm (messages m1&ndash;m5 across the 0&ndash;1s and 1&ndash;2s windows, with m5 throttled).</p>
-<p><strong>Rolling Window Algorithm:</strong> In this algorithm, the time window is considered from the fraction of the time at which the request is made plus the time window length. For example, if there are two messages sent at 300th&nbsp;millisecond and 400th&nbsp;millisecond of a second, we&rsquo;ll count them as two messages from 300th&nbsp;millisecond of that second up to the 300th&nbsp;millisecond of next second.&nbsp;In the above diagram, keeping two messages a second, we&rsquo;ll throttle &lsquo;m3&rsquo; and &lsquo;m4&rsquo;.</p>
+<p><strong>Sliding Window Algorithm:</strong> In this algorithm, the time window is considered from the fraction of the time at which the request is made plus the time window length. For example, if there are two messages sent at 300th&nbsp;millisecond and 400th&nbsp;millisecond of a second, we&rsquo;ll count them as two messages from 300th&nbsp;millisecond of that second up to the 300th&nbsp;millisecond of next second.&nbsp;In the above diagram, keeping two messages a second, we&rsquo;ll throttle &lsquo;m3&rsquo; and &lsquo;m4&rsquo;.</p>
 
 <h2 id="7-high-level-design-for-rate-limiter">High level design for Rate Limiter</h2>
 <p>Rate Limiter will be responsible for deciding which request will be served by the API servers and which request will be declined. Once a new request arrives, Web Server first asks the Rate Limiter to decide if it will be served or throttled. If the request is not throttled, then it&rsquo;ll be passed to the API servers.</p>

@@ -176,7 +176,7 @@ row = INSERT INTO idem_keys(key, status) VALUES(key,'PENDING')
 if row is null:                       // key seen before
     existing = SELECT * FROM idem_keys WHERE key = ?
     if existing.status == 'DONE':  return existing.response
-    else:                          return 409 Conflict  // request still in flight
+    else:                          return 409 Conflict  // still in flight (or block-and-replay; either way never lose/duplicate the result)
 result = do_charge(...)                // the real, non-idempotent work
 UPDATE idem_keys SET status='DONE', response=result WHERE key=?
 return result

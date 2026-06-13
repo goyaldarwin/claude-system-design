@@ -171,7 +171,7 @@
 <p>The dominant modern approach. You learn a dense vector (an <span class="key">embedding</span>, typically 64&ndash;512 dimensions) for every user and every item such that "user likes item" corresponds to a high dot product / low distance in that space. Retrieval then becomes: embed the user, and find the items whose vectors are nearest to it.</p>
 <p>Doing exact nearest-neighbor over hundreds of millions of vectors per request is too slow, so you use <span class="key">Approximate Nearest Neighbor (ANN)</span> indexes. The two you must know:</p>
 <ul>
-<li><strong>HNSW</strong> (Hierarchical Navigable Small World): a layered proximity graph you greedily walk; gives sub-millisecond, high-recall search and is what most vector databases (FAISS, ScaNN, Milvus, Qdrant, Pinecone, Weaviate) use under the hood.</li>
+<li><strong>HNSW</strong> (Hierarchical Navigable Small World): a layered proximity graph you greedily walk; gives sub-millisecond, high-recall search and is what most vector databases (Milvus, Qdrant, Pinecone, Weaviate) offer, and is available in libraries like FAISS.</li>
 <li><strong>IVF / product quantization</strong> (as in FAISS): partition vectors into clusters, search only the nearest few clusters, and compress vectors so billions fit in RAM.</li>
 </ul>
 <p>ANN is conceptually a cousin of the probabilistic, approximate structures covered in <a href="42 Probabilistic Data Structures.htm">Probabilistic Data Structures</a> &mdash; you trade a small, bounded amount of accuracy (you might miss a true top-k neighbor occasionally) for orders-of-magnitude speed and memory savings. For a recommender, missing one candidate among thousands is irrelevant; the ranker will sort out the survivors.</p>

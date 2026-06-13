@@ -149,7 +149,7 @@
 </ul>
 <p>The defining property: <span class="key">all containers on a host share one kernel</span>. That is why a container starts in milliseconds and adds near-zero overhead &mdash; but it is also why container isolation is weaker than VM isolation. A kernel vulnerability or container-escape bug is a host-level compromise affecting every co-tenant.</p>
 
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> Density and speed vs blast radius. Containers give you 10&ndash;100&times; the density and ~100&times; faster startup, at the cost of a shared-kernel attack surface. For untrusted multi-tenant workloads (running customer code), this gap matters &mdash; which is why microVM runtimes like <span class="key">Firecracker</span> (AWS Lambda, Fargate) and <span class="key">gVisor</span> (a userspace kernel) exist: VM-grade isolation with container-grade startup (~125&nbsp;ms for Firecracker).</p>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> Density and speed vs blast radius. Containers give you 10&ndash;100&times; the density and ~100&times; faster startup, at the cost of a shared-kernel attack surface. For untrusted multi-tenant workloads (running customer code), this gap matters &mdash; which is why stronger-isolation runtimes like <span class="key">Firecracker</span> (a microVM; AWS Lambda, Fargate) and <span class="key">gVisor</span> (a userspace kernel) exist: VM-grade isolation with container-grade startup (~125&nbsp;ms for Firecracker).</p>
 
 </div>
 <h2 id="k8s-model">Kubernetes: the reconciliation model</h2>
@@ -250,7 +250,7 @@ for {
 <p>The other serverless cost is <span class="key">vendor lock-in</span> and the loss of low-level control. You inherit hard execution-time limits (e.g. 15 min on Lambda), constrained networking (cold-start penalties spike when attaching to a VPC), no control over the kernel or co-tenancy, and an event/trigger model wired to one cloud's primitives. Migrating a deep Lambda + Step Functions + EventBridge architecture to another cloud is a rewrite, not a redeploy. This is a real strategic cost for a system you expect to run for a decade. Note that serverless also reshapes your <a href="48 Observability.htm">observability</a> story &mdash; no long-lived process to attach to, so you lean entirely on structured logs, distributed traces, and platform metrics.</p>
 
 </div>
-<div class="callout note"><span class="lbl">Key insight</span> "Serverless vs containers" is a false binary. Mature architectures are hybrid: a Kubernetes core for steady stateful and high-throughput services, with serverless functions for the spiky edges &mdash; image-thumbnailing on upload, S3-event ETL, scheduled reports, and glue between systems. Place each workload by its traffic shape, not by ideology. Knative and AWS Fargate even blur the line, giving scale-to-zero serverless semantics on top of containers.</p>
+<div class="callout note"><span class="lbl">Key insight</span> "Serverless vs containers" is a false binary. Mature architectures are hybrid: a Kubernetes core for steady stateful and high-throughput services, with serverless functions for the spiky edges &mdash; image-thumbnailing on upload, S3-event ETL, scheduled reports, and glue between systems. Place each workload by its traffic shape, not by ideology. Knative and Cloud Run even blur the line, giving scale-to-zero serverless semantics on top of containers.</p>
 
 </div>
 <h2 id="decision">Choosing the substrate</h2>

@@ -145,7 +145,7 @@
 
 <h3>Setting timeouts correctly</h3>
 <ul>
-<li><strong>Base them on the p99 (or p99.9), not the average.</strong> A timeout at the mean will time out half your slow-but-valid requests. A common starting point is the downstream's p99.9 latency plus a small margin.</li>
+<li><strong>Base them on the p99 (or p99.9), not the average.</strong> A timeout near the average will reject a large fraction of your slow-but-valid requests. A common starting point is the downstream's p99.9 latency plus a small margin.</li>
 <li><strong>Make timeouts shorter as you go up the stack, or use deadline propagation.</strong> If the user-facing API has a 2s budget and it calls service B which calls service C, C must finish well within B's remaining budget. Naive per-hop timeouts (each 2s) let a deep call chain blow the user budget many times over.</li>
 <li><strong>Distinguish connect timeout from read/request timeout.</strong> A connect timeout should be tight (tens to low hundreds of ms on a fast network); the request timeout covers actual work.</li>
 </ul>
@@ -175,7 +175,7 @@ func handle(ctx Context, req Request) Response {
 <h3>The required mitigations</h3>
 <ol>
 <li><strong>Exponential backoff:</strong> wait <code>base * 2^attempt</code> between retries, so load decays instead of staying constant.</li>
-<li><strong>Jitter:</strong> randomize the backoff so clients de-synchronize. <em>Full jitter</em> &mdash; <code>sleep = random(0, base * 2^attempt)</code> &mdash; is the AWS-recommended default and outperforms equal/decorrelated jitter in most simulations.</li>
+<li><strong>Jitter:</strong> randomize the backoff so clients de-synchronize. <em>Full jitter</em> &mdash; <code>sleep = random(0, base * 2^attempt)</code> &mdash; is a widely-recommended default that performs comparably to decorrelated jitter and is simpler to implement.</li>
 <li><strong>A retry budget / token bucket:</strong> cap retries to a fraction (e.g. 10%) of successful requests so a sustained outage can't multiply load. This is what gRPC's retry throttling and Envoy's retry budgets implement.</li>
 <li><strong>Retry only idempotent or retry-safe operations</strong> (see <a href="#idempotency">idempotency</a>), and only on retryable error classes (timeouts, 503, connection resets &mdash; not 400, 404, or 409).</li>
 </ol>

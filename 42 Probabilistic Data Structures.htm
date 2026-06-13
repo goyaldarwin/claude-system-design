@@ -155,7 +155,7 @@ contains(x):           # false positives possible, false negatives never
     for i in 1..k:
         if bits[ h_i(x) mod m ] == 0: return DEFINITELY_NOT
     return PROBABLY_YES</code></pre>
-<p>In practice you do not need <code>k</code> distinct hash functions &mdash; <span class="key">Kirsch&ndash;Mitzenmacher double hashing</span> derives all <code>k</code> from two: <code>g<sub>i</sub>(x) = h<sub>1</sub>(x) + i&middot;h<sub>2</sub>(x)</code>, with negligible accuracy loss. This is what RocksDB, Cassandra, and Redis bitmaps actually do.</p>
+<p>In practice you do not need <code>k</code> distinct hash functions &mdash; <span class="key">Kirsch&ndash;Mitzenmacher double hashing</span> derives all <code>k</code> from two: <code>g<sub>i</sub>(x) = h<sub>1</sub>(x) + i&middot;h<sub>2</sub>(x)</code>, with negligible accuracy loss. This is what RocksDB, Cassandra, and Bloom filters built on Redis bitmaps actually do.</p>
 
 <h3>The sizing math you must be able to derive</h3>
 <p>Given <code>n</code> expected elements and a target false-positive probability <code>p</code>, the optimal parameters are:</p>

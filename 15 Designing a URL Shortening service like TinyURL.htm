@@ -215,7 +215,7 @@ expire_date (string): Optional expiration date for the shortened URL.</p>
 <p><strong>Returns:</strong> (string)<br>
 A successful insertion returns the shortened URL, otherwise, returns an error code.</p>
 <pre><code>deleteURL(api_dev_key, url_key)</code></pre>
-<p>Where "url_key" is a string representing the shortened URL to be retrieved. A successful deletion returns 'URL Removed'.</p>
+<p>Where "url_key" is a string representing the shortened URL to be deleted. A successful deletion returns 'URL Removed'.</p>
 <p><strong>How do we detect and prevent abuse?</strong> For instance, any service can put us out of business by consuming all our keys in the current design. To prevent abuse, we can limit users through their api_dev_key, how many URL they can create or access in a certain time.</p>
 
 <h2 id="5-database-design">Database Design</h2>
@@ -238,7 +238,7 @@ A successful insertion returns the shortened URL, otherwise, returns an error co
 <p>We can compute a unique hash (e.g., <a href="https://en.wikipedia.org/wiki/MD5" target="_blank">MD5</a> or <a href="https://en.wikipedia.org/wiki/SHA-2" target="_blank">SHA256</a>, etc.) of the given URL. The hash can then be encoded for displaying. This encoding could be base36 ([a-z ,0-9]) or base62 ([A-Z, a-z, 0-9]) and if we add '-' and '.', we can use base64 encoding. A reasonable question would be; what should be the length of the short key? 6, 8 or 10 characters?</p>
 <p>Using base64 encoding, a 6 letter long key would result in 64^6 ~= 68.7 billion possible strings<br>
 Using base64 encoding, an 8 letter long key would result in 64^8 ~= 281 trillion possible strings</p>
-<p>With 68.7B unique strings, let's assume for our system six letters keys would suffice.</p>
+<p>With 68.7B unique strings, let's assume for our system six letters keys would suffice. (The principal-level deep dive below switches to base62, which is more standard for shorteners; the key-space math is analogous, just with 62 symbols instead of 64.)</p>
 <p>If we use the MD5 algorithm as our hash function, it'll produce a 128-bit hash value. After base64 encoding we'll get a string having more than 20 characters, how will we chose our key then? We can take the first 6 (or 8) letters for the key. This could result in key duplication though, upon which we can choose some other characters out of the encoding string or swap some characters.</p>
 <p><strong>What are different issues with our solution?</strong> We have the following couple of problems with our encoding scheme:</p>
 <ol>
@@ -267,7 +267,7 @@ Using base64 encoding, an 8 letter long key would result in 64^8 ~= 281 trillion
 
 <h2 id="8-cache">Cache</h2>
 <p>We can cache URLs that are frequently accessed. We can use some off-the-shelf solution like Memcache, that can store full URLs with their respective hashes. The application servers, before hitting backend storage, can quickly check if the cache has desired URL.</p>
-<p><strong>How much cache should we have?</strong> We can start with 20% of daily traffic and based on clients' usage pattern we can adjust how many cache servers we need. As estimated above we need 170GB memory to cache 20% of daily traffic since a modern day server can have 256GB memory, we can easily fit all the cache into one machine, or we can choose to use a couple of smaller servers to store all these hot URLs.</p>
+<p><strong>How much cache should we have?</strong> We can start with 20% of daily traffic and based on clients' usage pattern we can adjust how many cache servers we need. As estimated above we need 170GB memory to cache 20% of daily traffic since a modern day server can have 256GB memory, the working set can fit on a single machine, but a small replicated cache fleet is preferred so the cache is not a single point of failure (matching our high-availability requirement).</p>
 <p><strong>Which cache eviction policy would best fit our needs?</strong> When the cache is full, and we want to replace a link with a newer/hotter URL, how would we choose? Least Recently Used (LRU) can be a reasonable policy for our system. Under this policy, we discard the least recently used URL first. We can use a <a href="https://docs.oracle.com/javase/7/docs/api/java/util/LinkedHashMap.html" target="_blank">Linked Hash Map</a> or a similar data structure to store our URLs and Hashes, which will also keep track of which URLs are accessed recently.</p>
 <p>To further increase the efficiency, we can replicate our caching servers to distribute load between them.</p>
 <p><strong>How can each cache replica be updated?</strong> Whenever there is a cache miss, our servers would be hitting backend database. Whenever this happens, we can update the cache and pass the new entry to all the cache replicas. Each replica can update their cache by adding the new entry. If a replica already has that entry, it can simply ignore it.</p>
@@ -334,7 +334,7 @@ A naive <i>counter</i> or <i>hash-then-check-collision</i> design forces every w
 
 <h3>301 vs 302 &mdash; the analytics decision</h3>
 <div class="box"><b>Why 302, not 301</b>
-A <b>301 (permanent)</b> tells the browser and every intermediary "this short URL <i>is</i> the long URL, forever" &mdash; so the client caches it and <b>future clicks never hit your servers again.</b> Great for redirect latency, fatal for analytics and for ever changing/expiring the target. A <b>302 (temporary)</b> forces the browser back to your service on every click, so you capture click counts, geo, referrer, device. The cost is load: every click is a round-trip you must serve. TinyURL/Bitly use 302 precisely because the click data is the product. If you don't care about analytics and want max speed, 301 is cheaper.</div>
+A <b>301 (permanent)</b> tells the browser and every intermediary "this short URL <i>is</i> the long URL, forever" &mdash; so the client caches it and <b>future clicks never hit your servers again.</b> Great for redirect latency, fatal for analytics and for ever changing/expiring the target. A <b>302 (temporary)</b> forces the browser back to your service on every click, so you capture click counts, geo, referrer, device. The cost is load: every click is a round-trip you must serve. Many shorteners use 302 (or 301 with a short cache TTL) precisely because the click data is the product. If you don't care about analytics and want max speed, 301 is cheaper.</div>
 
 <h3>Caching &mdash; the 80/20 rule &amp; eviction</h3>
 <p>Reads dominate massively (a write-once, read-many workload; ratios of 100:1 are typical). Per the Pareto observation, <b>~20% of URLs generate ~80% of the traffic</b>, so you cache aggressively. If you serve ~20K redirects/sec and the daily read volume is, say, ~1.7B/day, caching 20% of one day's hot set keeps the working set in memory at a few hundred GB &mdash; spread across a Redis/Memcached fleet. On a cache miss: read from DB, then populate the cache. <b>Eviction: LRU</b> fits naturally because the hot set drifts (a viral link is hot for hours then cold). Replicate cache nodes so a single node loss doesn't stampede the DB.</p>
