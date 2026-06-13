@@ -171,12 +171,12 @@
 
 <h2 id="4-system-apis">System APIs</h2>
 <p>We can have SOAP or REST APIs to expose the functionality of our service. Following could be the definitions of the APIs for uploading and searching videos:</p>
-<pre><code>uploadVideo(api_dev_key, video_title, vide_description, tags[], category_id, default_language,
+<pre><code>uploadVideo(api_dev_key, video_title, video_description, tags[], category_id, default_language,
                         recording_details, video_contents)</code></pre>
 <p><strong>Parameters:</strong><br>
 api_dev_key (string): The API developer key of a registered account. This will be used to, among other things, throttle users based on their allocated quota.<br>
 video_title (string): Title of the video.<br>
-vide_description (string): Optional description of the video.<br>
+video_description (string): Optional description of the video.<br>
 tags (string[]): Optional tags for the video.<br>
 category_id (string): Category of the video, e.g., Film, Song, People, etc.<br>
 default_language (string): For example English, Mandarin, Hindi, etc.<br>

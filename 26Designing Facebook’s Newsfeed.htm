@@ -232,7 +232,7 @@ To improve the efficiency, we can pre-generate the timeline and store it in a me
 <p><strong>Should we generate (and keep in memory) newsfeed for all users?</strong> There will be a lot of users that don't login frequently. Here are a few things we can do to handle this. A simpler approach could be to use an LRU based cache that can remove users from memory that haven't accessed their newsfeed for a long time. A smarter solution can figure out the login pattern of users to pre-generate their newsfeed, e.g., At what time of the day a user is active? Which days of the week a user accesses their newsfeed? etc.</p>
 <p>Let's now discuss some solutions to our "live updates" problems in the following section.</p>
 <p><strong>b.	Feed publishing</strong><br>
-The process of pushing a post to all the followers is called a fanout. By analogy, the push approach is called fanout-on-write, while the pull approach is called fanout-on-load.
+The process of pushing a post to all the followers is called a fan-out. By analogy, the push approach is called fan-out-on-write, while the pull approach is called fan-out-on-load.
 Let's discuss different options of publishing feed data to users.</p>
 <ol>
 <li><p><strong>"Pull" model or Fan-out-on-load:</strong>&nbsp;This method involves keeping all the recent feed data in memory so that users can pull it from the server whenever they need it. Clients can pull the feed data on a regular basis or manually whenever they need it. Possible problems with this approach are a) New data might not be shown to the users until they issue a pull request, b) It's hard to find the right pull cadence, as most of the time pull requests will result in an empty response if there is no new data, causing waste of resources.</p></li>
