@@ -115,14 +115,14 @@
 <div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">The bottleneck</a> <b>Orientation.</b> <span>this lesson maps the building blocks; each one pays a specific tax introduced in lesson 01.</span></div>
 <div class="toc"><h4>In this lesson</h4>
 <ul>
-  <li><a href="#1-the-three-questions-behind-every-design">1. The three questions behind every design</a></li>
-  <li><a href="#2-scale-only-when-you-need-to-but-plan-for-it">2. Scale only when you need to &mdash; but plan for it</a></li>
-  <li><a href="#3-the-building-blocks-ahead">3. The building blocks ahead</a></li>
-  <li><a href="#4-how-this-fits-the-bigger-picture">4. How this fits the bigger picture</a></li>
+  <li><a href="#1-the-three-questions-behind-every-design">The three questions behind every design</a></li>
+  <li><a href="#2-scale-only-when-you-need-to-but-plan-for-it">Scale only when you need to &mdash; but plan for it</a></li>
+  <li><a href="#3-the-building-blocks-ahead">The building blocks ahead</a></li>
+  <li><a href="#4-how-this-fits-the-bigger-picture">How this fits the bigger picture</a></li>
 </ul></div>
 
 
-<h2 id="1-the-three-questions-behind-every-design">1. The three questions behind every design</h2>
+<h2 id="1-the-three-questions-behind-every-design">The three questions behind every design</h2>
 <p>Whenever we set out to design a large system, the work reduces to three recurring questions. They are simple to state and surprisingly hard to answer well, and the rest of this course exists to give you a vocabulary and a set of reusable answers for each.</p>
 <ul>
 <li><span class="key">What pieces are available?</span> What is the menu of building blocks &mdash; load balancers, caches, databases, queues, proxies, indexes &mdash; that we can assemble into a system?</li>
@@ -132,7 +132,7 @@
 
 <div class="callout note"><span class="lbl">Key insight</span>There is no single "correct" architecture. A design is good only relative to a set of requirements and constraints. The same problem can have a perfectly reasonable single-server answer and a perfectly reasonable globally-distributed answer &mdash; the difference is the scale, the SLAs, and the budget you were handed.</div>
 
-<h2 id="2-scale-only-when-you-need-to-but-plan-for-it">2. Scale only when you need to &mdash; but plan for it</h2>
+<h2 id="2-scale-only-when-you-need-to-but-plan-for-it">Scale only when you need to &mdash; but plan for it</h2>
 <p>Investing heavily in scaling infrastructure before you actually need it is not smart engineering, and it is not smart business. Premature scaling burns money, multiplies operational surface area, and slows you down with complexity you are not yet using. Many products would be better served by a boring, well-understood setup on a single beefy machine for far longer than engineers like to admit.</p>
 <p>That said, a little forethought goes a long way. Knowing <em>where</em> the system will bend as load grows &mdash; which component becomes the bottleneck first, which piece of state is hardest to shard, which call sits on the critical path &mdash; lets you avoid decisions that are cheap to make today and brutally expensive to undo later. The goal is not to build for a billion users on day one; it is to avoid painting yourself into a corner.</p>
 
@@ -140,7 +140,7 @@
 
 <div class="clarify">In practice, this is exactly why you ask about scale up front. "How many users? How many requests per second? Read-heavy or write-heavy? What are the latency and availability targets?" The answers tell you whether a single database is fine or whether you genuinely need partitioning, replication, and a CDN. Designing for unstated scale is a common way engineers lose points.</div>
 
-<h2 id="3-the-building-blocks-ahead">3. The building blocks ahead</h2>
+<h2 id="3-the-building-blocks-ahead">The building blocks ahead</h2>
 <p>The next several chapters each take one fundamental building block and treat it in depth. Read in order, they form a toolkit: by the end you should be able to look at any of the classic and advanced design problems later in the course and reach for the right component on instinct, knowing both what it does and what it costs.</p>
 <table>
 <tr><th>Chapter</th><th>Building block</th><th>What problem it solves</th></tr>
@@ -159,7 +159,7 @@
 
 <div class="callout note"><span class="lbl">Key insight</span>Notice the recurring shape: nearly every block is a way of trading one resource for another. Caching trades memory and staleness for read latency. Indexes trade write speed and storage for read speed. Replication trades storage and write coordination for availability. Once you see the trade as the unit of thinking, the blocks stop being a list to memorize and become a small set of levers you pull deliberately.</div>
 
-<h2 id="4-how-this-fits-the-bigger-picture">4. How this fits the bigger picture</h2>
+<h2 id="4-how-this-fits-the-bigger-picture">How this fits the bigger picture</h2>
 <p>These fundamentals are not an end in themselves &mdash; they are the foundation for the distributed-system design problems that dominate the second half of the course. When you later design a URL shortener, an Instagram, a Twitter, or an Uber backend, you will not invent new primitives; you will compose the blocks introduced here, justifying each choice against the requirements you clarified up front.</p>
 <p>So the path through the course is deliberate: first the building blocks (chapters 03&ndash;13), then a step-by-step framework (chapter 14) for assembling them into a coherent design, then a long sequence of worked design problems that exercise the toolkit, and finally deeper distributed-systems theory and advanced designs for those targeting senior and principal levels.</p>
 

@@ -117,22 +117,22 @@
 <div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">The bottleneck</a> <b>Latency &amp; finite capacity.</b> <span>short keys + fast redirects, paid for with a key-generation scheme and heavy caching.</span></div>
 <div class="toc"><h4>In this lesson</h4>
 <ul>
-  <li><a href="#1-why-do-we-need-url-shortening">1. Why do we need URL shortening?</a></li>
-  <li><a href="#2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</a></li>
-  <li><a href="#3-capacity-estimation-and-constraints">3. Capacity Estimation and Constraints</a></li>
-  <li><a href="#4-system-apis">4. System APIs</a></li>
-  <li><a href="#5-database-design">5. Database Design</a></li>
-  <li><a href="#6-basic-system-design-and-algorithm">6. Basic System Design and Algorithm</a></li>
-  <li><a href="#7-data-partitioning-and-replication">7. Data Partitioning and Replication</a></li>
-  <li><a href="#8-cache">8. Cache</a></li>
-  <li><a href="#9-load-balancer-lb">9. Load Balancer (LB)</a></li>
-  <li><a href="#10-purging-or-db-cleanup">10. Purging or DB cleanup</a></li>
-  <li><a href="#11-telemetry">11. Telemetry</a></li>
-  <li><a href="#12-security-and-permissions">12. Security and Permissions</a></li>
+  <li><a href="#1-why-do-we-need-url-shortening">Why do we need URL shortening?</a></li>
+  <li><a href="#2-requirements-and-goals-of-the-system">Requirements and Goals of the System</a></li>
+  <li><a href="#3-capacity-estimation-and-constraints">Capacity Estimation and Constraints</a></li>
+  <li><a href="#4-system-apis">System APIs</a></li>
+  <li><a href="#5-database-design">Database Design</a></li>
+  <li><a href="#6-basic-system-design-and-algorithm">Basic System Design and Algorithm</a></li>
+  <li><a href="#7-data-partitioning-and-replication">Data Partitioning and Replication</a></li>
+  <li><a href="#8-cache">Cache</a></li>
+  <li><a href="#9-load-balancer-lb">Load Balancer (LB)</a></li>
+  <li><a href="#10-purging-or-db-cleanup">Purging or DB cleanup</a></li>
+  <li><a href="#11-telemetry">Telemetry</a></li>
+  <li><a href="#12-security-and-permissions">Security and Permissions</a></li>
 </ul></div>
 
 
-<h2 id="1-why-do-we-need-url-shortening">1. Why do we need URL shortening?</h2>
+<h2 id="1-why-do-we-need-url-shortening">Why do we need URL shortening?</h2>
 <p>URL shortening is used to create shorter aliases for long URLs. Users are redirected to the original URL when they hit these aliases. A shorter version of any URL would save a lot of space whenever we use it e.g., when printing or tweeting as tweets have a character limit.</p>
 <p>For example, if we shorten this page through TinyURL:</p>
 <blockquote>
@@ -146,7 +146,7 @@
 <p>URL shortening is used for optimizing links across devices, tracking individual links to analyze audience and campaign performance, and hiding affiliated original URLs, etc.</p>
 <p>If you haven't used <a href="http://tinyurl.com/" target="_blank">tinyurl.com</a> before, please try creating a new shortened URL and spend some time going through different options their service offers. This will help you a lot in understanding this chapter better.</p>
 
-<h2 id="2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</h2>
+<h2 id="2-requirements-and-goals-of-the-system">Requirements and Goals of the System</h2>
 <div class="clarify">You should always clarify requirements at the start and ask questions to find the exact scope of the system you are designing.</div>
 <p>Our URL shortener system should meet the following requirements:</p>
 <p><strong>Functional Requirements:</strong></p>
@@ -168,7 +168,7 @@
 <li>Our service should also be accessible through REST APIs by other services.</li>
 </ol>
 
-<h2 id="3-capacity-estimation-and-constraints">3. Capacity Estimation and Constraints</h2>
+<h2 id="3-capacity-estimation-and-constraints">Capacity Estimation and Constraints</h2>
 <p>Our system would be read-heavy; there would be lots of redirection requests compared to new URL shortenings. Let's assume 100:1 ratio between read and write.</p>
 <p><strong>Traffic estimates:</strong> If we assume that we would have 500M new URLs shortenings per month, we can expect (100 * 500M =&gt; 50B) redirections during the same time. What would be Queries Per Second (QPS) for our system?</p>
 <p>New URLs shortenings per second:</p>
@@ -202,7 +202,7 @@
 <tr><td>Memory for cache</td><td>170GB</td></tr>
 </table>
 
-<h2 id="4-system-apis">4. System APIs</h2>
+<h2 id="4-system-apis">System APIs</h2>
 <div class="clarify">Once we've finalized the requirements, it's always a good idea to define the system APIs. This would explicitly state what is expected from the system.</div>
 <p>We can have SOAP or REST APIs to expose the functionality of our service. Following could be the definitions of the APIs for creating and deleting URLs:</p>
 <pre><code>creatURL(api_dev_key, original_url, custom_alias=None user_name=None, expire_date=None)</code></pre>
@@ -218,7 +218,7 @@ A successful insertion returns the shortened URL, otherwise, returns an error co
 <p>Where "url_key" is a string representing the shortened URL to be retrieved. A successful deletion returns 'URL Removed'.</p>
 <p><strong>How do we detect and prevent abuse?</strong> For instance, any service can put us out of business by consuming all our keys in the current design. To prevent abuse, we can limit users through their api_dev_key, how many URL they can create or access in a certain time.</p>
 
-<h2 id="5-database-design">5. Database Design</h2>
+<h2 id="5-database-design">Database Design</h2>
 <div class="clarify">Defining the DB schema early would help to understand the data flow among various components and later would guide towards the data partitioning.</div>
 <p>A few observations about nature of the data we are going to store:</p>
 <ol>
@@ -232,7 +232,7 @@ A successful insertion returns the shortened URL, otherwise, returns an error co
 <p style="text-align:center;"><img src="./_principal_files/img/5685265389584384.png" alt="diagram"></p>
 <p><strong>What kind of database should we use?</strong> Since we are likely going to store billions of rows and we don't need to use relationships between objects – a NoSQL key-value store like Dynamo or Cassandra is a better choice, which would also be easier to scale. Please see <a href="10 SQL vs. NoSQL.htm" target="_blank">SQL vs NoSQL</a> for more details. If we choose NoSQL, we cannot store UserID in the URL table (as there are no foreign keys in NoSQL), for that we would need a third table which will store the mapping between URL and the user.</p>
 
-<h2 id="6-basic-system-design-and-algorithm">6. Basic System Design and Algorithm</h2>
+<h2 id="6-basic-system-design-and-algorithm">Basic System Design and Algorithm</h2>
 <p>The problem we are solving here is to generate a short and unique key for the given URL. In the above-mentioned example, the shortened URL we got was: "<a href="http://tinyurl.com/jlg8zpc%E2%80%9D" target="_blank">http://tinyurl.com/jlg8zpc"</a>, the last six characters of this URL is the short key we want to generate. We'll explore two solutions here:</p>
 <h4>a. Encoding actual URL</h4>
 <p>We can compute a unique hash (e.g., <a href="https://en.wikipedia.org/wiki/MD5" target="_blank">MD5</a> or <a href="https://en.wikipedia.org/wiki/SHA-2" target="_blank">SHA256</a>, etc.) of the given URL. The hash can then be encoded for displaying. This encoding could be base36 ([a-z ,0-9]) or base62 ([A-Z, a-z, 0-9]) and if we add '-' and '.', we can use base64 encoding. A reasonable question would be; what should be the length of the short key? 6, 8 or 10 characters?</p>
@@ -258,21 +258,21 @@ Using base64 encoding, an 8 letter long key would result in 64^8 ~= 281 trillion
 <p><strong>How would we perform a key lookup?</strong> We can look up the key in our database or key-value store to get the full URL. If it's present, issue a "HTTP 302 Redirect" status back to the browser, passing the stored URL in the "Location" field of the request. If that key is not present in our system, issue a "HTTP 404 Not Found" status, or redirect the user back to the homepage.</p>
 <p><strong>Should we impose size limits on custom aliases?</strong> Since our service supports custom aliases, users can pick any 'key' they like, but providing a custom alias is not mandatory. However, it is reasonable (and often desirable) to impose a size limit on a custom alias, so that we have a consistent URL database. Let's assume users can specify maximum 16 characters long customer key (as reflected in the above database schema).</p>
 
-<h2 id="7-data-partitioning-and-replication">7. Data Partitioning and Replication</h2>
+<h2 id="7-data-partitioning-and-replication">Data Partitioning and Replication</h2>
 <p>To scale out our DB, we need to partition it so that it can store information about billions of URL. We need to come up with a partitioning scheme that would divide and store our data to different DB servers.</p>
 <p><strong>a. Range Based Partitioning:</strong> We can store URLs in separate partitions based on the first letter of the URL or the hash key. Hence we save all the URLs starting with letter 'A' in one partition and those that start with letter 'B' into another partition and so on. This approach is called range based partitioning. We can even combine certain less frequently occurring letters into one database partition. We should come up with this partitioning scheme statically so that we can always store/find a file in a predictable manner.</p>
 <p>The main problem with this approach is that it can lead to unbalanced servers, for instance; if we decide to put all URLs starting with letter 'E' into a DB partition, but later we realize that we have too many URLs that start with letter 'E', which we can't fit into one DB partition.</p>
 <p><strong>b. Hash-Based Partitioning:</strong> In this scheme, we take a hash of the object we are storing, and based on this hash we figure out the DB partition to which this object should go. In our case, we can take the hash of the 'key' or the actual URL to determine the partition to store the file. Our hashing function will randomly distribute URLs into different partitions, e.g., our hashing function can always map any key to a number between [1…256], and this number would represent the partition to store our object.</p>
 <p>This approach can still lead to overloaded partitions, which can be solved by using <a href="12 Consistent Hashing.htm" target="_blank">Consistent Hashing</a>.</p>
 
-<h2 id="8-cache">8. Cache</h2>
+<h2 id="8-cache">Cache</h2>
 <p>We can cache URLs that are frequently accessed. We can use some off-the-shelf solution like Memcache, that can store full URLs with their respective hashes. The application servers, before hitting backend storage, can quickly check if the cache has desired URL.</p>
 <p><strong>How much cache should we have?</strong> We can start with 20% of daily traffic and based on clients' usage pattern we can adjust how many cache servers we need. As estimated above we need 170GB memory to cache 20% of daily traffic since a modern day server can have 256GB memory, we can easily fit all the cache into one machine, or we can choose to use a couple of smaller servers to store all these hot URLs.</p>
 <p><strong>Which cache eviction policy would best fit our needs?</strong> When the cache is full, and we want to replace a link with a newer/hotter URL, how would we choose? Least Recently Used (LRU) can be a reasonable policy for our system. Under this policy, we discard the least recently used URL first. We can use a <a href="https://docs.oracle.com/javase/7/docs/api/java/util/LinkedHashMap.html" target="_blank">Linked Hash Map</a> or a similar data structure to store our URLs and Hashes, which will also keep track of which URLs are accessed recently.</p>
 <p>To further increase the efficiency, we can replicate our caching servers to distribute load between them.</p>
 <p><strong>How can each cache replica be updated?</strong> Whenever there is a cache miss, our servers would be hitting backend database. Whenever this happens, we can update the cache and pass the new entry to all the cache replicas. Each replica can update their cache by adding the new entry. If a replica already has that entry, it can simply ignore it.</p>
 
-<h2 id="9-load-balancer-lb">9. Load Balancer (LB)</h2>
+<h2 id="9-load-balancer-lb">Load Balancer (LB)</h2>
 <p>We can add Load balancing layer at three places in our system:</p>
 <ol>
 <li>Between Clients and Application servers</li>
@@ -281,7 +281,7 @@ Using base64 encoding, an 8 letter long key would result in 64^8 ~= 281 trillion
 </ol>
 <p>Initially, a simple Round Robin approach can be adopted; that distributes incoming requests equally among backend servers. This LB is simple to implement and does not introduce any overhead. Another benefit of this approach is if a server is dead, LB will take it out of the rotation and will stop sending any traffic to it. A problem with Round Robin LB is, it won't take server load into consideration. If a server is overloaded or slow, the LB will not stop sending new requests to that server. To handle this, a more intelligent LB solution can be placed that periodically queries backend server about its load and adjusts traffic based on that.</p>
 
-<h2 id="10-purging-or-db-cleanup">10. Purging or DB cleanup</h2>
+<h2 id="10-purging-or-db-cleanup">Purging or DB cleanup</h2>
 <p>Should entries stick around forever or should they be purged? If a user-specified expiration time is reached, what should happen to the link? If we chose to actively search for expired links to remove them, it would put a lot of pressure on our database. We can slowly remove expired links and do a lazy cleanup too. Our service will make sure that only expired links will be deleted, although some expired links can live longer but will never be returned to users.</p>
 <ul>
 <li>Whenever a user tries to access an expired link, we can delete the link and return an error to the user.</li>
@@ -291,11 +291,11 @@ Using base64 encoding, an 8 letter long key would result in 64^8 ~= 281 trillion
 <li>Should we remove links that haven't been visited in some length of time, say six months? This could be tricky. Since storage is getting cheap, we can decide to keep links forever.</li>
 </ul>
 
-<h2 id="11-telemetry">11. Telemetry</h2>
+<h2 id="11-telemetry">Telemetry</h2>
 <p>How many times a short URL has been used, what were user locations, etc.? How would we store these statistics? If it is part of a DB row that gets updated on each view, what will happen when a popular URL is slammed with a large number of concurrent requests?</p>
 <p>We can have statistics about the country of the visitor, date and time of access, web page that refers the click, browser or platform from where the page was accessed and more.</p>
 
-<h2 id="12-security-and-permissions">12. Security and Permissions</h2>
+<h2 id="12-security-and-permissions">Security and Permissions</h2>
 <p>Can users create private URLs or allow a particular set of users to access a URL?</p>
 <p>We can store permission level (public/private) with each URL in the database. We can also create a separate table to store UserIDs that have permission to see a specific URL. If a user does not have permission and try to access a URL, we can send an error (HTTP 401) back. Given that, we are storing our data in a NoSQL wide-column database like Cassandra, the key for the table storing permissions would be the 'Hash' (or the KGS generated 'key'), and the columns will store the UserIDs of those users that have permissions to see the URL.</p>
 

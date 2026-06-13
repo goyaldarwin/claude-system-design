@@ -115,9 +115,9 @@
 <div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">The bottleneck</a> <b>Finite capacity.</b> <span>one server can't take all traffic — distributing it adds a routing hop and health-tracking.</span></div>
 <div class="toc"><h4>In this lesson</h4>
 <ul>
-  <li><a href="#1-smart-clients">1. Smart Clients</a></li>
-  <li><a href="#2-hardware-load-balancers">2. Hardware Load Balancers</a></li>
-  <li><a href="#3-software-load-balancers">3. Software Load Balancers</a></li>
+  <li><a href="#1-smart-clients">Smart Clients</a></li>
+  <li><a href="#2-hardware-load-balancers">Hardware Load Balancers</a></li>
+  <li><a href="#3-software-load-balancers">Software Load Balancers</a></li>
 </ul></div>
 
 
@@ -133,19 +133,19 @@
 
 <p>There are many ways to implement load balancing.</p>
 
-<h2 id="1-smart-clients">1. Smart Clients</h2>
+<h2 id="1-smart-clients">Smart Clients</h2>
 
 <p>A smart client will take a pool of service hosts and balances load across them. It also detects hosts that are not responding to avoid sending requests their way. Smart clients also have to detect recovered hosts, deal with adding new hosts, etc.</p>
 
 <p>Adding load-balancing functionality into the database (cache, service, etc.) client is usually an attractive solution for the developer. It looks easy to implement and manage especially when the system is not large. But as the system grows, LBs need to be evolved into standalone servers.</p>
 
-<h2 id="2-hardware-load-balancers">2. Hardware Load Balancers</h2>
+<h2 id="2-hardware-load-balancers">Hardware Load Balancers</h2>
 
 <p>The most expensive&ndash;but very high performance&ndash;solution to load balancing is to buy a dedicated hardware load balancer (something like a Citrix NetScaler). While they can solve a remarkable range of problems, hardware solutions are very expensive, and they are not trivial to configure.</p>
 
 <p>As such, even large companies with large budgets will often avoid using dedicated hardware for all their load-balancing needs. Instead, they use them only as the first point of contact for user requests to their infrastructure and use other mechanisms (smart clients or the hybrid approach discussed in the next section) for load-balancing for traffic within their network.</p>
 
-<h2 id="3-software-load-balancers">3. Software Load Balancers</h2>
+<h2 id="3-software-load-balancers">Software Load Balancers</h2>
 
 <p>If we want to avoid the pain of creating a smart client, and since purchasing dedicated hardware is excessive, we can adopt a hybrid approach, called software load-balancers.</p>
 

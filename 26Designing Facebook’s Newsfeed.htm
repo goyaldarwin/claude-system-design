@@ -115,26 +115,26 @@
 <div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">The bottleneck</a> <b>Latency.</b> <span>ranked feed made fast by precompute, paid in the fan-out + ranking pipeline and cold-start.</span></div>
 <div class="toc"><h4>In this lesson</h4>
 <ul>
-  <li><a href="#1-what-is-facebooks-newsfeed">1. What is Facebook's newsfeed?</a></li>
-  <li><a href="#2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</a></li>
-  <li><a href="#3-capacity-estimation-and-constraints">3. Capacity Estimation and Constraints</a></li>
-  <li><a href="#4-system-apis">4. System APIs</a></li>
-  <li><a href="#5-database-design">5. Database Design</a></li>
-  <li><a href="#6-high-level-system-design">6. High Level System Design</a></li>
-  <li><a href="#7-detailed-component-design">7. Detailed Component Design</a></li>
-  <li><a href="#8-feed-ranking">8. Feed Ranking</a></li>
-  <li><a href="#9-data-partitioning">9. Data Partitioning</a></li>
+  <li><a href="#1-what-is-facebooks-newsfeed">What is Facebook's newsfeed?</a></li>
+  <li><a href="#2-requirements-and-goals-of-the-system">Requirements and Goals of the System</a></li>
+  <li><a href="#3-capacity-estimation-and-constraints">Capacity Estimation and Constraints</a></li>
+  <li><a href="#4-system-apis">System APIs</a></li>
+  <li><a href="#5-database-design">Database Design</a></li>
+  <li><a href="#6-high-level-system-design">High Level System Design</a></li>
+  <li><a href="#7-detailed-component-design">Detailed Component Design</a></li>
+  <li><a href="#8-feed-ranking">Feed Ranking</a></li>
+  <li><a href="#9-data-partitioning">Data Partitioning</a></li>
 </ul></div>
 
 
 <p>Let's design Facebook's Newsfeed, which would contain posts, photos, videos and status updates from all the people and pages a user follows.</p>
 <p><strong>Similar Services:</strong> Twitter Newsfeed, Instagram Newsfeed, Quora Newsfeed</p>
 
-<h2 id="1-what-is-facebooks-newsfeed">1. What is Facebook's newsfeed?</h2>
+<h2 id="1-what-is-facebooks-newsfeed">What is Facebook's newsfeed?</h2>
 <p>Newsfeed&nbsp;is the constantly updating list of stories in the middle of Facebook's homepage. It&nbsp;includes status updates, photos, videos, links, app activity and likes from people, pages, and groups that a user follows on&nbsp;Facebook. In other words, it's a compilation of a complete scrollable version of your and your friends' life story from photos, videos, locations, status updates and other activities.</p>
 <p>Any social media site you design - Twitter, Instagram or Facebook, you will need some sort of newsfeed system to display updates from friends and followers.</p>
 
-<h2 id="2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</h2>
+<h2 id="2-requirements-and-goals-of-the-system">Requirements and Goals of the System</h2>
 <p>Let's design a newsfeed for Facebook with the following requirements:</p>
 <p><strong>Functional requirements:</strong></p>
 <ol>
@@ -149,12 +149,12 @@
 <li>A post shouldn't take more than 5s to make it to a user's feed assuming a new newsfeed request comes in.</li>
 </ol>
 
-<h2 id="3-capacity-estimation-and-constraints">3. Capacity Estimation and Constraints</h2>
+<h2 id="3-capacity-estimation-and-constraints">Capacity Estimation and Constraints</h2>
 <p>Let's assume on average a user has 300 friends and follows 200 pages.</p>
 <p><strong>Traffic estimates:</strong> Let's assume 300M daily active users, with each user fetching their timeline an average of five times a day. This will result in 1.5B newsfeed requests per day or approximately 17,500 requests per second.</p>
 <p><strong>Storage estimates:</strong> On average, let's assume, we would need to have around 500 posts in every user's feed that we want to keep in memory for a quick fetch. Let's also assume that on average each post would be 1KB in size. This would mean that we need to store roughly 500KB of data per user. To store all this data for all the active users, we would need 150TB of memory. If a server can hold 100GB, we would need around 1500 machines to keep the top 500 posts in memory for all active users.</p>
 
-<h2 id="4-system-apis">4. System APIs</h2>
+<h2 id="4-system-apis">System APIs</h2>
 <div class="clarify">Once we've finalized the requirements, it's always a good idea to define the system APIs. This would explicitly state what is expected from the system.</div>
 <p>We can have SOAP or REST APIs to expose the functionality of our service. Following could be the definition of the API for getting the newsfeed:</p>
 <pre><code>getUserFeed(api_dev_key, user_id, since_id, count, max_id, exclude_replies)</code></pre>
@@ -168,7 +168,7 @@ api_dev_key (string): The API developer key of a registered account. This can be
 <p><strong>Returns:</strong>&nbsp;(JSON)
 Returns a JSON object containing a list of feed items.</p>
 
-<h2 id="5-database-design">5. Database Design</h2>
+<h2 id="5-database-design">Database Design</h2>
 <p>There are three basic objects: User, Entity (e.g., page, group, etc.) and FeedItem (or Post). Here are some observations about the relationships between these entities:</p>
 <ul>
 <li>A User can follow entities and can become friends with other users.</li>
@@ -179,7 +179,7 @@ Returns a JSON object containing a list of feed items.</p>
 <p>If we are using a relational database, we would need to model two relations: User-Entity relation and FeedItem-Media relation. Since each user can be friends with many people and follow a lot of entities, we can store this relation in a separate table. The "Type" column in "UserFollow" identifies if the entity being followed is a User or Entity. Similarly, we can have a table for FeedMedia relation.</p>
 <div style="text-align:center;"><img src="./_principal_files/img/5713144022302720.png" alt="diagram"></div>
 
-<h2 id="6-high-level-system-design">6. High Level System Design</h2>
+<h2 id="6-high-level-system-design">High Level System Design</h2>
 <p>At a high level this problem can be divided into two parts:</p>
 <p><strong>Feed generation:</strong> Newsfeed is generated from the posts (or feed items) of users and entities (pages and groups) that a user follows. So, whenever our system receives a request to generate the feed for a user (say Jane), we will perform following steps:</p>
 <ol>
@@ -204,7 +204,7 @@ Returns a JSON object containing a list of feed items.</p>
 <p>Following is the high-level architecture diagram of our system. User B and C are following User A.</p>
 <div style="text-align:center;"><img src="./_principal_files/img/5674248798470144.png" alt="diagram"><div><em>Facebook Newsfeed Architecture</em></div></div>
 
-<h2 id="7-detailed-component-design">7. Detailed Component Design</h2>
+<h2 id="7-detailed-component-design">Detailed Component Design</h2>
 <p>Let's discuss different components of our system in detail.</p>
 <p><strong>a. Feed generation</strong><br>
 Let's take the simple case of the newsfeed generation service fetching most recent posts from all the users and entities that Jane follows; the query would look like this:</p>
@@ -242,11 +242,11 @@ Let's discuss different options of publishing feed data to users.</p>
 <p><strong>How many feed items can we return to the client in each request?</strong> We should have a maximum limit for the number of items a user can fetch in one request (say 20). But we should let clients choose to specify how many feed items they want with each request, as the user may like to fetch a different number of posts depending on the device (mobile vs desktop).</p>
 <p><strong>Should we always notify users if there are new posts available for their newsfeed?</strong> It could be useful for users to get notified whenever new data is available. However, on mobile devices, where data usage is relatively expensive, it can consume unnecessary bandwidth. Hence, at least for mobile devices, we can choose not to push data, instead let users "Pull to Refresh" to get new posts.</p>
 
-<h2 id="8-feed-ranking">8. Feed Ranking</h2>
+<h2 id="8-feed-ranking">Feed Ranking</h2>
 <p>The most straightforward way to rank posts in a newsfeed is by the creation time of the posts. But today's ranking algorithms are doing a lot more than that to ensure "important" posts are ranked higher. The high-level idea of ranking is to first select key "signals" that make a post important and then figure out how to combine them to calculate a final ranking score.</p>
 <p>More specifically, we can select features that are relevant to the importance of any feed item, e.g. number of likes, comments, shares, time of the update, whether the post has images/videos, etc., and then, a score can be calculated using these features. This is generally enough for a simple ranking system. A better ranking system can significantly improve itself by constantly evaluating if we are making progress in user stickiness, retention, ads revenue, etc.</p>
 
-<h2 id="9-data-partitioning">9. Data Partitioning</h2>
+<h2 id="9-data-partitioning">Data Partitioning</h2>
 <p><strong>a. Sharding posts and metadata</strong><br>
 Since we have a huge number of new posts every day and our read load is extremely high too, we need to distribute our data onto multiple machines such that we can read/write it efficiently. For sharding our databases that are storing posts and their metadata, we can have a similar design as discussed under <a href="20 Designing Twitter.htm" target="_blank">Designing Twitter</a>.</p>
 <p><strong>b.	Sharding feed data</strong><br>

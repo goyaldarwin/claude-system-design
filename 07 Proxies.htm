@@ -117,21 +117,21 @@
 <div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">The bottleneck</a> <b>Latency &amp; operability.</b> <span>an intermediary buys caching/filtering/TLS offload at the cost of an extra hop and a thing to operate.</span></div>
 <div class="toc"><h4>In this lesson</h4>
 <ul>
-  <li><a href="#1-what-is-a-proxy-server">1. What is a proxy server?</a></li>
-  <li><a href="#2-proxy-server-types">2. Proxy server types</a></li>
-  <li><a href="#3-caching-and-collapsed-forwarding">3. Caching and collapsed forwarding</a></li>
-  <li><a href="#4-principallevel-mastery-check">4. Principal-level mastery check</a></li>
+  <li><a href="#1-what-is-a-proxy-server">What is a proxy server?</a></li>
+  <li><a href="#2-proxy-server-types">Proxy server types</a></li>
+  <li><a href="#3-caching-and-collapsed-forwarding">Caching and collapsed forwarding</a></li>
+  <li><a href="#4-principallevel-mastery-check">Principal-level mastery check</a></li>
 </ul></div>
 
 
-<h2 id="1-what-is-a-proxy-server">1. What is a proxy server?</h2>
+<h2 id="1-what-is-a-proxy-server">What is a proxy server?</h2>
 <p>A <span class="key">proxy server</span> is an intermediary piece of hardware or software that sits between a client and the back-end (or origin) server. It receives requests from clients and relays them to the origin server. Typically, proxies are used to filter requests, log requests, or sometimes transform requests &mdash; by adding or removing headers, encrypting or decrypting, or compressing a resource. Because the proxy stands in the middle of every request and response, it is a natural place to enforce policy, observe traffic, and reshape payloads without changing either the client or the origin.</p>
 
 <p>Another advantage of a proxy server is that its cache can serve a lot of requests. If multiple clients access a particular resource, the proxy server can cache it and serve all subsequent clients from that local copy without having to reach out to the remote server every time. This both speeds up the response for the client and reduces load on the origin.</p>
 
 <div class="callout note"><span class="lbl">Key insight</span> A proxy is fundamentally about <strong>indirection</strong>: by inserting a hop between client and origin you gain a single, controllable choke point where caching, filtering, transformation, logging, and security can all be applied &mdash; without modifying the endpoints themselves.</div>
 
-<h2 id="2-proxy-server-types">2. Proxy server types</h2>
+<h2 id="2-proxy-server-types">Proxy server types</h2>
 <p>Proxies come in several flavours depending on where they sit and whose interests they serve. The two top-level categories are the <span class="key">open (forward) proxy</span> and the <span class="key">reverse proxy</span>.</p>
 
 <p><strong>Open proxy.</strong> An open proxy is a proxy server that is accessible by any user on the internet. In general, a proxy server only allows users within a network group to store and forward internet services such as DNS or web pages, in order to reduce and control the bandwidth used by the group. An open proxy, however, lets any user on the internet use this forwarding service. There are two well-known kinds of open proxies:</p>
@@ -150,14 +150,14 @@
 
 <div class="callout tradeoff"><span class="lbl">Forward vs reverse proxy</span> The distinction is <em>whom the proxy represents</em>. A <strong>forward proxy</strong> acts on behalf of the <em>client</em> — it sits at the edge of the client&rsquo;s network, forwards their requests outward, and hides the client from the origin. A <strong>reverse proxy</strong> acts on behalf of the <em>server</em> — it sits at the edge of the server&rsquo;s network, accepts requests inward, and hides the origin from the client. Same machinery, opposite direction, opposite party protected.</div>
 
-<h2 id="3-caching-and-collapsed-forwarding">3. Caching and collapsed forwarding</h2>
+<h2 id="3-caching-and-collapsed-forwarding">Caching and collapsed forwarding</h2>
 <p>Because a proxy is a shared choke point, it is an ideal place to cache. A proxy cache can absorb a large fraction of read traffic: the first client that requests a resource pays the cost of fetching it from the origin, and every subsequent client is served the cached copy until it expires. This is closely related to the broader caching strategies discussed in <a href="04 Caching.htm">Caching</a> &mdash; the proxy simply moves the cache to a network hop that is shared by many clients.</p>
 
 <p>A particularly important proxy behaviour is <span class="key">collapsed forwarding</span> (also called request coalescing). When many clients request the same uncached resource at nearly the same moment, a naive proxy would forward every one of those requests to the origin &mdash; a stampede that can overwhelm the back-end exactly when a popular item goes cold (the &ldquo;thundering herd&rdquo; or cache-stampede problem). With collapsed forwarding, the proxy detects that an identical request is already in flight, issues only a <em>single</em> request to the origin, and fans the one response back out to all the waiting clients. This collapses N concurrent identical requests into one origin fetch, protecting the origin from sudden spikes on hot keys.</p>
 
 <div class="callout ok"><span class="lbl">What strong engineers do</span> Strong engineers name <strong>collapsed forwarding / request coalescing</strong> explicitly when discussing how an edge layer protects the origin from a cache stampede, and they connect it to TTL choices and stale-while-revalidate. They also cleanly separate the two reasons to put a proxy in front of an origin: <em>performance</em> (caching, coalescing, compression) and <em>control</em> (SSL termination, header rewriting, auth, rate limiting).</div>
 
-<h2 id="4-principallevel-mastery-check">4. Principal-level mastery check</h2>
+<h2 id="4-principallevel-mastery-check">Principal-level mastery check</h2>
 <p>At principal level, &ldquo;add a proxy&rdquo; is rarely the answer by itself &mdash; the interesting discussion is <em>which</em> proxy, <em>where</em> it sits, and <em>what it owns</em> versus the adjacent components. Be ready to reason about these probes:</p>
 <ul>
 <li><strong>Reverse proxy vs load balancer &mdash; are they the same thing?</strong> They overlap heavily and are often the same box (nginx, Envoy, HAProxy all do both), but conceptually a load balancer&rsquo;s primary job is distributing connections across a healthy pool, while a reverse proxy&rsquo;s primary job is mediating and transforming requests (caching, TLS, header rewriting). Where do you draw the boundary in your design, and why? See <a href="03 Load Balancing.htm">Load Balancing</a>.</li>
