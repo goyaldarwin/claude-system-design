@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part B: Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Replication Deep Dive</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part B: Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Replication Deep Dive</div>
 
 <h1>Replication Deep Dive</h1>
 <p class="sub">Copying the same data to many machines &mdash; the topologies, the lag bugs that bite real users, and the failover decisions that cause outages or data loss.</p>
@@ -123,7 +123,7 @@
 <li><a href="#failover">Failover and split-brain</a></li>
 <li><a href="#multileader">Multi-leader and write conflicts</a></li>
 <li><a href="#leaderless">Leaderless (Dynamo-style)</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -140,7 +140,7 @@
 <h2 id="single">Single-leader replication</h2>
 <p>The leader (a.k.a. primary/master) is the single serialization point for writes. Every write is ordered by the leader, recorded in a replication log, and streamed to followers. Reads can be served by the leader or any follower. This is the default for the relational world because it gives a single, totally-ordered write history &mdash; which makes transactions and a clean consistency story tractable.</p>
 <p>Its strengths: writes have a global order, conflict resolution is trivial (there are no concurrent conflicting writes &mdash; the leader serializes everything), and read replicas scale read-heavy workloads almost linearly. Its weaknesses: the leader is a write bottleneck and a single point of failure, so the system's availability is gated on fast, correct <a href="#failover">failover</a>.</p>
-<div class="callout note"><span class="lbl">Key insight</span>Read replicas scale <em>reads</em>, never writes. Adding followers does nothing for write throughput &mdash; every write still funnels through one leader. When write volume is the bottleneck, the answer is <a href="05 Sharding or Data Partitioning.htm">partitioning</a>, not more replicas. Conflating the two is the single most common scaling-design mistake in interviews.</div>
+<div class="callout note"><span class="lbl">Key insight</span>Read replicas scale <em>reads</em>, never writes. Adding followers does nothing for write throughput &mdash; every write still funnels through one leader. When write volume is the bottleneck, the answer is <a href="05 Sharding or Data Partitioning.htm">partitioning</a>, not more replicas. Conflating the two is the single most common scaling-design mistake.</div>
 
 <h2 id="syncasync">Synchronous vs asynchronous: the durability/latency knob</h2>
 <p>The defining choice in single-leader (and the leader-to-follower link generally) is <em>when the leader acknowledges a write to the client</em> relative to follower replication.</p>
@@ -166,7 +166,7 @@
 <p>A user refreshes twice and sees a comment <em>appear, then vanish</em> &mdash; because the two reads hit followers with different lag (one ahead, one behind), making time appear to run backward. The <span class="key">monotonic reads</span> guarantee says a user never sees the clock go backward. The standard fix is to pin each user to one replica (hash of user ID &rarr; replica), so their successive reads never regress.</p>
 <h3>Consistent prefix reads</h3>
 <p>Across partitions, an observer can see an answer before the question it answers, because the two writes landed on differently-lagged partitions. The <span class="key">consistent prefix</span> guarantee preserves causal order. Hardest to provide once data is partitioned; relates directly to <a href="33 Time Clocks and Ordering.htm">Time, Clocks and Ordering</a>.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>These are <em>client-centric</em> consistency guarantees, weaker than linearizability and far cheaper. Strong candidates reach for them first. Do not promise "we'll just make it strongly consistent" by default &mdash; that means routing everything to the leader (killing read scale) or running full <a href="30 Consensus and Raft.htm">consensus</a> on the read path (killing latency). Match the guarantee to the actual product requirement per read path.</div>
+<div class="callout warn"><span class="lbl">Pitfall</span>These are <em>client-centric</em> consistency guarantees, weaker than linearizability and far cheaper. Strong engineers reach for them first. Do not promise "we'll just make it strongly consistent" by default &mdash; that means routing everything to the leader (killing read scale) or running full <a href="30 Consensus and Raft.htm">consensus</a> on the read path (killing latency). Match the guarantee to the actual product requirement per read path.</div>
 
 <h2 id="impl">How replication is implemented on the wire</h2>
 <p>The replication log can be encoded at four levels, each with sharp trade-offs that come up in real migrations and incidents:</p>
@@ -220,9 +220,9 @@ wal_level                = logical            # enables CDC / logical replicatio
 <div class="callout warn"><span class="lbl">Pitfall</span><code>W + R &gt; N</code> is <em>not</em> linearizability. Sloppy quorums (writing to any N reachable nodes during a partition, with hinted handoff) break the overlap guarantee; concurrent writes still need conflict resolution; and there are well-known edge cases (a write that succeeds on fewer than W nodes but isn't rolled back). Treat Dynamo-style quorums as a strong <em>eventual</em> consistency knob, not a strict-consistency one. <a href="11 CAP Theorem.htm">CAP</a> and <a href="31 Consistency Models and PACELC.htm">PACELC</a> are the framing tools here.</div>
 <p>The architectural pattern is: leaderless systems lean AP (stay writable during partitions, reconcile later), single-leader-with-consensus leans CP (stay consistent, sacrifice availability of the affected shard during failover). This maps directly onto the <a href="10 SQL vs. NoSQL.htm">SQL vs NoSQL</a> divide &mdash; Dynamo-style stores (Cassandra, DynamoDB, Riak) chose leaderless availability, while traditional RDBMS and NewSQL chose leader-based consistency.</p>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They pick a topology from <em>requirements</em>, not habit: single-leader by default for its clean consistency story; multi-leader only when multi-region write latency or offline clients force it (and then they have a conflict-resolution answer ready); leaderless only when continuous write availability under partition is worth eventual consistency. They name the specific replication-lag anomaly each read path can suffer and apply the cheapest guarantee that fixes it &mdash; rather than blanket-routing to the leader. And they never confuse adding read replicas with scaling writes.</div>
-<p>Probing questions to ask candidates:</p>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They pick a topology from <em>requirements</em>, not habit: single-leader by default for its clean consistency story; multi-leader only when multi-region write latency or offline clients force it (and then they have a conflict-resolution answer ready); leaderless only when continuous write availability under partition is worth eventual consistency. They name the specific replication-lag anomaly each read path can suffer and apply the cheapest guarantee that fixes it &mdash; rather than blanket-routing to the leader. And they never confuse adding read replicas with scaling writes.</div>
+<p>Probing questions to ask engineers:</p>
 <ul>
 <li>"Your design serves reads from async followers. A user posts a comment and refreshes &mdash; it's gone. Which guarantee is violated, and exactly how do you implement the fix without sending all reads to the leader?"</li>
 <li>"Walk me through what happens to the last 200ms of acknowledged writes when the leader crashes under async replication. How do you bound or eliminate that loss window, and what does it cost?"</li>

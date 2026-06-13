@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Anti-Entropy and Gossip</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Anti-Entropy and Gossip</div>
 
 <h1>Anti-Entropy and Gossip</h1>
 <p class="sub"><em>How leaderless replicas find and erase divergence — epidemic protocols, Merkle trees, read-repair, and the surprisingly hard problem of deleting data.</em></p>
@@ -122,7 +122,7 @@
 <li><a href="#repair">Read-repair and hinted handoff</a></li>
 <li><a href="#tombstones">Tombstones and the deletion problem</a></li>
 <li><a href="#guarantees">Convergence guarantees</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -239,7 +239,7 @@
 </table>
 
 <h2 id="tombstones">Tombstones and the deletion problem</h2>
-<p>Deletion is genuinely hard in an eventually consistent store, and it is where strong candidates separate themselves. Consider deleting key <code>k</code> while replica <code>C</code> is partitioned away. If delete means "remove the row," then later anti-entropy compares <code>A</code> (no row) with <code>C</code> (still has row). <code>C</code> looks like the one holding "newer" data and <span class="key">resurrects</span> the deleted value across the cluster — a <em>zombie</em>.</p>
+<p>Deletion is genuinely hard in an eventually consistent store, and it is where strong engineers separate themselves. Consider deleting key <code>k</code> while replica <code>C</code> is partitioned away. If delete means "remove the row," then later anti-entropy compares <code>A</code> (no row) with <code>C</code> (still has row). <code>C</code> looks like the one holding "newer" data and <span class="key">resurrects</span> the deleted value across the cluster — a <em>zombie</em>.</p>
 
 <p>The fix: a delete is not a removal, it is a write of a special marker called a <span class="key">tombstone</span> carrying a timestamp/version. The tombstone wins over older values during reconciliation, so even a replica that never saw the live row learns "this key is deleted as of time T." Tombstones make deletion a normal convergent write rather than the absence of data.</p>
 
@@ -252,7 +252,7 @@
 <h3>Tombstone read amplification</h3>
 <p>Accumulated tombstones are a notorious latency landmine on <a href="38 Storage Engines LSM vs B-Tree.htm">LSM-tree</a> stores. A query scanning a range must read through every tombstone in that range to determine the live result, even though it returns nothing. Workloads with queue-like access patterns (write rows, delete them, scan the "head") generate millions of tombstones and produce <code>TombstoneOverwhelmingException</code>-class failures. Anti-patterns: deleting whole partitions row-by-row, or using a collection column as a mutable set with frequent removals.</p>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They model deletion as a first-class convergent write from the start, state the invariant out loud — "tombstone retention must exceed the worst-case repair interval" — and design schemas to avoid tombstone-heavy patterns (use TTL-based expiry or time-bucketed partitions you can drop wholesale instead of deleting rows). They also note the alternative: <a href="35 CRDTs.htm">CRDTs</a> like OR-Sets encode deletion via add/remove tags so merge is automatic, sidestepping the wall-clock-timestamp fragility of LWW deletes.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They model deletion as a first-class convergent write from the start, state the invariant out loud — "tombstone retention must exceed the worst-case repair interval" — and design schemas to avoid tombstone-heavy patterns (use TTL-based expiry or time-bucketed partitions you can drop wholesale instead of deleting rows). They also note the alternative: <a href="35 CRDTs.htm">CRDTs</a> like OR-Sets encode deletion via add/remove tags so merge is automatic, sidestepping the wall-clock-timestamp fragility of LWW deletes.</div>
 
 <h2 id="guarantees">Convergence guarantees</h2>
 <p>What does "eventually consistent" actually promise? Precisely this: <em>if writes stop and enough anti-entropy rounds run, all replicas reach the same state.</em> The honest principal framing is about the conditions and the merge function.</p>
@@ -265,8 +265,8 @@
 
 <p>These mechanisms are the backbone of any <a href="55 Designing a Key-Value Store.htm">Key-Value Store</a> design: <a href="12 Consistent Hashing.htm">consistent hashing</a> places <code>N</code> replicas on the ring, gossip keeps the ring and membership coherent, quorum reads/writes (<code>W + R &gt; N</code>) give tunable consistency on the hot path, hinted handoff preserves availability through transient failures, read-repair heals hot keys, and Merkle-tree anti-entropy is the comprehensive background net that catches everything else — including the cold data nothing else touches.</p>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They distinguish gossip (metadata/membership dissemination) from anti-entropy (data reconciliation) cleanly and never conflate them. They reach for Merkle trees the moment they say "compare replicas" and can explain why the equal-root case is what makes it viable. They treat deletion as a first-class hard problem — naming tombstones, the resurrection failure mode, and the <code>repair-within-grace-period</code> invariant — rather than assuming delete just removes data. And they tie the whole picture back to the merge function: detection is easy, conflict resolution is where correctness lives.</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They distinguish gossip (metadata/membership dissemination) from anti-entropy (data reconciliation) cleanly and never conflate them. They reach for Merkle trees the moment they say "compare replicas" and can explain why the equal-root case is what makes it viable. They treat deletion as a first-class hard problem — naming tombstones, the resurrection failure mode, and the <code>repair-within-grace-period</code> invariant — rather than assuming delete just removes data. And they tie the whole picture back to the merge function: detection is easy, conflict resolution is where correctness lives.</div>
 
 <ul>
 <li>A node was network-partitioned for 12 days; your <code>gc_grace_seconds</code> is 10 days and repair ran on day 9. The node rejoins. Walk me through exactly what happens to data deleted on day 1, and how you'd prevent the zombie.</li>

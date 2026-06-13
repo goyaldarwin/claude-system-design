@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; Observability</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; Observability</div>
 
 <h1>Observability</h1>
 <p class="sub"><em>Understanding systems you cannot fully predict: the three pillars, what they cost, and how to alert without drowning your on-call.</em></p>
@@ -122,7 +122,7 @@
 <li><a href="#correlation">Correlating Across Pillars</a></li>
 <li><a href="#alerting">Alerting That Pages a Human</a></li>
 <li><a href="#otel">OpenTelemetry and the Wire</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -195,7 +195,7 @@ log.info("checkout_failed", Map.of(
 <tr><td><span class="key">Tail-based</span></td><td>After the full trace completes, at a collector that has buffered all spans</td><td>Can keep 100% of errors and slow traces and 1% of the rest. But the collector must buffer all spans for a trace until it's done &mdash; stateful, memory-hungry, and routing-sensitive (all spans of a trace must reach the same collector).</td></tr>
 </table>
 
-<div class="callout note"><span class="lbl">Key insight</span> The whole point of tracing is debugging the <em>anomalous</em> request, so uniform head sampling defeats the purpose &mdash; it throws away the needles and keeps the hay. Production-grade setups use tail-based sampling (or a hybrid: cheap head sampling to thin the firehose, tail decision for the keep/drop) so that <strong>every error and every p99+ outlier is retained</strong>. This is the single highest-leverage tracing decision and a great interview probe.</p></div>
+<div class="callout note"><span class="lbl">Key insight</span> The whole point of tracing is debugging the <em>anomalous</em> request, so uniform head sampling defeats the purpose &mdash; it throws away the needles and keeps the hay. Production-grade setups use tail-based sampling (or a hybrid: cheap head sampling to thin the firehose, tail decision for the keep/drop) so that <strong>every error and every p99+ outlier is retained</strong>. This is the single highest-leverage tracing decision and a high-leverage decision.</p></div>
 
 <h2 id="cardinality">The Cardinality Tax</h2>
 <p><span class="key">Cardinality</span> is the number of distinct values a dimension can take. It is the dominant cost driver in observability and the source of the most expensive operational mistakes. The killer arithmetic: in a time-series database, every unique label combination is a separate series, and the cost is <strong>multiplicative across labels</strong>.</p>
@@ -223,7 +223,7 @@ log.info("checkout_failed", Map.of(
 <li>You jump from an exemplar trace to the <strong>logs</strong> for those exact spans via the shared <code>trace_id</code> and read the error: <code>provider_timeout: connect ETIMEDOUT</code>. (Tells you <em>why</em>.)</li>
 </ol>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They make the join keys explicit and non-negotiable: a <code>trace_id</code> on every log line, <span class="key">exemplars</span> on histograms (a metric bucket carries a sample <code>trace_id</code>, so you click a latency spike and land on the trace that caused it), and consistent <code>service.name</code> / <code>region</code> labels across all three pillars so a single dashboard variable filters everything coherently. The pillars are not three silos &mdash; they are three indexes over the same underlying events, stitched by shared identifiers.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They make the join keys explicit and non-negotiable: a <code>trace_id</code> on every log line, <span class="key">exemplars</span> on histograms (a metric bucket carries a sample <code>trace_id</code>, so you click a latency spike and land on the trace that caused it), and consistent <code>service.name</code> / <code>region</code> labels across all three pillars so a single dashboard variable filters everything coherently. The pillars are not three silos &mdash; they are three indexes over the same underlying events, stitched by shared identifiers.</p></div>
 
 <h2 id="alerting">Alerting That Pages a Human</h2>
 <p>The purpose of a page is to summon a human to fix something a machine cannot. Every page that does not meet that bar erodes trust and causes <span class="key">alert fatigue</span> &mdash; the state where on-call reflexively acks and ignores, and the one real page gets lost in the noise. Two principles separate good alerting from bad:</p>
@@ -234,7 +234,7 @@ log.info("checkout_failed", Map.of(
 <div class="callout note"><span class="lbl">Key insight</span> Tie your paging alerts to <strong>SLO burn rate</strong>, not raw thresholds. Multi-window, multi-burn-rate alerting (the Google SRE pattern) pages fast on a severe burn (e.g. 14.4&times; the budget over 1h, exhausting a month of budget in ~2 days) and pages slow on a sustained mild burn, while suppressing brief blips that don't threaten the budget. This is the bridge from <a href="47 SLI SLO SLA and Error Budgets.htm">error budgets</a> to a pager that fires precisely when the budget is actually at risk.</p></div>
 
 <h3>Every page must be actionable and documented</h3>
-<p>If a human is woken at 3am, the alert must (a) reflect a real, user-facing problem, (b) require human judgment (not something autoscaling/retries already handle), and (c) link to a runbook. Anything that fails these is a candidate for deletion or for downgrading to a <em>ticket</em> (non-paging) or a dashboard. Three severity tiers is a healthy model: <span class="pill">page</span> (act now), <span class="pill">ticket</span> (act this week), <span class="pill">log/dashboard</span> (look when investigating). A useful audit: track your alert-to-action ratio &mdash; if &gt;50% of pages resolve with "no action needed," your signal-to-noise is broken.</p>
+<p>If a human is woken at 3am, the alert must (a) reflect a real, user-facing problem, (b) require human judgment (not something autoscaling/retries already handle), and (c) link to a runbook. Anything that fails these is an engineer for deletion or for downgrading to a <em>ticket</em> (non-paging) or a dashboard. Three severity tiers is a healthy model: <span class="pill">page</span> (act now), <span class="pill">ticket</span> (act this week), <span class="pill">log/dashboard</span> (look when investigating). A useful audit: track your alert-to-action ratio &mdash; if &gt;50% of pages resolve with "no action needed," your signal-to-noise is broken.</p>
 
 <div class="callout warn"><span class="lbl">Pitfall</span> Beware alerting on <strong>predicted</strong> conditions and on tightly-coupled cascades. A single upstream failure can fan out into 200 simultaneous downstream pages, burying the root cause. Alert grouping/deduplication (Alertmanager inhibition rules), dependency-aware suppression, and alerting on the <em>edge</em> (the user-facing symptom) rather than every internal hop are the countermeasures. Retries and circuit breakers also generate misleading signals &mdash; understand how they shape your error metrics; see <a href="49 Resilience Patterns.htm">Resilience Patterns</a>.</p></div>
 
@@ -260,13 +260,13 @@ service:
     traces:  { receivers: [otlp], processors: [batch, tail_sampling], exporters: [otlphttp/tempo] }
     metrics: { receivers: [otlp], processors: [batch], exporters: [prometheus] }</code></pre>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They treat OTel as the <strong>decoupling layer</strong>: instrument the application once against a stable API, and let the Collector handle sampling, redaction (drop PII attributes), batching, and fan-out to backends. This means you can swap Jaeger for Tempo, or move from Datadog to a self-hosted stack, <em>without touching application code</em> &mdash; the same dependency-inversion argument you'd make for any abstraction boundary. They also run the Collector as both a sidecar/agent (for fast local egress) and a gateway tier (for tail sampling, which needs all spans of a trace co-located).</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They treat OTel as the <strong>decoupling layer</strong>: instrument the application once against a stable API, and let the Collector handle sampling, redaction (drop PII attributes), batching, and fan-out to backends. This means you can swap Jaeger for Tempo, or move from Datadog to a self-hosted stack, <em>without touching application code</em> &mdash; the same dependency-inversion argument you'd make for any abstraction boundary. They also run the Collector as both a sidecar/agent (for fast local egress) and a gateway tier (for tail sampling, which needs all spans of a trace co-located).</p></div>
 
-<h2 id="interview">Principal-level interview lens</h2>
+<h2 id="mastery">Principal-level mastery check</h2>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They never recite "the three pillars" as a checklist. They reason about <strong>cost vs. cardinality vs. queryability</strong> and place each signal deliberately &mdash; low-cardinality aggregates in metrics, high-cardinality context in logs/traces, request topology in traces &mdash; and they can quantify the cardinality blast radius of a bad label choice. They connect alerting to <em>error budgets</em> and <em>symptoms</em>, not arbitrary thresholds, and they treat alert fatigue as a first-class reliability risk. They know context propagation is the thing that actually breaks (especially across async boundaries), and they default to tail-based sampling because the point of a trace is the anomaly, not the average. They name OTel as the decoupling layer and the Collector as where sampling and redaction belong.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They never recite "the three pillars" as a checklist. They reason about <strong>cost vs. cardinality vs. queryability</strong> and place each signal deliberately &mdash; low-cardinality aggregates in metrics, high-cardinality context in logs/traces, request topology in traces &mdash; and they can quantify the cardinality blast radius of a bad label choice. They connect alerting to <em>error budgets</em> and <em>symptoms</em>, not arbitrary thresholds, and they treat alert fatigue as a first-class reliability risk. They know context propagation is the thing that actually breaks (especially across async boundaries), and they default to tail-based sampling because the point of a trace is the anomaly, not the average. They name OTel as the decoupling layer and the Collector as where sampling and redaction belong.</p></div>
 
-<p>Sharp probing questions an interviewer should ask:</p>
+<p>Sharp questions to test your own understanding:</p>
 <ul>
 <li>You want to break down p99 latency by <code>customer_id</code> across 50M customers. Walk me through why you would <em>not</em> do this with metric labels, and what storage model you'd reach for instead.</li>
 <li>Your tracing covers synchronous HTTP calls but traces fracture the moment a request enters your job queue. What broke, and how do you propagate context through a Kafka/SQS hop?</li>

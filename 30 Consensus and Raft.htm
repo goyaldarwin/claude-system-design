@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Consensus and Raft</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Consensus and Raft</div>
 
 <h1>Consensus and Raft</h1>
 <p class="sub">How a set of unreliable machines agrees on a single value &mdash; the foundation under every replicated database, lock service, and config store.</p>
@@ -121,7 +121,7 @@
 <li><a href="#paxos">Paxos and Multi-Paxos</a></li>
 <li><a href="#quorum">Quorums and the R + W &gt; N rule</a></li>
 <li><a href="#practice">Where it shows up in practice</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -150,13 +150,13 @@
 <p>Raft (Ongaro &amp; Ousterhout, 2014) deliberately decomposes consensus into three sub-problems so it can be reasoned about and implemented correctly. Every node is in one of three states: <span class="key">follower</span>, <span class="key">candidate</span>, or <span class="key">leader</span>. Time is divided into <span class="key">terms</span>, each beginning with an election; a term is a logical clock that lets nodes detect stale leaders.</p>
 
 <h3>1. Leader election</h3>
-<p>Followers expect periodic heartbeats from the leader. If a follower's randomized election timeout (e.g. 150&ndash;300 ms) elapses without a heartbeat, it increments the term, becomes a candidate, votes for itself, and requests votes from peers. A candidate wins if it gathers votes from a <span class="key">majority</span>. Randomized timeouts make split votes rare and self-correcting.</p>
+<p>Followers expect periodic heartbeats from the leader. If a follower's randomized election timeout (e.g. 150&ndash;300 ms) elapses without a heartbeat, it increments the term, becomes an engineer, votes for itself, and requests votes from peers. A candidate wins if it gathers votes from a <span class="key">majority</span>. Randomized timeouts make split votes rare and self-correcting.</p>
 
 <h3>2. Log replication</h3>
 <p>Clients send commands to the leader. The leader appends the command to its log and sends <code>AppendEntries</code> RPCs to followers. Once a majority have persisted the entry, the leader marks it <span class="key">committed</span>, applies it to its state machine, and returns to the client. Each entry carries the term in which it was created, which is the basis of the safety argument.</p>
 
 <h3>3. Safety</h3>
-<p>The crucial guarantee is the <span class="key">Leader Completeness property</span>: a leader for a given term contains all entries committed in previous terms. Raft enforces this with the <span class="key">election restriction</span> &mdash; a node will only grant its vote to a candidate whose log is at least as up-to-date as its own. This means a node missing committed entries can never win an election, so committed entries are never lost.</p>
+<p>The crucial guarantee is the <span class="key">Leader Completeness property</span>: a leader for a given term contains all entries committed in previous terms. Raft enforces this with the <span class="key">election restriction</span> &mdash; a node will only grant its vote to an engineer whose log is at least as up-to-date as its own. This means a node missing committed entries can never win an election, so committed entries are never lost.</p>
 
 <pre><code>// Simplified AppendEntries consistency check on a follower
 if (args.prevLogTerm != log[args.prevLogIndex].term) {
@@ -193,9 +193,9 @@ if (args.leaderCommit &gt; commitIndex) {
 <li><span class="key">Kafka</span> &mdash; KRaft mode replaced the ZooKeeper dependency with an internal Raft quorum. See <a href="39 Kafka and Log-based Messaging.htm">Kafka &amp; Log-based Messaging</a>.</li>
 </ul>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They reach for consensus only where it is actually required &mdash; metadata, leader election, config, small critical state &mdash; and keep it <em>off</em> the high-throughput data path. They know consensus is expensive (a majority round-trip per decision) and bound its blast radius by sharding into many small groups.</div>
-<p>Probing questions to ask candidates:</p>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They reach for consensus only where it is actually required &mdash; metadata, leader election, config, small critical state &mdash; and keep it <em>off</em> the high-throughput data path. They know consensus is expensive (a majority round-trip per decision) and bound its blast radius by sharding into many small groups.</div>
+<p>Probing questions to ask engineers:</p>
 <ul>
 <li>"You said you'll use a leader. What happens to in-flight writes during failover, and how long is the unavailability window?"</li>
 <li>"Why is the cluster size 3 or 5 and not 4 or 6?"</li>

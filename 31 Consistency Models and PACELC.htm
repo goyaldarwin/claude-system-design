@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,14 +101,14 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
 
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Consistency Models and PACELC</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Consistency Models and PACELC</div>
 
 <h1>Consistency Models and PACELC</h1>
 <p class="sub"><em>A precise map of what "consistency" actually means, what it costs, and how to choose the right guarantee per use case.</em></p>
@@ -124,7 +124,7 @@
 <li><a href="#classify">Classifying real systems</a></li>
 <li><a href="#cost">The cost of strong consistency</a></li>
 <li><a href="#choosing">Choosing per use case</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -163,7 +163,7 @@
 
 <p><strong>Eventual consistency</strong> is the weakest commonly-named model: it says nothing about what you read <em>now</em>, only that absent new writes, replicas converge. Dynamo-style stores live here by default. The convergence is achieved through <a href="34 Anti-Entropy and Gossip.htm">anti-entropy and gossip</a> plus conflict resolution (last-writer-wins, vector clocks, or CRDTs).</p>
 
-<div class="callout warn"><span class="lbl">Pitfall</span> "Eventual consistency" with no further qualification is almost useless as a contract — "eventually" can mean milliseconds or, during a partition, hours. Strong candidates always ask: <em>eventual, but with which client-centric guarantees layered on top?</em> A pure eventual store can show a user their own write disappearing on the next request, which is unacceptable for most UX.</div>
+<div class="callout warn"><span class="lbl">Pitfall</span> "Eventual consistency" with no further qualification is almost useless as a contract — "eventually" can mean milliseconds or, during a partition, hours. Strong engineers always ask: <em>eventual, but with which client-centric guarantees layered on top?</em> A pure eventual store can show a user their own write disappearing on the next request, which is unacceptable for most UX.</div>
 
 <h2 id="client">Client-centric (session) guarantees</h2>
 <p>The models above are <em>data-centric</em> — they describe the global behavior of the store. <span class="key">Client-centric guarantees</span> describe what a single client/session observes across its own sequence of operations, and they can be layered on top of an eventually-consistent store cheaply (usually by routing a session to the same replica or carrying a version token). They are the practical glue that makes "eventual" usable:</p>
@@ -229,7 +229,7 @@
 </tbody>
 </table>
 
-<div class="callout warn"><span class="lbl">Pitfall</span> Beware single-letter labels applied to a whole product. Cassandra, DynamoDB, and MongoDB all expose <em>per-operation</em> tuning (consistency levels, read/write concerns, consistent-read flags). The PACELC label describes the <em>default</em> or the dominant design bias — the right answer in an interview is "it depends on the consistency level configured for that query," with the default stated.</div>
+<div class="callout warn"><span class="lbl">Pitfall</span> Beware single-letter labels applied to a whole product. Cassandra, DynamoDB, and MongoDB all expose <em>per-operation</em> tuning (consistency levels, read/write concerns, consistent-read flags). The PACELC label describes the <em>default</em> or the dominant design bias — the right answer in practice is "it depends on the consistency level configured for that query," with the default stated.</div>
 
 <h2 id="cost">The cost of strong consistency</h2>
 <p>Strong consistency is never free. Where, precisely, does the cost show up?</p>
@@ -266,13 +266,13 @@
 </tbody>
 </table>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They never say "we'll use strong consistency" as a blanket. They name the specific invariant that demands it (no oversell, no double-spend, exactly-one leader), apply the minimum sufficient model <em>there</em>, and explicitly relax everything else to eventual + session guarantees to recover latency and availability. They also state the PACELC posture per data domain, not per system.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They never say "we'll use strong consistency" as a blanket. They name the specific invariant that demands it (no oversell, no double-spend, exactly-one leader), apply the minimum sufficient model <em>there</em>, and explicitly relax everything else to eventual + session guarantees to recover latency and availability. They also state the PACELC posture per data domain, not per system.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
+<h2 id="mastery">Principal-level mastery check</h2>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They treat consistency as a per-domain budget, not a global switch. They distinguish linearizability (single object, real-time) from serializability (multi-object isolation) without prompting, reach for causal + session guarantees as the pragmatic middle, and quantify the cost ("strong reads add a cross-region quorum hop, ~40&nbsp;ms to p99"). When they say "eventually consistent" they immediately specify the client-centric guarantees layered on top, and they cite PACELC's else-branch as the real day-to-day trade-off rather than fixating on CAP partitions.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They treat consistency as a per-domain budget, not a global switch. They distinguish linearizability (single object, real-time) from serializability (multi-object isolation) without prompting, reach for causal + session guarantees as the pragmatic middle, and quantify the cost ("strong reads add a cross-region quorum hop, ~40&nbsp;ms to p99"). When they say "eventually consistent" they immediately specify the client-centric guarantees layered on top, and they cite PACELC's else-branch as the real day-to-day trade-off rather than fixating on CAP partitions.</p></div>
 
-<p>Sharp probing questions an interviewer should ask:</p>
+<p>Sharp questions to test your own understanding:</p>
 <ul>
 <li>"You said the store is eventually consistent. A user updates their profile photo and refreshes — they see the old photo. Is that acceptable? If not, which exact guarantee fixes it, and what does it cost to implement?"</li>
 <li>"Your design uses snapshot isolation. Walk me through a write-skew anomaly that could violate a business invariant here, and tell me whether you'd pay for serializability or guard it another way."</li>

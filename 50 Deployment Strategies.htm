@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; Deployment Strategies</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; Deployment Strategies</div>
 
 <h1>Deployment Strategies</h1>
 <p class="sub"><em>How to ship changes to a running distributed system without taking it down, and how to undo a bad change before it burns your users.</em></p>
@@ -123,7 +123,7 @@
 <li><a href="#flags">Feature flags, dark launches, and shadow traffic</a></li>
 <li><a href="#migrations">Zero-downtime database migrations</a></li>
 <li><a href="#rollback">Rollback vs roll-forward</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -147,7 +147,7 @@
 </ul>
 <p>If these are coupled, every behavior change requires a deploy, and every deploy is a high-stakes event because it simultaneously changes what's running <em>and</em> what users experience. Once you decouple them — typically with <a href="#flags">feature flags</a> — you can deploy a binary that contains dormant code many times a day with low risk, then turn on the actual feature independently, gradually, and reversibly. This is why mature orgs deploy continuously but release deliberately.</p>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They volunteer the deploy/release distinction early and use it to simplify the rest of the design: "I'd ship the new code path behind a flag defaulting to off, deploy it through a rolling update, verify it's inert, then ramp the flag as a canary on the <em>release</em> dimension." Now the rollback for a behavioral bug is a flag flip with sub-second TTR, no redeploy.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They volunteer the deploy/release distinction early and use it to simplify the rest of the design: "I'd ship the new code path behind a flag defaulting to off, deploy it through a rolling update, verify it's inert, then ramp the flag as a canary on the <em>release</em> dimension." Now the rollback for a behavioral bug is a flag flip with sub-second TTR, no redeploy.</p></div>
 
 <h2 id="rolling">Rolling updates</h2>
 <p>A rolling update replaces instances of the old version with the new version incrementally — N at a time — until the fleet is fully converted. This is the Kubernetes default <code>RollingUpdate</code> strategy and the baseline for most stateless services. See <a href="46 Containers Kubernetes and Serverless.htm">Containers, Kubernetes and Serverless</a> for the orchestration mechanics.</p>
@@ -242,7 +242,7 @@ steps:
 <div class="callout tradeoff"><span class="lbl">Trade-off</span>Flags are powerful but become <span class="key">technical debt and a combinatorial test problem</span>. Every flag is an <code>if</code> that doubles the code paths; ten flags are 1024 theoretical combinations. The discipline: flags must have owners and expiry dates, and a process to retire them (delete the dead branch) once a release is fully rolled out. Long-lived "permanent" flags blur into config and should be reclassified as such. Stale flags have caused major incidents — the 2012 Knight Capital collapse was, in part, dead flag-gated code reactivated by a partial deploy.</p></div>
 
 <h2 id="migrations">Zero-downtime database migrations</h2>
-<p>This is where most candidates fall apart, and where principals earn their title. Code is easy to roll forward and back; <span class="key">schema and data are not</span>. The constraint is the same one rolling updates impose: during any rollout, old code and new code run against the <em>same</em> database simultaneously, so the schema must be readable and writable by both. You cannot do a destructive schema change in lockstep with a code change.</p>
+<p>This is where most engineers fall apart, and where principals earn their title. Code is easy to roll forward and back; <span class="key">schema and data are not</span>. The constraint is the same one rolling updates impose: during any rollout, old code and new code run against the <em>same</em> database simultaneously, so the schema must be readable and writable by both. You cannot do a destructive schema change in lockstep with a code change.</p>
 
 <h3>Expand-contract (parallel-change)</h3>
 <p>The canonical pattern decomposes a breaking schema change into a sequence of individually backward-compatible steps. To rename column <code>email</code> to <code>email_address</code>:</p>
@@ -255,7 +255,7 @@ steps:
 <li><span class="key">Contract</span> — after a soak period with no rollback need, drop the old <code>email</code> column.</li>
 </ol>
 
-<div class="callout note"><span class="lbl">Key insight</span>The <span class="key">dual-write window</span> is the safety net that makes each step independently reversible. At every point, the version you might roll back to can still read and write the database correctly. The cost is that the application carries temporary complexity (writing two columns, a backfill job) and the migration spans <em>multiple deploys over days</em> — you cannot do it in one PR. A candidate who proposes "ALTER TABLE RENAME COLUMN" in a single deploy has just designed an outage.</p></div>
+<div class="callout note"><span class="lbl">Key insight</span>The <span class="key">dual-write window</span> is the safety net that makes each step independently reversible. At every point, the version you might roll back to can still read and write the database correctly. The cost is that the application carries temporary complexity (writing two columns, a backfill job) and the migration spans <em>multiple deploys over days</em> — you cannot do it in one PR. Proposing "ALTER TABLE RENAME COLUMN" in a single deploy has just designed an outage.</p></div>
 
 <h3>Other rules of zero-downtime DDL</h3>
 <ul>
@@ -276,13 +276,13 @@ steps:
 
 <div class="callout tradeoff"><span class="lbl">Trade-off</span>Rollback is faster and safer for code, but <span class="key">data migrations are frequently irreversible</span>, which is precisely why expand-contract keeps the old schema alive through the rollout — it preserves the option to roll back. The architectural decision is: how long do you keep the rollback option open (the soak period before contract), versus the carrying cost of dual schemas and dual writes? High-stakes systems keep it open for days; the cost is acceptable complexity for the recovery guarantee.</p></div>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They state the recovery plan as part of the design, not as an afterthought: define the <span class="key">automated rollback trigger</span> (SLO burn / canary abort), confirm the rollback target is still healthy and warm, and explicitly call out the point of no return where the strategy switches from rollback to roll-forward. They also know that rolling back doesn't undo emitted side effects — messages already published, emails already sent, payments already taken — and that those need compensating actions, linking deployment safety to <a href="49 Resilience Patterns.htm">resilience patterns</a> like idempotency and sagas.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They state the recovery plan as part of the design, not as an afterthought: define the <span class="key">automated rollback trigger</span> (SLO burn / canary abort), confirm the rollback target is still healthy and warm, and explicitly call out the point of no return where the strategy switches from rollback to roll-forward. They also know that rolling back doesn't undo emitted side effects — messages already published, emails already sent, payments already taken — and that those need compensating actions, linking deployment safety to <a href="49 Resilience Patterns.htm">resilience patterns</a> like idempotency and sagas.</p></div>
 
-<h2 id="interview">Principal-level interview lens</h2>
+<h2 id="mastery">Principal-level mastery check</h2>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They treat deployment as risk management with explicit blast-radius / TTD / TTR levers, not as a CI/CD checkbox. They decouple deploy from release with flags, propose canary <em>with automated SLO-burn-based analysis</em> rather than hand-watched dashboards, and — the real differentiator — they handle the database. They reach for expand-contract unprompted, articulate the dual-write window as the thing that preserves reversibility, and name the exact point where the strategy crosses from rollback to roll-forward. They connect deployment safety to <a href="47 SLI SLO SLA and Error Budgets.htm">error budgets</a>, <a href="48 Observability.htm">observability</a>, and <a href="49 Resilience Patterns.htm">resilience</a> instead of treating them as separate topics.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat deployment as risk management with explicit blast-radius / TTD / TTR levers, not as a CI/CD checkbox. They decouple deploy from release with flags, propose canary <em>with automated SLO-burn-based analysis</em> rather than hand-watched dashboards, and — the real differentiator — they handle the database. They reach for expand-contract unprompted, articulate the dual-write window as the thing that preserves reversibility, and name the exact point where the strategy crosses from rollback to roll-forward. They connect deployment safety to <a href="47 SLI SLO SLA and Error Budgets.htm">error budgets</a>, <a href="48 Observability.htm">observability</a>, and <a href="49 Resilience Patterns.htm">resilience</a> instead of treating them as separate topics.</p></div>
 
-<p>Sharp probing questions an interviewer should ask:</p>
+<p>Sharp questions to test your own understanding:</p>
 <ul>
 <li>You're renaming a heavily-used column on a 2-billion-row table with zero downtime. Walk me through every deploy and the exact failure mode at each step if you skipped it. Where is the point of no return?</li>
 <li>Your canary is at 1% on a service doing 50 QPS, and you're hunting a regression that affects 1 in 500 requests. How long until you'd detect it, and how would you change the canary to detect faster?</li>

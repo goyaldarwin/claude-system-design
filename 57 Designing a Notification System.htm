@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Notification System</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Notification System</div>
 
 <h1>Designing a Notification System</h1>
 <p class="sub">A multi-channel fan-out platform &mdash; push, SMS, email, in-app &mdash; that must be reliable, idempotent, preference-aware, and survive flaky third-party providers at billions of messages a day.</p>
@@ -123,7 +123,7 @@
 <li><a href="#ratelimit">Rate limiting &amp; prioritization</a></li>
 <li><a href="#preferences">Preferences, templating &amp; opt-out at scale</a></li>
 <li><a href="#tracking">Delivery tracking &amp; read state</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -147,7 +147,7 @@
 <li><span class="key">Provider isolation:</span> a degraded SMS vendor must not stall push or email.</li>
 </ul>
 
-<div class="callout note"><span class="lbl">Key insight</span>The single most important framing move in the interview: separate the <em>transactional</em> path (low-latency, small fan-out, strict idempotency) from the <em>bulk</em> path (high-throughput, batched, rate-shaped). They share the provider layer but have different SLOs, different queues, and different backpressure behavior. Conflating them is the most common junior mistake.</div>
+<div class="callout note"><span class="lbl">Key insight</span>The single most important framing move: separate the <em>transactional</em> path (low-latency, small fan-out, strict idempotency) from the <em>bulk</em> path (high-throughput, batched, rate-shaped). They share the provider layer but have different SLOs, different queues, and different backpressure behavior. Conflating them is the most common junior mistake.</div>
 
 <h3>Back-of-envelope</h3>
 <p>Assume 100M DAU, average 10 notifications/user/day &rarr; <span class="key">1B notifications/day</span> &asymp; 11.6K/s average, with peaks of 5&ndash;10&times; (say 100K/s) during campaign bursts or breaking-news fan-out. If 20% carry a ~1&nbsp;KB payload for tracking and the rest are references, the metadata store ingests roughly 1B rows/day &mdash; squarely a partitioned NoSQL or time-series workload, not a single relational table. See <a href="10 SQL vs. NoSQL.htm">SQL vs. NoSQL</a> and <a href="05 Sharding or Data Partitioning.htm">Sharding</a>.</p>
@@ -247,7 +247,7 @@ if (redis.set(key, channel, NX, EX=86400)) {
 
 <p><span class="key">Prioritization:</span> transactional messages must preempt bulk. Implement with separate topics/consumer groups (high vs bulk), giving the high path more workers and reserved provider token budget. Within bulk, a marketing campaign can be deliberately <span class="key">paced</span> &mdash; spread 50M sends over 30 minutes &mdash; both to respect provider limits and to avoid a self-inflicted traffic spike on your own downstream (e.g. a deep-link landing page).</p>
 
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>When the per-provider token bucket is exhausted, do you <em>drop</em>, <em>delay</em>, or <em>shed by priority</em>? For SMS OTPs you delay briefly and fail fast (a 30s-late OTP is useless &mdash; better to error so the user retries). For marketing you delay freely. For breaking news you may drop the tail rather than deliver hours late. The right answer is per-category policy, not a single global setting &mdash; surface this explicitly in the interview.</div>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>When the per-provider token bucket is exhausted, do you <em>drop</em>, <em>delay</em>, or <em>shed by priority</em>? For SMS OTPs you delay briefly and fail fast (a 30s-late OTP is useless &mdash; better to error so the user retries). For marketing you delay freely. For breaking news you may drop the tail rather than deliver hours late. The right answer is per-category policy, not a single global setting &mdash; surface this explicitly in the design.</div>
 
 <h2 id="preferences">Preferences, templating &amp; opt-out at scale</h2>
 
@@ -275,11 +275,11 @@ if (redis.set(key, channel, NX, EX=86400)) {
 <li>Real-time in-app delivery rides a persistent connection &mdash; <a href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm">WebSockets/SSE</a> through a connection gateway, the same primitive used in <a href="19 Designing Facebook Messenger.htm">Facebook Messenger</a>.</li>
 </ul>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They treat delivery receipts as a first-class, eventually-consistent feedback stream &mdash; reconciling provider webhooks back into state, feeding bounce/complaint data into the suppression list, and closing the loop so a dead token gets pruned automatically. They don't assume "send returned 200" means "user saw it."</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat delivery receipts as a first-class, eventually-consistent feedback stream &mdash; reconciling provider webhooks back into state, feeding bounce/complaint data into the suppression list, and closing the loop so a dead token gets pruned automatically. They don't assume "send returned 200" means "user saw it."</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They split transactional and bulk paths early, push all preference/dedup work upstream of the per-channel queues, hide every provider behind a normalized adapter with circuit-breaking and failover, and are explicit that "exactly-once" across a third-party boundary is a best-effort property &mdash; they design for at-least-once with aggressive dedup, not a fantasy of perfect delivery. They quantify: queue depth, provider QPS budgets, fan-out chunk sizes, retry caps.</p></div>
-<p>Probing questions to ask candidates:</p>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They split transactional and bulk paths early, push all preference/dedup work upstream of the per-channel queues, hide every provider behind a normalized adapter with circuit-breaking and failover, and are explicit that "exactly-once" across a third-party boundary is a best-effort property &mdash; they design for at-least-once with aggressive dedup, not a fantasy of perfect delivery. They quantify: queue depth, provider QPS budgets, fan-out chunk sizes, retry caps.</p></div>
+<p>Probing questions to ask engineers:</p>
 <ul>
 <li>"A creator with 30M followers posts. Walk me through exactly what happens from the API call to the first push landing &mdash; and what happens if a fan-out worker crashes halfway."</li>
 <li>"Twilio starts returning 429 for 20% of requests. What does your system do in the next 60 seconds, and what does the user experience?"</li>

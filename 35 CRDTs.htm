@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Conflict-free Replicated Data Types (CRDTs)</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Conflict-free Replicated Data Types (CRDTs)</div>
 
 <h1>Conflict-free Replicated Data Types (CRDTs)</h1>
 <p class="sub">Data structures that converge to the same state under concurrent, conflict-free, multi-master writes &mdash; no consensus, no coordination, no last-writer wipes your edit.</p>
@@ -122,7 +122,7 @@
 <li><a href="#sequences">Sequence CRDTs for collaborative text</a></li>
 <li><a href="#vs-ot">CRDTs vs Operational Transformation</a></li>
 <li><a href="#practice">Real systems</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -147,7 +147,7 @@ query   : S -&gt; V          // pure read, no side effects</code></pre>
 <p>Example: a single integer under <code>max</code>. <code>max</code> is commutative, associative, idempotent; updates only increase the value. Merge two replicas by taking the max and they converge. Most CRDTs are clever compositions of these primitive lattices (max, union, products, maps) so the join distributes elementwise.</p>
 
 <h2 id="two-flavors">Two flavors: state-based (CvRDT) vs operation-based (CmRDT)</h2>
-<p>There are two dual ways to build a CRDT, and a principal candidate should be able to argue the trade-off between them on demand.</p>
+<p>There are two dual ways to build a CRDT, and a principal engineer should be able to argue the trade-off between them on demand.</p>
 
 <h3>State-based &mdash; CvRDT (convergent)</h3>
 <p>Replicas apply updates locally, then periodically ship their <em>entire state</em> to peers, who <code>merge</code> it via the join. Correctness only requires the join to be ACI; the transport may lose, reorder, or duplicate messages freely. This pairs naturally with the gossip / anti-entropy machinery in <a href="34 Anti-Entropy and Gossip.htm">Anti-Entropy and Gossip</a> &mdash; you just exchange states on a gossip round and merge.</p>
@@ -186,7 +186,7 @@ merge(other):       for r in replicas: P[r] = max(P[r], other.P[r])</code></pre>
 <tr><td><span class="key">OR-Set</span> (Observed-Remove)</td><td>Each add attaches a unique tag (replica id + counter / UUID). Remove deletes only the tags it has <em>observed</em>. Element present iff it has at least one unremoved tag.</td><td>Tag bookkeeping; needs tombstones/version vectors unless compacted.</td></tr>
 </tbody>
 </table>
-<div class="callout note"><span class="lbl">Key insight</span>The <span class="key">OR-Set</span> is the workhorse and the one to reach for in interviews. It resolves the classic <em>add-wins</em> semantics for concurrent add/remove: if one replica adds <code>x</code> and another concurrently removes <code>x</code>, the add wins, because the remove only tombstones the tags it has actually seen &mdash; it cannot delete a tag created concurrently. This matches user intuition far better than 2P-Set's "removal is forever".</div>
+<div class="callout note"><span class="lbl">Key insight</span>The <span class="key">OR-Set</span> is the workhorse and the one to reach for in practice. It resolves the classic <em>add-wins</em> semantics for concurrent add/remove: if one replica adds <code>x</code> and another concurrently removes <code>x</code>, the add wins, because the remove only tombstones the tags it has actually seen &mdash; it cannot delete a tag created concurrently. This matches user intuition far better than 2P-Set's "removal is forever".</div>
 
 <h3>Registers</h3>
 <p><span class="key">LWW-Register</span>: holds a single value plus a timestamp; merge keeps the value with the higher timestamp (ties broken deterministically by replica id). Simple, but it <em>silently discards</em> concurrent writes &mdash; the loser is gone. Use a logical clock or hybrid logical clock, never raw wall-clock, to bound the damage from skew. <span class="key">MV-Register</span> (multi-value) instead keeps <em>all</em> concurrently-written values (using a version vector to detect concurrency) and surfaces the conflict set to the application &mdash; this is the Dynamo "siblings" model expressed as a CRDT.</p>
@@ -224,8 +224,8 @@ merge(other):       for r in replicas: P[r] = max(P[r], other.P[r])</code></pre>
 </ul>
 <div class="callout warn"><span class="lbl">Pitfall</span>CRDTs are not a universal substitute for consensus. They cannot enforce cross-key invariants: "total inventory &ge; 0", "this seat is booked by exactly one person", "balance never overdraws". Those require coordination (locks, consensus, or compensating reservation patterns). A common architecture splits the system &mdash; CRDTs for the high-volume, conflict-tolerant 95% (carts, presence, edits) and a consensus/transactional core for the invariant-critical 5% (payment capture, seat allocation). See <a href="32 Distributed Transactions.htm">Distributed Transactions</a> and <a href="31 Consistency Models and PACELC.htm">Consistency Models &amp; PACELC</a>.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They lead with the algebra &mdash; "I need a merge that's commutative, associative, idempotent so it survives reorder/dup/redelivery" &mdash; rather than memorized type names. They pick the <em>right</em> type for the semantics (OR-Set for add-wins, PN-Counter for likes, MV-Register when conflicts must be surfaced) and they name the costs out loud: tombstone GC, metadata growth, and the inability to enforce global invariants. They explicitly draw the boundary between the CRDT-able part of the system and the part that still needs consensus, and they choose state-based vs op-based based on what the network layer can guarantee.</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They lead with the algebra &mdash; "I need a merge that's commutative, associative, idempotent so it survives reorder/dup/redelivery" &mdash; rather than memorized type names. They pick the <em>right</em> type for the semantics (OR-Set for add-wins, PN-Counter for likes, MV-Register when conflicts must be surfaced) and they name the costs out loud: tombstone GC, metadata growth, and the inability to enforce global invariants. They explicitly draw the boundary between the CRDT-able part of the system and the part that still needs consensus, and they choose state-based vs op-based based on what the network layer can guarantee.</div>
 <ul>
 <li>Walk me through why a G-Counter cannot just be a single integer with <code>+=</code> and merge-by-max. Why does each replica need its own slot? What breaks otherwise?</li>
 <li>A user adds an item to a shared list on their phone (offline) while another device removes the same item. With a 2P-Set, an LWW-Set, and an OR-Set, what does each converge to &mdash; and which matches user expectation?</li>

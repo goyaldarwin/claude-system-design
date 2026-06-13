@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Unique ID Generator</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Unique ID Generator</div>
 
 <h1>Designing a Unique ID Generator</h1>
 <p class="sub">How to mint billions of globally unique, roughly time-ordered 64-bit identifiers per day with no central coordinator on the hot path.</p>
@@ -124,12 +124,12 @@
 <li><a href="#sortable">Why sortable IDs matter: ULID, KSUID, index locality</a></li>
 <li><a href="#coord">Machine-id assignment and coordination</a></li>
 <li><a href="#wrap">Putting it together</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
 <h2 id="req">Requirements and back-of-envelope</h2>
-<p>The interviewer asks for "a service that generates unique IDs in a distributed system." Before sketching anything, pin down the functional and non-functional requirements &mdash; the right answer is entirely determined by them.</p>
+<p>The problem: "a service that generates unique IDs in a distributed system." Before sketching anything, pin down the functional and non-functional requirements &mdash; the right answer is entirely determined by them.</p>
 <ul>
 <li><span class="key">Uniqueness:</span> no two IDs ever collide, across all data centers, forever.</li>
 <li><span class="key">Size:</span> typically <span class="key">64-bit</span> integers. They fit a <code>BIGINT</code> / <code>long</code>, index densely, and are half the width of a 128-bit UUID in every B-tree page, network frame, and cache line.</li>
@@ -149,7 +149,7 @@
 <li><span class="key">UUIDv1</span> &mdash; 60-bit timestamp + 14-bit clock sequence + 48-bit MAC/node. Time-ordered in principle, but the timestamp is laid out in a byte order that is <em>not</em> lexicographically sortable, and it leaks the MAC address (privacy / security concern). UUIDv6/v7 (2024 RFC 9562) fix the ordering &mdash; v7 is a Unix-ms timestamp + random, and is the modern recommendation when you can afford 128 bits.</li>
 </ul>
 <div class="callout warn"><span class="lbl">Pitfall</span>The killer problem with random UUIDs (v4) as a <em>primary key</em> is write amplification. In an InnoDB B-tree (clustered index) or any B-tree storage engine, random keys cause inserts to land in random pages &mdash; constant page splits, a cold buffer pool, and poor fill factor. Benchmarks routinely show 2&ndash;10&times; slower bulk inserts and a 30&ndash;40% larger index versus a monotonic key. See <a href="38 Storage Engines LSM vs B-Tree.htm">Storage Engines: LSM vs B-Tree</a>. Also: 128 bits is double the storage and, because secondary indexes in InnoDB embed the PK, that bloat multiplies.</div>
-<p><span class="pill">verdict</span> Great when you need <em>offline / client-side</em> generation and don't care about 64-bit or sort order. For an interview asking for a <em>sortable 64-bit</em> ID, UUIDv4 is a wrong answer; UUIDv7 is acceptable only if the 128-bit width is fine.</p>
+<p><span class="pill">verdict</span> Great when you need <em>offline / client-side</em> generation and don't care about 64-bit or sort order. For a system requiring a <em>sortable 64-bit</em> ID, UUIDv4 is a wrong answer; UUIDv7 is acceptable only if the 128-bit width is fine.</p>
 
 <h2 id="dbauto">Approach 2: DB auto-increment</h2>
 <p>The naive answer: a single table with an <code>AUTO_INCREMENT</code> / <code>SERIAL</code> column. Insert a row, read back the generated key.</p>
@@ -170,7 +170,7 @@ UPDATE id_alloc SET max_id = max_id + 1000
   WHERE biz_tag = 'orders';
 SELECT max_id FROM id_alloc WHERE biz_tag = 'orders';
 -- server now owns [max_id-1000, max_id), serves locally</code></pre>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They immediately propose <em>double buffering</em> on the segment allocator: prefetch the next block asynchronously when the current block is ~80% consumed, so a client never blocks on the DB round-trip. This makes p99 latency independent of the DB and tolerates short DB outages (you keep serving from the buffer). It is the difference between a textbook answer and a production one.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They immediately propose <em>double buffering</em> on the segment allocator: prefetch the next block asynchronously when the current block is ~80% consumed, so a client never blocks on the DB round-trip. This makes p99 latency independent of the DB and tolerates short DB outages (you keep serving from the buffer). It is the difference between a textbook answer and a production one.</div>
 <div class="callout tradeoff"><span class="lbl">Trade-off</span>Segment allocation trades <em>density</em> for <em>availability</em>: on every restart you discard the unused tail of the current block, so IDs have gaps. That's fine (gaps are allowed; only uniqueness matters) but it means IDs are <em>k-sorted</em> across servers, not globally monotonic &mdash; two servers holding adjacent blocks can interleave.</div>
 
 <h2 id="snowflake">Approach 4: Twitter Snowflake</h2>
@@ -255,8 +255,8 @@ SELECT max_id FROM id_alloc WHERE biz_tag = 'orders';
 </ol>
 <p>This pattern underpins real designs in this course: short-code generation in <a href="15 Designing a URL Shortening service like TinyURL.htm">Designing a URL Shortening service like TinyURL</a> is the same problem with a different encoding, and tweet/message IDs in <a href="20 Designing Twitter.htm">Designing Twitter</a> are literally where Snowflake was born.</p>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They start by extracting the <em>exact</em> requirements (64-bit? sortable? coordination allowed? gapless?) because each one eliminates whole approaches &mdash; they don't reflexively answer "Snowflake." They proactively raise the clock-rollback failure mode and propose NTP slew-mode plus a persisted watermark before being prompted. They correctly distinguish <em>uniqueness</em> (hard guarantee) from <em>ordering</em> (best-effort, k-sorted) and never overclaim strict global ordering across nodes. And they connect ID design to downstream storage cost &mdash; write amplification in B-trees, compaction in LSM &mdash; rather than treating the generator in isolation.</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They start by extracting the <em>exact</em> requirements (64-bit? sortable? coordination allowed? gapless?) because each one eliminates whole approaches &mdash; they don't reflexively answer "Snowflake." They proactively raise the clock-rollback failure mode and propose NTP slew-mode plus a persisted watermark before being prompted. They correctly distinguish <em>uniqueness</em> (hard guarantee) from <em>ordering</em> (best-effort, k-sorted) and never overclaim strict global ordering across nodes. And they connect ID design to downstream storage cost &mdash; write amplification in B-trees, compaction in LSM &mdash; rather than treating the generator in isolation.</div>
 <ul>
 <li>"You proposed Snowflake. Walk me through what happens, bit by bit, when one machine mints two IDs in the same millisecond &mdash; and what happens on the 4097th."</li>
 <li>"NTP steps the clock back 200&nbsp;ms on one node. Trace the exact failure. Now design three independent layers of defense, and tell me which one you'd ship first."</li>

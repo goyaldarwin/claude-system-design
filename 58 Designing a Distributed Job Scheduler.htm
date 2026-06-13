@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Job Scheduler</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Job Scheduler</div>
 
 <h1>Designing a Distributed Job Scheduler</h1>
 <p class="sub">A managed cron / workflow service that fires millions of one-time and recurring jobs on time, survives worker crashes, and never silently drops a run.</p>
@@ -124,12 +124,12 @@
 <li><a href="#delivery">Exactly-once, leases &amp; fencing</a></li>
 <li><a href="#backfill">Backfill &amp; missed runs</a></li>
 <li><a href="#dag">DAGs, dependencies &amp; priority</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
 <h2 id="req">Requirements &amp; scope</h2>
-<p>The interviewer says "design a distributed job scheduler." That phrase covers everything from a glorified <code>cron</code> to Airflow to AWS EventBridge Scheduler / Temporal. Your first job is to <span class="key">scope it</span>. State the functional surface explicitly:</p>
+<p>The problem: "design a distributed job scheduler." That phrase covers everything from a glorified <code>cron</code> to Airflow to AWS EventBridge Scheduler / Temporal. Your first job is to <span class="key">scope it</span>. State the functional surface explicitly:</p>
 <ul>
 <li><span class="key">One-time jobs</span> ("run task X at 2026-07-01T03:00Z") and <span class="key">recurring jobs</span> (cron expression or fixed interval).</li>
 <li><span class="key">Submit / cancel / pause / update</span> a job; <span class="key">query</span> status and run history.</li>
@@ -145,7 +145,7 @@
 <li><span class="key">No double-fire under normal operation</span>, and bounded duplicates under failure.</li>
 <li><span class="key">Multi-tenant fairness</span>: one tenant's 50M jobs cannot starve everyone else.</li>
 </ul>
-<div class="callout warn"><span class="lbl">Pitfall</span>Candidates jump straight to "I'll use a priority queue keyed by next-run-time." That's the easy 10%. The hard 90% is what happens when a worker grabbing the job dies mid-flight, when 4M jobs are all scheduled for midnight UTC, and when the leader that owns dispatch is partitioned away but still thinks it's the leader.</div>
+<div class="callout warn"><span class="lbl">Pitfall</span>It is tempting to jump straight to "a priority queue keyed by next-run-time." That's the easy 10%. The hard 90% is what happens when a worker grabbing the job dies mid-flight, when 4M jobs are all scheduled for midnight UTC, and when the leader that owns dispatch is partitioned away but still thinks it's the leader.</div>
 
 <h2 id="estimate">Back-of-the-envelope</h2>
 <p>Anchor the design in numbers. Suppose 100M recurring jobs averaging one fire per hour &mdash; that's ~28k fires/sec average. Peaks concentrate on round timestamps (top of the minute/hour), so a naive design sees 10&ndash;100&times; that load in a 1&nbsp;s window. If 60% of 100M jobs use a cron like <code>0 * * * *</code>, ~60M fires land in the same second every hour. <em>That</em> spike, not the average, sizes your system.</p>
@@ -212,7 +212,7 @@ runs(  run_id PK,            -- deterministic: hash(job_id, scheduled_time)
 <div class="callout warn"><span class="lbl">Pitfall</span>Leader election does <em>not</em> by itself prevent double-fire. A leader can be partitioned, fail to receive heartbeats, and a new leader gets elected &mdash; while the old leader, not yet aware it lost the lease, fires a job. This is the split-brain window. The defense is not "better election," it's <span class="key">idempotency at the run layer</span> plus <span class="key">fencing tokens</span> at the side-effect layer. Never rely on a lock alone to guarantee single execution.</div>
 
 <h2 id="delivery">Exactly-once, leases &amp; fencing</h2>
-<p>Be precise with the interviewer: <span class="key">exactly-once delivery is impossible</span> over an unreliable network (the Two Generals problem). What you can build is <span class="key">at-least-once delivery</span> + <span class="key">idempotent effects</span> = "effectively-once." Choose at-least-once over at-most-once: a duplicate fire is recoverable if effects are idempotent; a dropped fire of a payroll job is not.</p>
+<p>Be precise: <span class="key">exactly-once delivery is impossible</span> over an unreliable network (the Two Generals problem). What you can build is <span class="key">at-least-once delivery</span> + <span class="key">idempotent effects</span> = "effectively-once." Choose at-least-once over at-most-once: a duplicate fire is recoverable if effects are idempotent; a dropped fire of a payroll job is not.</p>
 <h3>Worker leasing &amp; visibility timeout</h3>
 <p>A worker doesn't "take" a run, it <span class="key">leases</span> it: atomically set <code>state=LEASED, lease_owner=W, lease_expires_at=now+T, fence_token=monotonic++</code>. The worker must <span class="key">heartbeat</span> to extend the lease while running. If the worker crashes, the lease expires (the queue's <em>visibility timeout</em>), the run reverts to <code>PENDING</code>, and another worker reclaims it. This is exactly the SQS visibility-timeout pattern.</p>
 <pre><code># reclaim loop (runs on dispatchers)
@@ -250,8 +250,8 @@ WHERE run_id=:r AND state='PENDING';   -- 0 rows affected =&gt; someone beat us<
 <h3>Priority &amp; multi-tenant fairness</h3>
 <p>A single FIFO queue lets a low-priority bulk job block a latency-sensitive one. Use <span class="key">priority queues</span> (multiple queues drained weighted, or a score-ordered structure). For multi-tenancy, layer <span class="key">weighted fair queueing</span> per tenant so one tenant's 50M-job backfill can't monopolize workers &mdash; cap concurrent runs per tenant and round-robin across tenant queues. This is the same fairness concern as in <a href="08 Queues.htm">Queues</a>.</p>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They separate <em>delivery semantics</em> from <em>execution semantics</em> early, and state plainly that exactly-once delivery is impossible &mdash; then build at-least-once + idempotent effects + fencing tokens to get effectively-once. They make <code>run_id</code> deterministic so idempotency falls out of a unique constraint. They identify the hot-time-bucket problem unprompted and pick a sharding strategy with eyes open about the fan-out cost. They treat leader election as necessary-but-insufficient and never claim a lock alone prevents double-fire. They tie timing accuracy to a concrete SLO measured at enqueue, and they make misfire/backfill an explicit per-job policy rather than hand-waving "we'll just re-run it."</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They separate <em>delivery semantics</em> from <em>execution semantics</em> early, and state plainly that exactly-once delivery is impossible &mdash; then build at-least-once + idempotent effects + fencing tokens to get effectively-once. They make <code>run_id</code> deterministic so idempotency falls out of a unique constraint. They identify the hot-time-bucket problem unprompted and pick a sharding strategy with eyes open about the fan-out cost. They treat leader election as necessary-but-insufficient and never claim a lock alone prevents double-fire. They tie timing accuracy to a concrete SLO measured at enqueue, and they make misfire/backfill an explicit per-job policy rather than hand-waving "we'll just re-run it."</div>
 <ul>
 <li>Your SLO is "p99 fire within 1s of schedule." Walk me through every place latency accumulates between the scheduled instant and the target receiving the trigger &mdash; and where you'd measure it.</li>
 <li>A worker leases a run, GC-pauses for 40s, the lease expires, a second worker runs the job, then the first worker wakes and POSTs to the target. Trace exactly what prevents a double side-effect. What if the target has no fencing support?</li>

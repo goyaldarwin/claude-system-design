@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part B: Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Kafka and Log-based Messaging</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part B: Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Kafka and Log-based Messaging</div>
 
 <h1>Kafka and Log-based Messaging</h1>
 <p class="sub"><em>The distributed commit log as a primitive: how an append-only, partitioned, replicated log replaces queues, becomes the source of truth, and pins down delivery and ordering semantics.</em></p>
@@ -124,7 +124,7 @@
 <li><a href="#retention">Retention and log compaction</a></li>
 <li><a href="#vsqueue">Kafka vs traditional queues</a></li>
 <li><a href="#kraft">KRaft: removing ZooKeeper</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -206,7 +206,7 @@ props.put("min.insync.replicas", "2");      // broker/topic config, not producer
 <div class="callout tradeoff"><span class="lbl">Trade-off</span> Kafka's leader-based, ISR-driven replication is a CP-leaning design (see <a href="11 CAP Theorem.htm">CAP Theorem</a> and <a href="31 Consistency Models and PACELC.htm">Consistency Models and PACELC</a>). With <code>min.insync.replicas=2</code> and unclean election off, a partition becomes unavailable for writes rather than risk data loss when too many replicas fail. <code>unclean.leader.election=true</code> flips that to AP. Leader election among ISR members is coordinated by the controller — historically via ZooKeeper, now via the <a href="30 Consensus and Raft.htm">Raft</a>-based KRaft controller quorum (see below). This is exactly <a href="36 Leader Election and Coordination.htm">Leader Election and Coordination</a> applied per-partition at cluster scale.</div>
 
 <h2 id="semantics">Delivery semantics and exactly-once</h2>
-<p>Delivery semantics are the question every interviewer probes. Be precise: the guarantee is end-to-end and depends on producer config, consumer commit ordering, and whether the consumer's output is itself in Kafka.</p>
+<p>Delivery semantics are the question that most often trips engineers up. Be precise: the guarantee is end-to-end and depends on producer config, consumer commit ordering, and whether the consumer's output is itself in Kafka.</p>
 
 <h3>At-most-once</h3>
 <p>Commit offsets before processing, or use <code>acks=0</code>. A failure loses the in-flight message. Acceptable for high-volume metrics where occasional loss is fine.</p>
@@ -255,7 +255,7 @@ while (true) {
 <div class="callout note"><span class="lbl">Key insight</span> Compacted topics are how Kafka stores its own consumer offsets and how Kafka Streams persists state-store changelogs. They're also the natural sink for <span class="key">CDC</span> streams: a compacted topic keyed by primary key always holds the current row image, enabling a new consumer to bootstrap full state by replaying from offset 0. A tombstone (a record with a null value) signals deletion; the cleaner retains it for <code>delete.retention.ms</code> so consumers see the delete before it's purged.</div>
 
 <h2 id="vsqueue">Kafka vs traditional queues</h2>
-<p>The temptation in interviews is to treat Kafka and RabbitMQ/SQS as interchangeable "message brokers." They are not. See <a href="08 Queues.htm">Queues</a> and <a href="54 Designing a Distributed Message Queue.htm">Designing a Distributed Message Queue</a> for the queue model in depth.</p>
+<p>The temptation is to treat Kafka and RabbitMQ/SQS as interchangeable "message brokers." They are not. See <a href="08 Queues.htm">Queues</a> and <a href="54 Designing a Distributed Message Queue.htm">Designing a Distributed Message Queue</a> for the queue model in depth.</p>
 
 <table>
 <tr><th>Dimension</th><th>Kafka (log)</th><th>RabbitMQ / SQS (queue/broker)</th></tr>
@@ -267,7 +267,7 @@ while (true) {
 <tr><td>Best fit</td><td>Event streaming, log of record, fan-out, stream processing, CDC.</td><td>Task/job queues, RPC-style work distribution, complex routing, low-volume control messages.</td></tr>
 </table>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They reach for a queue (SQS/RabbitMQ) when the workload is "distribute discrete tasks to workers, ack-and-delete, maybe retry with a DLQ" — e.g. a <a href="58 Designing a Distributed Job Scheduler.htm">job scheduler</a> or <a href="57 Designing a Notification System.htm">notification</a> fan-out. They reach for Kafka when the workload is "a durable, replayable stream of events that many independent consumers project into their own views" — analytics, CDC, event sourcing. They never claim Kafka "replaces all queues"; they name the per-message routing/priority/DLQ features Kafka lacks.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They reach for a queue (SQS/RabbitMQ) when the workload is "distribute discrete tasks to workers, ack-and-delete, maybe retry with a DLQ" — e.g. a <a href="58 Designing a Distributed Job Scheduler.htm">job scheduler</a> or <a href="57 Designing a Notification System.htm">notification</a> fan-out. They reach for Kafka when the workload is "a durable, replayable stream of events that many independent consumers project into their own views" — analytics, CDC, event sourcing. They never claim Kafka "replaces all queues"; they name the per-message routing/priority/DLQ features Kafka lacks.</div>
 
 <h2 id="kraft">KRaft: removing ZooKeeper</h2>
 <p>For most of its life Kafka depended on <span class="key">ZooKeeper</span> for cluster metadata: broker membership, topic/partition configs, the controller election, and ISR/leadership state. ZooKeeper was an operational tax (a separate cluster to run, tune, and secure) and a scalability ceiling — the controller had to load all metadata from ZK, capping practical partition counts around the low hundreds of thousands.</p>
@@ -281,9 +281,9 @@ while (true) {
 
 <div class="callout note"><span class="lbl">Key insight</span> KRaft is a clean illustration of "the log is the primitive" applied recursively: Kafka's control plane uses the same append-only replicated log abstraction (this time with Raft for the leader's correctness) that Kafka exposes to applications as its data plane. The control plane eats its own dog food.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
+<h2 id="mastery">Principal-level mastery check</h2>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They lead with the log abstraction and derive properties from it rather than reciting feature lists. They quantify durability as a conjunction (<code>acks=all</code> + <code>min.insync.replicas&ge;2</code> + RF&ge;3 + unclean election off), not a single flag. They scope exactly-once precisely to the Kafka-to-Kafka loop and immediately bridge to the outbox/saga patterns for external side effects. They reach for at-least-once + idempotent consumers as the default and justify when EOS is worth its cost. They tie partition count to both ordering granularity and consumer parallelism, and they flag that you can't shrink partitions and that growing them breaks key locality. They know KRaft replaced ZooKeeper and why it raised the partition ceiling.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They lead with the log abstraction and derive properties from it rather than reciting feature lists. They quantify durability as a conjunction (<code>acks=all</code> + <code>min.insync.replicas&ge;2</code> + RF&ge;3 + unclean election off), not a single flag. They scope exactly-once precisely to the Kafka-to-Kafka loop and immediately bridge to the outbox/saga patterns for external side effects. They reach for at-least-once + idempotent consumers as the default and justify when EOS is worth its cost. They tie partition count to both ordering granularity and consumer parallelism, and they flag that you can't shrink partitions and that growing them breaks key locality. They know KRaft replaced ZooKeeper and why it raised the partition ceiling.</div>
 
 <ul>
 <li>You need strict ordering for events belonging to one customer but high aggregate throughput. How do you partition, and what happens to ordering if you later double the partition count? How would you migrate without breaking key locality?</li>

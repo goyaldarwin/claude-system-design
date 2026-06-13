@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing Ad Click Aggregation</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing Ad Click Aggregation</div>
 
 <h1>Designing Ad Click Aggregation</h1>
 <p class="sub"><em>A money-correct, near-real-time pipeline that ingests billions of click events a day, tolerates late and duplicate events, and serves both sub-minute dashboards and audited billing totals.</em></p>
@@ -125,13 +125,13 @@
 <li><a href="#storage">Time-series storage &amp; rollups</a></li>
 <li><a href="#lambda">Lambda vs Kappa: reconciliation for billing</a></li>
 <li><a href="#skew">Hot partitions &amp; skew</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
 <h2 id="problem">Problem framing &amp; why it&rsquo;s hard</h2>
 <p>An ad click aggregation system sits between two unforgiving consumers. <span class="key">Advertisers and dashboards</span> want fresh numbers &mdash; clicks, impressions, click-through rate, spend &mdash; with sub-minute latency so they can pause a campaign before it burns budget. <span class="key">Billing and finance</span> want the <em>same</em> numbers to be exactly right, auditable, and stable months later. Those two goals pull in opposite directions: speed favors approximate, in-memory, eventually-consistent aggregation; correctness favors deterministic, replayable batch computation.</p>
-<p>This is the canonical interview problem for testing whether a candidate understands <span class="key">stream/batch duality</span>. A weak answer reaches for &ldquo;just count in Redis.&rdquo; A strong answer treats the raw event log as the source of truth, builds fast approximate views on top, and keeps a slower authoritative recompute path for the money.</p>
+<p>This is the canonical problem for understanding <span class="key">stream/batch duality</span>. A weak answer reaches for &ldquo;just count in Redis.&rdquo; A strong answer treats the raw event log as the source of truth, builds fast approximate views on top, and keeps a slower authoritative recompute path for the money.</p>
 
 <div class="callout note"><span class="lbl">Key insight</span> The hard part is not throughput &mdash; Kafka and a stream processor handle billions of events trivially. The hard part is <strong>correctness under failure</strong>: events arrive late, out of order, and duplicated, and the billing total must still tie out to the penny.</div>
 
@@ -165,7 +165,7 @@
 <tr><td>Dashboard read QPS</td><td>~hundreds</td><td>Aggregates fan out from a small number of dashboards</td></tr>
 </tbody>
 </table>
-<p>The 100:1 impression ratio matters: if impressions are in scope you are at <strong>100 billion events/day</strong>, ~1&ndash;1.5 M events/sec peak. That changes the storage tier and forces aggressive pre-aggregation rather than retaining raw impressions forever. State the assumption explicitly. Capacity math borrows directly from <a href="14 System Design Interviews_ A step by step guide.htm">the estimation guide</a>.</p>
+<p>The 100:1 impression ratio matters: if impressions are in scope you are at <strong>100 billion events/day</strong>, ~1&ndash;1.5 M events/sec peak. That changes the storage tier and forces aggressive pre-aggregation rather than retaining raw impressions forever. State the assumption explicitly. Capacity math borrows directly from <a href="14 A Framework for Approaching System Design.htm">the estimation guide</a>.</p>
 
 <h2 id="api">Event schema &amp; query API</h2>
 <p>The producer-supplied <code>click_id</code> is the linchpin of dedup &mdash; it must be generated once at click time (see <a href="56 Designing a Unique ID Generator.htm">Unique ID Generator</a>) and carried through retries unchanged.</p>
@@ -267,7 +267,7 @@ GET /v1/distinct?dimension=campaign&amp;id=42&amp;metric=unique_users&amp;window
 <h3>Unique users &mdash; HyperLogLog</h3>
 <p>Counting distinct users per campaign exactly would require holding every user_id in a set &mdash; gigabytes per high-traffic campaign. <span class="key">HyperLogLog</span> estimates cardinality in ~1.5 KB with ~2% error, and crucially HLL sketches are <strong>mergeable</strong>: per-minute sketches union into per-hour and per-day sketches without re-reading raw data. Store the sketch in each rollup bucket, not just the scalar count.</p>
 <h3>Top-N ads &mdash; Count-Min Sketch</h3>
-<p>Top-N by clicks over a sliding window is a heavy-hitters problem. A <span class="key">Count-Min sketch</span> tracks approximate per-key frequencies in fixed memory (it over-counts, never under-counts), paired with a small heap of current candidates to surface the top-N. Exact top-N would need a counter per ad_id &mdash; fine for thousands of ads, prohibitive when there are tens of millions of long-tail creatives.</p>
+<p>Top-N by clicks over a sliding window is a heavy-hitters problem. A <span class="key">Count-Min sketch</span> tracks approximate per-key frequencies in fixed memory (it over-counts, never under-counts), paired with a small heap of current engineers to surface the top-N. Exact top-N would need a counter per ad_id &mdash; fine for thousands of ads, prohibitive when there are tens of millions of long-tail creatives.</p>
 <div class="callout tradeoff"><span class="lbl">Trade-off</span> Sketches trade <strong>bounded memory and mergeability</strong> for <strong>bounded error</strong>. That is the right trade for dashboards and trend detection. It is the <em>wrong</em> trade for billing, where ~2% error on spend is unacceptable &mdash; billing-critical counts (total clicks) are kept exact via the batch path. Know which metrics tolerate approximation and which do not.</div>
 
 <h2 id="storage">Time-series storage &amp; rollups</h2>
@@ -312,8 +312,8 @@ GROUP  BY campaign_id, bucket;
 </ul>
 <div class="callout warn"><span class="lbl">Pitfall</span> Consistent-hash partitioning (<a href="12 Consistent Hashing.htm">Consistent Hashing</a>) spreads keys evenly but does <em>not</em> save you from a single hot key &mdash; all events for one key still hash to one partition. Skew on a single key needs salting or two-phase aggregation, not just a better hash function.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They immediately separate the <strong>fast-approximate</strong> path from the <strong>slow-exact</strong> path and explain why billing cannot trust streaming counts. They reason in <strong>event time vs processing time</strong> and name watermarks as the completeness mechanism. They distinguish pipeline-exactly-once (checkpoints + transactional sinks) from application-level duplicate clicks (idempotency on <code>click_id</code>). They reach for HLL/Count-Min only where approximation is acceptable and keep billing counts exact. They anticipate hot partitions and propose salting / two-phase aggregation before being prompted. They treat the raw log as the immutable source of truth that makes every correction a replay.</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They immediately separate the <strong>fast-approximate</strong> path from the <strong>slow-exact</strong> path and explain why billing cannot trust streaming counts. They reason in <strong>event time vs processing time</strong> and name watermarks as the completeness mechanism. They distinguish pipeline-exactly-once (checkpoints + transactional sinks) from application-level duplicate clicks (idempotency on <code>click_id</code>). They reach for HLL/Count-Min only where approximation is acceptable and keep billing counts exact. They anticipate hot partitions and propose salting / two-phase aggregation before being prompted. They treat the raw log as the immutable source of truth that makes every correction a replay.</div>
 <ul>
 <li>Your dashboard shows 1,000,000 clicks for a campaign at 11:59; the nightly batch recompute says 985,000. Walk me through every reason the numbers differ, and which one is correct for billing &mdash; and why.</li>
 <li>A mobile SDK buffers clicks offline and flushes them 6 hours later. Trace one such event through your pipeline. Where does it land, what fires, and what gets corrected?</li>

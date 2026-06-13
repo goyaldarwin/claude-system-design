@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Principal Interviewer's Question Bank</title>
+<title>Principal-Level Self-Assessment &amp; Course Index</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
 <link rel="stylesheet" href="./_principal_files/lesson.css">
 <script src="./_principal_files/nav.js" defer></script>
@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,38 +101,38 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk active" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk active" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
 
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part G: Interviewing &nbsp;&rsaquo;&nbsp; Principal Interviewer's Question Bank</div>
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Self-Assessment &nbsp;&rsaquo;&nbsp; Principal-Level Self-Assessment &amp; Course Index</div>
 
-<h1>Principal Interviewer's Question Bank</h1>
-<p class="sub"><em>The course index and the interviewer's playbook &mdash; how to run a senior/staff/principal system design interview, what signal to extract, and the "go deeper" questions that separate a strong principal from a competent senior.</em></p>
+<h1>Principal-Level Self-Assessment &amp; Course Index</h1>
+<p class="sub"><em>The master index for the whole course, plus a self-assessment toolkit &mdash; the questions to ask yourself to find out where your understanding is shallow, where it is deep, and how to tell whether you've actually internalized a topic or just memorized the shape of it.</em></p>
 
 <div class="toc">
 <h4>In this lesson</h4>
 <ul>
 <li><a href="#index">Course index &mdash; all lessons</a></li>
-<li><a href="#whatchanges">What changes at principal level</a></li>
-<li><a href="#rubric">The signal rubric: strong vs weak per dimension</a></li>
-<li><a href="#bank">The probing question bank by topic</a></li>
-<li><a href="#flags">Red flags &amp; green flags</a></li>
+<li><a href="#whatchanges">What changes as you grow toward principal-level depth</a></li>
+<li><a href="#rubric">The depth rubric: shallow vs deep per dimension</a></li>
+<li><a href="#bank">The self-test question bank by topic</a></li>
+<li><a href="#flags">Signs of shallow vs deep mastery</a></li>
 <li><a href="#mapping">Topic &rarr; design-problem coverage map</a></li>
-<li><a href="#running">Running the 45-minute loop</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#running">A 45-minute self-practice loop</a></li>
+<li><a href="#mastery">Internalized vs memorized: the final check</a></li>
 </ul>
 </div>
 
 <h2 id="index">Course index &mdash; all lessons</h2>
-<p>This file is the home base for the whole course. Every other lesson breadcrumbs back here. Use it as a study map or as a quick jump table while you are conducting an interview and want to pull up the reference for a topic the candidate just raised.</p>
+<p>This file is the home base for the whole course. Every other lesson breadcrumbs back here. Use it as a study map, or as a quick jump table when you are working through a real design and want to pull up the reference for a topic you just hit.</p>
 
 <h3>Fundamentals &amp; Building Blocks (01&ndash;14)</h3>
 <ul>
-<li><a href="01 Why System Design Interviews_.htm">01 &mdash; Why System Design Interviews?</a></li>
+<li><a href="01 Why System Design Matters.htm">01 &mdash; Why System Design Matters</a></li>
 <li><a href="02 System Design Basics.htm">02 &mdash; System Design Basics</a></li>
 <li><a href="03 Load Balancing.htm">03 &mdash; Load Balancing</a></li>
 <li><a href="04 Caching.htm">04 &mdash; Caching</a></li>
@@ -145,7 +145,7 @@
 <li><a href="11 CAP Theorem.htm">11 &mdash; CAP Theorem</a></li>
 <li><a href="12 Consistent Hashing.htm">12 &mdash; Consistent Hashing</a></li>
 <li><a href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm">13 &mdash; Long-Polling vs WebSockets vs SSE</a></li>
-<li><a href="14 System Design Interviews_ A step by step guide.htm">14 &mdash; System Design Interviews: A Step-by-Step Guide</a></li>
+<li><a href="14 A Framework for Approaching System Design.htm">14 &mdash; The Design Framework: A Step-by-Step Guide</a></li>
 </ul>
 
 <h3>Classic Design Problems (15&ndash;29)</h3>
@@ -178,7 +178,7 @@
 <li><a href="36 Leader Election and Coordination.htm">36 &mdash; Leader Election and Coordination</a></li>
 </ul>
 
-<h3>Data-Intensive Systems (37&ndash;42)</h3>
+<h3>Data-Intensive Systems (37&ndash;42, 64)</h3>
 <ul>
 <li><a href="37 Replication Deep Dive.htm">37 &mdash; Replication Deep Dive</a></li>
 <li><a href="38 Storage Engines LSM vs B-Tree.htm">38 &mdash; Storage Engines: LSM vs B-Tree</a></li>
@@ -189,7 +189,7 @@
 <li><a href="64 Search and Elasticsearch.htm">64 &mdash; Search and Elasticsearch</a></li>
 </ul>
 
-<h3>Modern Architecture (43&ndash;46)</h3>
+<h3>Modern Architecture (43&ndash;46, 65)</h3>
 <ul>
 <li><a href="43 Microservices and Service Mesh.htm">43 &mdash; Microservices and Service Mesh</a></li>
 <li><a href="44 API Design REST gRPC GraphQL.htm">44 &mdash; API Design: REST / gRPC / GraphQL</a></li>
@@ -212,7 +212,7 @@
 <li><a href="52 Security in System Design.htm">52 &mdash; Security in System Design</a></li>
 </ul>
 
-<h3>Advanced Design Problems (53&ndash;62)</h3>
+<h3>Advanced Design Problems (53&ndash;62, 66)</h3>
 <ul>
 <li><a href="53 Designing a Distributed Cache.htm">53 &mdash; Distributed Cache</a></li>
 <li><a href="54 Designing a Distributed Message Queue.htm">54 &mdash; Distributed Message Queue</a></li>
@@ -237,75 +237,75 @@
 
 <hr>
 
-<h2 id="whatchanges">What changes at principal level</h2>
-<p>A mid-level system design interview is largely a <span class="key">vocabulary and component-assembly test</span>: can the candidate name a load balancer, a cache, a sharded database, a message queue, and wire them into a diagram that survives the back-of-the-envelope math? That bar is necessary but nowhere near sufficient for staff and principal. At those levels you are hiring someone who will <em>set technical direction for systems other people build</em>, so the interview must surface judgment, not recall.</p>
+<h2 id="whatchanges">What changes as you grow toward principal-level depth</h2>
+<p>Early in your career, system design is largely a <span class="key">vocabulary and component-assembly skill</span>: can you name a load balancer, a cache, a sharded database, a message queue, and wire them into a diagram that survives the back-of-the-envelope math? That skill is necessary but nowhere near sufficient for the systems you will eventually own. At principal level you are <em>setting technical direction for systems other people build</em>, so what matters is judgment, not recall &mdash; and judgment is much harder to self-assess, because it's invisible until a design meets reality.</p>
 
-<p>The shift is along seven axes. A principal-level candidate should demonstrate most of them without prompting; a senior candidate usually demonstrates two or three and reaches the rest only when you pull.</p>
+<p>The growth happens along seven axes. Use them as a mirror: read each row and ask honestly which column describes how you reason today. Most engineers sit firmly in the middle column on a few axes and reach the right-hand column only when something forces them to.</p>
 
 <table>
-<thead><tr><th>Axis</th><th>Mid / Senior</th><th>Principal</th></tr></thead>
+<thead><tr><th>Axis</th><th>Developing</th><th>Principal-level depth</th></tr></thead>
 <tbody>
-<tr><td>Trade-off reasoning</td><td>Picks a reasonable option, can justify it</td><td>Names the 2&ndash;3 viable options, states the axis of the trade-off, and explains under what future conditions they'd reverse the decision</td></tr>
-<tr><td>Ambiguity</td><td>Waits for, or asks for, the requirements</td><td>Drives the requirements &mdash; proposes a scope, gets it confirmed, and explicitly de-scopes what they will <em>not</em> build</td></tr>
-<tr><td>Scale</td><td>Quotes &ldquo;it scales horizontally&rdquo;</td><td>Identifies the specific resource that saturates first (CPU, IOPS, fan-out, hot key, connection count) and the number at which it does</td></tr>
+<tr><td>Trade-off reasoning</td><td>Picks a reasonable option, can justify it</td><td>Names the 2&ndash;3 viable options, states the axis of the trade-off, and explains under what future conditions the decision should be reversed</td></tr>
+<tr><td>Ambiguity</td><td>Waits for, or asks for, the requirements</td><td>Drives the requirements &mdash; proposes a scope, confirms it with stakeholders, and explicitly de-scopes what will <em>not</em> be built</td></tr>
+<tr><td>Scale</td><td>Says &ldquo;it scales horizontally&rdquo;</td><td>Identifies the specific resource that saturates first (CPU, IOPS, fan-out, hot key, connection count) and the number at which it does</td></tr>
 <tr><td>Failure</td><td>Adds replicas and retries</td><td>Reasons about partial failure, blast radius, correlated failure, and what the system does while degraded</td></tr>
-<tr><td>Cost</td><td>Rarely mentioned</td><td>Treats $/request, storage growth, and cross-AZ/region egress as first-class design constraints</td></tr>
+<tr><td>Cost</td><td>Rarely considered</td><td>Treats $/request, storage growth, and cross-AZ/region egress as first-class design constraints</td></tr>
 <tr><td>Evolution</td><td>Designs the end state</td><td>Designs the migration path from today's system to the end state, online, with rollback</td></tr>
 <tr><td>Operability</td><td>&ldquo;We'll add monitoring&rdquo;</td><td>Names the SLIs, the alert thresholds, the runbook for the top failure mode</td></tr>
 </tbody>
 </table>
 
-<div class="callout note"><span class="lbl">Key insight</span> The single most reliable principal signal is <strong>self-driven de-scoping under ambiguity</strong>. Anyone can add a component. Deciding what <em>not</em> to build, stating it out loud, and getting buy-in is the behavior that correlates with people who keep large systems shippable. If a candidate never narrows the problem, you are likely looking at a senior, not a principal.</div>
+<div class="callout note"><span class="lbl">Key insight</span> The single most reliable sign of deep understanding is <strong>self-driven de-scoping under ambiguity</strong>. Anyone can add a component. Deciding what <em>not</em> to build, stating it out loud, and getting buy-in is the behavior that keeps large systems shippable. If you find yourself never narrowing a problem &mdash; always trying to design everything &mdash; that's the first habit to fix, because it's the cheapest one that separates competent from principal.</div>
 
-<h2 id="rubric">The signal rubric: strong vs weak per dimension</h2>
-<p>Score along eight dimensions. For each, the difference between a 2 (senior) and a 4 (principal) is the column on the right. Don't average to a number in your head &mdash; write a sentence of evidence per dimension, because hiring committees argue over evidence, not scores.</p>
+<h2 id="rubric">The depth rubric: shallow vs deep per dimension</h2>
+<p>Grade yourself along eight dimensions. For each, the gap between shallow and deep is the column on the right. Don't reduce it to a number &mdash; write yourself a sentence of evidence per dimension (&ldquo;last time I designed X, I did/didn't do this&rdquo;). Evidence is what tells you whether you actually have the skill or just recognize it when you see it.</p>
 
 <h3>1. Requirements clarification</h3>
 <table>
-<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<thead><tr><th>Shallow understanding</th><th>Deep understanding</th></tr></thead>
 <tbody>
-<tr><td>Jumps to a diagram. Asks one or two surface questions (&ldquo;how many users?&rdquo;).</td><td>Separates functional from non-functional. Pins read/write ratio, latency budget, consistency expectation, and durability target. States explicit non-goals (&ldquo;I'm not handling moderation or billing in this hour&rdquo;).</td></tr>
+<tr><td>Jumps straight to a diagram. Asks one or two surface questions (&ldquo;how many users?&rdquo;).</td><td>Separates functional from non-functional. Pins read/write ratio, latency budget, consistency expectation, and durability target. States explicit non-goals (&ldquo;I'm not handling moderation or billing in this design&rdquo;).</td></tr>
 </tbody>
 </table>
-<p>Probe: <em>&ldquo;What can we drop from v1 and still ship something useful?&rdquo;</em> The candidate who has a crisp answer here is thinking like an owner. See <a href="14 System Design Interviews_ A step by step guide.htm">14 &mdash; the step-by-step guide</a> for the canonical clarification flow.</p>
+<p>Self-test: <em>&ldquo;What can I drop from v1 and still ship something useful?&rdquo;</em> If you have a crisp answer, you're thinking like an owner. See <a href="14 A Framework for Approaching System Design.htm">14 &mdash; the step-by-step guide</a> for the canonical clarification flow.</p>
 
 <h3>2. Estimation / capacity</h3>
 <table>
-<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<thead><tr><th>Shallow understanding</th><th>Deep understanding</th></tr></thead>
 <tbody>
 <tr><td>Picks round numbers with no derivation; never converts QPS to bytes, IOPS, or machines.</td><td>Derives peak QPS from DAU and a peak-factor, converts to storage growth/year, derives the bottleneck resource, and sizes the fleet. Distinguishes average from p99.</td></tr>
 </tbody>
 </table>
 
-<div class="callout warn"><span class="lbl">Pitfall</span> Don't reward fast arithmetic. Reward arithmetic that <em>changes the design</em>. The point of estimation is to discover that, say, the write volume needs an LSM engine (<a href="38 Storage Engines LSM vs B-Tree.htm">38</a>) rather than a B-tree, or that the fan-out at 100M followers forces a hybrid push/pull feed (<a href="26Designing Facebook&#8217;s Newsfeed.htm">26</a>). If the numbers never feed back into a decision, they're theater.</div>
+<div class="callout warn"><span class="lbl">Pitfall</span> Don't be impressed with yourself for fast arithmetic. The arithmetic only matters when it <em>changes the design</em>. The point of estimation is to discover that, say, the write volume needs an LSM engine (<a href="38 Storage Engines LSM vs B-Tree.htm">38</a>) rather than a B-tree, or that the fan-out at 100M followers forces a hybrid push/pull feed (<a href="26Designing Facebook&#8217;s Newsfeed.htm">26</a>). If your numbers never feed back into a decision, they're theater &mdash; even when correct.</div>
 
 <h3>3. Data modeling &amp; partitioning</h3>
 <table>
-<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<thead><tr><th>Shallow understanding</th><th>Deep understanding</th></tr></thead>
 <tbody>
-<tr><td>One big table. Partition key is &ldquo;user_id&rdquo; with no thought about skew.</td><td>Chooses access-pattern-driven schema, picks a partition key that avoids hot shards, and discusses re-sharding / consistent hashing (<a href="12 Consistent Hashing.htm">12</a>) when the fleet grows. Knows when to denormalize.</td></tr>
+<tr><td>One big table. Partition key is &ldquo;user_id&rdquo; with no thought about skew.</td><td>Chooses an access-pattern-driven schema, picks a partition key that avoids hot shards, and reasons about re-sharding / consistent hashing (<a href="12 Consistent Hashing.htm">12</a>) when the fleet grows. Knows when to denormalize.</td></tr>
 </tbody>
 </table>
 
 <h3>4. Deep-dive on the bottleneck</h3>
 <table>
-<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<thead><tr><th>Shallow understanding</th><th>Deep understanding</th></tr></thead>
 <tbody>
-<tr><td>Stays at the box-and-arrow level the whole time.</td><td>Picks the riskiest component and goes three layers down &mdash; e.g. inside the queue, discusses partition assignment, consumer-group rebalancing, and exactly-once vs at-least-once (<a href="39 Kafka and Log-based Messaging.htm">39</a>, <a href="54 Designing a Distributed Message Queue.htm">54</a>).</td></tr>
+<tr><td>Stays at the box-and-arrow level the whole time.</td><td>Picks the riskiest component and goes three layers down &mdash; e.g. inside the queue, reasons about partition assignment, consumer-group rebalancing, and exactly-once vs at-least-once (<a href="39 Kafka and Log-based Messaging.htm">39</a>, <a href="54 Designing a Distributed Message Queue.htm">54</a>).</td></tr>
 </tbody>
 </table>
 
 <h3>5. Failure modes</h3>
 <table>
-<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<thead><tr><th>Shallow understanding</th><th>Deep understanding</th></tr></thead>
 <tbody>
-<tr><td>&ldquo;We have replicas, so we're fine.&rdquo;</td><td>Walks through leader loss, network partition, slow-but-alive node (gray failure), thundering herd on cache miss, and poison messages. Knows the difference between fail-stop and Byzantine. References resilience patterns (<a href="49 Resilience Patterns.htm">49</a>) &mdash; circuit breakers, bulkheads, backpressure.</td></tr>
+<tr><td>&ldquo;We have replicas, so we're fine.&rdquo;</td><td>Walks through leader loss, network partition, slow-but-alive node (gray failure), thundering herd on cache miss, and poison messages. Knows the difference between fail-stop and Byzantine. Applies resilience patterns (<a href="49 Resilience Patterns.htm">49</a>) &mdash; circuit breakers, bulkheads, backpressure.</td></tr>
 </tbody>
 </table>
 
 <h3>6. Consistency &amp; correctness</h3>
 <table>
-<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<thead><tr><th>Shallow understanding</th><th>Deep understanding</th></tr></thead>
 <tbody>
 <tr><td>Says &ldquo;strongly consistent&rdquo; or &ldquo;eventually consistent&rdquo; as a slogan.</td><td>Names the actual model (linearizable, read-your-writes, monotonic reads, causal), maps it to PACELC (<a href="31 Consistency Models and PACELC.htm">31</a>), and accepts the latency cost. Knows where consensus (<a href="30 Consensus and Raft.htm">30</a>) is needed and where it's overkill.</td></tr>
 </tbody>
@@ -313,111 +313,111 @@
 
 <h3>7. Operability &amp; SLOs</h3>
 <table>
-<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<thead><tr><th>Shallow understanding</th><th>Deep understanding</th></tr></thead>
 <tbody>
-<tr><td>&ldquo;We'll set up Grafana.&rdquo;</td><td>Defines SLIs that match user pain, sets an SLO and an error budget (<a href="47 SLI SLO SLA and Error Budgets.htm">47</a>), names the one metric they'd page on, and sketches the top runbook. Designs for debuggability (<a href="48 Observability.htm">48</a>) with trace IDs end-to-end.</td></tr>
+<tr><td>&ldquo;We'll set up Grafana.&rdquo;</td><td>Defines SLIs that match user pain, sets an SLO and an error budget (<a href="47 SLI SLO SLA and Error Budgets.htm">47</a>), names the one metric worth paging on, and sketches the top runbook. Designs for debuggability (<a href="48 Observability.htm">48</a>) with trace IDs end-to-end.</td></tr>
 </tbody>
 </table>
 
 <h3>8. Evolution &amp; migration</h3>
 <table>
-<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<thead><tr><th>Shallow understanding</th><th>Deep understanding</th></tr></thead>
 <tbody>
 <tr><td>Designs only the steady state.</td><td>Explains how to get there from a monolith/legacy DB online: dual writes, backfill, shadow reads, cutover with a kill switch, and rollback. Treats schema/version evolution as a permanent constraint, not a one-time event.</td></tr>
 </tbody>
 </table>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They volunteer the migration story before you ask. &ldquo;The end state is sharded Postgres with Vitess, but we can't flip overnight &mdash; here's the dual-write + backfill + shadow-read sequence and how I'd verify parity before cutover.&rdquo; That sentence alone is worth a full grade because it proves they've actually shipped large changes, not just whiteboarded them.</div>
+<div class="callout ok"><span class="lbl">Sign of real depth</span> You volunteer the migration story before anyone asks for it. &ldquo;The end state is sharded Postgres with Vitess, but we can't flip overnight &mdash; here's the dual-write + backfill + shadow-read sequence and how I'd verify parity before cutover.&rdquo; That single sentence proves you've actually shipped large changes, not just whiteboarded them. If you can't produce it, that's a concrete area to go practice on a real system.</div>
 
-<h2 id="bank">The probing question bank by topic</h2>
-<p>Use these as the &ldquo;go deeper&rdquo; layer once the candidate has put down a baseline design. The goal is not to trap them &mdash; it's to find the depth at which they run out of real experience. A principal should have <em>somewhere</em> they can take you four levels down.</p>
+<h2 id="bank">The self-test question bank by topic</h2>
+<p>Use these as the &ldquo;go deeper&rdquo; layer once you've sketched a baseline design &mdash; either for a real project or a practice problem. Ask them of <em>yourself</em>. The goal is not to trip yourself up; it's to find the exact depth at which you run out of genuine understanding and start hand-waving. You should be able to take <em>at least one</em> topic four levels down. Wherever you can't, you've found your next study target.</p>
 
 <h3>Consistency &amp; transactions</h3>
 <ul>
-<li>You said &ldquo;eventually consistent.&rdquo; What's the actual convergence bound, and what does a client observe in the meantime? Can a user read their own write?</li>
-<li>Where in this design do you genuinely need linearizability, and where would causal or read-your-writes be enough? What does the stronger choice cost you in latency and availability? (<a href="31 Consistency Models and PACELC.htm">31</a>)</li>
-<li>This operation spans two services. Two-phase commit, Saga, or an outbox? Walk me through the failure where the coordinator dies after prepare. (<a href="32 Distributed Transactions.htm">32</a>)</li>
-<li>How do you order events across nodes without a global clock? When does a Lamport clock suffice and when do you need a vector clock or TrueTime-style bounds? (<a href="33 Time Clocks and Ordering.htm">33</a>)</li>
+<li>I said &ldquo;eventually consistent.&rdquo; What's the actual convergence bound, and what does a client observe in the meantime? Can a user read their own write?</li>
+<li>Where in this design do I genuinely need linearizability, and where would causal or read-your-writes be enough? What does the stronger choice cost in latency and availability? (<a href="31 Consistency Models and PACELC.htm">31</a>)</li>
+<li>This operation spans two services. Two-phase commit, Saga, or an outbox? Can I trace the failure where the coordinator dies after prepare? (<a href="32 Distributed Transactions.htm">32</a>)</li>
+<li>How do I order events across nodes without a global clock? When does a Lamport clock suffice and when do I need a vector clock or TrueTime-style bounds? (<a href="33 Time Clocks and Ordering.htm">33</a>)</li>
 <li>If two replicas concurrently update the same item, who wins &mdash; and how does the loser find out? Would a CRDT remove the conflict entirely here? (<a href="35 CRDTs.htm">35</a>)</li>
 </ul>
 
 <h3>Partitioning &amp; hot spots</h3>
 <ul>
-<li>Your partition key is X. Show me the access pattern that creates a hot shard, and what you do when one celebrity/tenant is 30% of traffic.</li>
-<li>You need to add capacity at 2&times; the fleet. With your hashing scheme, how many keys move? (<a href="12 Consistent Hashing.htm">12</a>)</li>
-<li>How do you do a range scan when data is hash-partitioned? What changes if the workload becomes range-heavy?</li>
-<li>Re-sharding under live traffic &mdash; describe the split, the double-read window, and how you avoid losing writes during the move. (<a href="05 Sharding or Data Partitioning.htm">05</a>)</li>
+<li>My partition key is X. Can I name the access pattern that creates a hot shard, and what I'd do when one celebrity/tenant is 30% of traffic?</li>
+<li>I need to add capacity at 2&times; the fleet. With my hashing scheme, how many keys move? (<a href="12 Consistent Hashing.htm">12</a>)</li>
+<li>How do I do a range scan when data is hash-partitioned? What changes if the workload becomes range-heavy?</li>
+<li>Re-sharding under live traffic &mdash; can I describe the split, the double-read window, and how I avoid losing writes during the move? (<a href="05 Sharding or Data Partitioning.htm">05</a>)</li>
 </ul>
 
 <h3>Caching</h3>
 <ul>
-<li>Cache-aside vs write-through vs write-back &mdash; which, and what's your stale-read window? (<a href="04 Caching.htm">04</a>)</li>
-<li>A hot key expires and 50k requests hit the DB in the same millisecond. Walk me through your stampede prevention &mdash; single-flight, lease, or probabilistic early expiry.</li>
-<li>How do you invalidate? What's the consistency contract between cache and source of truth, and how do you detect when they drift?</li>
+<li>Cache-aside vs write-through vs write-back &mdash; which, and what's my stale-read window? (<a href="04 Caching.htm">04</a>)</li>
+<li>A hot key expires and 50k requests hit the DB in the same millisecond. Can I walk through my stampede prevention &mdash; single-flight, lease, or probabilistic early expiry?</li>
+<li>How do I invalidate? What's the consistency contract between cache and source of truth, and how do I detect when they drift?</li>
 <li>At what hit ratio does the cache stop paying for itself given the cross-AZ network cost of a miss?</li>
 </ul>
 
 <h3>Consensus &amp; coordination</h3>
 <ul>
-<li>You put a Raft group here. Why? What's the latency floor (one round-trip to a majority) and can the rest of the system tolerate it? (<a href="30 Consensus and Raft.htm">30</a>)</li>
+<li>I put a Raft group here. Why? What's the latency floor (one round-trip to a majority) and can the rest of the system tolerate it? (<a href="30 Consensus and Raft.htm">30</a>)</li>
 <li>What happens to writes during a leader election? How long is the window, and is that acceptable for this SLO?</li>
-<li>You're using ZooKeeper/etcd for leader election. What's your fencing token story so the old leader can't keep writing after it loses the lock? (<a href="36 Leader Election and Coordination.htm">36</a>, <a href="62 Designing a Distributed Locking Service.htm">62</a>)</li>
-<li>Can you avoid consensus here entirely &mdash; e.g. with idempotency + a CRDT or with single-writer-per-partition? Consensus is expensive; justify it.</li>
+<li>I'm using ZooKeeper/etcd for leader election. What's my fencing-token story so the old leader can't keep writing after it loses the lock? (<a href="36 Leader Election and Coordination.htm">36</a>, <a href="62 Designing a Distributed Locking Service.htm">62</a>)</li>
+<li>Can I avoid consensus here entirely &mdash; e.g. with idempotency + a CRDT or single-writer-per-partition? Consensus is expensive; can I justify it?</li>
 </ul>
 
 <h3>Reliability &amp; SLOs</h3>
 <ul>
-<li>Pick the one SLI a user actually feels. What's the SLO, and what does the error budget buy the team? (<a href="47 SLI SLO SLA and Error Budgets.htm">47</a>)</li>
-<li>A dependency you call is at 50% error rate. What does your service do &mdash; fail open, fail closed, degrade, shed load? (<a href="49 Resilience Patterns.htm">49</a>)</li>
-<li>Describe a correlated failure that takes out a whole AZ. What's the blast radius, and how do you fail over without a thundering retry storm? (<a href="51 Multi-Region and Disaster Recovery.htm">51</a>)</li>
-<li>How would you deploy a risky change to this service safely? Canary, blue-green, feature flag &mdash; and what's the automated rollback trigger? (<a href="50 Deployment Strategies.htm">50</a>)</li>
-<li>One request fans out to twelve services and is slow. How do you find the culprit at 3am? (<a href="48 Observability.htm">48</a>)</li>
+<li>Which single SLI does a user actually feel? What's the SLO, and what does the error budget buy the team? (<a href="47 SLI SLO SLA and Error Budgets.htm">47</a>)</li>
+<li>A dependency I call is at 50% error rate. What does my service do &mdash; fail open, fail closed, degrade, shed load? (<a href="49 Resilience Patterns.htm">49</a>)</li>
+<li>Can I describe a correlated failure that takes out a whole AZ? What's the blast radius, and how do I fail over without a thundering retry storm? (<a href="51 Multi-Region and Disaster Recovery.htm">51</a>)</li>
+<li>How would I deploy a risky change to this service safely? Canary, blue-green, feature flag &mdash; and what's the automated rollback trigger? (<a href="50 Deployment Strategies.htm">50</a>)</li>
+<li>One request fans out to twelve services and is slow. How would I find the culprit at 3am? (<a href="48 Observability.htm">48</a>)</li>
 </ul>
 
 <h3>Security</h3>
 <ul>
 <li>Where's the trust boundary? What's authenticated, what's authorized, and what's encrypted in transit vs at rest? (<a href="52 Security in System Design.htm">52</a>)</li>
-<li>How do you stop one tenant from reading another's data in a shared multi-tenant store?</li>
-<li>This endpoint takes user input that becomes a query/key. Injection and key-collision risks?</li>
-<li>How do you rate-limit and protect against abuse without hurting legitimate burst traffic? (<a href="23 Designing an API Rate Limiter (_New_).htm">23</a>)</li>
+<li>How do I stop one tenant from reading another's data in a shared multi-tenant store?</li>
+<li>This endpoint takes user input that becomes a query/key. What are the injection and key-collision risks?</li>
+<li>How do I rate-limit and protect against abuse without hurting legitimate burst traffic? (<a href="23 Designing an API Rate Limiter (_New_).htm">23</a>)</li>
 </ul>
 
 <h3>Cost</h3>
 <ul>
-<li>What's the dominant cost line &mdash; compute, storage, or network egress? Estimate $/million requests.</li>
-<li>You're replicating across three regions. What does cross-region egress cost, and can you cut it with locality or async replication?</li>
-<li>Storage grows N TB/month forever. What's your tiering / TTL / compaction story so cost doesn't grow unbounded? (<a href="38 Storage Engines LSM vs B-Tree.htm">38</a>)</li>
+<li>What's the dominant cost line &mdash; compute, storage, or network egress? Can I estimate $/million requests?</li>
+<li>I'm replicating across three regions. What does cross-region egress cost, and can I cut it with locality or async replication?</li>
+<li>Storage grows N TB/month forever. What's my tiering / TTL / compaction story so cost doesn't grow unbounded? (<a href="38 Storage Engines LSM vs B-Tree.htm">38</a>)</li>
 </ul>
 
-<h2 id="flags">Red flags &amp; green flags</h2>
+<h2 id="flags">Signs of shallow vs deep mastery</h2>
 
-<div class="callout warn"><span class="lbl">Pitfall</span> Red flags &mdash; any one is a yellow, two or more is usually a no-hire at principal:
+<div class="callout warn"><span class="lbl">Pitfall</span> Signs your understanding is still shallow &mdash; catch these in your own designs and treat each as a study target:
 <ul>
-<li><strong>Over-engineering.</strong> Reaches for Kafka, Kubernetes, and a service mesh before establishing that a single Postgres won't do. Solutions in search of a problem.</li>
-<li><strong>Cargo-culting microservices.</strong> Splits into 15 services on the first diagram with no discussion of transaction boundaries or the operational tax. (<a href="43 Microservices and Service Mesh.htm">43</a>)</li>
-<li><strong>Ignoring failure.</strong> The happy path is fully drawn; &ldquo;what if this node dies?&rdquo; produces a blank stare or &ldquo;we add a replica.&rdquo;</li>
-<li><strong>No numbers.</strong> Cannot connect QPS to machines, bytes, or dollars. Every choice is vibes.</li>
-<li><strong>Can't de-scope.</strong> Tries to build everything in 45 minutes and runs out of time with a shallow design everywhere and depth nowhere.</li>
-<li><strong>Defends instead of adapts.</strong> When you point out a flaw, argues rather than updating the design. Principals change their mind on evidence.</li>
+<li><strong>Over-engineering.</strong> Reaching for Kafka, Kubernetes, and a service mesh before establishing that a single Postgres won't do. A solution in search of a problem usually means you're pattern-matching instead of reasoning.</li>
+<li><strong>Cargo-culting microservices.</strong> Splitting into 15 services on the first diagram with no discussion of transaction boundaries or the operational tax. (<a href="43 Microservices and Service Mesh.htm">43</a>)</li>
+<li><strong>Ignoring failure.</strong> The happy path is fully drawn; &ldquo;what if this node dies?&rdquo; produces a blank or &ldquo;we add a replica.&rdquo;</li>
+<li><strong>No numbers.</strong> You can't connect QPS to machines, bytes, or dollars. Every choice is vibes.</li>
+<li><strong>Can't de-scope.</strong> You try to build everything and end up shallow everywhere and deep nowhere.</li>
+<li><strong>Defending instead of adapting.</strong> When a flaw is pointed out, you argue rather than update the design. Deep understanding means changing your mind on evidence.</li>
 </ul>
 </div>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> Green flags &mdash; the behaviors that distinguish a principal:
+<div class="callout ok"><span class="lbl">Sign of real depth</span> Signs you've truly internalized the material:
 <ul>
-<li><strong>Drives the conversation.</strong> Sets the agenda, manages their own time, tells you what they'll skip and why.</li>
-<li><strong>Quantifies.</strong> Every major decision is backed by a number that actually moved the design.</li>
-<li><strong>Names explicit trade-offs.</strong> &ldquo;I'm choosing availability over consistency here because a stale like-count is fine; I'd choose the opposite for the payment ledger.&rdquo; (<a href="11 CAP Theorem.htm">11</a>, <a href="59 Designing a Payment System.htm">59</a>)</li>
-<li><strong>Designs for failure and operability</strong> as a default, not when prompted.</li>
-<li><strong>Considers migration/evolution</strong> &mdash; how this ships incrementally and how it changes in two years.</li>
-<li><strong>Knows what they don't know.</strong> Says &ldquo;I haven't run this at that scale; here's how I'd de-risk it with a load test before committing.&rdquo;</li>
+<li><strong>You drive the design.</strong> You set the agenda, manage scope, and decide what to skip and why &mdash; without waiting to be told.</li>
+<li><strong>You quantify.</strong> Every major decision is backed by a number that actually moved the design.</li>
+<li><strong>You name explicit trade-offs.</strong> &ldquo;I'm choosing availability over consistency here because a stale like-count is fine; I'd choose the opposite for the payment ledger.&rdquo; (<a href="11 CAP Theorem.htm">11</a>, <a href="59 Designing a Payment System.htm">59</a>)</li>
+<li><strong>You design for failure and operability</strong> by default, not as an afterthought.</li>
+<li><strong>You consider migration/evolution</strong> &mdash; how this ships incrementally and how it changes in two years.</li>
+<li><strong>You know what you don't know.</strong> &ldquo;I haven't run this at that scale; here's how I'd de-risk it with a load test before committing.&rdquo;</li>
 </ul>
 </div>
 
 <h2 id="mapping">Topic &rarr; design-problem coverage map</h2>
-<p>If you want to test a specific competency, here's which design problem naturally surfaces it. Useful for picking a prompt that probes the exact skill you're unsure about after the first round.</p>
+<p>If you want to drill a specific competency, here's which design problem naturally surfaces it. Useful for picking a practice prompt that exercises the exact skill you discovered was weak in the self-test above.</p>
 
 <table>
-<thead><tr><th>Competency to test</th><th>Best design prompts</th><th>Why</th></tr></thead>
+<thead><tr><th>Competency to practice</th><th>Best design prompts</th><th>Why</th></tr></thead>
 <tbody>
 <tr><td>Read fan-out &amp; feed generation</td><td><a href="20 Designing Twitter.htm">20 Twitter</a>, <a href="26Designing Facebook&#8217;s Newsfeed.htm">26 Newsfeed</a>, <a href="17 Designing Instagram.htm">17 Instagram</a></td><td>Forces push vs pull vs hybrid, hot-key (celebrity) handling</td></tr>
 <tr><td>Strong consistency &amp; ledgers</td><td><a href="59 Designing a Payment System.htm">59 Payments</a>, <a href="29 Design BookMyShow (_New_).htm">29 BookMyShow</a></td><td>Idempotency, exactly-once, double-booking, reconciliation</td></tr>
@@ -433,40 +433,42 @@
 </tbody>
 </table>
 
-<h2 id="running">Running the 45-minute loop</h2>
-<p>Calibrate your time-keeping so the depth lands where the signal is. A loose budget:</p>
+<h2 id="running">A 45-minute self-practice loop</h2>
+<p>A useful way to drill is to take any prompt from the index and design it solo under a clock, narrating your reasoning out loud (or in writing) as if explaining it to a colleague. Time-box the phases so the depth lands where the signal is:</p>
 
 <table>
-<thead><tr><th>Minutes</th><th>Phase</th><th>What you're listening for</th></tr></thead>
+<thead><tr><th>Minutes</th><th>Phase</th><th>What to watch for in yourself</th></tr></thead>
 <tbody>
-<tr><td>0&ndash;5</td><td>Frame the problem</td><td>Do they clarify and de-scope, or start drawing?</td></tr>
-<tr><td>5&ndash;10</td><td>Estimation</td><td>Do the numbers drive a decision?</td></tr>
+<tr><td>0&ndash;5</td><td>Frame the problem</td><td>Do you clarify and de-scope, or start drawing immediately?</td></tr>
+<tr><td>5&ndash;10</td><td>Estimation</td><td>Do the numbers actually drive a decision?</td></tr>
 <tr><td>10&ndash;20</td><td>High-level design</td><td>Coherent baseline; clear data flow; sensible component choices</td></tr>
-<tr><td>20&ndash;35</td><td>Deep dive (you steer)</td><td>Pick the riskiest part; push for depth and failure reasoning</td></tr>
+<tr><td>20&ndash;35</td><td>Deep dive</td><td>Pick the riskiest part; push yourself for depth and failure reasoning</td></tr>
 <tr><td>35&ndash;42</td><td>Operate &amp; evolve</td><td>SLOs, top runbook, migration story</td></tr>
-<tr><td>42&ndash;45</td><td>Candidate Q&amp;A</td><td>The questions they ask are themselves signal</td></tr>
+<tr><td>42&ndash;45</td><td>Review</td><td>The gaps you noticed are your study list</td></tr>
 </tbody>
 </table>
 
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> Breadth vs depth in the deep-dive. You can either probe one component to bedrock or sample three components shallowly. For principal, <strong>prefer depth</strong>: one bedrock dive tells you whether they actually operate systems, whereas breadth only re-confirms vocabulary you already measured in the high-level phase. Sample breadth only if the candidate's baseline was so generic you can't tell where their real experience is.</div>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> Breadth vs depth in the deep-dive. You can either probe one component to bedrock or sample three components shallowly. When practicing for real mastery, <strong>prefer depth</strong>: one bedrock dive tells you whether you actually understand how systems behave in production, whereas breadth only re-confirms vocabulary you already exercised in the high-level phase. Sample breadth only when your baseline is so generic you can't yet tell where your real understanding lies.</div>
 
-<div class="callout note"><span class="lbl">Key insight</span> The best calibration trick: when the candidate makes a choice, change one requirement (&ldquo;now writes are 10&times; reads&rdquo;, &ldquo;now it must be multi-region active-active&rdquo;) and watch whether the design <em>flexes coherently</em> or collapses. Principals have a mental model they can re-run; weaker candidates have a memorized diagram that doesn't survive perturbation.</div>
+<div class="callout note"><span class="lbl">Key insight</span> The best self-calibration trick: after you make a choice, change one requirement on yourself (&ldquo;now writes are 10&times; reads&rdquo;, &ldquo;now it must be multi-region active-active&rdquo;) and watch whether your design <em>flexes coherently</em> or collapses. Deep understanding is a mental model you can re-run under new constraints; shallow understanding is a memorized diagram that doesn't survive perturbation.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
+<h2 id="mastery">Internalized vs memorized: the final check</h2>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> As the interviewer, you're not grading the diagram &mdash; you're grading the <em>reasoning that produced it</em> and whether it would survive contact with production. The strongest candidates treat you as a collaborator: they think out loud, surface their own assumptions, quantify, name the trade-off explicitly, choose, and then tell you the conditions under which they'd revisit the choice. They reach bedrock on at least one component and they volunteer the migration and failure stories before you ask. They are visibly comfortable saying &ldquo;I'd de-risk that with a load test rather than guess.&rdquo;</div>
+<div class="callout ok"><span class="lbl">Sign of real depth</span> The thing worth grading is never the diagram &mdash; it's the <em>reasoning that produced it</em> and whether it would survive contact with production. When you've truly internalized the material, you think out loud, surface your own assumptions, quantify, name the trade-off explicitly, choose, and then state the conditions under which you'd revisit the choice. You reach bedrock on at least one component, and you volunteer the migration and failure stories without being prompted. You're comfortable saying &ldquo;I'd de-risk that with a load test rather than guess&rdquo; &mdash; because real engineers measure rather than assert.</div>
 
-<p>Sharp probing questions to keep in your pocket, regardless of the prompt:</p>
+<p>Sharp questions to keep in your pocket and ask yourself about any design, regardless of the topic:</p>
 <ul>
-<li>&ldquo;If you had to cut this design in half to ship in one quarter, what's the half you cut &mdash; and what breaks if you're wrong about it being safe to cut?&rdquo;</li>
-<li>&ldquo;Name the single resource that saturates first as we 10&times; the load, and the number it saturates at. What's your second bottleneck after you fix the first?&rdquo;</li>
-<li>&ldquo;Walk me through the worst 3am page this system produces. What fired, what's the runbook, and why didn't it auto-heal?&rdquo;</li>
-<li>&ldquo;Where did you choose availability over consistency, and where the opposite? Convince me a stale read is acceptable in the first case and unacceptable in the second.&rdquo;</li>
-<li>&ldquo;You're migrating the live system from today's design to this one with zero downtime. Give me the sequence and the rollback trigger.&rdquo;</li>
+<li>&ldquo;If I had to cut this design in half to ship in one quarter, what's the half I cut &mdash; and what breaks if I'm wrong about it being safe to cut?&rdquo;</li>
+<li>&ldquo;Which single resource saturates first as we 10&times; the load, and at what number? What's the second bottleneck after I fix the first?&rdquo;</li>
+<li>&ldquo;What's the worst 3am page this system produces? What fired, what's the runbook, and why didn't it auto-heal?&rdquo;</li>
+<li>&ldquo;Where did I choose availability over consistency, and where the opposite? Can I convince a skeptic a stale read is acceptable in the first case and unacceptable in the second?&rdquo;</li>
+<li>&ldquo;How would I migrate the live system from today's design to this one with zero downtime? What's the exact sequence and the rollback trigger?&rdquo;</li>
 <li>&ldquo;What's the dominant cost line, and what design change would halve it without halving reliability?&rdquo;</li>
 </ul>
 
-<div class="navfoot"><a href="66 Designing a Metrics and Monitoring System.htm">&lsaquo; Prev: Designing a Metrics and Monitoring System</a><a class="nx" href="01 Why System Design Interviews_.htm">Next: Back to start &rsaquo;</a></div>
+<p>The test of memorized vs internalized is simple: a memorized answer is the same every time, while an internalized one bends to fit a new constraint. If you can answer these about a problem you've never seen before &mdash; not just the ones in this course &mdash; you've leveled up.</p>
+
+<div class="navfoot"><a href="66 Designing a Metrics and Monitoring System.htm">&lsaquo; Prev: Designing a Metrics and Monitoring System</a><a class="nx" href="01 Why System Design Matters.htm">Next: Back to start &rsaquo;</a></div>
 
 </div>
 </div>

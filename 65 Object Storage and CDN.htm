@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,8 +101,8 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
@@ -122,7 +122,7 @@
 <li><a href="#cdn">CDNs: edge caching mechanics</a></li>
 <li><a href="#invalidation">Cache control, invalidation &amp; private content</a></li>
 <li><a href="#patterns">Design patterns that compose them</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -132,7 +132,7 @@
 
 <h2 id="object">Object storage semantics</h2>
 <p><span class="key">Object storage</span> (S3, GCS, Azure Blob) is not a filesystem and not a block device. It is a flat namespace of <span class="key">objects</span> &mdash; an opaque blob of bytes plus a key (the full path string), plus metadata and a version. There are no directories; the slashes in <code>users/42/avatar.png</code> are just characters in the key, and the "folder" view your console shows is a prefix-listing illusion. This flatness is what makes object stores scale to trillions of objects across a fleet without a central inode table to bottleneck on.</p>
-<p>Contrast the three storage models, because interviewers love to probe the boundary:</p>
+<p>Contrast the three storage models, because the boundaries are easy to get wrong:</p>
 <table>
 <tr><th>Model</th><th>Unit / API</th><th>Mutability</th><th>Use case</th></tr>
 <tr><td><span class="key">Block</span> (EBS)</td><td>Fixed-size blocks, read/write offsets</td><td>Random in-place writes</td><td>Database volumes, raw disks for a single attached host</td></tr>
@@ -200,9 +200,9 @@ url = s3.presign(
 </ol>
 <div class="callout tradeoff"><span class="lbl">Trade-off</span>The DB-plus-store split introduces a two-system consistency gap: the row and the blob are written separately and can diverge (an orphaned blob whose row never committed, or a row pointing at a key that failed to upload). You reconcile this with the <em>pending&rarr;ready</em> state machine plus an async sweeper that garbage-collects orphaned objects and retries or expires stuck-pending rows. You are trading a clean single-system transaction for scale and cost &mdash; a trade worth making, but only if you actually build the reconciliation.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They get bytes off the app tier in the first two minutes &mdash; presigned upload, CDN in front of the store &mdash; without being prompted, and they reason explicitly about the metadata/blob split and the consistency gap it creates. They reach for versioned-URL caching over purge-based invalidation, and they distinguish durability from availability and from access control rather than treating "we'll use S3" as a complete answer.</div>
-<p>Probing questions to ask candidates:</p>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They get bytes off the app tier in the first two minutes &mdash; presigned upload, CDN in front of the store &mdash; without being prompted, and they reason explicitly about the metadata/blob split and the consistency gap it creates. They reach for versioned-URL caching over purge-based invalidation, and they distinguish durability from availability and from access control rather than treating "we'll use S3" as a complete answer.</div>
+<p>Probing questions to ask engineers:</p>
 <ul>
 <li>"A user uploads a 3&nbsp;GB video from a phone on a flaky connection. Walk me through every hop &mdash; what touches the bytes, and what happens when the connection drops at 80%?"</li>
 <li>"You're caching avatars at the edge with a one-year TTL. A user changes their avatar. How does anyone ever see the new one?"</li>

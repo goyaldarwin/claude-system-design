@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk active" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,8 +101,8 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
@@ -126,7 +126,7 @@
 <p>If you haven't used <a href="http://tinyurl.com/" target="_blank">tinyurl.com</a> before, please try creating a new shortened URL and spend some time going through different options their service offers. This will help you a lot in understanding this chapter better.</p>
 
 <div class="sechead">2. Requirements and Goals of the System</div>
-<div class="clarify">You should always clarify requirements at the beginning of the interview and should ask questions to find the exact scope of the system that the interviewer has in mind.</div>
+<div class="clarify">You should always clarify requirements at the start and ask questions to find the exact scope of the system you are designing.</div>
 <p>Our URL shortener system should meet the following requirements:</p>
 <p><strong>Functional Requirements:</strong></p>
 <ol>
@@ -198,7 +198,7 @@ A successful insertion returns the shortened URL, otherwise, returns an error co
 <p><strong>How do we detect and prevent abuse?</strong> For instance, any service can put us out of business by consuming all our keys in the current design. To prevent abuse, we can limit users through their api_dev_key, how many URL they can create or access in a certain time.</p>
 
 <div class="sechead">5. Database Design</div>
-<div class="clarify">Defining the DB schema in the early stages of the interview would help to understand the data flow among various components and later would guide towards the data partitioning.</div>
+<div class="clarify">Defining the DB schema early would help to understand the data flow among various components and later would guide towards the data partitioning.</div>
 <p>A few observations about nature of the data we are going to store:</p>
 <ol>
 <li>We need to store billions of records.</li>
@@ -278,7 +278,7 @@ Using base64 encoding, an 8 letter long key would result in 64^8 ~= 281 trillion
 <p>Can users create private URLs or allow a particular set of users to access a URL?</p>
 <p>We can store permission level (public/private) with each URL in the database. We can also create a separate table to store UserIDs that have permission to see a specific URL. If a user does not have permission and try to access a URL, we can send an error (HTTP 401) back. Given that, we are storing our data in a NoSQL wide-column database like Cassandra, the key for the table storing permissions would be the 'Hash' (or the KGS generated 'key'), and the columns will store the UserIDs of those users that have permissions to see the URL.</p>
 
-<div class="navfoot"><a href="14 System Design Interviews_ A step by step guide.htm">&lsaquo; Prev: Interviews: A Step-by-Step Guide</a><a class="nx" href="16 Designing Pastebin.htm">Next: Designing Pastebin &rsaquo;</a></div>
+<div class="navfoot"><a href="14 A Framework for Approaching System Design.htm">&lsaquo; Prev: A Framework for Approaching System Design</a><a class="nx" href="16 Designing Pastebin.htm">Next: Designing Pastebin &rsaquo;</a></div>
 </div>
 </div>
 </div>

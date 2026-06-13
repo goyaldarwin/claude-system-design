@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part C: Modern Architecture &nbsp;&rsaquo;&nbsp; Event-Driven Architecture</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part C: Modern Architecture &nbsp;&rsaquo;&nbsp; Event-Driven Architecture</div>
 
 <h1>Event-Driven Architecture</h1>
 <p class="sub">Designing systems around the things that happened &mdash; and the discipline required to keep an asynchronous, eventually-consistent fabric from collapsing into an undebuggable mess.</p>
@@ -124,7 +124,7 @@
 <li><a href="#failure">Poison messages, DLQs, retries</a></li>
 <li><a href="#schema">Schema registry and event versioning</a></li>
 <li><a href="#consistency">Eventual consistency as a deliberate choice</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -139,7 +139,7 @@
 <div class="callout warn"><span class="lbl">Pitfall</span>EDA does not <em>remove</em> coupling &mdash; it <em>moves</em> it into the event schema and into temporal/ordering assumptions. A naive team replaces explicit, type-checked RPC contracts with implicit, runtime-discovered dependencies on event shape and arrival order. You traded a compiler error for a 3 a.m. page. The cost of EDA is paid in operational and schema discipline.</div>
 
 <h2 id="vocab">Events vs commands vs messages</h2>
-<p>Principal interviews routinely catch candidates conflating these. Precise vocabulary signals you have actually run one of these systems.</p>
+<p>Engineers routinely conflate these. Precise vocabulary signals you have actually run one of these systems.</p>
 <table>
 <tr><th>Term</th><th>Intent</th><th>Directionality</th><th>Cardinality</th></tr>
 <tr><td><span class="key">Event</span></td><td>A statement of fact that already happened. <code>OrderShipped</code>. Immutable, past-tense.</td><td>Fire-and-forget; producer expects nothing back.</td><td>0..N consumers.</td></tr>
@@ -159,7 +159,7 @@
 <div class="callout tradeoff"><span class="lbl">Trade-off</span><span class="key">Queue (delete-on-ack)</span> vs <span class="key">log (offset-based, retained)</span>. A traditional queue is cheaper to operate and naturally bounds storage, but once a message is acked it is gone &mdash; you cannot add a new consumer that needs history, and a bug that drops messages is unrecoverable. A retained log lets you add consumers and replay after a bug fix, at the cost of storage, partition/ordering management, and consumer-managed offsets.</div>
 
 <h2 id="coord">Choreography vs orchestration</h2>
-<p>Once a business process spans several services, you must choose how the steps are coordinated. This is the single highest-leverage design decision in an EDA and the one principal candidates are graded hardest on.</p>
+<p>Once a business process spans several services, you must choose how the steps are coordinated. This is the single highest-leverage design decision in an EDA and the one principal engineers are graded hardest on.</p>
 
 <h3>Choreography</h3>
 <p>No central coordinator. Each service reacts to events and emits its own. <code>OrderPlaced</code> &rarr; Payment service captures &rarr; emits <code>PaymentCaptured</code> &rarr; Inventory reserves &rarr; emits <code>InventoryReserved</code> &rarr; Shipping dispatches. The "workflow" is an emergent property of who-subscribes-to-what; it exists in no single place.</p>
@@ -175,7 +175,7 @@
 <li><span class="key">Con:</span> the orchestrator is a coupling point and can become a god service if it accretes business logic that belongs in the participants.</li>
 </ul>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They don&rsquo;t pick a side dogmatically. The mature answer: use <span class="key">choreography for loosely related reactions</span> (analytics, notifications, cache invalidation &mdash; "fire and forget" fan-out) and <span class="key">orchestration for multi-step business transactions with money, inventory, or compensation</span>. A common rule of thumb: choreography stays manageable up to ~3 participants in a flow; beyond that, the implicit state machine becomes unobservable and orchestration earns its keep.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They don&rsquo;t pick a side dogmatically. The mature answer: use <span class="key">choreography for loosely related reactions</span> (analytics, notifications, cache invalidation &mdash; "fire and forget" fan-out) and <span class="key">orchestration for multi-step business transactions with money, inventory, or compensation</span>. A common rule of thumb: choreography stays manageable up to ~3 participants in a flow; beyond that, the implicit state machine becomes unobservable and orchestration earns its keep.</div>
 
 <h2 id="styles">Event notification vs event-carried state transfer vs event sourcing</h2>
 <p>Martin Fowler&rsquo;s three patterns describe <em>how much state an event carries</em>, and they have very different operational consequences.</p>
@@ -209,7 +209,7 @@ broker.publish(orderPlaced); // write 2: message broker
 </ul>
 <p>You cannot fix this with retries or ordering tricks &mdash; there is no atomic commit spanning a database and a broker (and 2PC across them is both rare and operationally toxic; see <a href="32 Distributed Transactions.htm">Distributed Transactions</a>).</p>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They immediately name the <span class="key">Transactional Outbox</span> pattern. Write the business row <em>and</em> an <code>outbox</code> row in the <em>same local transaction</em> &mdash; now atomicity is back, guaranteed by the single database. A separate relay publishes outbox rows to the broker, typically driven by <a href="40 Stream Processing and CDC.htm">Change Data Capture</a> tailing the DB transaction log (Debezium reading the binlog/WAL). Delivery is at-least-once, so consumers stay idempotent. This converts an unsolvable distributed-atomicity problem into a solved local-transaction-plus-CDC problem.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They immediately name the <span class="key">Transactional Outbox</span> pattern. Write the business row <em>and</em> an <code>outbox</code> row in the <em>same local transaction</em> &mdash; now atomicity is back, guaranteed by the single database. A separate relay publishes outbox rows to the broker, typically driven by <a href="40 Stream Processing and CDC.htm">Change Data Capture</a> tailing the DB transaction log (Debezium reading the binlog/WAL). Delivery is at-least-once, so consumers stay idempotent. This converts an unsolvable distributed-atomicity problem into a solved local-transaction-plus-CDC problem.</p></div>
 
 <pre><code>BEGIN;
   INSERT INTO orders (id, status, ...) VALUES (5512, 'PLACED', ...);
@@ -248,8 +248,8 @@ COMMIT;
 </ul>
 <p>A concrete place all of this lands is a <a href="57 Designing a Notification System.htm">Notification System</a>: events fan out to email/push/SMS channels, each channel is an at-least-once idempotent consumer with its own DLQ and retry tier, and the whole thing is eventually consistent with the source domain by design.</p>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They treat EDA as a set of <em>trade-offs</em>, not a default. They reach for the <span class="key">outbox + CDC</span> pattern the instant a service both writes a DB and publishes an event, without being prompted. They distinguish events from commands precisely, default consumers to <span class="key">idempotent + at-least-once</span>, and put a <em>number</em> on "eventual." They choose choreography vs orchestration based on whether the flow involves money/compensation and how many participants it spans, and they name schema-registry compatibility rules as a hard requirement, not a nicety. Crucially, they can articulate when <em>not</em> to use EDA &mdash; a strongly-consistent, low-fan-out, request/response interaction is often better served synchronously.</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat EDA as a set of <em>trade-offs</em>, not a default. They reach for the <span class="key">outbox + CDC</span> pattern the instant a service both writes a DB and publishes an event, without being prompted. They distinguish events from commands precisely, default consumers to <span class="key">idempotent + at-least-once</span>, and put a <em>number</em> on "eventual." They choose choreography vs orchestration based on whether the flow involves money/compensation and how many participants it spans, and they name schema-registry compatibility rules as a hard requirement, not a nicety. Crucially, they can articulate when <em>not</em> to use EDA &mdash; a strongly-consistent, low-fan-out, request/response interaction is often better served synchronously.</div>
 <ul>
 <li>A service saves an order to Postgres and publishes <code>OrderPlaced</code> to Kafka. Walk me through every way this becomes inconsistent and how you make it atomic. (Listen for: dual-write, outbox, CDC, at-least-once + idempotency.)</li>
 <li>Your checkout saga spans payment, inventory, and shipping. Choreography or orchestration? Defend it, then tell me how you roll back when inventory reservation fails after payment succeeded.</li>

@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; SLI, SLO, SLA and Error Budgets</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; SLI, SLO, SLA and Error Budgets</div>
 
 <h1>SLI, SLO, SLA and Error Budgets</h1>
 <p class="sub">The vocabulary that turns "is the service reliable?" into a number you can measure, alert on, and trade against feature velocity.</p>
@@ -121,7 +121,7 @@
 <li><a href="#budget">Error budgets as a control system</a></li>
 <li><a href="#burn">Burn-rate alerting</a></li>
 <li><a href="#nines">The fallacy of 100% and the cost of each nine</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -167,7 +167,7 @@ latency_sli      = (count of requests faster than 300ms)
 <tr><td>p99.9</td><td>Worst-case tail</td><td>Where retries, GC pauses, cold caches, and tail amplification show up</td></tr>
 </table>
 <p><span class="key">Why p99 (and p99.9) matter so much:</span> in a system that fans out a single user action into many backend calls &mdash; a typical microservices request hitting dozens of services &mdash; the user waits for the <em>slowest</em> of those calls. This is <span class="key">tail latency amplification</span>: if each backend has a 1% chance of being slow, a request touching 100 backends has roughly a 63% chance of hitting at least one slow one. So the <em>median</em> user experience is governed by your backends' <em>p99</em>, not their median. Jeff Dean's "The Tail at Scale" is the canonical reference. This is also why <a href="49 Resilience Patterns.htm">resilience patterns</a> like hedged requests and timeouts exist &mdash; to cut the tail.</p>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They never say "the SLO is 200&nbsp;ms latency." They say "the SLO is p99 latency under 200&nbsp;ms, measured at the edge, over a rolling 28-day window, excluding requests that 4xx for client reasons." Every clause &mdash; the percentile, the threshold, the measurement point, the window, the exclusions &mdash; is a deliberate choice that changes what the number means.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They never say "the SLO is 200&nbsp;ms latency." They say "the SLO is p99 latency under 200&nbsp;ms, measured at the edge, over a rolling 28-day window, excluding requests that 4xx for client reasons." Every clause &mdash; the percentile, the threshold, the measurement point, the window, the exclusions &mdash; is a deliberate choice that changes what the number means.</div>
 
 <h3>The measurement window</h3>
 <p>SLOs are defined over a window, typically a <span class="key">rolling 28 days</span> (four weeks captures weekly cyclicality and is divisible cleanly). A rolling window is preferred over a calendar month because it avoids the perverse incentive of "we already blew the budget on the 3rd, so reliability doesn't matter for the rest of the month." With a rolling window, every bad day ages out 28 days later, so the budget continuously replenishes.</p>
@@ -187,7 +187,7 @@ Expressed as time (a simplification, see warning below):
 <div class="callout warn"><span class="lbl">Pitfall</span>"Minutes of downtime" is a lossy way to express an error budget. A request-ratio budget and a time budget diverge under partial failure: if 5% of requests fail continuously, you are never "down" but you burn budget steadily. Prefer the <span class="key">request-success ratio</span> as the source of truth and treat time-based figures as intuition pumps only.</div>
 
 <h3>How the budget arbitrates velocity vs. reliability</h3>
-<p>This is the real reason error budgets exist, and the part interviewers probe. The eternal tension is between product teams (who want to ship features fast) and SRE/ops (who want stability). Without a shared number, this is a religious war settled by whoever shouts loudest. The error budget makes it a <span class="key">data-driven contract</span>:</p>
+<p>This is the real reason error budgets exist, and the part most often misunderstood. The eternal tension is between product teams (who want to ship features fast) and SRE/ops (who want stability). Without a shared number, this is a religious war settled by whoever shouts loudest. The error budget makes it a <span class="key">data-driven contract</span>:</p>
 <ul>
 <li><span class="key">Budget remaining:</span> the team ships freely. Risky changes, faster rollouts, more experiments &mdash; the budget is there to be spent. An <em>unused</em> error budget is a signal you are being too conservative and shipping too slowly.</li>
 <li><span class="key">Budget exhausted:</span> a pre-agreed policy kicks in &mdash; typically a <span class="key">feature freeze</span>. All engineering effort redirects to reliability work until the budget recovers. No debate, no escalation, the policy was agreed in advance when everyone was calm.</li>
@@ -227,10 +227,10 @@ Expressed as time (a simplification, see warning below):
 <tr><td>99.99% (four nines)</td><td>~4.3 minutes</td><td>~52.6 minutes</td><td>Multi-AZ, automated failover</td></tr>
 <tr><td>99.999% (five nines)</td><td>~26 seconds</td><td>~5.26 minutes</td><td>Multi-region active-active</td></tr>
 </table>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They ask "what reliability does this service actually need?" before quoting a number. A payment authorization path (<a href="59 Designing a Payment System.htm">payment system</a>) may justify five nines and the cost that comes with it; an internal analytics dashboard is fine at 99%. They right-size the target to the user impact and the cost of the next nine, rather than reflexively chasing 100%. They also distinguish criticality <em>within</em> a service &mdash; the read path and the write path often warrant different SLOs.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They ask "what reliability does this service actually need?" before quoting a number. A payment authorization path (<a href="59 Designing a Payment System.htm">payment system</a>) may justify five nines and the cost that comes with it; an internal analytics dashboard is fine at 99%. They right-size the target to the user impact and the cost of the next nine, rather than reflexively chasing 100%. They also distinguish criticality <em>within</em> a service &mdash; the read path and the write path often warrant different SLOs.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>Strong candidates treat reliability as a quantified, negotiable budget rather than a vibe. They define SLIs as good/valid ratios with explicit numerators, denominators, and measurement points; they always specify latency SLOs as percentiles with a window; they connect the error budget to a concrete velocity policy with leadership buy-in; and they reflexively question whether more nines are worth the cost. They know the difference between an internal SLO and a customer SLA, and they design the gap between them deliberately.</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>Strong engineers treat reliability as a quantified, negotiable budget rather than a vibe. They define SLIs as good/valid ratios with explicit numerators, denominators, and measurement points; they always specify latency SLOs as percentiles with a window; they connect the error budget to a concrete velocity policy with leadership buy-in; and they reflexively question whether more nines are worth the cost. They know the difference between an internal SLO and a customer SLA, and they design the gap between them deliberately.</div>
 <ul>
 <li>A team tells you their service is "99.99% available" based on their server access logs, but customers report frequent outages. Walk me through every reason those two facts can both be true, and how you'd fix the measurement.</li>
 <li>Your service fans out each user request to 30 backend microservices. Each backend has a p99 of 50&nbsp;ms. What is the user-facing latency distribution, and what techniques would you use to control the tail?</li>

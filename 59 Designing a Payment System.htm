@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Payment System</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Payment System</div>
 
 <h1>Designing a Payment System</h1>
 <p class="sub">Money is the one domain where "eventually consistent and probably correct" is a resignation letter &mdash; how to build a ledger that never loses, double-counts, or invents a cent.</p>
@@ -124,12 +124,12 @@
 <li><a href="#recon">Step 7: Reconciliation with PSPs</a></li>
 <li><a href="#consistency">Step 8: Consistency choices &amp; failure modes</a></li>
 <li><a href="#security">Step 9: PCI &amp; security</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
 <h2 id="requirements">Step 1: Requirements &amp; scope</h2>
-<p>A "payment system" is an overloaded phrase. Pin the scope first. The classic interview prompt is the <span class="key">money-movement core</span>: a service that accepts a request to move funds, talks to one or more external <span class="key">Payment Service Providers</span> (PSPs) such as Stripe, Adyen, or a card network, records the result in an internal ledger, and notifies downstream systems. We are <em>not</em> building a card network or an acquiring bank; we are the orchestration and accounting layer on top of one.</p>
+<p>A "payment system" is an overloaded phrase. Pin the scope first. The classic problem is the <span class="key">money-movement core</span>: a service that accepts a request to move funds, talks to one or more external <span class="key">Payment Service Providers</span> (PSPs) such as Stripe, Adyen, or a card network, records the result in an internal ledger, and notifies downstream systems. We are <em>not</em> building a card network or an acquiring bank; we are the orchestration and accounting layer on top of one.</p>
 <p>Functional requirements:</p>
 <ul>
 <li>Accept a <span class="key">pay-in</span> (customer charged) and <span class="key">pay-out</span> (merchant/seller credited) request.</li>
@@ -138,7 +138,7 @@
 <li>Support <span class="key">refunds, reversals, and disputes/chargebacks</span>.</li>
 <li>Reconcile internal records against the PSP's settlement reports daily.</li>
 </ul>
-<div class="callout note"><span class="lbl">Key insight</span>The functional list is the easy part. The interview is won or lost on the <em>correctness</em> properties. State them explicitly and unprompted: <span class="key">no money is ever created or destroyed</span> (conservation), <span class="key">every state change is auditable and immutable</span>, <span class="key">retries never double-charge</span> (idempotency), and <span class="key">the system can prove its state to an auditor</span>. Correctness dominates latency, throughput, and availability &mdash; a payment system that is fast and wrong is worthless.</div>
+<div class="callout note"><span class="lbl">Key insight</span>The functional list is the easy part. The design is won or lost on the <em>correctness</em> properties. State them explicitly and unprompted: <span class="key">no money is ever created or destroyed</span> (conservation), <span class="key">every state change is auditable and immutable</span>, <span class="key">retries never double-charge</span> (idempotency), and <span class="key">the system can prove its state to an auditor</span>. Correctness dominates latency, throughput, and availability &mdash; a payment system that is fast and wrong is worthless.</div>
 
 <h2 id="scale">Step 2: Scale &amp; non-functional targets</h2>
 <p>Get the orders of magnitude on the table so you can justify architectural choices. A mid-to-large processor:</p>
@@ -241,7 +241,7 @@ COMMIT;
 <li><span class="key">In settlement, not in ledger:</span> the PSP moved money you never recorded (a lost webhook) &mdash; post the missing transaction.</li>
 <li><span class="key">Amount/fee mismatch:</span> book the difference to a fee or FX account.</li>
 </ul>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They treat reconciliation as a first-class subsystem, not an afterthought, and they make the live path <em>self-healing</em>: discrepancies feed an automated repair pipeline, with a human-reviewed exception queue for the residue. They also instrument a real-time invariant check &mdash; periodically asserting the ledger sums to zero &mdash; so corruption is detected in minutes, not at the next audit.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat reconciliation as a first-class subsystem, not an afterthought, and they make the live path <em>self-healing</em>: discrepancies feed an automated repair pipeline, with a human-reviewed exception queue for the residue. They also instrument a real-time invariant check &mdash; periodically asserting the ledger sums to zero &mdash; so corruption is detected in minutes, not at the next audit.</p></div>
 
 <h2 id="consistency">Step 8: Consistency choices &amp; failure modes</h2>
 <p>Through the lens of <a href="31 Consistency Models and PACELC.htm">PACELC</a>, the ledger is firmly <span class="key">PC/EC</span>: on a partition it sacrifices availability for consistency, and even in normal operation it favors consistency (strong, linearizable writes) over latency. You cannot afford a stale read that lets two concurrent withdrawals both see a sufficient balance.</p>
@@ -264,9 +264,9 @@ COMMIT;
 <li><span class="key">Idempotency keys as security:</span> they also blunt accidental and malicious replay of payment requests.</li>
 </ul>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They lead with correctness invariants &mdash; double-entry, append-only, idempotency &mdash; before drawing a single box, and they can name the exact failure that each mechanism prevents. They never propose deleting or mutating a ledger entry; corrections are always reversing transactions. They distinguish the strongly-consistent <em>ledger of record</em> from eventually-consistent projections, and they treat reconciliation as a designed subsystem that makes the whole thing self-healing rather than relying on the live path being perfect.</div>
-<p>Probing questions to ask candidates:</p>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They lead with correctness invariants &mdash; double-entry, append-only, idempotency &mdash; before drawing a single box, and they can name the exact failure that each mechanism prevents. They never propose deleting or mutating a ledger entry; corrections are always reversing transactions. They distinguish the strongly-consistent <em>ledger of record</em> from eventually-consistent projections, and they treat reconciliation as a designed subsystem that makes the whole thing self-healing rather than relying on the live path being perfect.</div>
+<p>Probing questions to ask engineers:</p>
 <ul>
 <li>"Your service writes the ledger and then publishes a Kafka event. The process crashes in between. Walk me through exactly what's now inconsistent and how the outbox fixes it &mdash; including how the relay avoids publishing twice or losing an event."</li>
 <li>"A customer is double-charged. Trace every layer where idempotency should have caught it, and tell me which one failed if it didn't."</li>

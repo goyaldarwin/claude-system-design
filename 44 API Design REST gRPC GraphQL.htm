@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part C: Modern Architecture &nbsp;&rsaquo;&nbsp; API Design: REST, gRPC, GraphQL</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part C: Modern Architecture &nbsp;&rsaquo;&nbsp; API Design: REST, gRPC, GraphQL</div>
 
 <h1>API Design: REST, gRPC, GraphQL</h1>
 <p class="sub">The contract is the product &mdash; how to model resources, evolve schemas without breaking callers, pick the right protocol, and make retries safe.</p>
@@ -124,7 +124,7 @@
 <li><a href="#compat">Backward and forward compatibility</a></li>
 <li><a href="#gateway">API gateways and the BFF pattern</a></li>
 <li><a href="#choosing">Choosing among the three</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -278,10 +278,10 @@ message Order {
 <tr><td>Browser support</td><td>Native</td><td>Needs gRPC-Web + proxy</td><td>Native</td></tr>
 <tr><td>Main risk</td><td>Over/under-fetching</td><td>Debuggability, edge</td><td>N+1, query cost, complexity</td></tr>
 </table>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They refuse the false binary. A mature design uses REST for the public API and partner integrations, gRPC for the chatty internal call graph behind the gateway, and a GraphQL/BFF layer for rich clients &mdash; with one shared idempotency, error, and pagination convention across all of them so the org doesn't relearn the rules per protocol.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They refuse the false binary. A mature design uses REST for the public API and partner integrations, gRPC for the chatty internal call graph behind the gateway, and a GraphQL/BFF layer for rich clients &mdash; with one shared idempotency, error, and pagination convention across all of them so the org doesn't relearn the rules per protocol.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They lead with the evolution and idempotency story before naming a protocol. They reach for idempotency keys unprompted when discussing payments or any non-idempotent write over an unreliable network, default to cursor pagination for unbounded data, and treat the API contract as decoupled from the storage schema. They know GraphQL's N+1 and cost-limiting traps cold and can say crisply when <em>not</em> to use it. They distinguish north-south (gateway) from east-west (mesh) traffic and place each protocol accordingly.</p></div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They lead with the evolution and idempotency story before naming a protocol. They reach for idempotency keys unprompted when discussing payments or any non-idempotent write over an unreliable network, default to cursor pagination for unbounded data, and treat the API contract as decoupled from the storage schema. They know GraphQL's N+1 and cost-limiting traps cold and can say crisply when <em>not</em> to use it. They distinguish north-south (gateway) from east-west (mesh) traffic and place each protocol accordingly.</p></div>
 <ul>
 <li>A client <code>POST</code>s a charge, the request times out, and it retries. Walk me through making this safe end-to-end &mdash; what does the server store, and how do you handle two retries racing concurrently?</li>
 <li>Your feed API uses <code>offset/limit</code>. At page 5,000 latency spikes and users report seeing duplicate items. Diagnose both symptoms and design the fix, including the cursor token's contents.</li>

@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; Multi-Region and Disaster Recovery</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; Multi-Region and Disaster Recovery</div>
 
 <h1>Multi-Region and Disaster Recovery</h1>
 <p class="sub">Surviving the loss of an entire region &mdash; and proving you can &mdash; without quietly buying yourself a split-brain or a six-figure replication bill.</p>
@@ -124,7 +124,7 @@
 <li><a href="#failover">Failover orchestration and split-brain</a></li>
 <li><a href="#residency">Data residency and sovereignty</a></li>
 <li><a href="#testing">Testing DR: game days</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -247,8 +247,8 @@
 
 <div class="callout warn"><span class="lbl">Pitfall</span>Beware the shared global dependency that quietly defeats your whole design: one DNS provider, one IAM control plane, one shared message bus, one global config service. If a single component spans all regions and it fails, your beautiful multi-region topology fails as one unit. Map every global singleton and ask &ldquo;what is its blast radius?&rdquo;</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They start from RPO/RTO numbers tied to business impact and let those derive the topology &mdash; never reaching for &ldquo;active-active everywhere&rdquo; reflexively. They immediately name the cross-region latency tax and which write paths can or cannot pay it. They proactively raise split-brain and propose a third-region arbiter plus fencing rather than waiting to be prompted. They distinguish physical disasters (region loss) from logical ones (bad deploys, data corruption) and note that replication does not protect against the latter. And they treat failback and DR testing as first-class deliverables, not afterthoughts.</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They start from RPO/RTO numbers tied to business impact and let those derive the topology &mdash; never reaching for &ldquo;active-active everywhere&rdquo; reflexively. They immediately name the cross-region latency tax and which write paths can or cannot pay it. They proactively raise split-brain and propose a third-region arbiter plus fencing rather than waiting to be prompted. They distinguish physical disasters (region loss) from logical ones (bad deploys, data corruption) and note that replication does not protect against the latter. And they treat failback and DR testing as first-class deliverables, not afterthoughts.</div>
 <ul>
 <li>Your standby promotes itself during a network partition while the primary is actually alive. Walk me through exactly how your design prevents the resulting split-brain &mdash; and how it reconciles state when the partition heals.</li>
 <li>Marketing pushes a config that corrupts a key table; it replicates to every region in 200&nbsp;ms. Your hot standby is now corrupted too. What in your architecture saves you, and what is your real RPO for <em>logical</em> disasters?</li>

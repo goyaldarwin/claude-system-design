@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part B: Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Batch and Big Data Processing</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part B: Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Batch and Big Data Processing</div>
 
 <h1>Batch and Big Data Processing</h1>
 <p class="sub">How petabyte-scale datasets get processed offline &mdash; from MapReduce&rsquo;s shuffle to Spark&rsquo;s DAG, columnar storage, and the lambda-vs-kappa debate.</p>
@@ -122,7 +122,7 @@
 <li><a href="#storage">Data lake, warehouse, lakehouse</a></li>
 <li><a href="#columnar">Columnar formats &amp; ETL vs ELT</a></li>
 <li><a href="#lambda">Lambda vs Kappa architecture</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -233,8 +233,8 @@ counts = rdd.collect()                            // action -> triggers executio
 </table>
 <p>Kappa is the modern default when the stream engine (Flink, Kafka Streams, Spark Structured Streaming) provides exactly-once semantics, event-time windowing, and watermarks &mdash; covered in <a href="40 Stream Processing and CDC.htm">Stream Processing and CDC</a>. Lambda persists where batch reprocessing of enormous historical datasets (e.g. retraining over years of data, a full <a href="25 Designing a Web Crawler.htm">web-crawl</a> corpus rebuild) is fundamentally cheaper or more capable as a true batch job than replaying a stream. In practice many systems are pragmatically hybrid: a Kappa-style serving path plus periodic batch backfills for correctness audits.</p>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They reason about the <em>shuffle and data layout</em> before reaching for a framework. They estimate data volume, identify which operations force a shuffle, and propose concrete reductions &mdash; broadcast joins, bucketing, partition pruning, columnar formats &mdash; with rough numbers (block size, replication factor, compression ratio). They never say &ldquo;use Spark&rdquo; without explaining <em>why</em> over MapReduce (iterative reuse, pipelined stages, lineage recovery). On the lambda/kappa question they lead with the operational cost &mdash; dual codebases vs log retention &mdash; rather than buzzwords, and they tie correctness back to immutable, replayable input and idempotent, deterministic jobs.</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They reason about the <em>shuffle and data layout</em> before reaching for a framework. They estimate data volume, identify which operations force a shuffle, and propose concrete reductions &mdash; broadcast joins, bucketing, partition pruning, columnar formats &mdash; with rough numbers (block size, replication factor, compression ratio). They never say &ldquo;use Spark&rdquo; without explaining <em>why</em> over MapReduce (iterative reuse, pipelined stages, lineage recovery). On the lambda/kappa question they lead with the operational cost &mdash; dual codebases vs log retention &mdash; rather than buzzwords, and they tie correctness back to immutable, replayable input and idempotent, deterministic jobs.</div>
 <ul>
 <li>A daily job processing 5&nbsp;TB takes 6 hours and one reducer always runs 4&times; longer than the rest. Walk me through diagnosing and fixing it. (Looking for: data skew, hot key salting, AQE, broadcast vs sort-merge join.)</li>
 <li>Why is materializing intermediate results to HDFS between MapReduce jobs so expensive, and exactly how does Spark avoid it? Where does Spark <em>still</em> hit disk?</li>

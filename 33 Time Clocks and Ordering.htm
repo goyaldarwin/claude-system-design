@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Time, Clocks and Ordering</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Time, Clocks and Ordering</div>
 
 <h1>Time, Clocks and Ordering</h1>
 <p class="sub"><em>Why "what time is it?" is the wrong question in a distributed system &mdash; and how logical clocks, vector clocks, HLC and TrueTime let you order events without trusting wall clocks.</em></p>
@@ -121,7 +121,7 @@
 <li><a href="#hlc">Hybrid Logical Clocks (HLC)</a></li>
 <li><a href="#truetime">TrueTime, commit-wait and Spanner</a></li>
 <li><a href="#choosing">Choosing a clock for your design</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -292,9 +292,9 @@ TT.before(t) -> true if t has definitely not yet arrived</code></pre>
 
 <p>This decision interacts directly with your consistency target. As <a href="31 Consistency Models and PACELC.htm">Consistency Models and PACELC</a> argues, in the normal (no-partition) case you trade latency against consistency &mdash; commit-wait makes that trade explicit and visible in p50 write latency.</p>
 
-<h2 id="interview">Principal-level interview lens</h2>
+<h2 id="mastery">Principal-level mastery check</h2>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They never reach for <code>System.currentTimeMillis()</code> to order distributed events, and they say <em>why</em> unprompted &mdash; skew, backward steps, GC pauses. They distinguish "ordering events" (logical clocks) from "knowing the date" (physical clocks). They can state the one-way nature of the Lamport guarantee and immediately reach for vector clocks when conflict <em>detection</em> is needed. They explain TrueTime as "bounded uncertainty plus commit-wait," not "perfect clocks," and they connect the choice of clock back to the consistency model and the latency budget the design can afford.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They never reach for <code>System.currentTimeMillis()</code> to order distributed events, and they say <em>why</em> unprompted &mdash; skew, backward steps, GC pauses. They distinguish "ordering events" (logical clocks) from "knowing the date" (physical clocks). They can state the one-way nature of the Lamport guarantee and immediately reach for vector clocks when conflict <em>detection</em> is needed. They explain TrueTime as "bounded uncertainty plus commit-wait," not "perfect clocks," and they connect the choice of clock back to the consistency model and the latency budget the design can afford.</p></div>
 
 <ul>
 <li>Your service uses last-write-wins keyed on wall-clock time. Walk me through a concrete sequence where this silently loses a write. How would you detect it in production, and what would you change?</li>

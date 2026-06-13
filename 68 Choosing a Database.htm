@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,8 +101,8 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
@@ -121,7 +121,7 @@
 <li><a href="#polyglot">Polyglot persistence &amp; choosing per service</a></li>
 <li><a href="#trap">The familiarity trap</a></li>
 <li><a href="#worked">A worked decision example</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -138,7 +138,7 @@
 <tr><td><span class="key">Transactions / isolation</span></td><td>Do you need multi-row ACID, snapshot isolation, serializability?</td><td>Multi-key transactions across shards are expensive and not all stores offer them.</td></tr>
 <tr><td><span class="key">Operational maturity</span></td><td>Does your team know how to run it? Managed offering? Backup, upgrade, observability story?</td><td>The best-fit engine you cannot operate at 3 a.m. is the wrong choice.</td></tr>
 </table>
-<div class="callout note"><span class="lbl">Sequence matters</span>Resolve the dimensions in roughly this order: model fit and access pattern eliminate most candidates; consistency and scale narrow the survivors; latency, durability, and transactions break ties; operational fit is the final veto. Never start from operational fit (&ldquo;we already run Postgres&rdquo;) &mdash; that is the familiarity trap dressed up as pragmatism.</div>
+<div class="callout note"><span class="lbl">Sequence matters</span>Resolve the dimensions in roughly this order: model fit and access pattern eliminate most engineers; consistency and scale narrow the survivors; latency, durability, and transactions break ties; operational fit is the final veto. Never start from operational fit (&ldquo;we already run Postgres&rdquo;) &mdash; that is the familiarity trap dressed up as pragmatism.</div>
 
 <h2 id="modelfit">Data model fit</h2>
 <p>The data model is the first filter because it is the hardest to work around. Map your dominant entity and its access shape to a model family:</p>
@@ -225,8 +225,8 @@
 <div class="callout warn"><span class="lbl">Discipline over enthusiasm</span>Adopt a new datastore only when an existing one cannot meet a dimension that actually matters for that service. Three well-run engines beat seven half-understood ones. The cost of polyglot is operational sprawl; pay it only where the access-pattern win is real.</div>
 
 <h2 id="trap">The familiarity trap</h2>
-<p>The most common failure mode &mdash; in interviews and in real architecture reviews &mdash; is choosing by familiarity: &ldquo;I&rsquo;ll use MongoDB because I know it,&rdquo; or reaching for Cassandra because it sounds web-scale. Familiarity is a legitimate <em>tiebreaker</em> under operational fit, but it must never be the <em>first</em> filter. The tell is a candidate who names the database before describing the access pattern.</p>
-<p>The inverse failure is resume-driven design: picking the trendiest store to learn it on the company&rsquo;s dime. Both errors skip the framework. The cure is the same: state the access pattern, consistency need, and scale first; let those eliminate candidates; then let familiarity and managed-service availability break the remaining tie. A principal engineer can defend the choice by walking the dimensions, not by citing comfort.</p>
+<p>The most common failure mode &mdash; in real architecture reviews &mdash; is choosing by familiarity: &ldquo;I&rsquo;ll use MongoDB because I know it,&rdquo; or reaching for Cassandra because it sounds web-scale. Familiarity is a legitimate <em>tiebreaker</em> under operational fit, but it must never be the <em>first</em> filter. The tell is an engineer who names the database before describing the access pattern.</p>
+<p>The inverse failure is resume-driven design: picking the trendiest store to learn it on the company&rsquo;s dime. Both errors skip the framework. The cure is the same: state the access pattern, consistency need, and scale first; let those eliminate engineers; then let familiarity and managed-service availability break the remaining tie. A principal engineer can defend the choice by walking the dimensions, not by citing comfort.</p>
 
 <h2 id="worked">A worked decision example</h2>
 <p>Suppose you are designing storage for an e-commerce platform. Rather than picking one database, decompose by workload and run each through the framework:</p>
@@ -241,9 +241,9 @@
 </table>
 <p>Notice the source of truth (orders) is relational and strongly consistent; everything else is either a derived store (search) or a workload-specific optimization (sessions, clickstream, metrics). The decision was driven dimension-by-dimension, and each choice is defensible in one sentence. That is the standard.</p>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They state the access pattern, consistency need, and scale <em>before</em> naming any database, then let those constraints eliminate candidates. They default to relational and justify every move away from it. They reach for polyglot only when a dimension demands it, and they can name the operational cost they are taking on.</div>
-<p>Probing questions to ask candidates:</p>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They state the access pattern, consistency need, and scale <em>before</em> naming any database, then let those constraints eliminate engineers. They default to relational and justify every move away from it. They reach for polyglot only when a dimension demands it, and they can name the operational cost they are taking on.</div>
+<p>Probing questions to ask engineers:</p>
 <ul>
 <li>&ldquo;You picked MongoDB &mdash; what about this access pattern makes a document store better than Postgres with JSONB here?&rdquo;</li>
 <li>&ldquo;What query would be slow or impossible on the store you chose, and how would you handle it when product asks for it?&rdquo;</li>

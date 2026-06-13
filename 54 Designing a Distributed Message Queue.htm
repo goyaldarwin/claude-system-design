@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Message Queue</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Message Queue</div>
 
 <h1>Designing a Distributed Message Queue</h1>
 <p class="sub">Build a Kafka/SQS-class system from scratch &mdash; the partitioned append-only log, replication and ISR, delivery semantics, ordering, and the cost of every guarantee.</p>
@@ -124,12 +124,12 @@
 <li><a href="#delivery">Delivery semantics: at-least / at-most / exactly-once</a></li>
 <li><a href="#ordering">Ordering guarantees and their cost</a></li>
 <li><a href="#retention">Retention, compaction and backpressure</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
 <h2 id="requirements">Requirements and back-of-envelope</h2>
-<p>Start by pinning down what kind of queue this is. The interviewer's "design a message queue" hides at least three very different products. Force the requirements out before drawing boxes.</p>
+<p>Start by pinning down what kind of queue this is. The "design a message queue" problem hides at least three very different products. Force the requirements out before drawing boxes.</p>
 <h3>Functional</h3>
 <ul>
 <li><span class="key">Produce:</span> append messages to a named <span class="key">topic</span> (or queue), keyed or unkeyed.</li>
@@ -152,7 +152,7 @@
 <tr><td>Throughput ceiling</td><td>Per-message bookkeeping is the bottleneck</td><td>Sequential I/O; very high</td></tr>
 <tr><td>Replay / time-travel</td><td>No (message gone after ack)</td><td>Yes (rewind to any retained offset)</td></tr>
 </table>
-<p>The log model wins for high-throughput, multi-consumer, replayable workloads, and is what most "Kafka clone" interviews expect. The queue model is simpler and better when you need per-message visibility timeouts, dead-letter handling, and selective ack/nack. A principal answer names both and justifies picking one. We design the log model below because it is strictly harder and subsumes the queue model (a queue is a log with retention = "until acked" and a single consumer group).</p>
+<p>The log model wins for high-throughput, multi-consumer, replayable workloads, and is what most "Kafka clone" designs require. The queue model is simpler and better when you need per-message visibility timeouts, dead-letter handling, and selective ack/nack. A principal answer names both and justifies picking one. We design the log model below because it is strictly harder and subsumes the queue model (a queue is a log with retention = "until acked" and a single consumer group).</p>
 
 <h2 id="log">The append-only partitioned log</h2>
 <p>A <span class="key">topic</span> is split into <span class="key">partitions</span>; each partition is an ordered, immutable, append-only sequence of records. Partitions are the unit of parallelism, ordering, and placement. A message's position in a partition is its <span class="key">offset</span> &mdash; a monotonically increasing 64-bit integer assigned by the leader.</p>
@@ -235,7 +235,7 @@
 <li><span class="key">Transactions / atomic offset commit:</span> the consume&ndash;process&ndash;produce&ndash;commit cycle is wrapped in a transaction so that the output writes <em>and</em> the consumed-offset commit either all happen or none do. Kafka does this with a transaction coordinator and a two-phase commit over the partitions plus the offsets topic. The downstream consumer must read with <code>isolation.level=read_committed</code> to skip aborted records.</li>
 </ol>
 <p>The other route &mdash; effectively-once into an external store &mdash; commits the offset <em>in the same database transaction</em> as the side effect, or writes with an idempotency key so replays are no-ops. This is the realistic pattern in most services and ties into the <a href="40 Stream Processing and CDC.htm">Stream Processing and CDC</a> outbox/transactional-messaging discussion.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>"Exactly-once" is a marketing-adjacent term. It only holds inside the system's transactional boundary. The moment an effect leaves that boundary &mdash; an email sent, a charge made, an HTTP call to a third party &mdash; you are back to at-least-once and must make that effect idempotent yourself. Say this out loud; interviewers probe it hard.</div>
+<div class="callout warn"><span class="lbl">Pitfall</span>"Exactly-once" is a marketing-adjacent term. It only holds inside the system's transactional boundary. The moment an effect leaves that boundary &mdash; an email sent, a charge made, an HTTP call to a third party &mdash; you are back to at-least-once and must make that effect idempotent yourself. Say this out loud; it is the crux.</div>
 
 <h2 id="ordering">Ordering guarantees and their cost</h2>
 <p>A log gives <span class="key">total order within a partition</span> and <span class="key">no order across partitions</span>. Every ordering requirement maps onto this:</p>
@@ -261,8 +261,8 @@
 </ul>
 <div class="callout note"><span class="lbl">Key insight</span>The whole system's elegance comes from one decision: <em>make the broker dumb and the consumer smart</em>. The broker only appends and serves byte ranges; consumers own offsets, ordering-per-key, dedupe, and retry. This is what lets a log scale to GB/s, support unlimited replay, and add consumers for free &mdash; at the cost of pushing delivery-semantics complexity into clients.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They state the queue-vs-log fork in the first two minutes and justify the choice from the requirements, not from familiarity with Kafka. They derive partition count from throughput and the desired consumer parallelism, and they connect every guarantee to a concrete config: per-key ordering &rarr; key-based routing; zero data loss &rarr; <code>acks=all</code> + <code>min.insync.replicas&ge;2</code>; exactly-once &rarr; idempotent producer + transactional offset commit. They are honest that "exactly-once" is exactly-once <em>processing</em> within a transactional boundary and degrades to at-least-once at any external side effect, so consumers must be idempotent. They name the real failure modes &mdash; stop-the-world rebalances, unclean leader election, poison messages stalling a partition, repartitioning breaking key affinity &mdash; and have a mitigation for each. They quantify with consumer lag as the operational SLO.</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They state the queue-vs-log fork in the first two minutes and justify the choice from the requirements, not from familiarity with Kafka. They derive partition count from throughput and the desired consumer parallelism, and they connect every guarantee to a concrete config: per-key ordering &rarr; key-based routing; zero data loss &rarr; <code>acks=all</code> + <code>min.insync.replicas&ge;2</code>; exactly-once &rarr; idempotent producer + transactional offset commit. They are honest that "exactly-once" is exactly-once <em>processing</em> within a transactional boundary and degrades to at-least-once at any external side effect, so consumers must be idempotent. They name the real failure modes &mdash; stop-the-world rebalances, unclean leader election, poison messages stalling a partition, repartitioning breaking key affinity &mdash; and have a mitigation for each. They quantify with consumer lag as the operational SLO.</div>
 <ul>
 <li>You require strict ordering of all events for a given account but also 1&nbsp;M events/sec across accounts. How do you get both, and what is your maximum throughput <em>per account</em>?</li>
 <li>Walk me through exactly what happens to an in-flight, acknowledged message when the partition leader's broker is hard-killed. Under what config do you lose it, and under what config don't you?</li>

@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,8 +101,8 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
@@ -125,7 +125,7 @@
 <li><a href="#query">The query path</a></li>
 <li><a href="#alert">Alerting pipeline</a></li>
 <li><a href="#bottleneck">Bottlenecks &amp; failure modes</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -276,9 +276,9 @@ POST /v1/rules   { expr, for, labels, annotations }</code></pre>
 </ul>
 <div class="callout note"><span class="lbl">Compare &amp; contrast</span>This problem is a close cousin of <a href="61 Designing Ad Click Aggregation.htm">Ad Click Aggregation</a>: both ingest a high-volume event stream, both pre-aggregate via stream processing, and both accept approximate/lossy results for speed. The difference is the query model &mdash; ad-click aggregation answers a handful of known aggregation queries, whereas a metrics system must serve <em>arbitrary</em> label-matcher queries, which is exactly why the inverted index and its cardinality limits dominate this design.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They identify cardinality as the central challenge within the first few minutes and structure the whole design around protecting the index &mdash; rather than getting lost in compression tricks. They explicitly state that the system is write-dominated, AP, and tolerant of loss, and they treat the monitoring system's <em>own</em> reliability (it must survive the incidents it observes) as a first-class requirement. They separate the ingestion, storage, query, and alerting planes so each scales and fails independently.</p></div>
-<p>Probing questions to ask candidates:</p>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They identify cardinality as the central challenge within the first few minutes and structure the whole design around protecting the index &mdash; rather than getting lost in compression tricks. They explicitly state that the system is write-dominated, AP, and tolerant of loss, and they treat the monitoring system's <em>own</em> reliability (it must survive the incidents it observes) as a first-class requirement. They separate the ingestion, storage, query, and alerting planes so each scales and fails independently.</p></div>
+<p>Probing questions to ask engineers:</p>
 <ul>
 <li>"An engineer adds <code>user_id</code> as a label and your active series jumps from 1M to 5B. Walk me through exactly what breaks first and how you prevent it."</li>
 <li>"You quoted 1.3 bytes per datapoint. Where does that compression come from, and what kind of metric would compress badly?"</li>
@@ -290,7 +290,7 @@ POST /v1/rules   { expr, for, labels, annotations }</code></pre>
 
 <div class="navfoot">
 <a href="62 Designing a Distributed Locking Service.htm">&lsaquo; Prev: Designing a Distributed Locking Service</a>
-<a class="nx" href="63 Principal Interviewer Question Bank.htm">Next: Principal Interviewer Question Bank &rsaquo;</a>
+<a class="nx" href="63 Principal-Level Self-Assessment and Index.htm">Next: Principal Self-Assessment &amp; Index &rsaquo;</a>
 </div>
 </div>
 </div>

@@ -3,17 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Long-Polling vs WebSockets vs Server-Sent Events</title>
+<title>Why System Design Matters</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
 <link rel="stylesheet" href="./_principal_files/lesson.css">
 <script src="./_principal_files/nav.js" defer></script>
 </head>
 <body>
 <div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
+<a class="lk active" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -25,7 +27,7 @@
 <a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
-<a class="lk active" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
 <a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
@@ -105,71 +107,51 @@
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Long-Polling vs WebSockets vs Server-Sent Events</div>
-<h1>Long-Polling vs WebSockets vs Server-Sent Events</h1>
-<p class="sub"><em>How clients and servers exchange real-time data over HTTP — comparing Ajax polling, HTTP long-polling, WebSockets, and Server-Sent Events.</em></p>
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Why System Design Matters</div>
+<h1>Why System Design Matters</h1>
+<p class="sub"><em>What system design skill really is, why it compounds over an engineering career, and how this course is structured to take you from building blocks to confident architectural judgment.</em></p>
 
-<p>Long-Polling, WebSockets, and Server-Sent Events are popular communication protocols between a client like a web browser and a web server. First, let's start with understanding what a standard HTTP web request looks like. Following are a sequence of events for regular HTTP request:</p>
-<ol>
-<li>Client opens a connection and requests data from the server.</li>
-<li>The server calculates the response.</li>
-<li>The server sends the response back to the client on the opened request.</li>
-</ol>
+<div class="sechead">1. What system design skill really is</div>
+<p>System design is the craft of taking a fuzzy, ambitious goal &mdash; &ldquo;build a cloud storage product like Dropbox,&rdquo; &ldquo;serve a global feed,&rdquo; &ldquo;process payments reliably&rdquo; &mdash; and turning it into a concrete architecture that holds up under real traffic, real failures, and real budgets. It is a genuinely broad topic. Even engineers with years of experience at top companies rarely claim to be experts at all of it, because the surface area spans networking, storage, concurrency, consistency, operations, and cost, all interacting at once.</p>
+<p>What separates a strong systems engineer from a strong coder is not raw problem-solving on a self-contained puzzle. It is the ability to reason clearly about an <strong>open-ended, under-specified problem</strong>: to ask what the system actually needs to do, to estimate its scale, to choose components that fit, and to articulate why one approach beats another. Real systems have no single correct answer &mdash; any non-trivial product can be built many ways, and each way trades something off against something else.</p>
+<p>That reasoning is what this course builds. The goal is not to memorize a reference architecture for every product, but to develop the judgment to derive one: to look at a requirement and know which building blocks apply, where the system will strain first, and what it will cost to relieve that strain.</p>
 
-<img src="./_principal_files/img/5748755743637504.png" alt="diagram">
-<p class="sub"><em>HTTP Protocol</em></p>
-
-<div class="sechead">Ajax Polling</div>
-<p>Polling is a standard technique used by the vast majority of AJAX applications. The basic idea is that the client repeatedly polls (or requests) a server for data. The client makes a request and waits for the server to respond with data. If no data is available, an empty response is returned.</p>
-<ol>
-<li>Client opens a connection and requests data from the server using regular HTTP.</li>
-<li>The requested webpage sends requests to the server at regular intervals (e.g., 0.5 seconds).</li>
-<li>The server calculates the response and sends it back, just like regular HTTP traffic.</li>
-<li>Client repeats the above three steps periodically to get updates from the server.</li>
-</ol>
-<p>Problem with Polling is that the client has to keep asking the server for any new data. As a result, a lot of responses are empty creating HTTP overhead.</p>
-
-<img src="./_principal_files/img/5694639155707904.png" alt="diagram">
-<p class="sub"><em>Ajax Polling Protocol</em></p>
-
-<div class="sechead">HTTP Long-Polling</div>
-<p>A variation of the traditional polling technique that allows the server to push information to a client, whenever the data is available. With Long-Polling, the client requests information from the server exactly as in normal polling, but with the expectation that the server may not respond immediately. That's why this technique is sometimes referred to as a "Hanging GET".</p>
+<div class="sechead">2. Why these skills compound over a career</div>
+<p>Most technical skills have a shelf life. A specific framework, a specific cloud API, a specific query syntax &mdash; all of it churns. System design fundamentals do not. A load balancer in front of a fleet, a cache absorbing read traffic, replication for durability, partitioning for scale, a queue to decouple producers from consumers &mdash; these patterns have been stable for decades and will outlast whatever tools you use to implement them this year.</p>
+<p>Because the fundamentals are durable, every system you design teaches you something that transfers to the next. The first time you reason through a write-heavy workload, sharding feels abstract. The fifth time, it is instinct, and you spend your energy on the parts that are genuinely novel. This is why systems judgment compounds: it accumulates into the senior and principal-level intuition that lets you look at a proposed design and immediately sense where it will break.</p>
+<p>The four threads that run through everything in this course are:</p>
 <ul>
-<li>If the server does not have any data available for the client, instead of sending an empty response, the server holds the request and waits until some data becomes available.</li>
-<li>Once the data becomes available, a full response is sent to the client. The client then immediately re-request information from the server so that the server will almost always have an available waiting request that it can use to deliver data in response to an event.</li>
+<li><strong>Scale</strong> &mdash; estimating load, data volume, and growth, and choosing designs that hold at the size you actually expect (and the size you might reach).</li>
+<li><strong>Trade-offs</strong> &mdash; every choice costs something elsewhere. Strong consistency costs latency; caching costs freshness; more replicas cost money and coordination. Naming the trade-off is half the skill.</li>
+<li><strong>Failure</strong> &mdash; at scale, components fail constantly. A good design assumes partial failure as the normal case, not the exception.</li>
+<li><strong>Cost</strong> &mdash; the cheapest design that meets requirements usually wins. Over-engineering is a real failure mode, not a virtue.</li>
 </ul>
-<p>The basic life cycle of an application using HTTP Long-Polling is as follows:</p>
-<ol>
-<li>The client makes an initial request using regular HTTP and then waits for a response.</li>
-<li>The server delays its response until an update is available, or until a timeout has occurred.</li>
-<li>When an update is available, the server sends a full response to the client.</li>
-<li>The client typically sends a new long-poll request, either immediately upon receiving a response or after a pause to allow an acceptable latency period.</li>
-<li>Each Long-Poll request has a timeout. The client has to reconnect periodically after the connection is closed, due to timeouts.</li>
-</ol>
 
-<img src="./_principal_files/img/5767494685949952.png" alt="diagram">
-<p class="sub"><em>Long Polling Protocol</em></p>
+<div class="sechead">3. How to approach an open-ended design problem</div>
+<p>Because real design problems are intentionally under-specified, jumping straight to a solution is the most common mistake. Before drawing anything, <strong>clarify requirements with your stakeholders</strong> &mdash; product owners, the team that will operate the system, whoever depends on it. Never assume what was not stated.</p>
+<p>Consider a URL-shortening service. It could serve a few thousand users who each share millions of links, or millions of users sharing a few links each. It might need to handle millions of redirects per second, or a few dozen. It might need detailed per-link analytics (which inflates storage substantially), or none at all. Each of these answers leads to a completely different architecture. The questions you ask up front determine whether you build the right system at all.</p>
+<p><strong>Learn from systems that already exist.</strong> Most hard problems have been solved before, often publicly. Read engineering blogs, watch conference talks, study how Dropbox handles sync or how Twitter fans out a timeline. Your instinct for what a reasonable design looks like comes directly from how many real systems you have studied.</p>
+<p><strong>Break the problem down.</strong> Whatever the complexity, a top-down, modular approach helps. Decompose the system into components &mdash; ingestion, storage, serving, background processing &mdash; and reason about each in isolation before connecting them. A clear decomposition makes the design easier to communicate, easier to review, and easier to evolve.</p>
+<p><strong>Find and address the bottlenecks.</strong> As you flesh out a design, constraints emerge: you need a load balancer in front of a fleet to absorb request volume; the dataset grows too large for one machine and must be partitioned across many; a hot read path needs a cache. This is normal and expected. The valuable skill is talking through these bottlenecks explicitly &mdash; what each fix costs, what it makes worse, and whether it is worth it given the constraints and use cases at hand. Resolve the high-level design first, confirm it meets the requirements, then deepen it where scale demands.</p>
 
-<div class="sechead">WebSockets</div>
-<p>WebSocket provides <a href="https://en.wikipedia.org/wiki/Duplex_(telecommunications)#Full_duplex" target="_blank">Full duplex</a> communication channels over a single TCP connection. It provides a persistent connection between a client and a server that both parties can use to start sending data at any time. The client establishes a WebSocket connection through a process known as the WebSocket handshake. If the process succeeds, then the server and client can exchange data in both directions at any time.</p>
-<p>The WebSocket protocol enables communication between a client and a server with lower overheads, facilitating real-time data transfer from and to the server. This is made possible by providing a standardized way for the server to send content to the browser without being asked by the client, and allowing for messages to be passed back and forth while keeping the connection open. In this way, a two-way (bi-directional) ongoing conversation can take place between a client and a server.</p>
+<div class="sechead">4. How this course is structured</div>
+<p>The course is layered so each part builds on the last. Treat it as a progression, not a reference to dip into at random &mdash; the later material assumes the vocabulary and intuition from the earlier material.</p>
+<ul>
+<li><strong>Building blocks</strong> &mdash; load balancing, caching, partitioning, indexes, proxies, queues, replication, SQL vs NoSQL, the CAP theorem, consistent hashing, and connection patterns. These are the components every design is assembled from.</li>
+<li><strong>Distributed systems theory</strong> &mdash; consensus, consistency models, distributed transactions, time and ordering, gossip, CRDTs, and coordination. The principles that explain <em>why</em> the building blocks behave as they do under failure.</li>
+<li><strong>Data-intensive systems</strong> &mdash; replication internals, storage engines, log-based messaging, stream and batch processing, probabilistic structures, and search. How data actually moves and persists at scale.</li>
+<li><strong>Modern architecture</strong> &mdash; microservices and service mesh, API styles, event-driven design, containers and serverless, object storage and CDNs.</li>
+<li><strong>Reliability &amp; operations</strong> &mdash; SLIs/SLOs, observability, resilience patterns, deployment strategies, and multi-region disaster recovery. Designing for the system after it ships.</li>
+<li><strong>Security</strong> &mdash; the cross-cutting concerns that belong in the design from the start, not bolted on later.</li>
+<li><strong>Design problems</strong> &mdash; worked end-to-end designs (URL shortener, Instagram, Uber, payment systems, and many more) where the earlier concepts come together on concrete products.</li>
+<li><strong>Architecture &amp; technology choices</strong> &mdash; how to choose an architectural style, a database, or a message broker, and how domain-driven design shapes boundaries. The judgment layer that ties everything together.</li>
+</ul>
 
-<img src="./_principal_files/img/5701867585667072.png" alt="diagram">
-<p class="sub"><em>WebSockets Protocol</em></p>
+<div class="sechead">5. How to use it</div>
+<p>Work through the building blocks first until the vocabulary feels natural, then let your interests pull you toward theory, data systems, or the worked design problems. When you read a design problem, try to sketch your own architecture before reading the walkthrough &mdash; the gap between your version and the one presented is where the real learning happens. Keep the four threads &mdash; scale, trade-offs, failure, cost &mdash; in mind on every page, because mastering them is the whole point.</p>
+<p>Next, head to <a href="02 System Design Basics.htm">System Design Basics</a> to ground the core vocabulary, and when you are ready to put it all together on a real problem, work through the step-by-step design framework in <a href="14 A Framework for Approaching System Design.htm">the Design Framework</a>.</p>
 
-<div class="sechead">Server-Sent Events (SSEs)</div>
-<p>Under SSEs the client establishes a persistent and long-term connection with the server. The server uses this connection to send data to a client. If the client wants to send data to the server, it would require the use of another technology/protocol to do so.</p>
-<ol>
-<li>Client requests data from a server using regular HTTP.</li>
-<li>The requested webpage opens a connection to the server.</li>
-<li>The server sends the data to the client whenever there's new information available.</li>
-</ol>
-<p>SSEs are best when we need real-time traffic from the server to the client or if the server is generating data in a loop and will be sending multiple events to the client.</p>
-
-<img src="./_principal_files/img/5737979670691840.png" alt="diagram">
-<p class="sub"><em>Server Sent Events Protocol</em></p>
-
-<div class="navfoot"><a href="12 Consistent Hashing.htm">&lsaquo; Prev: Consistent Hashing</a><a class="nx" href="14 A Framework for Approaching System Design.htm">Next: A Framework for Approaching System Design &rsaquo;</a></div>
+<div class="navfoot"><a href="index.html">&lsaquo; Prev: Course index</a><a class="nx" href="02 System Design Basics.htm">Next: System Design Basics &rsaquo;</a></div>
 </div>
 </div>
 </div>

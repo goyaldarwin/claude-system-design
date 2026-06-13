@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,8 +101,8 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk active" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
@@ -121,7 +121,7 @@
 <li><a href="#tactical">Tactical DDD: the building blocks</a></li>
 <li><a href="#drives">How DDD drives system design</a></li>
 <li><a href="#misuse">Common misuse and over-engineering</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -200,7 +200,7 @@ orderRepository.save(order);        // single atomic write</code></pre>
 <h2 id="drives">How DDD drives system design</h2>
 <p>The throughline of this lesson is a chain of three mappings that turn domain modeling directly into architecture:</p>
 <ol>
-<li><span class="key">Bounded context &rarr; service.</span> Each context becomes a candidate service (or a module in a modular monolith) owned by one team, with its own ubiquitous language and model. This is your decomposition.</li>
+<li><span class="key">Bounded context &rarr; service.</span> Each context becomes an engineer service (or a module in a modular monolith) owned by one team, with its own ubiquitous language and model. This is your decomposition.</li>
 <li><span class="key">Aggregate &rarr; transaction boundary.</span> Each aggregate is the unit of local ACID consistency. Anything bigger needs a saga. This determines your consistency model and where eventual consistency is acceptable.</li>
 <li><span class="key">Domain event &rarr; integration event.</span> Cross-context communication is event-driven and asynchronous, decoupling services in time and at deploy boundaries.</li>
 </ol>
@@ -213,9 +213,9 @@ orderRepository.save(order);        // single atomic write</code></pre>
 <div class="callout warn"><span class="lbl">Anti-patterns to avoid</span>Anemic domain models (entities that are bags of getters/setters with all logic in services &mdash; the opposite of DDD's intent); aggregates so large they become contention hotspots and serialize unrelated writes; a single "enterprise canonical model" spanning every context; and treating DDD as a tactical-patterns checklist while skipping the strategic context mapping &mdash; the strategic half is where the real value lives.</div>
 <p>The other common error is starting with tactical patterns. Strategic design comes first: you cannot draw correct aggregates until you know which context you are in, because the same business concept has different invariants in different contexts.</p>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They justify every service boundary by naming the bounded context and its ubiquitous language &mdash; "this is the Pricing context, it owns these invariants, it integrates with Catalog via published events." They use aggregates to explain exactly where they need strong consistency and where they accept eventual consistency via sagas, and they classify subdomains (core/supporting/generic) to explain build-vs-buy. They resist premature service splits, defaulting to a modular monolith and splitting only when ownership or scaling diverges.</p></div>
-<p>Probing questions to ask candidates:</p>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They justify every service boundary by naming the bounded context and its ubiquitous language &mdash; "this is the Pricing context, it owns these invariants, it integrates with Catalog via published events." They use aggregates to explain exactly where they need strong consistency and where they accept eventual consistency via sagas, and they classify subdomains (core/supporting/generic) to explain build-vs-buy. They resist premature service splits, defaulting to a modular monolith and splitting only when ownership or scaling diverges.</p></div>
+<p>Probing questions to ask engineers:</p>
 <ul>
 <li>"You've drawn five services. For each, what is the bounded context and who owns it &mdash; and where does the word 'Customer' mean different things?"</li>
 <li>"Walk me through one write that must be strongly consistent and one that can be eventual. What's your aggregate, and where does a saga begin?"</li>
@@ -227,7 +227,7 @@ orderRepository.save(order);        // single atomic write</code></pre>
 
 <div class="navfoot">
 <a href="69 Choosing a Message Broker.htm">&lsaquo; Prev: Choosing a Message Broker</a>
-<a class="nx" href="63 Principal Interviewer Question Bank.htm">Next: Principal Interviewer Question Bank &rsaquo;</a>
+<a class="nx" href="63 Principal-Level Self-Assessment and Index.htm">Next: Principal Self-Assessment &amp; Index &rsaquo;</a>
 </div>
 </div>
 </div>

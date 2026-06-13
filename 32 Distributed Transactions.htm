@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Distributed Transactions</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Distributed Transactions</div>
 
 <h1>Distributed Transactions</h1>
 <p class="sub"><em>How to make multiple services, shards, or databases agree on a single all-or-nothing outcome — and why the best answer is often "don't."</em></p>
@@ -122,7 +122,7 @@
 <li><a href="#tcc">TCC: Try-Confirm-Cancel</a></li>
 <li><a href="#outbox">Outbox + CDC and idempotency</a></li>
 <li><a href="#avoid">When to avoid distributed transactions entirely</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -188,7 +188,7 @@ Phase 3: DO-COMMIT     -> actually commit</code></pre>
 
 <div class="callout tradeoff"><span class="lbl">Trade-off</span> 3PC is non-blocking only under the <em>synchronous</em> model with fail-stop crashes and bounded message delay. The moment you admit <strong>network partitions</strong> (the real world), 3PC is <em>unsafe</em>: a partition can split nodes into groups that independently reach contradictory decisions, producing a split-brain commit. So 3PC trades a real safety guarantee for liveness that doesn't hold under realistic faults. The extra round trip also makes it slower.</div>
 
-<p>In practice nobody ships 3PC. The modern answer to "make commit fault-tolerant without blocking" is not 3PC — it is to run the commit decision through a proper <a href="30 Consensus and Raft.htm">consensus protocol</a> (Raft/Paxos/Multi-Paxos), which is non-blocking with a majority quorum and provably safe under partitions. If you find yourself reinventing 3PC in an interview, the strong move is to say "I'd put the commit record behind a Raft group instead."</p>
+<p>In practice nobody ships 3PC. The modern answer to "make commit fault-tolerant without blocking" is not 3PC — it is to run the commit decision through a proper <a href="30 Consensus and Raft.htm">consensus protocol</a> (Raft/Paxos/Multi-Paxos), which is non-blocking with a majority quorum and provably safe under partitions. If you find yourself reinventing 3PC in practice, the strong move is to say "I'd put the commit record behind a Raft group instead."</p>
 
 <h2 id="saga">The Saga pattern</h2>
 <p>A <span class="key">Saga</span> abandons cross-service atomicity entirely. Instead of one global transaction, it is a <em>sequence of local transactions</em>, each in its own service, where every step has a corresponding <span class="key">compensating transaction</span> that semantically undoes it. If step N fails, you run the compensations for steps N-1 … 1 in reverse. This is the dominant pattern for long-running business workflows in microservices, and it pairs naturally with <a href="45 Event-Driven Architecture.htm">Event-Driven Architecture</a>.</p>
@@ -289,9 +289,9 @@ COMMIT;                                         -- atomic: both or neither
 
 <div class="callout tradeoff"><span class="lbl">Trade-off</span> 2PC buys you strong atomicity + isolation at the price of availability and tight coupling. Sagas/TCC buy you availability and loose coupling at the price of isolation and a lot of compensation/idempotency engineering. There is no free lunch — the question is always <em>which consistency the business invariant truly requires</em>, and at what blast radius you can tolerate failure.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
+<h2 id="mastery">Principal-level mastery check</h2>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They treat "atomic commit across services" as a consensus problem and immediately surface the blocking/availability cost of 2PC rather than reaching for it reflexively. They default to <em>sagas with idempotent steps and the outbox pattern</em> for cross-service workflows, and they name the isolation anomalies sagas introduce <em>and</em> the specific countermeasures (semantic locks, commutative updates, pivot-step ordering). Most importantly, they challenge the premise — asking whether the transaction boundary is wrong and the data should be co-located, or whether eventual consistency plus a reconciliation job is sufficient. They never hand-wave "exactly-once"; they say at-least-once delivery plus idempotent consumers.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They treat "atomic commit across services" as a consensus problem and immediately surface the blocking/availability cost of 2PC rather than reaching for it reflexively. They default to <em>sagas with idempotent steps and the outbox pattern</em> for cross-service workflows, and they name the isolation anomalies sagas introduce <em>and</em> the specific countermeasures (semantic locks, commutative updates, pivot-step ordering). Most importantly, they challenge the premise — asking whether the transaction boundary is wrong and the data should be co-located, or whether eventual consistency plus a reconciliation job is sufficient. They never hand-wave "exactly-once"; they say at-least-once delivery plus idempotent consumers.</div>
 
 <ul>
 <li>Walk me through exactly what happens to a participant when the 2PC coordinator crashes after it has voted COMMIT. What is it allowed to do, and what is it forced to do? How long does it hold its locks?</li>

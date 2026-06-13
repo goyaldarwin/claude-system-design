@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing Collaborative Editing (Google Docs)</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing Collaborative Editing (Google Docs)</div>
 
 <h1>Designing Collaborative Editing (Google Docs)</h1>
 <p class="sub">How dozens of people type into the same document at the same time and converge on identical, intention-preserving state &mdash; the canonical hard problem of conflict resolution at low latency.</p>
@@ -123,12 +123,12 @@
 <li><a href="#transport">Real-time transport &amp; presence</a></li>
 <li><a href="#persist">Persistence, snapshots &amp; scaling</a></li>
 <li><a href="#arch">End-to-end architecture</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
 <h2 id="req">Requirements &amp; scope</h2>
-<p>The interviewer says "design Google Docs." The trap is jumping to OT or CRDT vocabulary in the first minute. A principal scopes first, because the answer changes dramatically with the requirements.</p>
+<p>The problem: "design Google Docs." The trap is jumping to OT or CRDT vocabulary in the first minute. A principal scopes first, because the answer changes dramatically with the requirements.</p>
 
 <h3>Functional</h3>
 <ul>
@@ -236,7 +236,7 @@ delete(targetId):
 <tr><td>Maturity in practice</td><td>Google Docs, Etherpad, ShareDB</td><td>Figma, Yjs ecosystem, Automerge, Apple Notes</td></tr>
 </table>
 <div class="callout tradeoff"><span class="lbl">Trade-off</span>The decision is really about <em>where complexity lives and what topology you need</em>. If you already have a strong central server and want minimal per-op bytes &mdash; OT (Google's bet for Docs in 2010). If you want offline-first, peer-to-peer, or to avoid an ever-growing transform matrix and are willing to pay metadata + GC cost &mdash; CRDTs (the modern default for new systems like Figma multiplayer and the Yjs ecosystem). Neither is "more consistent"; both target <span class="key">strong eventual consistency</span> &mdash; see <a href="31 Consistency Models and PACELC.htm">Consistency Models &amp; PACELC</a>.</div>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They don't religiously pick one. They say: "I'd use a server-authoritative CRDT (Yjs-style) &mdash; it gives me the offline and out-of-order resilience of CRDTs while still routing through a relay server I control for auth, persistence, and presence fan-out. I get the best of both rather than forcing a pure topology."</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They don't religiously pick one. They say: "I'd use a server-authoritative CRDT (Yjs-style) &mdash; it gives me the offline and out-of-order resilience of CRDTs while still routing through a relay server I control for auth, persistence, and presence fan-out. I get the best of both rather than forcing a pure topology."</div>
 
 <h2 id="transport">Real-time transport &amp; presence</h2>
 <h3>Transport choice</h3>
@@ -277,10 +277,10 @@ delete(targetId):
    |                                    (durable, replicated)  (object storage)
 </code></pre>
 <p>Request path for one keystroke: apply locally (0 ms) &rarr; send op + revision over WebSocket &rarr; gateway forwards to the doc's coordinator &rarr; coordinator transforms/merges, appends to op log, fans out the canonical op to all other connected clients and ACKs the author. Each receiving client transforms/merges the incoming op against its own unacked ops and applies it.</p>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They separate the three planes explicitly: the <em>edit plane</em> (durable, ordered, converging), the <em>presence plane</em> (ephemeral, lossy, TTL'd), and the <em>transport plane</em> (WebSocket with reconnect/replay). Muddling them &mdash; e.g., persisting cursors, or routing edits without a single per-doc owner &mdash; is what produces divergence and split-brain in real systems.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They separate the three planes explicitly: the <em>edit plane</em> (durable, ordered, converging), the <em>presence plane</em> (ephemeral, lossy, TTL'd), and the <em>transport plane</em> (WebSocket with reconnect/replay). Muddling them &mdash; e.g., persisting cursors, or routing edits without a single per-doc owner &mdash; is what produces divergence and split-brain in real systems.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They scope before naming algorithms, reproduce the concurrent-edit divergence with a concrete 3-character example to prove they understand <em>why</em> the problem is hard, then justify OT vs CRDT against the actual requirements (topology, offline, team familiarity) rather than reciting a preference. They explicitly call out the single-owner-per-doc invariant and how failover preserves it, treat presence as a separate ephemeral plane, and name the durability boundary (ACK only after the op log persists). They acknowledge the unglamorous risks &mdash; transform-matrix correctness, tombstone GC, cursor chatter &mdash; instead of hand-waving "and then it just converges."</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They scope before naming algorithms, reproduce the concurrent-edit divergence with a concrete 3-character example to prove they understand <em>why</em> the problem is hard, then justify OT vs CRDT against the actual requirements (topology, offline, team familiarity) rather than reciting a preference. They explicitly call out the single-owner-per-doc invariant and how failover preserves it, treat presence as a separate ephemeral plane, and name the durability boundary (ACK only after the op log persists). They acknowledge the unglamorous risks &mdash; transform-matrix correctness, tombstone GC, cursor chatter &mdash; instead of hand-waving "and then it just converges."</div>
 <ul>
 <li>Walk me through two concurrent ops &mdash; an insert and a delete at overlapping positions &mdash; and show exactly how OT transforms them and how a CRDT avoids the transform entirely. Where does the determinism come from in each?</li>
 <li>You picked CRDTs. Tombstones grow without bound. When is it provably safe to garbage-collect one, and how do you compute that watermark across clients that may be offline for days?</li>

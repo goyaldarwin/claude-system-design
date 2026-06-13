@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part C: Modern Architecture &nbsp;&rsaquo;&nbsp; Microservices and Service Mesh</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part C: Modern Architecture &nbsp;&rsaquo;&nbsp; Microservices and Service Mesh</div>
 
 <h1>Microservices and Service Mesh</h1>
 <p class="sub"><em>When to split a monolith, how to draw the seams, and what the network layer owes you once you do.</em></p>
@@ -124,7 +124,7 @@
 <li><a href="#mesh">Service mesh: pushing concerns into the network</a></li>
 <li><a href="#strangler">The strangler-fig migration</a></li>
 <li><a href="#antipatterns">Anti-patterns and failure modes</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -165,7 +165,7 @@
 <p>The most common decomposition failure is splitting by entity (a "User service," an "Order service," a "Product service") because those are the database tables you already have. This produces chatty, tightly coupled services that all need each other's data on every request.</p>
 <p>The principled approach is <span class="key">Domain-Driven Design bounded contexts</span>. A bounded context is a region of the domain where a model and its language are internally consistent. The same word means different things in different contexts, and that linguistic seam <em>is</em> the service boundary.</p>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They observe that "Customer" in the <em>Sales</em> context (lead, opportunity, contact) is a different model from "Customer" in <em>Billing</em> (account, payment method, invoices) and <em>Support</em> (tickets, entitlements). Each owns its own representation, joined by a stable customer ID — not a shared Customer table that three services write to.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They observe that "Customer" in the <em>Sales</em> context (lead, opportunity, contact) is a different model from "Customer" in <em>Billing</em> (account, payment method, invoices) and <em>Support</em> (tickets, entitlements). Each owns its own representation, joined by a stable customer ID — not a shared Customer table that three services write to.</div>
 
 <h4>Heuristics for drawing the seam</h4>
 <ul>
@@ -214,7 +214,7 @@ COMMIT;
 </tbody>
 </table>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They keep synchronous calls shallow (avoid deep call chains) and push state-propagation work onto async events. "On checkout, the Order service commits locally and emits <code>OrderPlaced</code>; Inventory, Shipping, and Notifications react independently. The user gets a response after one local write, not after five blocking RPCs." For protocol choice within sync calls, they distinguish gRPC (internal, low-latency, contract-first) from REST/GraphQL (edge, client-facing) — see <a href="44 API Design REST gRPC GraphQL.htm">API Design</a>.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They keep synchronous calls shallow (avoid deep call chains) and push state-propagation work onto async events. "On checkout, the Order service commits locally and emits <code>OrderPlaced</code>; Inventory, Shipping, and Notifications react independently. The user gets a response after one local write, not after five blocking RPCs." For protocol choice within sync calls, they distinguish gRPC (internal, low-latency, contract-first) from REST/GraphQL (edge, client-facing) — see <a href="44 API Design REST gRPC GraphQL.htm">API Design</a>.</div>
 
 <p>Whatever the style, async or sync, network calls fail. You need timeouts, retries with jitter, circuit breakers, and bulkheads on every dependency — see <a href="49 Resilience Patterns.htm">Resilience Patterns</a>. The question is <em>where</em> those live, which leads to the mesh.</p>
 
@@ -282,10 +282,10 @@ spec:
 <li><strong>Ignoring the operational bill.</strong> Microservices demand mature CI/CD, centralized logging/tracing, service discovery, and on-call rotations <em>before</em> you split, not after. Without them you have multiplied your incidents and removed your ability to debug them.</li>
 </ul>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They resist the premise. When asked to "design with microservices," a strong candidate first asks <em>why</em> — how many teams, what's the deploy contention, what consistency does the domain need — and is willing to recommend a modular monolith. They draw boundaries from bounded contexts and team topology, not from database tables. They name the data-ownership rule and immediately surface its consequence (sagas, eventual consistency, outbox). They treat the service mesh as a tool with a real latency and complexity cost, not a default, and they can articulate the single retry-ownership rule. They sketch a strangler migration with reversible steps rather than a rewrite.</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They resist the premise. When designing with microservices, start by asking <em>why</em> — how many teams, what's the deploy contention, what consistency does the domain need — and is willing to recommend a modular monolith. They draw boundaries from bounded contexts and team topology, not from database tables. They name the data-ownership rule and immediately surface its consequence (sagas, eventual consistency, outbox). They treat the service mesh as a tool with a real latency and complexity cost, not a default, and they can articulate the single retry-ownership rule. They sketch a strangler migration with reversible steps rather than a rewrite.</div>
 
-<p>Sharp probing questions an interviewer should ask:</p>
+<p>Sharp questions to test your own understanding:</p>
 <ul>
 <li>"You have one 12-person team and a monolith hitting scaling limits. Talk me out of microservices — what would you do instead, and when would that stop working?"</li>
 <li>"Two of your services both need to write the customer's shipping address atomically with an order. Walk me through how you keep them consistent without a distributed transaction. What's the failure mode of your approach?"</li>

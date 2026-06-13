@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,8 +101,8 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
@@ -122,11 +122,11 @@
 <li><a href="#indexing">5. The indexing model &mdash; near-real-time &amp; segments</a></li>
 <li><a href="#cluster">6. Cluster roles &amp; scaling</a></li>
 <li><a href="#notprimary">When NOT to use Elasticsearch</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
-<p>Almost every interview that touches "let the user search by free text" eventually arrives at a search engine, and in practice that engine is Lucene wearing an Elasticsearch (or OpenSearch) coat. A principal-level answer is not "throw it in Elasticsearch." It is a defensible position across six axes: how the index is structured, how it is partitioned, how fields are mapped, how queries are scored, how writes become visible, and how the cluster is shaped. This lesson walks those six dimensions, each with the mechanism, the numbers, and the failure mode that matters.</p>
+<p>Almost every system that lets users search by free text eventually arrives at a search engine, and in practice that engine is Lucene wearing an Elasticsearch (or OpenSearch) coat. A principal-level answer is not "throw it in Elasticsearch." It is a defensible position across six axes: how the index is structured, how it is partitioned, how fields are mapped, how queries are scored, how writes become visible, and how the cluster is shaped. This lesson walks those six dimensions, each with the mechanism, the numbers, and the failure mode that matters.</p>
 
 <h2 id="inverted">1. The inverted index &mdash; how search really works</h2>
 <p>A relational <a href="06 Indexes.htm">B-tree index</a> answers "find the row whose <code>id = 42</code>" or "rows where <code>price BETWEEN 10 AND 20</code>." It is built for <em>looking up a document by an attribute value</em>. Full-text search asks the inverse question: "find every document that <em>contains</em> the word <span class="key">consensus</span>." A B-tree on a <code>TEXT</code> column cannot help &mdash; it indexes the whole string, not the words inside it, and <code>LIKE '%consensus%'</code> degrades to a full scan.</p>
@@ -231,9 +231,9 @@
 <p>So the standard architecture is: keep the source of truth in a transactional database, and treat Elasticsearch as a <em>derived</em> read model. Avoid the <span class="key">dual-write</span> anti-pattern &mdash; writing to the DB and to ES from application code in two steps &mdash; because a crash between the two leaves them permanently inconsistent with no clean recovery. Instead, drive ES from the database's commit log via <span class="key">Change Data Capture</span>: a connector (Debezium, etc.) tails the WAL/binlog and streams changes into ES, typically through Kafka. This gives you a single durable ordering of changes, idempotent replay, and a clean rebuild path &mdash; the pattern covered in <a href="40 Stream Processing and CDC.htm">Stream Processing &amp; CDC</a>. Because the index is derived, you can blow it away and rebuild from the log at any time.</p>
 <p>Finally, search and approximate structures often combine: a <a href="42 Probabilistic Data Structures.htm">Bloom filter</a> can short-circuit "does this term exist at all in this segment?" before touching the postings list, and HyperLogLog-style sketches back cardinality aggregations &mdash; useful when an exact distinct count over billions of docs would be too expensive.</p>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They treat Elasticsearch as a <em>derived</em> read model fed by CDC, never as the system of record, and they justify it on the six axes &mdash; index structure, sharding, mapping, query/filter, indexing model, cluster shape &mdash; rather than reaching for it reflexively. They size shards in tens of GB, separate write-scaling from read-scaling, and put tenant/structured constraints in filter context for free caching.</div>
-<p>Probing questions to ask candidates:</p>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat Elasticsearch as a <em>derived</em> read model fed by CDC, never as the system of record, and they justify it on the six axes &mdash; index structure, sharding, mapping, query/filter, indexing model, cluster shape &mdash; rather than reaching for it reflexively. They size shards in tens of GB, separate write-scaling from read-scaling, and put tenant/structured constraints in filter context for free caching.</div>
+<p>Probing questions to ask engineers:</p>
 <ul>
 <li>"You picked 30 primary shards. Justify the number &mdash; and what do you do in a year when the data has 5&times;'d?"</li>
 <li>"A user creates a record and immediately searches for it but gets nothing. Walk me through why, and how you'd fix it without globally lowering <code>refresh_interval</code>."</li>

@@ -13,7 +13,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -26,7 +26,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -99,8 +99,8 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
@@ -135,7 +135,7 @@
 <li><span class="key">Reliable delivery.</span> Because messages are persisted and only deleted after a successful ack, a consumer crash does not lose work. The message is simply retried.</li>
 <li><span class="key">Independent scaling.</span> Producers and consumers scale separately. Add more consumer workers to drain a growing backlog without changing the producing side at all.</li>
 </ul>
-<div class="callout ok"><span class="lbl">What strong candidates do</span> They reach for a queue when they spot a step that is <em>slow, spiky, or not needed for the response</em> — and they explicitly call out that the queue trades immediate consistency for throughput and resilience. They also name the failure mode they are protecting against (worker crash, downstream outage, traffic burst), not just "we'll use a queue."</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They reach for a queue when they spot a step that is <em>slow, spiky, or not needed for the response</em> — and they explicitly call out that the queue trades immediate consistency for throughput and resilience. They also name the failure mode they are protecting against (worker crash, downstream outage, traffic burst), not just "we'll use a queue."</div>
 
 <div class="sechead">4. Common systems</div>
 <p>You should be able to name and roughly differentiate the major options:</p>
@@ -154,7 +154,7 @@
 </ul>
 <div class="callout warn"><span class="lbl">The duplicate trap</span> With at-least-once delivery (the realistic default), your consumers <em>will</em> occasionally see the same message twice. If processing is not idempotent — say, "charge the customer $50" or "increment a counter" — duplicates corrupt your data. Always assume redelivery is possible and design the consumer to tolerate it.</div>
 
-<div class="clarify">In an interview, when you introduce a queue, pre-empt the obvious follow-up: "I'll assume at-least-once delivery, so the consumer must be idempotent — I'll key writes on a request ID so a redelivered message is a no-op." Saying this unprompted signals seniority.</div>
+<div class="clarify">In practice, when you introduce a queue, pre-empt the obvious follow-up: "I'll assume at-least-once delivery, so the consumer must be idempotent — I'll key writes on a request ID so a redelivered message is a no-op." Saying this unprompted signals seniority.</div>
 
 <div class="pdeep">
 <style>.pdeep{max-width:820px;margin:40px auto;padding:32px 40px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}.pdeep h2{font-size:22px;margin:0 0 8px;border:0;}.pdeep h3{font-size:17px;margin:22px 0 6px;}.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}.pdeep th{background:#f6f8fa;}.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}</style>
@@ -186,7 +186,7 @@
 <li><b>Idempotency + deduplication.</b> Keep at-least-once delivery, but make the effect of processing a message idempotent. Tag each message with a stable business key (e.g., <code>payment_id</code>) and have the consumer record processed keys so a redelivery is a no-op. The duplicate still <i>arrives</i>; it just doesn't <i>do</i> anything twice.</li>
 <li><b>Transactional / atomic commit.</b> Bind "consume the message, do the work, commit the offset" into a single atomic transaction so a partial failure rolls everything back. Kafka's transactional producer + read-process-write with offset commits inside the transaction is the canonical example. This is powerful but adds latency and coordination cost.</li>
 </ol>
-<div class="box"><b>Interview line</b> "I'll rely on at-least-once delivery plus an idempotency key, because exactly-once delivery isn't achievable — what I actually need is exactly-once <i>effect</i>, and a dedup table or idempotent upsert gives me that far more cheaply than distributed transactions."</div>
+<div class="box"><b>Key line</b> "I'll rely on at-least-once delivery plus an idempotency key, because exactly-once delivery isn't achievable — what I actually need is exactly-once <i>effect</i>, and a dedup table or idempotent upsert gives me that far more cheaply than distributed transactions."</div>
 
 <h3>Ordering guarantees and their cost</h3>
 <p>Strict global ordering and high throughput are in tension. A single FIFO consumer preserves order but caps throughput at one worker. To scale, you parallelize — and the moment two workers process concurrently, global order is gone. The standard compromise is <b>partitioned ordering</b>: order is guaranteed only within a partition keyed by some attribute (e.g., <code>user_id</code> or <code>account_id</code>). All events for one key land in one partition and are processed in order, while different keys process in parallel. You get ordering <i>where it matters</i> without serializing everything. SQS FIFO does this with a <code>MessageGroupId</code>; Kafka does it via partition key.</p>
@@ -208,7 +208,7 @@ sleep = random_between(0, delay)   # "full jitter"</code></pre>
 <h3>Backpressure and consumer-lag-driven autoscaling</h3>
 <p>A queue absorbs spikes, but it is not infinite. If producers persistently outrun consumers, the backlog grows without bound — memory/disk fills, end-to-end latency balloons, and eventually messages are dropped or the broker fails. <b>Backpressure</b> is the mechanism by which a slow consumer signals upstream to slow down: bounded queues that reject or block producers when full, credit-based flow control, or simply rejecting new work with a 429 when the backlog crosses a threshold.</p>
 <p>The key operational signal is <b>consumer lag</b> — the gap between the newest produced message and the position consumers have reached (in Kafka, the offset delta per partition). Lag is the truest measure of system health: low and stable means consumers keep up; steadily rising means you're falling behind. The modern pattern is <b>lag-driven autoscaling</b>: scale the consumer worker count up when lag exceeds a target and down when it drains, so capacity tracks the actual backlog rather than CPU alone.</p>
-<div class="box"><b>What strong candidates do</b> They never treat the queue as a bottomless buffer. They name a concrete signal (consumer lag / queue depth), an action (autoscale workers, shed load, apply backpressure), and a ceiling (max workers, DLQ, 429s) — closing the loop on what happens when the system simply can't keep up.</div>
+<div class="box"><b>What strong engineers do</b> They never treat the queue as a bottomless buffer. They name a concrete signal (consumer lag / queue depth), an action (autoscale workers, shed load, apply backpressure), and a ceiling (max workers, DLQ, 429s) — closing the loop on what happens when the system simply can't keep up.</div>
 
 <div class="seealso"><b>See also:</b> <a href="39 Kafka and Log-based Messaging.htm">Kafka &amp; Log-based Messaging</a>, <a href="45 Event-Driven Architecture.htm">Event-Driven Architecture</a>, <a href="54 Designing a Distributed Message Queue.htm">Designing a Message Queue</a>, <a href="32 Distributed Transactions.htm">Distributed Transactions</a></div>
 </div>

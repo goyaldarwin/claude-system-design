@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Cache</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Cache</div>
 
 <h1>Designing a Distributed Cache</h1>
 <p class="sub">Build a Redis/Memcached-class cache from first principles &mdash; eviction, sharding, replication, hot keys, and the failure modes that take down the database behind it.</p>
@@ -126,7 +126,7 @@
 <li><a href="#invalidation">Invalidation &amp; write patterns</a></li>
 <li><a href="#stampede">Cache stampede / thundering herd</a></li>
 <li><a href="#persistence">Persistence &amp; memory management</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -209,7 +209,7 @@ set(key, val):
 <p>LFU evicts the least-<em>frequently</em> used. Naive frequency counts never forget, so a key that was hot last week clings forever. Redis's LFU uses a logarithmic counter plus time-based decay so cold keys age out. LFU beats LRU on skewed, stable workloads but reacts slowly to shifts.</p>
 <h3>W-TinyLFU</h3>
 <p><span class="key">W-TinyLFU</span> (used by Caffeine) is the current state of the art and worth naming. It pairs a small <span class="key">window LRU</span> (catches bursty recency) with a large main segment admitted via a frequency filter. Frequency is tracked cheaply with a <span class="key">Count-Min Sketch</span> (see <a href="42 Probabilistic Data Structures.htm">Probabilistic Data Structures</a>) plus a periodic halving (aging). A new item is only admitted to the main cache if its estimated frequency beats the would-be victim's &mdash; giving near-optimal hit ratios with O(1) memory for counters and strong scan resistance.</p>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>Don't just say "use LRU." State the workload (skewed? scan-heavy? bursty?), pick the matching policy, and acknowledge that production systems use <em>approximate</em> eviction (sampling, sketches) because maintaining exact global order is a concurrency bottleneck.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>Don't just say "use LRU." State the workload (skewed? scan-heavy? bursty?), pick the matching policy, and acknowledge that production systems use <em>approximate</em> eviction (sampling, sketches) because maintaining exact global order is a concurrency bottleneck.</div>
 
 <h2 id="sharding">Sharding via consistent hashing</h2>
 <p>One node cannot hold 160 GB or serve 1M QPS, so partition the keyspace. Naive <code>hash(key) % N</code> remaps almost every key when N changes &mdash; a cold-cache catastrophe during scale-up. Use <a href="12 Consistent Hashing.htm">Consistent Hashing</a> with <span class="key">virtual nodes</span>: each physical node owns many points on the ring, so adding/removing a node only moves ~1/N of keys and keeps load balanced. This connects to <a href="05 Sharding or Data Partitioning.htm">Sharding / Data Partitioning</a>.</p>
@@ -220,7 +220,7 @@ set(key, val):
 <tr><td>Proxy / router tier</td><td>Twemproxy, Envoy</td><td>Centralizes topology, simplifies clients; adds a hop and a thing to scale.</td></tr>
 <tr><td>Server-side cluster</td><td>Redis Cluster (16384 hash slots)</td><td>Nodes own slot ranges, redirect clients via <code>MOVED</code>/<code>ASK</code>; topology gossiped between nodes.</td></tr>
 </table>
-<div class="callout warn"><span class="lbl">Pitfall</span>Redis Cluster uses 16384 fixed hash slots, not a continuous ring &mdash; slots are explicitly assigned to nodes, which makes rebalancing a discrete, controllable migration rather than an emergent ring property. Conflating "consistent hashing" with "Redis Cluster slots" in an interview signals you haven't read the implementation.</div>
+<div class="callout warn"><span class="lbl">Pitfall</span>Redis Cluster uses 16384 fixed hash slots, not a continuous ring &mdash; slots are explicitly assigned to nodes, which makes rebalancing a discrete, controllable migration rather than an emergent ring property. Conflating "consistent hashing" with "Redis Cluster slots" in practice signals you haven't read the implementation.</div>
 
 <h2 id="replication">Replication &amp; availability</h2>
 <p>A lost shard means a cold spot: every key it owned now misses and hammers the DB. Mitigate with replication &mdash; primary + N async replicas per shard (see <a href="37 Replication Deep Dive.htm">Replication Deep Dive</a> and <a href="09 Redundancy and Replication.htm">Redundancy &amp; Replication</a>).</p>
@@ -276,7 +276,7 @@ if (now() - computeTime * beta * Math.log(random())) >= expireAt:
     value = recompute(); cache.set(key, value, ttl)</code></pre>
 <h3>3. Stale-while-revalidate</h3>
 <p>Serve the stale value immediately and refresh asynchronously in the background. Users never see a miss; the DB sees one refresh, not a herd. Combine with jittered TTLs so a batch of keys set together don't all expire in the same second.</p>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They distinguish three failure modes precisely: <em>stampede</em> (one hot key expires), <em>cache penetration</em> (queries for keys that don't exist bypass the cache &mdash; defend with a <a href="42 Probabilistic Data Structures.htm">Bloom filter</a> or negative caching), and <em>cache avalanche</em> (many keys expire at once or the cache tier dies &mdash; defend with TTL jitter, replication, and DB rate-limiting / circuit breakers from <a href="49 Resilience Patterns.htm">Resilience Patterns</a>).</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They distinguish three failure modes precisely: <em>stampede</em> (one hot key expires), <em>cache penetration</em> (queries for keys that don't exist bypass the cache &mdash; defend with a <a href="42 Probabilistic Data Structures.htm">Bloom filter</a> or negative caching), and <em>cache avalanche</em> (many keys expire at once or the cache tier dies &mdash; defend with TTL jitter, replication, and DB rate-limiting / circuit breakers from <a href="49 Resilience Patterns.htm">Resilience Patterns</a>).</div>
 
 <h2 id="persistence">Persistence &amp; memory management</h2>
 <h3>Do you even need persistence?</h3>
@@ -294,8 +294,8 @@ if (now() - computeTime * beta * Math.log(random())) >= expireAt:
 <li><span class="key">Big keys are landmines:</span> a single multi-GB value or a collection with millions of elements stalls the single-threaded loop on access/delete and skews shard memory. Detect and shard or reject them.</li>
 </ul>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They start by pinning down the workload &mdash; read:write ratio, value-size distribution, key skew, freshness SLA &mdash; <em>before</em> drawing boxes, because every later decision (eviction policy, sharding, hot-key strategy, write pattern) follows from those four numbers. They treat the cache as a lossy tier protecting a system of record, name real systems and algorithms (approximate LRU, W-TinyLFU + Count-Min, Redis Cluster's 16384 slots, singleflight, XFetch), and proactively raise the failure trio &mdash; stampede, penetration, avalanche &mdash; with a distinct defense for each. Weak candidates say "add a Redis" and stop.</div>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They start by pinning down the workload &mdash; read:write ratio, value-size distribution, key skew, freshness SLA &mdash; <em>before</em> drawing boxes, because every later decision (eviction policy, sharding, hot-key strategy, write pattern) follows from those four numbers. They treat the cache as a lossy tier protecting a system of record, name real systems and algorithms (approximate LRU, W-TinyLFU + Count-Min, Redis Cluster's 16384 slots, singleflight, XFetch), and proactively raise the failure trio &mdash; stampede, penetration, avalanche &mdash; with a distinct defense for each. Weak engineers say "add a Redis" and stop.</div>
 <ul>
 <li>Your cache node holding a hot shard dies at peak. Walk me through the next 30 seconds &mdash; what does the DB see, how does failover work, and how do you avoid a cold-cache avalanche on recovery?</li>
 <li>Why <code>DEL</code> the key on write instead of updating it in place? Construct the exact race that makes update-on-write leave a permanently stale value.</li>

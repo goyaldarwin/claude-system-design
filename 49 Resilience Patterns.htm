@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; Resilience Patterns</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; Resilience Patterns</div>
 
 <h1>Resilience Patterns</h1>
 <p class="sub"><em>How distributed systems survive partial failure on purpose &mdash; timeouts, retries, circuit breakers, bulkheads, backpressure, and the discipline to fail fast instead of cascading.</em></p>
@@ -125,13 +125,13 @@
 <li><a href="#idempotency">Idempotency: the prerequisite for safe retries</a></li>
 <li><a href="#cascading">The anatomy of cascading failure</a></li>
 <li><a href="#chaos">Chaos engineering to validate</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
 <h2 id="design-for-failure">Designing for failure</h2>
 <p>At scale, failure is not an exceptional event &mdash; it is the steady state. A service with 100 dependencies, each at 99.9% availability, has a theoretical ceiling of <span class="key">~90.5%</span> availability if every dependency is on the critical path and treated as required. Resilience is the art of breaking that multiplicative trap: making most dependencies optional, isolating the ones that aren't, and ensuring that when a downstream component degrades, the blast radius stays contained instead of propagating upward.</p>
-<p>The mental model: every remote call is a potential source of latency, errors, and resource exhaustion. The patterns in this lesson are the standard toolkit for bounding that exposure. They are not independent &mdash; they compose. A timeout makes a circuit breaker possible; a circuit breaker makes load shedding meaningful; idempotency makes retries safe. Strong candidates discuss them as a <em>system</em>, not a checklist.</p>
+<p>The mental model: every remote call is a potential source of latency, errors, and resource exhaustion. The patterns in this lesson are the standard toolkit for bounding that exposure. They are not independent &mdash; they compose. A timeout makes a circuit breaker possible; a circuit breaker makes load shedding meaningful; idempotency makes retries safe. Strong engineers discuss them as a <em>system</em>, not a checklist.</p>
 
 <div class="callout note"><span class="lbl">Key insight</span>Resilience is fundamentally about <strong>converting one failure mode into a less harmful one</strong>. A timeout converts an indefinite hang into a fast error. A circuit breaker converts a slow error into an instant one. Load shedding converts total collapse into partial, predictable degradation. You are always trading something.</div>
 
@@ -145,7 +145,7 @@
 <li><strong>Distinguish connect timeout from read/request timeout.</strong> A connect timeout should be tight (tens to low hundreds of ms on a fast network); the request timeout covers actual work.</li>
 </ul>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They reach for <strong>deadline propagation</strong> rather than fixed per-hop timeouts. The top-level request stamps an absolute deadline (e.g. <code>deadline = now + 2s</code>), passes it through headers or gRPC context, and every hop computes its remaining budget: <code>remaining = deadline - now</code>. If remaining is near zero, the hop fails fast instead of starting doomed work. gRPC does this natively; see <a href="44 API Design REST gRPC GraphQL.htm">API Design: REST, gRPC, GraphQL</a>.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They reach for <strong>deadline propagation</strong> rather than fixed per-hop timeouts. The top-level request stamps an absolute deadline (e.g. <code>deadline = now + 2s</code>), passes it through headers or gRPC context, and every hop computes its remaining budget: <code>remaining = deadline - now</code>. If remaining is near zero, the hop fails fast instead of starting doomed work. gRPC does this natively; see <a href="44 API Design REST gRPC GraphQL.htm">API Design: REST, gRPC, GraphQL</a>.</div>
 
 <pre><code>// Deadline propagation, conceptual
 func handle(ctx Context, req Request) Response {
@@ -248,7 +248,7 @@ for attempt &lt;= maxAttempts {
 <li><strong>Degrade write paths to async:</strong> accept the write into a durable queue and process later, instead of failing synchronously.</li>
 </ul>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They classify every dependency as <strong>critical</strong> or <strong>optional</strong> up front. Optional dependencies <em>must</em> have a fallback so their failure can't take down the request. Critical dependencies get the heaviest investment in redundancy and isolation. This classification is the difference between a service that degrades gracefully and one that collapses on the first downstream hiccup.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They classify every dependency as <strong>critical</strong> or <strong>optional</strong> up front. Optional dependencies <em>must</em> have a fallback so their failure can't take down the request. Critical dependencies get the heaviest investment in redundancy and isolation. This classification is the difference between a service that degrades gracefully and one that collapses on the first downstream hiccup.</div>
 
 <h2 id="idempotency">Idempotency: the prerequisite for safe retries</h2>
 <p>Retries are only safe if re-executing an operation is harmless. <span class="key">Idempotency</span> means applying an operation N times has the same effect as applying it once. Reads and overwrites (<code>PUT name = "x"</code>) are naturally idempotent; increments, appends, and &quot;create a new order&quot; are not.</p>
@@ -289,11 +289,11 @@ func createPayment(key string, req PaymentReq) Result {
 <li><strong>You cannot validate resilience without <a href="48 Observability.htm">observability</a>.</strong> You need the metrics, traces, and SLO dashboards (see <a href="47 SLI SLO SLA and Error Budgets.htm">SLI/SLO/SLA</a>) to even know whether an experiment passed.</li>
 </ul>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They treat the fallback path as a <strong>first-class, continuously-tested code path</strong>, not an emergency hatch. The most common production surprise is discovering the fallback was itself broken &mdash; it called the same down dependency, or threw on the degraded input. GameDays and automated chaos experiments are how you find that <em>before</em> the incident.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat the fallback path as a <strong>first-class, continuously-tested code path</strong>, not an emergency hatch. The most common production surprise is discovering the fallback was itself broken &mdash; it called the same down dependency, or threw on the degraded input. GameDays and automated chaos experiments are how you find that <em>before</em> the incident.</p></div>
 
-<h2 id="interview">Principal-level interview lens</h2>
+<h2 id="mastery">Principal-level mastery check</h2>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They treat resilience as a system of composing trade-offs, not a checklist of buzzwords. They name the specific failure mode each pattern addresses, reason about how patterns interact (retries are dangerous without idempotency and budgets; circuit breakers are useless without fallbacks), and they always ask &quot;what's the blast radius?&quot; They distinguish critical from optional dependencies, default to deadline propagation over per-hop timeouts, pick one layer to own retries, and insist that fallback paths and timeout configs be continuously validated via chaos testing. Crucially, they understand metastable failure: that recovery often requires deliberately shedding load below normal.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat resilience as a system of composing trade-offs, not a checklist of buzzwords. They name the specific failure mode each pattern addresses, reason about how patterns interact (retries are dangerous without idempotency and budgets; circuit breakers are useless without fallbacks), and they always ask &quot;what's the blast radius?&quot; They distinguish critical from optional dependencies, default to deadline propagation over per-hop timeouts, pick one layer to own retries, and insist that fallback paths and timeout configs be continuously validated via chaos testing. Crucially, they understand metastable failure: that recovery often requires deliberately shedding load below normal.</div>
 
 <ul>
 <li><strong>A downstream dependency's p99 latency jumps from 50ms to 5s but it never returns errors. Walk me through exactly how this takes down your service, and which single pattern would have prevented it.</strong> (Listening for: thread/connection-pool exhaustion from missing timeouts; why a circuit breaker that trips only on errors wouldn't fire here; latency-based shedding or slow-call thresholds.)</li>

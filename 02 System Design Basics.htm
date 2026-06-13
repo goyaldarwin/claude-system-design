@@ -13,7 +13,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk active" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -26,7 +26,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -99,8 +99,8 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
@@ -125,7 +125,7 @@
 
 <div class="callout tradeoff"><span class="lbl">Trade-off</span>Under-engineering means you scramble and re-architect under fire when traffic spikes. Over-engineering means you pay &mdash; in dollars and in velocity &mdash; for capacity and complexity you never use. The craft is finding the point where a small, reversible investment in headroom is worth it, and stopping there.</div>
 
-<div class="clarify">In an interview, this is exactly why you ask about scale up front. "How many users? How many requests per second? Read-heavy or write-heavy? What are the latency and availability targets?" The answers tell you whether a single database is fine or whether you genuinely need partitioning, replication, and a CDN. Designing for unstated scale is a common way candidates lose points.</div>
+<div class="clarify">In practice, this is exactly why you ask about scale up front. "How many users? How many requests per second? Read-heavy or write-heavy? What are the latency and availability targets?" The answers tell you whether a single database is fine or whether you genuinely need partitioning, replication, and a CDN. Designing for unstated scale is a common way engineers lose points.</div>
 
 <div class="sechead">3. The building blocks ahead</div>
 <p>The next several chapters each take one fundamental building block and treat it in depth. Read in order, they form a toolkit: by the end you should be able to look at any of the classic and advanced design problems later in the course and reach for the right component on instinct, knowing both what it does and what it costs.</p>
@@ -148,16 +148,16 @@
 
 <div class="sechead">4. How this fits the bigger picture</div>
 <p>These fundamentals are not an end in themselves &mdash; they are the foundation for the distributed-system design problems that dominate the second half of the course. When you later design a URL shortener, an Instagram, a Twitter, or an Uber backend, you will not invent new primitives; you will compose the blocks introduced here, justifying each choice against the requirements you clarified up front.</p>
-<p>So the path through the course is deliberate: first the building blocks (chapters 03&ndash;13), then a step-by-step interview framework (chapter 14) for assembling them under time pressure, then a long sequence of worked design problems that exercise the toolkit, and finally deeper distributed-systems theory and advanced designs for those targeting senior and principal levels.</p>
+<p>So the path through the course is deliberate: first the building blocks (chapters 03&ndash;13), then a step-by-step framework (chapter 14) for assembling them into a coherent design, then a long sequence of worked design problems that exercise the toolkit, and finally deeper distributed-systems theory and advanced designs for those targeting senior and principal levels.</p>
 
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They treat the building blocks as a shared language. Instead of describing a mechanism from scratch &mdash; "we'll keep frequently-read data in fast memory near the servers" &mdash; they name it ("we add a read-through cache") and immediately move to the interesting part: the trade-offs, the failure modes, and the eviction or invalidation policy. Knowing the vocabulary cold frees your time in an interview for the judgment that actually distinguishes you.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat the building blocks as a shared language. Instead of describing a mechanism from scratch &mdash; "we'll keep frequently-read data in fast memory near the servers" &mdash; they name it ("we add a read-through cache") and immediately move to the interesting part: the trade-offs, the failure modes, and the eviction or invalidation policy. Knowing the vocabulary cold frees your time in practice for the judgment that actually distinguishes you.</div>
 
 <div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1694239618199.jpeg" alt="Latency numbers every engineer should know" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">The classic latency-numbers pyramid (L1/L2 cache, RAM, network, SSD, DB, HDD, packet round-trip) mapped to real systems like Redis, RocksDB, Postgres. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1754990591658.jpeg" alt="End-to-end system architecture composition" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A &#x27;System Design Master Template&#x27; showing a generic full architecture with client, load balancer, API gateways, metadata/block servers, caching, queues, CDN, video processing, and data warehouse. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2024-12-04 at 8.57.45 AM.jpg" alt="Core system-design pillars overview" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Infographic of the four pillars of system design — scalability, availability, reliability, performance — each with sub-techniques and small diagrams. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 </div>
-<div class="navfoot"><a href="01 Why System Design Interviews_.htm">&lsaquo; Prev: Why System Design Interviews?</a><a class="nx" href="03 Load Balancing.htm">Next: Load Balancing &rsaquo;</a></div>
+<div class="navfoot"><a href="01 Why System Design Matters.htm">&lsaquo; Prev: Why System Design Matters</a><a class="nx" href="03 Load Balancing.htm">Next: Load Balancing &rsaquo;</a></div>
 </div>
 </div>
 </div>

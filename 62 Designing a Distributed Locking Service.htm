@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -28,7 +28,7 @@
 <a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
 <a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
 <a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
-<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+<a class="lk" data-file="14 A Framework for Approaching System Design.htm" href="14 A Framework for Approaching System Design.htm"><span class="n">14</span>Design Framework</a>
 </div>
 <div class="grp"><h5>Classic design problems</h5>
 <a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
@@ -101,13 +101,13 @@
 <a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
 <a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
 </div>
-<div class="grp"><h5>Interviewing</h5>
-<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="63 Principal-Level Self-Assessment and Index.htm" href="63 Principal-Level Self-Assessment and Index.htm"><span class="n">63</span>Self-Assessment &amp; Index</a>
 </div>
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Locking Service</div>
+<div class="crumb"><a href="63 Principal-Level Self-Assessment and Index.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Locking Service</div>
 
 <h1>Designing a Distributed Locking Service</h1>
 <p class="sub">Mutual exclusion across machines that crash and partition &mdash; why locks need consensus, why TTLs alone are unsafe, and why fencing tokens are the real fix.</p>
@@ -123,7 +123,7 @@
 <li><a href="#zk">Sessions and ephemeral nodes (ZooKeeper / Chubby)</a></li>
 <li><a href="#redlock">The Redlock debate</a></li>
 <li><a href="#api">A reference design and API</a></li>
-<li><a href="#interview">Principal-level interview lens</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
 </ul>
 </div>
 
@@ -151,7 +151,7 @@
 <li><span class="key">Efficiency:</span> avoid doing duplicate work (e.g. only one worker regenerates a cache entry). A rare double-execution is merely wasteful. A weak, single-node lock is fine here.</li>
 <li><span class="key">Correctness:</span> two clients writing the same resource would corrupt data or double-charge a customer. Here a single violation is a catastrophe, and you need the full machinery below.</li>
 </ul>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They ask <em>"efficiency or correctness?"</em> first. If correctness, they push back on whether a lock is even the right tool: often the better answer is to make the operation idempotent, use an atomic compare-and-swap / conditional write on the resource itself, partition work so a single owner is structurally guaranteed (e.g. Kafka partition assignment), or use a database transaction. A lock is a coordination band-aid layered <em>outside</em> the system of record; pushing the invariant <em>into</em> the system of record is almost always safer.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They ask <em>"efficiency or correctness?"</em> first. If correctness, they push back on whether a lock is even the right tool: often the better answer is to make the operation idempotent, use an atomic compare-and-swap / conditional write on the resource itself, partition work so a single owner is structurally guaranteed (e.g. Kafka partition assignment), or use a database transaction. A lock is a coordination band-aid layered <em>outside</em> the system of record; pushing the invariant <em>into</em> the system of record is almost always safer.</div>
 <p>This connects directly to <a href="58 Designing a Distributed Job Scheduler.htm">Designing a Distributed Job Scheduler</a> (ensuring a task runs once) and <a href="36 Leader Election and Coordination.htm">Leader Election and Coordination</a> (a "lock held forever by one process" is just leader election).</p>
 
 <h2 id="why-consensus">Why a lock needs consensus underneath</h2>
@@ -196,7 +196,7 @@ def write(data, fencing_token):
     self.max_seen_token = fencing_token
     apply(data)</code></pre>
 <p>Replaying the timeline: Client&nbsp;1 holds token 33, Client&nbsp;2 gets token 34. When Client&nbsp;2 writes, the store records max_seen=34. When the paused Client&nbsp;1 finally writes with token 33, the store sees 33&nbsp;&le;&nbsp;34 and rejects it. The stale holder is <span class="key">fenced</span>.</p>
-<div class="callout note"><span class="lbl">Key insight</span>The lock service alone can never guarantee correctness, because correctness depends on what the <em>resource</em> does. Fencing pushes the final enforcement into the resource itself: the lock orders intentions, the fencing token lets the resource reject out-of-order effects. A correctness-critical design that uses a lock <em>without</em> a fencing mechanism on the protected resource is, by Kleppmann's argument, simply broken &mdash; and a strong candidate will name this explicitly.</div>
+<div class="callout note"><span class="lbl">Key insight</span>The lock service alone can never guarantee correctness, because correctness depends on what the <em>resource</em> does. Fencing pushes the final enforcement into the resource itself: the lock orders intentions, the fencing token lets the resource reject out-of-order effects. A correctness-critical design that uses a lock <em>without</em> a fencing mechanism on the protected resource is, by Kleppmann's argument, simply broken &mdash; and a strong engineer will name this explicitly.</div>
 <p>The catch: this only works if the protected resource can <em>check and store</em> a token. Many can (databases via a <code>WHERE token &gt; ?</code> conditional update, object stores via conditional writes / preconditions). Some cannot &mdash; an arbitrary side-effecting API with no idempotency or versioning support cannot be safely fenced, which is itself a signal that a lock is the wrong tool for that interaction.</p>
 
 <h2 id="zk">Sessions and ephemeral nodes (ZooKeeper / Chubby)</h2>
@@ -235,11 +235,11 @@ def write(data, fencing_token):
 <tr><td><code>watch(name)</code></td><td>Notify on release (avoids polling / herd)</td><td>stream</td></tr>
 </table>
 <p>Critical client-side contract: the <code>renew</code> call must return <code>LOST</code> if the lease expired, and the application <strong>must stop work immediately and not write</strong> if it ever observes a lost lease &mdash; but because of the pause problem, it must <em>also</em> carry the fencing token on every protected write rather than trusting its local belief. Observability matters too: emit metrics for lock hold time, contention/wait time, renewal failures, and lease expirations &mdash; a sudden spike in expirations usually means GC or network trouble, not crashes (see <a href="48 Observability.htm">Observability</a>).</p>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They sketch the full chain &mdash; consensus core for safety, leases for liveness, fencing tokens for the GC-pause hole &mdash; and they state which guarantee each layer provides and which failure each one does <em>not</em> cover. They size the lock granularity to the contention rate, and they keep returning to "what breaks if a holder pauses for 30 seconds?" as the litmus test for every design choice.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They sketch the full chain &mdash; consensus core for safety, leases for liveness, fencing tokens for the GC-pause hole &mdash; and they state which guarantee each layer provides and which failure each one does <em>not</em> cover. They size the lock granularity to the contention rate, and they keep returning to "what breaks if a holder pauses for 30 seconds?" as the litmus test for every design choice.</div>
 
-<h2 id="interview">Principal-level interview lens</h2>
-<div class="callout ok"><span class="lbl">What strong candidates do</span>They refuse to treat "distributed lock" as a black box. They distinguish efficiency from correctness up front, recognize that a fault-tolerant lock is a consensus problem in disguise, and &mdash; the discriminator &mdash; they raise the fencing-token / GC-pause problem <em>unprompted</em> and explain that the lock service can never guarantee correctness on its own; the protected resource must reject stale tokens. They treat Redlock skeptically for correctness-critical paths and reach for idempotency or conditional writes before reaching for a lock at all.</div>
-<p>Sharp probing questions an interviewer should ask:</p>
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They refuse to treat "distributed lock" as a black box. They distinguish efficiency from correctness up front, recognize that a fault-tolerant lock is a consensus problem in disguise, and &mdash; the discriminator &mdash; they raise the fencing-token / GC-pause problem <em>unprompted</em> and explain that the lock service can never guarantee correctness on its own; the protected resource must reject stale tokens. They treat Redlock skeptically for correctness-critical paths and reach for idempotency or conditional writes before reaching for a lock at all.</div>
+<p>Sharp questions to test your own understanding:</p>
 <ul>
 <li>"Your lock holder pauses for 30 seconds in GC while holding a 10-second lease. Walk me through what happens, and how you prevent data corruption." (Forces fencing tokens; TTL-only answers fail here.)</li>
 <li>"Why can't I just use <code>SETNX</code> on a single Redis node for this? When is that actually fine, and when is it dangerous?"</li>
@@ -252,7 +252,7 @@ def write(data, fencing_token):
 <div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
 <figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2024-05-16 at 8.23.21 AM.jpg" alt="Deadlocks and lock management" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Text explaining deadlocks, the four Coffman conditions, and deadlock prevention/recovery strategies. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
 </div>
-<div class="navfoot"><a href="61 Designing Ad Click Aggregation.htm">&lsaquo; Prev: Designing Ad Click Aggregation</a><a class="nx" href="63 Principal Interviewer Question Bank.htm">Next: Principal Interviewer Question Bank &rsaquo;</a></div>
+<div class="navfoot"><a href="61 Designing Ad Click Aggregation.htm">&lsaquo; Prev: Designing Ad Click Aggregation</a><a class="nx" href="63 Principal-Level Self-Assessment and Index.htm">Next: Principal Self-Assessment &amp; Index &rsaquo;</a></div>
 </div>
 </div>
 </div>
