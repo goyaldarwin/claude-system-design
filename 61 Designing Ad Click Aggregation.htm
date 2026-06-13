@@ -328,6 +328,7 @@ GROUP  BY campaign_id, bucket;
 <li>Why not skip the stream processor and just batch every 5 minutes? Why not skip batch and serve billing straight off the stream? Defend the dual path on cost.</li>
 </ul>
 
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Streaming ingestion</td><td>Kinesis</td><td>Pub/Sub + Dataflow</td><td>Event Hubs + Stream Analytics</td></tr><tr><td>Analytics warehouse</td><td>Redshift, Athena</td><td>BigQuery</td><td>Synapse Analytics</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
 <div class="navfoot"><a href="60 Designing Collaborative Editing.htm">&lsaquo; Prev: Designing Collaborative Editing</a><a class="nx" href="62 Designing a Distributed Locking Service.htm">Next: Designing a Distributed Locking Service &rsaquo;</a></div>
 
 </div>

@@ -311,6 +311,7 @@ if (now() - computeTime * beta * Math.log(random())) >= expireAt:
 <li>Design the invalidation path when the source-of-truth DB is updated by a service you don't control. How do CDC and versioned writes give you correctness that TTL alone can't?</li>
 </ul>
 
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed Redis / Memcached</td><td>ElastiCache</td><td>Memorystore</td><td>Azure Cache for Redis</td></tr><tr><td>DAX-style in-front-of-DB cache</td><td>DynamoDB Accelerator (DAX)</td><td>(Memorystore in front)</td><td>(Cosmos integrated cache)</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
 <div class="navfoot"><a href="52 Security in System Design.htm">&lsaquo; Prev: Security in System Design</a><a class="nx" href="54 Designing a Distributed Message Queue.htm">Next: Designing a Distributed Message Queue &rsaquo;</a></div>
 </div>
 </div>

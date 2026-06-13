@@ -266,6 +266,7 @@ WHERE run_id=:r AND state='PENDING';   -- 0 rows affected =&gt; someone beat us<
 <li>How would you support exactly-once <em>effects</em> for a target that moves money but exposes no idempotency key? What do you push back on, and what compensating design (ledger, two-phase, dedup table) would you propose?</li>
 </ul>
 
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Scheduled / cron jobs</td><td>EventBridge Scheduler</td><td>Cloud Scheduler</td><td>Logic Apps / Functions timer</td></tr><tr><td>Workflow orchestration</td><td>Step Functions</td><td>Workflows</td><td>Logic Apps / Durable Functions</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
 <div class="navfoot"><a href="57 Designing a Notification System.htm">&lsaquo; Prev: Designing a Notification System</a><a class="nx" href="59 Designing a Payment System.htm">Next: Designing a Payment System &rsaquo;</a></div>
 </div>
 </div>

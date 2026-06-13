@@ -285,6 +285,7 @@ def get(key):
 <li>Both B-Trees and LSM-Trees use a WAL. If they both log every write before acknowledging, where does the actual difference in write performance come from? Be specific about disk access patterns.</li>
 </ul>
 
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed relational engines</td><td>RDS/Aurora (MySQL, PostgreSQL)</td><td>Cloud SQL, AlloyDB</td><td>Azure SQL, DB for PostgreSQL/MySQL</td></tr><tr><td>Managed LSM-based / wide-column</td><td>DynamoDB, Keyspaces</td><td>Bigtable</td><td>Cosmos DB</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
 <div class="navfoot"><a href="37 Replication Deep Dive.htm">&lsaquo; Prev: Replication Deep Dive</a><a class="nx" href="39 Kafka and Log-based Messaging.htm">Next: Kafka and Log-based Messaging &rsaquo;</a></div>
 
 </div>
