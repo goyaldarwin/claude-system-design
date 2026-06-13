@@ -112,7 +112,14 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Load Balancing</div>
 <h1>Load Balancing</h1>
 <p class="sub"><em>How load balancers distribute traffic across resources, where they sit in the stack, and the smart-client, hardware, and software approaches to implementing them.</em></p>
-<div class="taxline"><span class="lab">Tax paid</span> <b>Finite capacity.</b> <span>one server can't take all traffic — distributing it adds a routing hop and health-tracking.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">Tax paid</a> <b>Finite capacity.</b> <span>one server can't take all traffic — distributing it adds a routing hop and health-tracking.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#1-smart-clients">1. Smart Clients</a></li>
+  <li><a href="#2-hardware-load-balancers">2. Hardware Load Balancers</a></li>
+  <li><a href="#3-software-load-balancers">3. Software Load Balancers</a></li>
+</ul></div>
+
 
 <p>Load balancer (LB) is another critical piece of any distributed system. It helps to distribute load across multiple resources according to some metric (random, round-robin, random with weighting for memory or CPU utilization, etc.). LB also keeps track of the status of all the resources while distributing requests. If a server is not available to take new requests or is not responding or has elevated error rate, LB will stop sending traffic to such a server.</p>
 
@@ -126,19 +133,19 @@
 
 <p>There are many ways to implement load balancing.</p>
 
-<div class="sechead">1. Smart Clients</div>
+<h2 id="1-smart-clients">1. Smart Clients</h2>
 
 <p>A smart client will take a pool of service hosts and balances load across them. It also detects hosts that are not responding to avoid sending requests their way. Smart clients also have to detect recovered hosts, deal with adding new hosts, etc.</p>
 
 <p>Adding load-balancing functionality into the database (cache, service, etc.) client is usually an attractive solution for the developer. It looks easy to implement and manage especially when the system is not large. But as the system grows, LBs need to be evolved into standalone servers.</p>
 
-<div class="sechead">2. Hardware Load Balancers</div>
+<h2 id="2-hardware-load-balancers">2. Hardware Load Balancers</h2>
 
 <p>The most expensive&ndash;but very high performance&ndash;solution to load balancing is to buy a dedicated hardware load balancer (something like a Citrix NetScaler). While they can solve a remarkable range of problems, hardware solutions are very expensive, and they are not trivial to configure.</p>
 
 <p>As such, even large companies with large budgets will often avoid using dedicated hardware for all their load-balancing needs. Instead, they use them only as the first point of contact for user requests to their infrastructure and use other mechanisms (smart clients or the hybrid approach discussed in the next section) for load-balancing for traffic within their network.</p>
 
-<div class="sechead">3. Software Load Balancers</div>
+<h2 id="3-software-load-balancers">3. Software Load Balancers</h2>
 
 <p>If we want to avoid the pain of creating a smart client, and since purchasing dedicated hardware is excessive, we can adopt a hybrid approach, called software load-balancers.</p>
 

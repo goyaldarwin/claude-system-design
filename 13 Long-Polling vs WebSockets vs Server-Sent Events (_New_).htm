@@ -112,7 +112,15 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Long-Polling vs WebSockets vs Server-Sent Events</div>
 <h1>Long-Polling vs WebSockets vs Server-Sent Events</h1>
 <p class="sub"><em>How clients and servers exchange real-time data over HTTP — comparing Ajax polling, HTTP long-polling, WebSockets, and Server-Sent Events.</em></p>
-<div class="taxline"><span class="lab">Tax paid</span> <b>Latency.</b> <span>pushing fresh data to clients beats polling, paying in held-open connections and connection state.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">Tax paid</a> <b>Latency.</b> <span>pushing fresh data to clients beats polling, paying in held-open connections and connection state.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#ajax-polling">Ajax Polling</a></li>
+  <li><a href="#http-longpolling">HTTP Long-Polling</a></li>
+  <li><a href="#websockets">WebSockets</a></li>
+  <li><a href="#serversent-events-sses">Server-Sent Events (SSEs)</a></li>
+</ul></div>
+
 
 <p>Long-Polling, WebSockets, and Server-Sent Events are popular communication protocols between a client like a web browser and a web server. First, let's start with understanding what a standard HTTP web request looks like. Following are a sequence of events for regular HTTP request:</p>
 <ol>
@@ -124,7 +132,7 @@
 <img src="./_principal_files/img/5748755743637504.png" alt="diagram">
 <p class="sub"><em>HTTP Protocol</em></p>
 
-<div class="sechead">Ajax Polling</div>
+<h2 id="ajax-polling">Ajax Polling</h2>
 <p>Polling is a standard technique used by the vast majority of AJAX applications. The basic idea is that the client repeatedly polls (or requests) a server for data. The client makes a request and waits for the server to respond with data. If no data is available, an empty response is returned.</p>
 <ol>
 <li>Client opens a connection and requests data from the server using regular HTTP.</li>
@@ -137,7 +145,7 @@
 <img src="./_principal_files/img/5694639155707904.png" alt="diagram">
 <p class="sub"><em>Ajax Polling Protocol</em></p>
 
-<div class="sechead">HTTP Long-Polling</div>
+<h2 id="http-longpolling">HTTP Long-Polling</h2>
 <p>A variation of the traditional polling technique that allows the server to push information to a client, whenever the data is available. With Long-Polling, the client requests information from the server exactly as in normal polling, but with the expectation that the server may not respond immediately. That's why this technique is sometimes referred to as a "Hanging GET".</p>
 <ul>
 <li>If the server does not have any data available for the client, instead of sending an empty response, the server holds the request and waits until some data becomes available.</li>
@@ -155,14 +163,14 @@
 <img src="./_principal_files/img/5767494685949952.png" alt="diagram">
 <p class="sub"><em>Long Polling Protocol</em></p>
 
-<div class="sechead">WebSockets</div>
+<h2 id="websockets">WebSockets</h2>
 <p>WebSocket provides <a href="https://en.wikipedia.org/wiki/Duplex_(telecommunications)#Full_duplex" target="_blank">Full duplex</a> communication channels over a single TCP connection. It provides a persistent connection between a client and a server that both parties can use to start sending data at any time. The client establishes a WebSocket connection through a process known as the WebSocket handshake. If the process succeeds, then the server and client can exchange data in both directions at any time.</p>
 <p>The WebSocket protocol enables communication between a client and a server with lower overheads, facilitating real-time data transfer from and to the server. This is made possible by providing a standardized way for the server to send content to the browser without being asked by the client, and allowing for messages to be passed back and forth while keeping the connection open. In this way, a two-way (bi-directional) ongoing conversation can take place between a client and a server.</p>
 
 <img src="./_principal_files/img/5701867585667072.png" alt="diagram">
 <p class="sub"><em>WebSockets Protocol</em></p>
 
-<div class="sechead">Server-Sent Events (SSEs)</div>
+<h2 id="serversent-events-sses">Server-Sent Events (SSEs)</h2>
 <p>Under SSEs the client establishes a persistent and long-term connection with the server. The server uses this connection to send data to a client. If the client wants to send data to the server, it would require the use of another technology/protocol to do so.</p>
 <ol>
 <li>Client requests data from a server using regular HTTP.</li>

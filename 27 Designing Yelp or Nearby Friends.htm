@@ -114,14 +114,29 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Yelp or Nearby Friends</div>
 <h1>Designing Yelp or Nearby Friends</h1>
 <p class="sub"><em>Build a proximity server that indexes 500M places with QuadTrees to answer nearby-search queries in real time at scale.</em></p>
-<div class="taxline"><span class="lab">Tax paid</span> <b>Latency &amp; finite capacity.</b> <span>proximity queries via geospatial indexing, paid in regional sharding and skew.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">Tax paid</a> <b>Latency &amp; finite capacity.</b> <span>proximity queries via geospatial indexing, paid in regional sharding and skew.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#1-why-yelp-or-proximity-server">1. Why Yelp or Proximity Server?</a></li>
+  <li><a href="#2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</a></li>
+  <li><a href="#3-scale-estimation">3. Scale Estimation</a></li>
+  <li><a href="#4-database-schema">4. Database Schema</a></li>
+  <li><a href="#5-system-apis">5. System APIs</a></li>
+  <li><a href="#6-basic-system-design-and-algorithm">6. Basic System Design and Algorithm</a></li>
+  <li><a href="#7-data-partitioning">7. Data Partitioning</a></li>
+  <li><a href="#8-replication-and-fault-tolerance">8. Replication and Fault Tolerance</a></li>
+  <li><a href="#9-cache">9. Cache</a></li>
+  <li><a href="#10-load-balancing-lb">10. Load Balancing (LB)</a></li>
+  <li><a href="#11-ranking">11. Ranking</a></li>
+</ul></div>
+
 
 <p>Let's design a Yelp-like service, where users can search for nearby places like restaurants, theaters, or shopping centers, etc., and can also add/view reviews of places. Similar Services: Proximity server.</p>
 
-<div class="sechead">1. Why Yelp or Proximity Server?</div>
+<h2 id="1-why-yelp-or-proximity-server">1. Why Yelp or Proximity Server?</h2>
 <p>Proximity servers are used to discover nearby attractions like places, events, etc. If you haven't used <a href="http://yelp.com/" target="_blank">yelp.com</a> before, please try it before proceeding. You can search for nearby restaurants, theaters, etc., and spend some time understanding different options the website offers. This will help you a lot in understanding this chapter better.</p>
 
-<div class="sechead">2. Requirements and Goals of the System</div>
+<h2 id="2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</h2>
 <p><strong>What do we wish to achieve from a Yelp like service?</strong> Our service will be storing information about different places so that users can perform a search on them. Upon querying, our service will return a list of places around the user.</p>
 <p>Our Yelp-like service should meet the following requirements:</p>
 <p><strong>Functional Requirements:</strong></p>
@@ -136,10 +151,10 @@
 <li>Our service should support a heavy search load. There will be a lot of search requests compared to adding a new place.</li>
 </ol>
 
-<div class="sechead">3. Scale Estimation</div>
+<h2 id="3-scale-estimation">3. Scale Estimation</h2>
 <p>Let's build our system assuming that we have 500M places and 100K queries per second (QPS). Let's also assume a 20% growth in the number of places and QPS each year.</p>
 
-<div class="sechead">4. Database Schema</div>
+<h2 id="4-database-schema">4. Database Schema</h2>
 <p>Each location can have following fields:</p>
 <ol>
 <li>LocationID (8 bytes): Uniquely identifies a location.</li>
@@ -160,7 +175,7 @@
 </ol>
 <p>Similarly, we can have a separate table to store photos for Places and Reviews.</p>
 
-<div class="sechead">5. System APIs</div>
+<h2 id="5-system-apis">5. System APIs</h2>
 <p>We can have SOAP or REST APIs to expose the functionality of our service. Following could be the definition of the API for searching:</p>
 <pre><code>search(api_dev_key, search_terms, user_location, radius_filter, maximum_results_to_return,
     category_filter, sort, page_token)</code></pre>
@@ -176,7 +191,7 @@ page_token (string): This token will specify a page in the result set that shoul
 <p><strong>Returns:</strong> (JSON)<br>
 A JSON containing information about a list of businesses matching the search query. Each result entry will have the business name, address, category, rating, and thumbnail.</p>
 
-<div class="sechead">6. Basic System Design and Algorithm</div>
+<h2 id="6-basic-system-design-and-algorithm">6. Basic System Design and Algorithm</h2>
 <p>At a high level, we need to store and index each dataset described above (places, reviews, etc.). For users to query this massive database, the indexing should be read efficient, since while searching for nearby places users expect to see the results in real-time.</p>
 <p>Given that the location of a place doesn't change that often, we don't need to worry about frequent updates of the data. As a contrast, if we intend to build a service where objects do change their location frequently, e.g., people or taxis, then we might come up with a very different design.</p>
 <p>Let's see what are different ways to store this data and find out which method will suit best for our use cases:</p>
@@ -219,7 +234,7 @@ A JSON containing information about a list of businesses matching the search que
 <p>So, total memory required to hold the whole QuadTree would be 12.01GB. This can easily fit into a modern-day server.</p>
 <p><strong>How would we insert a new Place into our system?</strong> Whenever a new Place is added by a user, we need to insert it into the databases, as well as, in the QuadTree. If our tree resides on one server, it is easy to add a new Place, but if the QuadTree is distributed among different servers, first we need to find the grid/server of the new Place and then add it there (discussed in the next section).</p>
 
-<div class="sechead">7. Data Partitioning</div>
+<h2 id="7-data-partitioning">7. Data Partitioning</h2>
 <p>What if we have a huge number of places such that, our index does not fit into a single machine's memory? With 20% growth, each year, we will reach the memory limit of the server in the future. Also, what if one server cannot serve the desired read traffic? To resolve these issues, we must partition our QuadTree!</p>
 <p>We will explore two solutions here (both of these partitioning schemes can be applied to databases too):</p>
 <p><strong>a. Sharding based on regions:</strong> We can divide our places into regions (like zip codes), such that all places belonging to a region will be stored on a fixed node. While storing, we will find the region of each place to find the server and store the place there. Similarly, while querying for nearby places, we can ask the region server that contains user's location. This approach has a couple of issues:</p>
@@ -233,20 +248,20 @@ A JSON containing information about a list of businesses matching the search que
 <p>Remaining part of this chapter assumes that we have partitioned our data based on LocationID.</p>
 <img src="./_principal_files/img/27_yelp_architecture.png" alt="diagram">
 
-<div class="sechead">8. Replication and Fault Tolerance</div>
+<h2 id="8-replication-and-fault-tolerance">8. Replication and Fault Tolerance</h2>
 <p>Having replicas of QuadTree servers can provide an alternate to data partitioning. To distribute read traffic, we can have replicas of each QuadTree server. We can have a master-slave configuration, where replicas (slaves) will only serve read traffic and all write traffic will first go the master and then applied to slaves. Slaves might not have some recently inserted places (a few milliseconds delay will be there), but this could be acceptable.</p>
 <p>What will happen when a QuadTree server dies? We can have a secondary replica of each server, and if primary dies, it can take control after the failover. Both primary and secondary servers will have the same QuadTree structure.</p>
 <p><strong>What if both primary and secondary servers die at the same time?</strong> We have to allocate a new server and rebuild the same QuadTree on it. How can we do that, since we don't know what places were kept on this server? The brute-force solution would be to iterate through the whole database and filter LocationIDs using our hash function to figure out all the required places that will be stored on this server. This would be inefficient and slow, also during the time when the server is being rebuilt; we will not be able to serve any query from it, thus missing some places that should have been seen by users.</p>
 <p><strong>How can we efficiently retrieve a mapping between Places and QuadTree server?</strong> We have to build a reverse index that will map all the Places to their QuadTree server. We can have a separate QuadTree Index server that will hold this information. We will need to build a HashMap, where the 'key' would be the QuadTree server number and the 'value' would be a HashSet containing all the Places being kept on that QuadTree server. We need to store LocationID and Lat/Long with each place because through this information servers can build their QuadTrees. Notice that we are keeping Places' data in a HashSet, this will enable us to add/remove Places from our index quickly. So now whenever a QuadTree server needs to rebuild itself, it can simply ask the QuadTree Index server for all the Places it needs to store. This approach will surely be quite fast. We should also have a replica of QuadTree Index server for fault tolerance. If a QuadTree Index server dies, it can always rebuild its index from iterating through the database.</p>
 
-<div class="sechead">9. Cache</div>
+<h2 id="9-cache">9. Cache</h2>
 <p>To deal with hot Places, we can introduce a cache in front of our database. We can use an off-the-shelf solution like Memcache, which can store all data about hot places. Application servers before hitting backend database can quickly check if the cache has that Place. Based on clients' usage pattern, we can adjust how many cache servers we need. For cache eviction policy, Least Recently Used (LRU) seems suitable for our system.</p>
 
-<div class="sechead">10. Load Balancing (LB)</div>
+<h2 id="10-load-balancing-lb">10. Load Balancing (LB)</h2>
 <p>We can add LB layer at two places in our system 1) Between Clients and Application servers and 2) Between Application servers and Backend server. Initially, a simple Round Robin approach can be adopted; that will distribute all incoming requests equally among backend servers. This LB is simple to implement and does not introduce any overhead. Another benefit of this approach is if a server is dead, the load balancer will take it out of the rotation and will stop sending any traffic to it.</p>
 <p>A problem with Round Robin LB is, it won't take server load into consideration. If a server is overloaded or slow, the load balancer will not stop sending new requests to that server. To handle this, a more intelligent LB solution would be needed that periodically queries backend server about their load and adjusts traffic based on that.</p>
 
-<div class="sechead">11. Ranking</div>
+<h2 id="11-ranking">11. Ranking</h2>
 <p>How about if we want to rank the search results not just by proximity but also by popularity or relevance?</p>
 <p><strong>How can we return most popular places within a given radius?</strong> Let's assume we keep track of the overall popularity of each place. An aggregated number can represent this popularity in our system, e.g., how many stars a place gets out of ten (this would be an average of different rankings given by users)? We will store this number in the database, as well as, in the QuadTree. While searching for top 100 places within a given radius, we can ask each partition of the QuadTree to return top 100 places having maximum popularity. Then the aggregator server can determine top 100 places among all the places returned by different partitions.</p>
 <p>Remember that we didn't build our system to update place's data frequently. With this design, how can we modify popularity of a place in our QuadTree? Although we can search a place and update its popularity in the QuadTree, it would take a lot of resources and can affect search requests and system throughput. Assuming popularity of a place is not expected to reflect in the system within a few hours, we can decide to update it once or twice a day, especially when the load on the system is minimum.</p>

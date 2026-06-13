@@ -114,15 +114,32 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing YouTube or Netflix</div>
 <h1>Designing YouTube or Netflix</h1>
 <p class="sub"><em>Designing a video-sharing service like YouTube where users can upload, view, share, rate, and search videos at massive read-heavy scale.</em></p>
-<div class="taxline"><span class="lab">Tax paid</span> <b>Latency &amp; finite capacity.</b> <span>video served from the edge, paid in a transcoding pipeline and storage/egress cost.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">Tax paid</a> <b>Latency &amp; finite capacity.</b> <span>video served from the edge, paid in a transcoding pipeline and storage/egress cost.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#1-why-youtube">1. Why Youtube?</a></li>
+  <li><a href="#2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</a></li>
+  <li><a href="#3-capacity-estimation-and-constraints">3. Capacity Estimation and Constraints</a></li>
+  <li><a href="#4-system-apis">4. System APIs</a></li>
+  <li><a href="#5-high-level-design">5. High Level Design</a></li>
+  <li><a href="#6-database-schema">6. Database Schema</a></li>
+  <li><a href="#7-detailed-component-design">7. Detailed Component Design</a></li>
+  <li><a href="#8-metadata-sharding">8. Metadata Sharding</a></li>
+  <li><a href="#9-video-deduplication">9. Video Deduplication</a></li>
+  <li><a href="#10-load-balancing">10. Load Balancing</a></li>
+  <li><a href="#11-cache">11. Cache</a></li>
+  <li><a href="#12-content-delivery-network-cdn">12. Content Delivery Network (CDN)</a></li>
+  <li><a href="#13-fault-tolerance">13. Fault Tolerance</a></li>
+</ul></div>
+
 
 <blockquote>Let's design a video sharing service like Youtube, where users will be able to upload/view/search videos.<br>
 <strong>Similar Services:</strong> netflix.com, vimeo.com, dailymotion.com, veoh.com</blockquote>
 
-<div class="sechead">1. Why Youtube?</div>
+<h2 id="1-why-youtube">1. Why Youtube?</h2>
 <p>Youtube is one of the most popular video sharing websites in the world. Users of the service can upload, view, share, rate, and report videos as well as add comments on videos.</p>
 
-<div class="sechead">2. Requirements and Goals of the System</div>
+<h2 id="2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</h2>
 <p>For the sake of this exercise, we plan to design a simpler version of Youtube with following requirements:</p>
 <p><strong>Functional Requirements:</strong></p>
 <ol>
@@ -140,7 +157,7 @@
 </ol>
 <p><strong>Not in scope:</strong> Video recommendation, most popular videos, channels, and subscriptions, watch later, favorites, etc.</p>
 
-<div class="sechead">3. Capacity Estimation and Constraints</div>
+<h2 id="3-capacity-estimation-and-constraints">3. Capacity Estimation and Constraints</h2>
 <p>Let&rsquo;s assume we have 1.5 billion total users, 800 million of whom are daily active users. If, on the average, a user views five videos per day, total video-views per second would be:</p>
 <blockquote>800M * 5 / 86400 sec =&gt; 46K videos/sec</blockquote>
 <p>Let&rsquo;s assume our upload:view ratio is 1:200 i.e., for every video upload we have 200 video viewed, giving us 230 videos uploaded per second.</p>
@@ -152,7 +169,7 @@
 <blockquote>500 hours * 60 mins * 10MB =&gt; 300GB/min (5GB/sec)</blockquote>
 <p>Assuming an upload:view ratio of 1:200, we would need 1TB/s outgoing bandwidth.</p>
 
-<div class="sechead">4. System APIs</div>
+<h2 id="4-system-apis">4. System APIs</h2>
 <p>We can have SOAP or REST APIs to expose the functionality of our service. Following could be the definitions of the APIs for uploading and searching videos:</p>
 <pre><code>uploadVideo(api_dev_key, video_title, vide_description, tags[], category_id, default_language,
                         recording_details, video_contents)</code></pre>
@@ -177,7 +194,7 @@ page_token (string): This token will specify a page in the result set that shoul
 <p><strong>Returns:</strong> (JSON)<br>
 A JSON containing information about the list of video resources matching the search query. Each video resource will have a video title, a thumbnail, a video creation date and how many views it has.</p>
 
-<div class="sechead">5. High Level Design</div>
+<h2 id="5-high-level-design">5. High Level Design</h2>
 <p>At a high-level we would need following components:</p>
 <ol>
 <li><strong>Processing Queue:</strong> Each uploaded video will be pushed to a processing queue, to be de-queued later for encoding, thumbnail generation, and storage.</li>
@@ -190,7 +207,7 @@ A JSON containing information about the list of video resources matching the sea
 <p style="text-align:center;"><img src="./_principal_files/img/21_youtube_high_level_design.png" alt="diagram"></p>
 <p style="text-align:center;"><em>High level design of Youtube</em></p>
 
-<div class="sechead">6. Database Schema</div>
+<h2 id="6-database-schema">6. Database Schema</h2>
 <p><strong>Video metadata storage - MySql</strong><br>
 Videos metadata can be stored in a SQL database. Following information should be stored with each video:</p>
 <ul>
@@ -217,7 +234,7 @@ Videos metadata can be stored in a SQL database. Following information should be
 <li>UserID, Name, email, address, age, registration details etc.</li>
 </ul>
 
-<div class="sechead">7. Detailed Component Design</div>
+<h2 id="7-detailed-component-design">7. Detailed Component Design</h2>
 <p>The service would be read-heavy, so we will focus on building a system that can retrieve videos quickly. We can expect our read:write ratio as 200:1, which means for every video upload there are 200 video views.</p>
 <p><strong>Where would videos be stored?</strong> Videos can be stored in a distributed file storage system like <a href="https://en.wikipedia.org/wiki/Apache_Hadoop#HDFS" target="_blank">HDFS</a> or <a href="https://en.wikipedia.org/wiki/GlusterFS" target="_blank">GlusterFS</a>.</p>
 <p><strong>How should we efficiently manage read traffic?</strong> We should segregate our read traffic from write. Since we will be having multiple copies of each video, we can distribute our read traffic on different servers. For metadata, we can have master-slave configurations, where writes will go to master first and then replayed at all the slaves. Such configurations can cause some staleness in data, e.g. when a new video is added, its metadata would be inserted in the master first, and before it gets replayed at the slave, our slaves would not be able to see it and therefore will be returning stale results to the user. This staleness might be acceptable in our system, as it would be very short lived and the user will be able to see the new videos after a few milliseconds.</p>
@@ -233,7 +250,7 @@ Videos metadata can be stored in a SQL database. Following information should be
 <p style="text-align:center;"><img src="./_principal_files/img/21_youtube_detailed_design.png" alt="diagram"></p>
 <p style="text-align:center;"><em>Detailed component design of Youtube</em></p>
 
-<div class="sechead">8. Metadata Sharding</div>
+<h2 id="8-metadata-sharding">8. Metadata Sharding</h2>
 <p>Since we have a huge number of new videos every day and our read load is extremely high too, we need to distribute our data onto multiple machines so that we can perform read/write operations efficiently. We have many options to shard our data. Let&rsquo;s go through different strategies of sharding this data one by one:</p>
 <p><strong>Sharding based on UserID:</strong> We can try storing all the data for a particular user on one server. While storing, we can pass the UserID to our hash function which will map the user to a database server where we will store all the metadata for that user&rsquo;s videos. While querying for videos of a user, we can ask our hash function to find the server holding user&rsquo;s data and then read it from there. To search videos by titles, we will have to query all servers, and each server will return a set of videos. A centralized server will then aggregate and rank these results before returning them to the user.</p>
 <p>This approach has a couple of issues:</p>
@@ -245,7 +262,7 @@ Videos metadata can be stored in a SQL database. Following information should be
 <p><strong>Sharding based on VideoID:</strong> Our hash function will map each VideoID to a random server where we will store that Video&rsquo;s metadata. To find videos of a user we will query all servers, and each server will return a set of videos. A centralized server will aggregate and rank these results before returning them to the user. This approach solves our problem of popular users but shifts it to popular videos.</p>
 <p>We can further improve our performance by introducing cache to store hot videos in front of the database servers.</p>
 
-<div class="sechead">9. Video Deduplication</div>
+<h2 id="9-video-deduplication">9. Video Deduplication</h2>
 <p>With a huge number of users, uploading a massive amount of video data, our service will have to deal with widespread video duplication. Duplicate videos often differ in aspect ratios or encodings, can contain overlays or additional borders, or can be excerpts from a longer, original video. The proliferation of duplicate videos can have an impact on many levels:</p>
 <ol>
 <li>Data Storage: We could be wasting storage space by keeping multiple copies of the same video.</li>
@@ -256,16 +273,16 @@ Videos metadata can be stored in a SQL database. Following information should be
 <p>For the end user, these inefficiencies will be realized in the form of duplicate search results, longer video startup times, and interrupted streaming.</p>
 <p>For our service, deduplication makes most sense early, when a user is uploading a video; as compared to post-processing it to find duplicate videos later. Inline deduplication will save us a lot of resources that can be used to encode, transfer and store the duplicate copy of the video. As soon as any user starts uploading a video, our service can run video matching algorithms (e.g., <a href="https://en.wikipedia.org/wiki/Block-matching_algorithm" target="_blank">Block Matching</a>, <a href="https://en.wikipedia.org/wiki/Phase_correlation" target="_blank">Phase Correlation</a>, etc.) to find duplications. If we already have a copy of the video being uploaded, we can either stop the upload and use the existing copy or use the newly uploaded video if it is of higher quality. If the newly uploaded video is a subpart of an existing video or vice versa, we can intelligently divide the video into smaller chunks, so that we only upload those parts that are missing.</p>
 
-<div class="sechead">10. Load Balancing</div>
+<h2 id="10-load-balancing">10. Load Balancing</h2>
 <p>We should use <a href="12 Consistent Hashing.htm" target="_blank">Consistent Hashing</a> among our cache servers, which will also help in balancing the load between cache servers. Since we will be using a static hash-based scheme to map videos to hostnames, it can lead to uneven load on the logical replicas due to the different popularity for each video. For instance, if a video becomes popular, the logical replica corresponding to that video will experience more traffic than other servers. These uneven loads for logical replicas can then translate into uneven load distribution on corresponding physical servers. To resolve this issue, any busy server in one location can redirect a client to a less busy server in the same cache location. We can use dynamic HTTP redirections for this scenario.</p>
 <p>However, the use of redirections also has its drawbacks. First, since our service tries to load balance locally, it leads to multiple redirections if the host that receives the redirection can&rsquo;t serve the video. Also, each redirection requires a client to make an additional HTTP request; it also leads to higher delays before the video starts playing back. Moreover, inter-tier (or cross data-center) redirections lead a client to a distant cache location because the higher tier caches are only present at a small number of locations.</p>
 
-<div class="sechead">11. Cache</div>
+<h2 id="11-cache">11. Cache</h2>
 <p>To serve globally distributed users, our service needs a massive-scale video delivery system. Our service should push its content closer to the user using a large number of geographically distributed video cache servers. We need to have a strategy that would maximize user performance and also evenly distributes the load on its cache servers.</p>
 <p>We can introduce a cache for metadata servers to cache hot database rows. Using Memcache to cache the data and Application servers before hitting database can quickly check if the cache has the desired rows. Least Recently Used (LRU) can be a reasonable cache eviction policy for our system. Under this policy, we discard the least recently viewed row first.</p>
 <p><strong>How can we build more intelligent cache?</strong> If we go with 80-20 rule, i.e., 20% of daily read volume for videos is generating 80% of traffic, meaning that certain videos are so popular that the majority of people view them; It follows that we can try caching 20% of daily read volume of videos and metadata.</p>
 
-<div class="sechead">12. Content Delivery Network (CDN)</div>
+<h2 id="12-content-delivery-network-cdn">12. Content Delivery Network (CDN)</h2>
 <p>A CDN is a system of distributed servers that deliver web content to a user based on the geographic locations of the user, the origin of the web page and a content delivery server. Take a look at &lsquo;CDN&rsquo; section in our <a href="04 Caching.htm" target="_blank">Caching</a> chapter.</p>
 <p>Our service can move most popular videos to CDNs:</p>
 <ul>
@@ -274,7 +291,7 @@ Videos metadata can be stored in a SQL database. Following information should be
 </ul>
 <p>Less popular videos (1-20 views per day) that are not cached by CDNs can be served by our servers in various data centers.</p>
 
-<div class="sechead">13. Fault Tolerance</div>
+<h2 id="13-fault-tolerance">13. Fault Tolerance</h2>
 <p>We should use <a href="12 Consistent Hashing.htm" target="_blank">Consistent Hashing</a> for distribution among database servers. Consistent hashing will not only help in replacing a dead server but also help in distributing load among servers.</p>
 
 <div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>

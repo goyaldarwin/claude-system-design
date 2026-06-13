@@ -114,12 +114,29 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing BookMyShow</div>
 <h1>Designing BookMyShow</h1>
 <p class="sub"><em>Designing an online movie ticket booking system like BookMyShow that sells movie tickets, handling high-concurrency seat reservations fairly with ACID-safe transactions, five-minute holds, and a first-come-first-serve waiting queue. Similar services: bookmyshow.com, ticketmaster.com. Difficulty: Hard.</em></p>
-<div class="taxline"><span class="lab">Tax paid</span> <b>Concurrency.</b> <span>preventing double-booking under contention, paid in locking/holds and a booking-payment saga.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">Tax paid</a> <b>Concurrency.</b> <span>preventing double-booking under contention, paid in locking/holds and a booking-payment saga.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#1-what-is-an-online-movie-ticket-booking-system">1. What is an online movie ticket booking system?</a></li>
+  <li><a href="#2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</a></li>
+  <li><a href="#3-some-design-considerations">3. Some Design Considerations</a></li>
+  <li><a href="#4-capacity-estimation">4. Capacity Estimation</a></li>
+  <li><a href="#5-system-apis">5. System APIs</a></li>
+  <li><a href="#6-database-design">6. Database Design</a></li>
+  <li><a href="#7-high-level-design">7. High Level Design</a></li>
+  <li><a href="#8-detailed-component-design">8. Detailed Component Design</a></li>
+  <li><a href="#a-activereservationsservice">a. ActiveReservationsService</a></li>
+  <li><a href="#b-waitingusersservice">b. WaitingUsersService</a></li>
+  <li><a href="#9-concurrency">9. Concurrency</a></li>
+  <li><a href="#10-fault-tolerance">10. Fault Tolerance</a></li>
+  <li><a href="#11-data-partitioning">11. Data Partitioning</a></li>
+</ul></div>
 
-<div class="sechead">1. What is an online movie ticket booking system?</div>
+
+<h2 id="1-what-is-an-online-movie-ticket-booking-system">1. What is an online movie ticket booking system?</h2>
 <p>A movie ticket booking system provides its customers the ability to purchase theatre seats online. E-ticketing systems allow the customers to browse through movies currently being played and to book seats, anywhere and anytime.</p>
 
-<div class="sechead">2. Requirements and Goals of the System</div>
+<h2 id="2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</h2>
 <p>Our ticket booking service should meet the following requirements:</p>
 <p><strong>Functional Requirements:</strong></p>
 <ol>
@@ -139,7 +156,7 @@
 <li>The core thing of the service is ticket booking which means financial transactions. This means that the system should be secure and the database ACID compliant.</li>
 </ol>
 
-<div class="sechead">3. Some Design Considerations</div>
+<h2 id="3-some-design-considerations">3. Some Design Considerations</h2>
 <ol>
 <li>For simplicity, let&rsquo;s assume our service doesn&rsquo;t require user authentication.</li>
 <li>The system will not handle partial ticket orders. Either user gets all the tickets they want, or they get nothing.</li>
@@ -148,7 +165,7 @@
 <li>We can assume that traffic would spike on popular/much-awaited movie releases, and the seats fill up pretty fast. The system should be scalable, highly available to cope up with the surge in traffic.</li>
 </ol>
 
-<div class="sechead">4. Capacity Estimation</div>
+<h2 id="4-capacity-estimation">4. Capacity Estimation</h2>
 <p><strong>Traffic estimates:</strong> Let&rsquo;s assume that our service has 3 billion page views per month and sells 10 million tickets a month.</p>
 <p><strong>Storage estimates:</strong> Let&rsquo;s assume that we have 500 cities and on average each city has ten cinemas. If there are 2000 seats in each cinema and on average, there are two shows every day.</p>
 <p>Let&rsquo;s assume each seat booking needs 50 bytes (IDs, NumberOfSeats, ShowID, MovieID, SeatNumbers, SeatStatus, Timestamp, etc.) to store in the database. We would also need to store information about movies and cinemas, let&rsquo;s assume it&rsquo;ll take 50 bytes. So, to store all the data about all shows of all cinemas of all cities for a day:</p>
@@ -157,7 +174,7 @@
 </blockquote>
 <p>To store five years of this data, we would need around 3.6PB.</p>
 
-<div class="sechead">5. System APIs</div>
+<h2 id="5-system-apis">5. System APIs</h2>
 <p>We can have SOAP or REST APIs to expose the functionality of our service. Following could be the definitions of the APIs to search movie shows and reserve seats.</p>
 <pre><code>SearchMovies(api_dev_key, keyword, city, lat_long, radius, start_datetime, end_datetime, postal_code,
 includeSpellcheck, results_per_page, sorting_order)</code></pre>
@@ -239,7 +256,7 @@ Here is a sample list of movies and their shows:</p>
 <p><strong>Returns:</strong> (JSON)<br>
 Returns the status of the reservation, which would be one of the following: 1) &ldquo;Reservation Successful&rdquo; 2) &ldquo;Reservation Failed - Show Full,&rdquo; 3) &ldquo;Reservation Failed - Retry, as other users are holding reserved seats&rdquo;.</p>
 
-<div class="sechead">6. Database Design</div>
+<h2 id="6-database-design">6. Database Design</h2>
 <p>Here are a few observations about the data we are going to store:</p>
 <ol>
 <li>Each City can have multiple Cinemas.</li>
@@ -249,11 +266,11 @@ Returns the status of the reservation, which would be one of the following: 1) &
 </ol>
 <p style="text-align:center;"><img src="./_principal_files/img/5756035713204224.png" alt="diagram"></p>
 
-<div class="sechead">7. High Level Design</div>
+<h2 id="7-high-level-design">7. High Level Design</h2>
 <p>At a high level, our web servers will manage Users&rsquo; sessions, and application servers will handle all the ticket management, storing data in the databases and work with cache servers to process reservations.</p>
 <p style="text-align:center;"><img src="./_principal_files/img/5644572721938432.png" alt="diagram"></p>
 
-<div class="sechead">8. Detailed Component Design</div>
+<h2 id="8-detailed-component-design">8. Detailed Component Design</h2>
 <p>First, let&rsquo;s try to build our service assuming if it is being served from a single server.</p>
 <p><strong>Ticket Booking Workflow:</strong> Following would be a typical ticket booking workflow:</p>
 <ol>
@@ -287,7 +304,7 @@ Returns the status of the reservation, which would be one of the following: 1) &
 <p><strong>How would the server keep track of all the active reservation that haven&rsquo;t been booked yet? And how would the server keep track of all the waiting customers?</strong><br>
 We need two daemon services, one to keep track of all active reservations and to remove any expired reservation from the system, let&rsquo;s call it&nbsp;<strong>ActiveReservationService</strong>. The other service would be keeping track of all the waiting user requests, and as soon as the required number of seats become available, it&rsquo;ll notify the (the longest waiting) user to choose the seats, let&rsquo;s call it&nbsp;<strong>WaitingUserService</strong>.</p>
 
-<div class="sechead">a. ActiveReservationsService</div>
+<h2 id="a-activereservationsservice">a. ActiveReservationsService</h2>
 <p>We can keep all the reservations of a &lsquo;show&rsquo; in memory in a <a href="https://docs.oracle.com/javase/7/docs/api/java/util/LinkedHashMap.html" target="_blank">Linked HashMap</a> in addition to keeping all the data in the database. We would need a Linked HashMap so that we can jump to any reservation to remove it when the booking is complete. Also, since we will have expiry time associated with each reservation, the head of the linked HashTable will always point to the oldest reservation record, so that the reservation can be expired when the timeout is reached.</p>
 <p>To store every reservation for every show, we can have a HashTable where the &lsquo;key&rsquo; would be &lsquo;ShowID&rsquo; and the &lsquo;value&rsquo; would be the Linked HashMap containing &lsquo;BookingID&rsquo; and creation &lsquo;Timestamp&rsquo;.</p>
 <p>In the database, we&rsquo;ll store the reservation in the &lsquo;Booking&rsquo; table, and the expiry time will be in the Timestamp column. The &lsquo;Status&rsquo; field will have a value of &lsquo;Reserved (1)&rsquo; and as soon as a booking is complete, the system will update the &lsquo;Status&rsquo; to &lsquo;Booked (2)&rsquo; and remove the reservation record from the Linked HashMap of the relevant show. When the reservation is expired, we can either remove it from the Booking table or mark it &lsquo;Expired (3)&rsquo; in addition to removing it from memory.</p>
@@ -295,14 +312,14 @@ We need two daemon services, one to keep track of all active reservations and to
 <p style="text-align:center;"><img src="./_principal_files/img/5752142325350400.png" alt="diagram"></p>
 <p style="text-align:center;"><em>ActiveReservationsService keeping track of all active reservations</em></p>
 
-<div class="sechead">b. WaitingUsersService</div>
+<h2 id="b-waitingusersservice">b. WaitingUsersService</h2>
 <p>Just like ActiveReservationsService, we can keep all the waiting users of a show in memory in a Linked HashMap. We need a Linked HashMap so that we can jump to any user to remove them from the HashMap when the user cancels their request. Also, since we are serving in a first-come-first-serve manner, the head of the Linked HashMap would always be pointing to the longest waiting user, so that whenever seats become available, we can serve users in a fair manner.</p>
 <p>We will have a HashTable to store all the waiting users for every Show. The &lsquo;key&rsquo; would be 'ShowID, and the &lsquo;value&rsquo; would be a Linked HashMap containing &lsquo;UserIDs&rsquo; and their wait-start-time.</p>
 <p>Clients can use <a href="https://en.wikipedia.org/wiki/Push_technology#Long_polling" target="_blank">Long Polling</a> for keeping themselve updated for their reservation status. Whenever seats become available, the server can use this request to notify the user.</p>
 <p><strong>Reservation Expiration</strong><br>
 On the server, ActiveReservationsService keeps track of expiry (based on reservation time) of active reservations. As the client will be shown a timer (for the expiration time) which could be a little out of sync with the server, we can add a buffer of five seconds on the server to safeguard from a broken experience - such that &ndash; the client never times out after the server, preventing a successful purchase.</p>
 
-<div class="sechead">9. Concurrency</div>
+<h2 id="9-concurrency">9. Concurrency</h2>
 <p><strong>How to handle concurrency; such that no two users are able to book same seat?</strong> We can use transactions in SQL databases to avoid any clashes. For example, if we are using SQL server we can utilize&nbsp;<a href="https://docs.microsoft.com/en-us/sql/odbc/reference/develop-app/transaction-isolation-levels" target="_blank">Transaction Isolation Levels</a> to lock the rows before we can update them. Here is the sample code:</p>
 <pre><code>SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 
@@ -320,12 +337,12 @@ COMMIT TRANSACTION;</code></pre>
 <p>&lsquo;Serializable&rsquo; is the highest isolation level and guarantees safety from <a href="https://en.wikipedia.org/wiki/Isolation_(database_systems)#Dirty_reads" target="_blank">Dirty</a>, <a href="https://en.wikipedia.org/wiki/Isolation_(database_systems)#Non-repeatable_reads" target="_blank">Nonrepeatable</a> and <a href="https://en.wikipedia.org/wiki/Isolation_(database_systems)#Phantom_reads" target="_blank">Phantoms</a> reads. One thing to note here, within a transaction if we read rows we get a write lock on them so that they can&rsquo;t be updated by anyone else.</p>
 <p>Once the above database transaction is successful, we can start tracking the reservation in ActiveReservationService.</p>
 
-<div class="sechead">10. Fault Tolerance</div>
+<h2 id="10-fault-tolerance">10. Fault Tolerance</h2>
 <p><strong>What happens when ActiveReservationsService or WaitingUsersService crashes?</strong><br>
 Whenever ActiveReservationsService crashes, we can read all the active reservations from the &lsquo;Booking&rsquo; table. Remember that we keep the &lsquo;Status&rsquo; column as &lsquo;Reserved (1)&rsquo; until a reservation gets booked. Another option is to have master-slave configuration so that when master crashes slave can take over. Since we are not storing the waiting users in the database, so when WaitingUsersService crashes, we don&rsquo;t have any means to recover that data unless we have a master-slave setup.</p>
 <p>Similarly, we&rsquo;ll have a master-slave setup for databases to make them fault tolerant.</p>
 
-<div class="sechead">11. Data Partitioning</div>
+<h2 id="11-data-partitioning">11. Data Partitioning</h2>
 <p><strong>Database partitioning:</strong> If we partition by &lsquo;MovieID&rsquo; then all the Shows of a movie will be on a single server. For a very hot movie, this could cause a lot of load on that server. A better approach would be to partition based on ShowID, this way the load gets distributed among different servers.</p>
 <p><strong>ActiveReservationService and WaitingUserService partitioning:</strong> Our web servers will manage all the active users&rsquo; sessions and handle all the communication with the users. We can use Consistent Hashing to allocate application servers for both ActiveReservationService and WaitingUserService based upon the &lsquo;ShowID&rsquo;. This way, all reservations and waiting users of a particular show will be handled by a certain set of servers. Let&rsquo;s assume for load balancing our <a href="12 Consistent Hashing.htm" target="_blank">Consistent Hashing</a> allocates three servers for any Show, so whenever a reservation is expired, the server holding that reservation will do following things:</p>
 <ol>

@@ -114,7 +114,13 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Indexes</div>
 <h1>Indexes</h1>
 <p class="sub"><em>How indexes trade storage and write cost for fast reads, and why they become essential at scale.</em></p>
-<div class="taxline"><span class="lab">Tax paid</span> <b>Latency.</b> <span>an index makes reads fast by paying in extra storage and slower writes (the index must be maintained).</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">Tax paid</a> <b>Latency.</b> <span>an index makes reads fast by paying in extra storage and slower writes (the index must be maintained).</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#storage">How indexes are really stored: LSM vs B-Tree</a></li>
+  <li><a href="#mastery">Mastery check</a></li>
+</ul></div>
+
 
 <p>Indexes are well known when it comes to databases; they are used to improve the speed of data retrieval operations on the data store. An index makes the trade-offs of increased storage overhead, and slower writes (since we not only have to write the data but also have to update the index) for the benefit of faster reads. Indexes are used to quickly locate data without having to examine every row in a database table. Indexes can be created using one or more columns of a database table, providing the basis for both rapid random lookups and efficient access of ordered records.</p>
 
@@ -138,7 +144,7 @@
 </style>
 <div class="pdeep">
 <span class="tag">Principal-level deep dive</span>
-<h2>How indexes are really stored: LSM vs B-Tree</h2>
+<h2 id="storage">How indexes are really stored: LSM vs B-Tree</h2>
 <p>The original lesson treats an index as an abstract sorted lookup structure. At principal level the more consequential question is <em>which storage engine physically backs that index</em>, because that single decision dictates your write throughput, read latency tail, disk footprint, and even how compaction interacts with your SLOs. Almost every index you will ever build resolves to one of two families: a <strong>B-Tree</strong> (update-in-place) or an <strong>LSM-Tree</strong> (log-structured merge). Knowing why, and when each flips from advantage to liability, is the actual skill.</p>
 
 <h3>B-Trees: update-in-place, read-optimized</h3>
@@ -172,7 +178,7 @@
 .mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
 .mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
 </style>
-<div class="mastery">
+<div class="mastery" id="mastery">
 <h2>Mastery check</h2>
 <ul>
 <li>Can you explain why a B-Tree update is an in-place page rewrite while an LSM update is just an append — and which one wins on a write-heavy time-series ingest vs. a range-scan-heavy reporting workload?</li>

@@ -112,15 +112,26 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Uber Backend</div>
 <h1>Designing Uber Backend</h1>
 <p class="sub"><em>Designing a ride-sharing service like Uber that connects passengers who need a ride with drivers who have a car, handling high-frequency location updates and real-time matching.</em></p>
-<div class="taxline"><span class="lab">Tax paid</span> <b>No shared truth &amp; latency.</b> <span>real-time matching of moving objects, paid in a constantly-updating geo-index and ride-state consistency.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">Tax paid</a> <b>No shared truth &amp; latency.</b> <span>real-time matching of moving objects, paid in a constantly-updating geo-index and ride-state consistency.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#1-what-is-uber">1. What is Uber?</a></li>
+  <li><a href="#2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</a></li>
+  <li><a href="#3-capacity-estimation-and-constraints">3. Capacity Estimation and Constraints</a></li>
+  <li><a href="#4-basic-system-design-and-algorithm">4. Basic System Design and Algorithm</a></li>
+  <li><a href="#5-fault-tolerance-and-replication">5. Fault Tolerance and Replication</a></li>
+  <li><a href="#6-ranking">6. Ranking</a></li>
+  <li><a href="#7-advanced-issues">7. Advanced Issues</a></li>
+</ul></div>
+
 
 <p>Let's design a ride-sharing service like Uber, which connects passengers who need a ride with drivers who have a car.</p>
 <p>Similar Services: Lyft, Didi, Via, Sidecar etc.<a href="27 Designing Yelp or Nearby Friends.htm">Designing Yelp</a></p>
 
-<div class="sechead">1. What is Uber?</div>
+<h2 id="1-what-is-uber">1. What is Uber?</h2>
 <p>Uber enables its customers to book drivers for taxi rides. Uber drivers use their personal cars to drive customers around. Both customers and drivers communicate with each other through their smartphones using Uber app.</p>
 
-<div class="sechead">2. Requirements and Goals of the System</div>
+<h2 id="2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</h2>
 <p>Let's start with building a simpler version of Uber.</p>
 <p>There are two kinds of users in our system 1) Drivers 2) Customers.</p>
 <ul>
@@ -131,7 +142,7 @@
 <li>Upon reaching the destination, the driver marks the journey complete to become available for the next ride.</li>
 </ul>
 
-<div class="sechead">3. Capacity Estimation and Constraints</div>
+<h2 id="3-capacity-estimation-and-constraints">3. Capacity Estimation and Constraints</h2>
 <ul>
 <li>Let's assume we have 300M customer and 1M drivers, with 1M daily active customers and 500K daily active drivers.</li>
 <li>Let's assume 1M daily rides.</li>
@@ -139,7 +150,7 @@
 <li>Once a customer puts a request for a ride, the system should be able to contact drivers in real-time.</li>
 </ul>
 
-<div class="sechead">4. Basic System Design and Algorithm</div>
+<h2 id="4-basic-system-design-and-algorithm">4. Basic System Design and Algorithm</h2>
 <p>We will take the solution discussed in <a href="27 Designing Yelp or Nearby Friends.htm" target="_blank">Designing Yelp</a> and modify it to make it work for above-mentioned "Uber" use cases. The biggest difference we have is that our QuadTree was not built keeping in mind that there will be frequent updates to it. So, we have two issues with our Dynamic Grid solution:</p>
 <ul>
 <li>Since all active drivers are reporting their locations every three seconds, we need to update our data structures to reflect that. If we have to update the QuadTree for every change in the driver's position, it will take a lot of time and resources. To update a driver to its new location, we must find the right grid based on the driver's previous location. If the new position does not belong to the current grid, we have to remove the driver from the current grid and move/reinsert the user to the correct grid. After this move, if the new grid reaches the maximum limit of drivers, we have to repartition it.</li>
@@ -195,14 +206,14 @@ If we get DriverID and their location, it will be (3+16 =&gt; 19 bytes). If we r
 <li>Once a driver accepts a request, the customer is notified.</li>
 </ol>
 
-<div class="sechead">5. Fault Tolerance and Replication</div>
+<h2 id="5-fault-tolerance-and-replication">5. Fault Tolerance and Replication</h2>
 <p><strong>What if a Driver Location server or Notification server dies?</strong> We would need replicas of these servers, so that if the primary dies the secondary can take control. Also, we can store this data in some persistent storage like SSDs that can provide fast IOs; this will ensure that if both primary and secondary servers die we can recover the data from the persistent storage.</p>
 
-<div class="sechead">6. Ranking</div>
+<h2 id="6-ranking">6. Ranking</h2>
 <p>How about if we want to rank the search results not just by proximity but also by popularity or relevance?</p>
 <p><strong>How can we return top rated drivers within a given radius?</strong> Let's assume we keep track of the overall ratings of each driver in our database and QuadTree. An aggregated number can represent this popularity in our system, e.g., how many stars a driver gets out of ten? While searching for top 10 drivers within a given radius, we can ask each partition of the QuadTree to return top 10 drivers with maximum rating. The aggregator server can then determine top 10 drivers among all the drivers returned by different partitions.</p>
 
-<div class="sechead">7. Advanced Issues</div>
+<h2 id="7-advanced-issues">7. Advanced Issues</h2>
 <ol>
 <li>How to handle clients on slow and disconnecting networks?</li>
 <li>What if a client gets disconnected when it was a part of a ride? How will we handle billing in such a scenario?</li>

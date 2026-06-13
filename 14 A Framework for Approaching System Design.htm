@@ -114,7 +114,18 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; A Framework for Approaching System Design</div>
 <h1>A Framework for Approaching System Design</h1>
 <p class="sub"><em>A reusable seven-step method for reasoning through any real-world system design problem — from clarifying requirements through identifying and resolving bottlenecks.</em></p>
-<div class="taxline"><span class="lab">Tax paid</span> <b>Method.</b> <span>a repeatable way to reason about which taxes a given problem forces you to pay.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">Tax paid</a> <b>Method.</b> <span>a repeatable way to reason about which taxes a given problem forces you to pay.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#step-1-clarify-requirements-scope">Step 1: Clarify requirements &amp; scope</a></li>
+  <li><a href="#step-2-backoftheenvelope-estimation">Step 2: Back-of-the-envelope estimation</a></li>
+  <li><a href="#step-3-define-the-apis-interfaces">Step 3: Define the APIs / interfaces</a></li>
+  <li><a href="#step-4-design-the-data-model">Step 4: Design the data model</a></li>
+  <li><a href="#step-5-highlevel-architecture">Step 5: High-level architecture</a></li>
+  <li><a href="#step-6-deepdive-the-bottleneck-components">Step 6: Deep-dive the bottleneck components</a></li>
+  <li><a href="#step-7-identify-bottlenecks-failure-modes-evolution">Step 7: Identify bottlenecks, failure modes &amp; evolution</a></li>
+</ul></div>
+
 
 <p>Designing a large-scale system is hard for a few recurring reasons: 1) the work is <strong>open-ended</strong> — there is rarely one correct answer, only a set of decisions with different trade-offs; 2) the right design depends on <strong>scale and constraints</strong> that are not always stated up front; and 3) it is easy to jump to a solution before you understand the problem. A repeatable method protects you from all three. It forces you to surface the requirements, ground your decisions in numbers, and reason explicitly about the trade-offs instead of reaching for whatever architecture is fashionable.</p>
 
@@ -122,7 +133,7 @@
 
 <p>Below are the seven steps, illustrated throughout with a Twitter-like service so you can see how each step feeds the next.</p>
 
-<div class="sechead">Step 1: Clarify requirements &amp; scope</div>
+<h2 id="step-1-clarify-requirements-scope">Step 1: Clarify requirements &amp; scope</h2>
 
 <p>Start by pinning down the exact scope of the problem. Because design problems are open-ended, resolving ambiguity early is the single highest-leverage thing you can do. When you are building a real system, this means clarifying requirements with <strong>stakeholders</strong> — product owners, downstream teams, on-call engineers, whoever depends on the system. Time and engineering budget are finite, so you also need to decide which parts of the system you will focus on and which you will treat as out of scope (or as someone else's service).</p>
 
@@ -142,7 +153,7 @@
 
 <div class="callout note"><b>Write the non-functional targets down.</b> "Reads must return in under 200&nbsp;ms at p99," "the timeline can be eventually consistent for a few seconds," "we target 99.9% availability." These targets are what later let you choose between a synchronous quorum read and a cached read, or between a strongly consistent store and an eventually consistent one — see <a href="31 Consistency Models and PACELC.htm">Consistency Models &amp; PACELC</a>.</div>
 
-<div class="sechead">Step 2: Back-of-the-envelope estimation</div>
+<h2 id="step-2-backoftheenvelope-estimation">Step 2: Back-of-the-envelope estimation</h2>
 
 <p>Estimate the scale before you design anything. These numbers decide whether a single database primary is sufficient or laughable, whether you need <a href="05 Sharding or Data Partitioning.htm">sharding</a>, how aggressively you need to <a href="04 Caching.htm">cache</a>, and how much you should worry about bandwidth. Designing capacity, partitioning, or caching <em>without</em> estimation is just guessing.</p>
 
@@ -168,7 +179,7 @@
 
 <p>That read:write ratio (~100:1 here) is one of the most consequential numbers you will produce — a read-heavy system is designed completely differently from a write-heavy one. It immediately tells you to invest in read replicas, caching layers, and possibly precomputed timelines rather than optimizing the write path.</p>
 
-<div class="sechead">Step 3: Define the APIs / interfaces</div>
+<h2 id="step-3-define-the-apis-interfaces">Step 3: Define the APIs / interfaces</h2>
 
 <p>Define the APIs the system exposes. This does two things: it nails down the exact contract other components and clients depend on, and it acts as a check that you have not misread the requirements — if an interface is awkward to express, a requirement is probably underspecified. For the Twitter-like service:</p>
 
@@ -180,7 +191,7 @@ markTweetFavorite(user_id, tweet_id, timestamp, …)</code></pre>
 
 <p>At this point you also decide the interface <em>style</em> — REST, gRPC, GraphQL, or an event/message contract — based on the access patterns and consumers. That choice is a design decision in its own right; see <a href="44 API Design REST gRPC GraphQL.htm">API Design</a>.</p>
 
-<div class="sechead">Step 4: Design the data model</div>
+<h2 id="step-4-design-the-data-model">Step 4: Design the data model</h2>
 
 <p>Defining the data model early clarifies how data flows between components and sets up the later decisions about partitioning and storage. A useful discipline is to start from the <strong>access patterns</strong> — how the data will actually be read and written — rather than from a list of tables. The access patterns determine the partition key, whether you want a B-tree or LSM-based <a href="38 Storage Engines LSM vs B-Tree.htm">storage engine</a>, and where hot keys will appear. Identify the entities, how they relate, and the concerns around storage, transport, and encryption. Core entities here:</p>
 
@@ -191,7 +202,7 @@ markTweetFavorite(user_id, tweet_id, timestamp, …)</code></pre>
 
 <p>Then choose the storage technology to match. Does an eventually consistent, write-scalable NoSQL store like <a href="https://en.wikipedia.org/wiki/Apache_Cassandra" target="_blank">Cassandra</a> fit the access patterns better than a relational MySQL-style database? What block or object storage holds the photos and videos? The <a href="10 SQL vs. NoSQL.htm">SQL vs. NoSQL</a> lesson and <a href="68 Choosing a Database.htm">Choosing a Database</a> walk through how to make that call deliberately rather than by habit.</p>
 
-<div class="sechead">Step 5: High-level architecture</div>
+<h2 id="step-5-highlevel-architecture">Step 5: High-level architecture</h2>
 
 <p>Sketch a block diagram with five or six boxes for the core components — enough to solve the problem end-to-end, no more. The goal is a design you can explain in one breath, where each box exists for a reason you can state.</p>
 
@@ -201,7 +212,7 @@ markTweetFavorite(user_id, tweet_id, timestamp, …)</code></pre>
 
 <div class="callout tradeoff"><b>Let the numbers shape the boxes.</b> The split between read and write fleets, the presence of a cache tier, and the choice of a separate media store are not defaults — each one is a direct consequence of a number from Step 2 (the read:write ratio, the QPS, the storage-per-year figure). If you cannot point to the estimate that justifies a component, question whether it belongs.</div>
 
-<div class="sechead">Step 6: Deep-dive the bottleneck components</div>
+<h2 id="step-6-deepdive-the-bottleneck-components">Step 6: Deep-dive the bottleneck components</h2>
 
 <p>Now go deep on the two or three components where the difficulty actually concentrates. Breadth across the whole diagram is the easy part; depth on the hard part is where good design happens. For each, lay out the alternative approaches, their pros and cons, and why you would choose one. There is no single right answer — what matters is reasoning about trade-offs while respecting the system constraints from Steps 1 and 2.</p>
 
@@ -215,7 +226,7 @@ markTweetFavorite(user_id, tweet_id, timestamp, …)</code></pre>
 
 <p>This is where naming concrete machinery signals that your breadth is backed by real understanding: <a href="12 Consistent Hashing.htm">consistent hashing with virtual nodes</a> for partition assignment, push vs pull timeline fan-out with a hybrid for celebrity accounts, read-repair vs synchronous quorum for replica consistency. Pick the deep-dive that the design's own constraints point to — the fan-out path for a feed, the exactly-once/dedup path for a payment system, the inverted-index update for search.</p>
 
-<div class="sechead">Step 7: Identify bottlenecks, failure modes &amp; evolution</div>
+<h2 id="step-7-identify-bottlenecks-failure-modes-evolution">Step 7: Identify bottlenecks, failure modes &amp; evolution</h2>
 
 <p>Finally, stress the design. Walk through as many bottlenecks and failure modes as you can and propose mitigations for each. Assume the network is unreliable and dependencies will be slow before they are down.</p>
 

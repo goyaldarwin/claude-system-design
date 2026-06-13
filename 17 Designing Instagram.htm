@@ -112,13 +112,29 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Instagram</div>
 <h1>Designing Instagram</h1>
 <p class="sub"><em>Design a read-heavy photo-sharing service like Instagram — uploads, follows, sharded metadata, and pre-generated, ranked timelines.</em></p>
-<div class="taxline"><span class="lab">Tax paid</span> <b>Latency.</b> <span>feed reads made fast by precomputing/fanning out, paid in write amplification and the celebrity problem.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">Tax paid</a> <b>Latency.</b> <span>feed reads made fast by precomputing/fanning out, paid in write amplification and the celebrity problem.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#1-why-instagram">1. Why Instagram?</a></li>
+  <li><a href="#2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</a></li>
+  <li><a href="#3-some-design-considerations">3. Some Design Considerations</a></li>
+  <li><a href="#4-capacity-estimation-and-constraints">4. Capacity Estimation and Constraints</a></li>
+  <li><a href="#5-high-level-system-design">5. High Level System Design</a></li>
+  <li><a href="#6-database-schema">6. Database Schema</a></li>
+  <li><a href="#7-component-design">7. Component Design</a></li>
+  <li><a href="#8-reliability-and-redundancy">8. Reliability and Redundancy</a></li>
+  <li><a href="#9-data-sharding">9. Data Sharding</a></li>
+  <li><a href="#10-ranking-and-timeline-generation">10. Ranking and Timeline Generation</a></li>
+  <li><a href="#11-timeline-creation-with-sharded-data">11. Timeline Creation with Sharded Data</a></li>
+  <li><a href="#12-cache-and-load-balancing">12. Cache and Load balancing</a></li>
+</ul></div>
 
-<div class="sechead">1. Why Instagram?</div>
+
+<h2 id="1-why-instagram">1. Why Instagram?</h2>
 <p>Instagram is a social networking service, which enables its users to upload and share their pictures and videos with other users. Users can share either publicly or privately, as well as through a number of other social networking platforms, such as Facebook, Twitter, Flickr, and Tumblr.</p>
 <p>For the sake of this exercise, we plan to design a simpler version of Instagram, where a user can share photos and can also follow other users. Timeline for each user will consist of top photos from all the people the user follows.</p>
 
-<div class="sechead">2. Requirements and Goals of the System</div>
+<h2 id="2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</h2>
 <p>We will focus on the following set of requirements while designing Instagram:</p>
 <p><strong>Functional Requirements</strong></p>
 <ol>
@@ -136,7 +152,7 @@
 </ol>
 <p><strong>Not in scope:</strong> Adding tags to photos, searching photos on tags, commenting on photos, tagging users to photos, who to follow, suggestions, etc.</p>
 
-<div class="sechead">3. Some Design Considerations</div>
+<h2 id="3-some-design-considerations">3. Some Design Considerations</h2>
 <p>The system would be read-heavy, so we will focus on building a system that can retrieve photos quickly.</p>
 <ol>
 <li>Practically users can upload as many photos as they like. Efficient management of storage should be a crucial factor while designing this system.</li>
@@ -144,7 +160,7 @@
 <li>Data should be 100% reliable. If a user uploads an image, the system will guarantee that it will never be lost.</li>
 </ol>
 
-<div class="sechead">4. Capacity Estimation and Constraints</div>
+<h2 id="4-capacity-estimation-and-constraints">4. Capacity Estimation and Constraints</h2>
 <ul>
 <li>Let’s assume we have 300M total users, with 1M daily active users.</li>
 <li>2M new photos every day, 23 new photos every second.</li>
@@ -157,10 +173,10 @@
 </ul>
 <blockquote>400GB * 365 (days a year) * 5 (years) ~= 712 TB</blockquote>
 
-<div class="sechead">5. High Level System Design</div>
+<h2 id="5-high-level-system-design">5. High Level System Design</h2>
 <p>At a high-level, we need to support two scenarios, one to upload photos and the other to view/search photos. Our service would need some block storage servers to store photos and also some database servers to store metadata information about the photos.</p>
 
-<div class="sechead">6. Database Schema</div>
+<h2 id="6-database-schema">6. Database Schema</h2>
 <div class="clarify">Defining the DB schema early would help to understand the data flow among various components and later would guide towards the data partitioning.</div>
 <p>We need to store data about users, their uploaded photos, and people they follow. Photo table will store all data related to a photo, we need to have an index on (PhotoID, CreationDate) since we need to fetch recent photos first.</p>
 <p><img src="./_principal_files/img/5752142325350400.png" alt="diagram"></p>
@@ -170,18 +186,18 @@
 <p>We also need to store relationships between users and photos, to know who owns which photo. Another relationship we would need to store is the list of people a user follows. For both of these tables, we can use a wide-column datastore like <a href="https://en.wikipedia.org/wiki/Apache_Cassandra" target="_blank">Cassandra</a>. For the ‘UserPhoto’ table, the ‘key’ would be ‘UserID’ and the ‘value’ would be the list of ‘PhotoIDs’ the user owns, stored in different columns. We will have a similar scheme for the ‘UserFollow’ table.</p>
 <p>Cassandra or key-value stores in general, always maintain a certain number of replicas to offer reliability. Also, in such data stores, deletes don’t get applied instantly, data is retained for certain days (to support undeleting) before getting removed from the system permanently.</p>
 
-<div class="sechead">7. Component Design</div>
+<h2 id="7-component-design">7. Component Design</h2>
 <p>Writes or photo uploads could be slow as they have to go to the disk, whereas reads could be faster, especially, if they are being served from cache.</p>
 <p>Uploading users can consume all the connections, as uploading would be a slower process. This means reads cannot be served if the system gets busy with all the write requests. To handle this bottleneck we can split out read and writes into separate services. Since web servers have connection limit, we should keep this thing in mind before designing our system. Let’s assume if a web server can have maximum 500 connections at any time, which means it can’t have more than 500 concurrent uploads or reads. This guides us to have separate dedicated servers for reads and writes so that uploads don’t hog the system.</p>
 <p>Separating image read and write requests will also allow us to scale or optimize each of them independently.</p>
 
-<div class="sechead">8. Reliability and Redundancy</div>
+<h2 id="8-reliability-and-redundancy">8. Reliability and Redundancy</h2>
 <p>Losing files is not an option for our service. Therefore, we will store multiple copies of each file, so that if one storage server dies, we can retrieve the image from the other copy present on a different storage server.</p>
 <p>This same principle also applies to other components of the system. If we want to have high availability of the system, we need to have multiple replicas of services running in the system. So that if a few services die down, the system is still available and serving. Redundancy removes the single point of failures in the system.</p>
 <p>If only one instance of a service is required to be running at any point, we can run a redundant secondary copy of the service that is not serving any traffic but whenever primary has any problem it can take control after the failover.</p>
 <p>Creating redundancy in a system can remove single points of failure and provide a backup or spare functionality if needed in a crisis. For example, if there are two instances of the same service running in production, and one fails or degrades, the system can failover to the healthy copy. Failover can happen automatically or require manual intervention.</p>
 
-<div class="sechead">9. Data Sharding</div>
+<h2 id="9-data-sharding">9. Data Sharding</h2>
 <p>Let’s discuss different schemes for metadata sharding:</p>
 <p><strong>a. Partitioning based on UserID</strong><br>
 Let’s assume we shard based on the UserID so that we can keep all photos of a user on the same shard. If one DB shard is 4TB, we will have 712/4 =&gt; 178 shards. Let’s assume for future growths we keep 200 shards.</p>
@@ -210,7 +226,7 @@ auto-increment-offset = 2</code></pre>
 <p><strong>How can we plan for future growth of our system?</strong><br>
 We can have a large number of logical partitions to accommodate future data growth, such that, in the beginning, multiple logical partitions reside on a single physical database server. Since each database server can have multiple database instances on it, we can have separate databases for each logical partition on any server. So whenever we feel that a certain database server has a lot of data, we can migrate some logical partitions from it to another server. We can maintain a config file (or a separate database) that can map our logical partitions to database servers; this will enable us to move partitions around easily. Whenever we want to move a partition, we just have to update the config file to announce the change.</p>
 
-<div class="sechead">10. Ranking and Timeline Generation</div>
+<h2 id="10-ranking-and-timeline-generation">10. Ranking and Timeline Generation</h2>
 <p>To create the timeline for any given user, we need to fetch the latest, most popular and relevant photos of other people the user follows.</p>
 <p>For simplicity, let’s assume we need to fetch top 100 photos for a user’s timeline. Our application server will first get a list of people the user follows and then fetches metadata info of latest 100 photos from each user. In the final step, the server will submit all these photos to our ranking algorithm which will determine the top 100 photos (based on recency, likeness, etc.) to be returned to the user. A possible problem with this approach would be higher latency, as we have to query multiple tables and perform sorting/merging/ranking on the results. To improve the efficiency, we can pre-generate the timeline and store it in a separate table.</p>
 <p><strong>Pre-generating the timeline:</strong> We can have dedicated servers that are continuously generating users’ timelines and storing them in a ‘UserTimeline’ table. So whenever any user needs the latest photos for their timeline, we will simply query this table and return the results to the user.</p>
@@ -221,7 +237,7 @@ We can have a large number of logical partitions to accommodate future data grow
 <p><strong>3. Hybrid:</strong> We can adopt a hybrid approach. We can move all the users with high followings to pull based model and only push data to those users who have a few hundred (or thousand) follows. Another approach could be that the server pushes updates to all the users not more than a certain frequency, letting users with a lot of follows/updates to regularly pull data.</p>
 <p>For a detailed discussion about timeline generation, take a look at <a href="26Designing Facebook’s Newsfeed.htm" target="_blank">Designing Facebook’s Newsfeed</a>.</p>
 
-<div class="sechead">11. Timeline Creation with Sharded Data</div>
+<h2 id="11-timeline-creation-with-sharded-data">11. Timeline Creation with Sharded Data</h2>
 <p>To create the timeline for any given user, one of the most important requirements is to fetch latest photos from all people the user follows. For this, we need to have a mechanism to sort photos on their time of creation. This can be done efficiently if we can make photo creation time part of the PhotoID. Since we will have a primary index on PhotoID, it will be quite quick to find latest PhotoIDs.</p>
 <p>We can use epoch time for this. Let’s say our PhotoID will have two parts; the first part will be representing epoch seconds and the second part will be an auto-incrementing sequence. So to make a new PhotoID, we can take the current epoch time and append an auto incrementing ID from our key generating DB. We can figure out shard number from this PhotoID ( PhotoID % 200) and store the photo there.</p>
 <p><strong>What could be the size of our PhotoID</strong>? Let’s say our epoch time starts today, how many bits we would need to store the number of seconds for next 50 years?</p>
@@ -229,7 +245,7 @@ We can have a large number of logical partitions to accommodate future data grow
 <p>We would need 31 bits to store this number. Since on the average, we are expecting 23 new photos per second; we can allocate 9 bits to store auto incremented sequence. So every second we can store (2^9 =&gt; 512) new photos. We can reset our auto incrementing sequence every second.</p>
 <p>We will discuss more details about this technique under ‘Data Sharding’ in <a href="20 Designing Twitter.htm" target="_blank">Designing Twitter</a>.</p>
 
-<div class="sechead">12. Cache and Load balancing</div>
+<h2 id="12-cache-and-load-balancing">12. Cache and Load balancing</h2>
 <p>To serve globally distributed users, our service needs a massive-scale photo delivery system. Our service should push its content closer to the user using a large number of geographically distributed photo cache servers and use CDNs (for details see <a href="04 Caching.htm" target="_blank">Caching</a>).</p>
 <p>We can introduce a cache for metadata servers to cache hot database rows. We can use Memcache to cache the data and Application servers before hitting database can quickly check if the cache has desired rows. Least Recently Used (LRU) can be a reasonable cache eviction policy for our system. Under this policy, we discard the least recently viewed row first.</p>
 <p><strong>How can we build more intelligent cache?</strong> If we go with 80-20 rule, i.e., 20% of daily read volume for photos is generating 80% of traffic which means that certain photos are so popular that the majority of people reads them. This dictates we can try caching 20% of daily read volume of photos and metadata.</p>

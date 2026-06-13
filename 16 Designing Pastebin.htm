@@ -112,18 +112,34 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Pastebin</div>
 <h1>Designing Pastebin</h1>
 <p class="sub"><em>Let's design a Pastebin-like web service where users store plain text and get a randomly generated URL to share it — covering requirements, capacity estimation, APIs, data model, and a scalable read-heavy architecture built on a Key Generation Service.</em></p>
-<div class="taxline"><span class="lab">Tax paid</span> <b>Finite capacity.</b> <span>metadata vs blob split — cheap scale for big content, paid in two stores to keep in sync.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
+<div class="taxline"><a class="lab" href="01 Why System Design Matters.htm">Tax paid</a> <b>Finite capacity.</b> <span>metadata vs blob split — cheap scale for big content, paid in two stores to keep in sync.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#1-what-is-pastebin">1. What is Pastebin?</a></li>
+  <li><a href="#2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</a></li>
+  <li><a href="#3-some-design-considerations">3. Some Design Considerations</a></li>
+  <li><a href="#4-capacity-estimation-and-constraints">4. Capacity Estimation and Constraints</a></li>
+  <li><a href="#5-system-apis">5. System APIs</a></li>
+  <li><a href="#6-database-design">6. Database Design</a></li>
+  <li><a href="#7-high-level-design">7. High Level Design</a></li>
+  <li><a href="#8-component-design">8. Component Design</a></li>
+  <li><a href="#9-purging-or-db-cleanup">9. Purging or DB Cleanup</a></li>
+  <li><a href="#10-data-partitioning-and-replication">10. Data Partitioning and Replication</a></li>
+  <li><a href="#11-cache-and-load-balancer">11. Cache and Load Balancer</a></li>
+  <li><a href="#12-security-and-permissions">12. Security and Permissions</a></li>
+</ul></div>
+
 
 <blockquote>
 <p>Let's design a Pastebin like web service, where users can store plain text. Users of the service will enter a piece of text and get a randomly generated URL to access it.</p>
 <p><strong>Similar Services:</strong> pasted.co, hastebin.com, chopapp.com</p>
 </blockquote>
 
-<div class="sechead">1. What is Pastebin?</div>
+<h2 id="1-what-is-pastebin">1. What is Pastebin?</h2>
 <p>Pastebin like services enable users to store plain text or images over the network (typically the Internet) and generate unique URLs to access the uploaded data. Such services are also used to share data over the network quickly, as users would just need to pass the URL to let other users see it.</p>
 <p>If you haven't used <a href="http://pastebin.com/" target="_blank">pastebin.com</a> before, please try creating a new 'Paste' there and spend some time going through different options their service offers. This will help you a lot in understanding this chapter better.</p>
 
-<div class="sechead">2. Requirements and Goals of the System</div>
+<h2 id="2-requirements-and-goals-of-the-system">2. Requirements and Goals of the System</h2>
 <p>Our Pastebin service should meet the following requirements:</p>
 <p><strong>Functional Requirements:</strong></p>
 <ol>
@@ -145,12 +161,12 @@
 <li>Our service should also be accessible through REST APIs by other services.</li>
 </ol>
 
-<div class="sechead">3. Some Design Considerations</div>
+<h2 id="3-some-design-considerations">3. Some Design Considerations</h2>
 <p>Pastebin shares some requirements with <a href="15 Designing a URL Shortening service like TinyURL.htm" target="_blank">URL Shortening service</a>, but there are some additional design considerations we should keep in mind.</p>
 <p><strong>What should be the limit on the amount of text user can paste at a time?</strong> We can limit users not to have Pastes bigger than 10MB to stop the abuse of the service.</p>
 <p><strong>Should we impose size limits on custom URLs?</strong> Since our service supports custom URLs, users can pick any URL that they like, but providing a custom URL is not mandatory. However, it is reasonable (and often desirable) to impose a size limit on custom URLs, so that we have a consistent URL database.</p>
 
-<div class="sechead">4. Capacity Estimation and Constraints</div>
+<h2 id="4-capacity-estimation-and-constraints">4. Capacity Estimation and Constraints</h2>
 <p>Our services would be read heavy; there will be more read requests compared to new Pastes creation. We can assume 5:1 ratio between read and write.</p>
 <p><strong>Traffic estimates:</strong> Pastebin services are not expected to have traffic similar to Twitter or Facebook, let's assume here that we get one million new pastes added to our system every day. This leaves us with five million reads per day.</p>
 <p>New Pastes per second:</p>
@@ -175,7 +191,7 @@
 <p>Since we have 5M read requests per day, to cache 20% of these requests, we would need:</p>
 <blockquote><p>0.2 * 5M * 10KB ~= 10 GB</p></blockquote>
 
-<div class="sechead">5. System APIs</div>
+<h2 id="5-system-apis">5. System APIs</h2>
 <p>We can have SOAP or REST APIs to expose the functionality of our service. Following could be the definitions of the APIs to create/retrieve/delete Pastes:</p>
 <pre><code>addPaste(api_dev_key, paste_data, custom_url=None user_name=None, paste_name=None, expire_date=None)</code></pre>
 <p><strong>Parameters:</strong><br>
@@ -193,7 +209,7 @@ A successful insertion returns the URL through which the paste can be accessed, 
 <pre><code>deletePaste(api_dev_key, api_paste_key)</code></pre>
 <p>A successful deletion returns 'true', otherwise returns 'false'.</p>
 
-<div class="sechead">6. Database Design</div>
+<h2 id="6-database-design">6. Database Design</h2>
 <p>A few observations about nature of the data we are going to store:</p>
 <ol>
 <li>We need to store billions of records.</li>
@@ -206,11 +222,11 @@ A successful insertion returns the URL through which the paste can be accessed, 
 <p>We would need two tables, one for storing information about the Pastes and the other for users' data.</p>
 <p style="text-align:center;"><img src="./_principal_files/img/5631943370604544.png" alt="diagram"></p>
 
-<div class="sechead">7. High Level Design</div>
+<h2 id="7-high-level-design">7. High Level Design</h2>
 <p>At a high level, we need an application layer that will serve all the read and write requests. Application layer will talk to a storage layer to store and retrieve data. We can segregate our storage layer with one database storing metadata related to each paste, users, etc., while the other storing paste contents in some sort of block storage or a database. This division of data will allow us to scale them individually.</p>
 <p style="text-align:center;"><em>High level design for Pastebin</em></p>
 
-<div class="sechead">8. Component Design</div>
+<h2 id="8-component-design">8. Component Design</h2>
 <p><strong>a. Application layer</strong></p>
 <p>Our application layer will process all incoming and outgoing requests. The application servers will be talking to the backend data store components to serve the requests.</p>
 <p><strong>How to handle a write request?</strong> Upon receiving a write request, our application server will generate a six-letter random string, which would serve as the key of the paste (if the user has not provided a custom key). The application server will then store the contents of the paste and the generated key in the database. After the successful insertion, the server can return the key to the user. One possible problem here could be that the insertion fails because of a duplicate key. Since we are generating a random key, there is a possibility that the newly generated key could match an existing one. In that case, we should regenerate a new key and try again. We should keep retrying until we don't see a failure due to the duplicate key. We should return an error to the user if the custom key they have provided is already present in our database.</p>
@@ -226,16 +242,16 @@ A successful insertion returns the URL through which the paste can be accessed, 
 </ol>
 <p style="text-align:center;"><em>Detailed component design for Pastebin</em></p>
 
-<div class="sechead">9. Purging or DB Cleanup</div>
+<h2 id="9-purging-or-db-cleanup">9. Purging or DB Cleanup</h2>
 <p>Please see <a href="15 Designing a URL Shortening service like TinyURL.htm" target="_blank">Designing a URL Shortening service</a>.</p>
 
-<div class="sechead">10. Data Partitioning and Replication</div>
+<h2 id="10-data-partitioning-and-replication">10. Data Partitioning and Replication</h2>
 <p>Please see <a href="15 Designing a URL Shortening service like TinyURL.htm" target="_blank">Designing a URL Shortening service</a>.</p>
 
-<div class="sechead">11. Cache and Load Balancer</div>
+<h2 id="11-cache-and-load-balancer">11. Cache and Load Balancer</h2>
 <p>Please see <a href="15 Designing a URL Shortening service like TinyURL.htm" target="_blank">Designing a URL Shortening service</a>.</p>
 
-<div class="sechead">12. Security and Permissions</div>
+<h2 id="12-security-and-permissions">12. Security and Permissions</h2>
 <p>Please see <a href="15 Designing a URL Shortening service like TinyURL.htm" target="_blank">Designing a URL Shortening service</a>.</p>
 
 <style>
