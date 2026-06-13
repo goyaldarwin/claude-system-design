@@ -205,7 +205,7 @@ orderRepository.save(order);        // single atomic write</code></pre>
 <h2 id="drives">How DDD drives system design</h2>
 <p>The throughline of this lesson is a chain of three mappings that turn domain modeling directly into architecture:</p>
 <ol>
-<li><span class="key">Bounded context &rarr; service.</span> Each context becomes an engineer service (or a module in a modular monolith) owned by one team, with its own ubiquitous language and model. This is your decomposition.</li>
+<li><span class="key">Bounded context &rarr; service.</span> Each context becomes a service (or a module in a modular monolith) owned by one team, with its own ubiquitous language and model. This is your decomposition.</li>
 <li><span class="key">Aggregate &rarr; transaction boundary.</span> Each aggregate is the unit of local ACID consistency. Anything bigger needs a saga. This determines your consistency model and where eventual consistency is acceptable.</li>
 <li><span class="key">Domain event &rarr; integration event.</span> Cross-context communication is event-driven and asynchronous, decoupling services in time and at deploy boundaries.</li>
 </ol>
@@ -219,7 +219,7 @@ orderRepository.save(order);        // single atomic write</code></pre>
 <p>The other common error is starting with tactical patterns. Strategic design comes first: you cannot draw correct aggregates until you know which context you are in, because the same business concept has different invariants in different contexts.</p>
 
 <h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They justify every service boundary by naming the bounded context and its ubiquitous language &mdash; "this is the Pricing context, it owns these invariants, it integrates with Catalog via published events." They use aggregates to explain exactly where they need strong consistency and where they accept eventual consistency via sagas, and they classify subdomains (core/supporting/generic) to explain build-vs-buy. They resist premature service splits, defaulting to a modular monolith and splitting only when ownership or scaling diverges.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They justify every service boundary by naming the bounded context and its ubiquitous language &mdash; "this is the Pricing context, it owns these invariants, it integrates with Catalog via published events." They use aggregates to explain exactly where they need strong consistency and where they accept eventual consistency via sagas, and they classify subdomains (core/supporting/generic) to explain build-vs-buy. They resist premature service splits, defaulting to a modular monolith and splitting only when ownership or scaling diverges.</div>
 <p>Probing questions to ask engineers:</p>
 <ul>
 <li>"You've drawn five services. For each, what is the bounded context and who owns it &mdash; and where does the word 'Customer' mean different things?"</li>

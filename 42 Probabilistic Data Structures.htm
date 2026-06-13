@@ -139,7 +139,7 @@
 <tbody>
 <tr><td>Bloom filter</td><td>Is x in the set?</td><td>False positives only, no false negatives</td><td>Union (same params)</td></tr>
 <tr><td>Cuckoo / Quotient filter</td><td>Is x in the set? (+ deletes)</td><td>False positives only</td><td>Limited</td></tr>
-<tr><td>HyperLogLog</td><td>How many distinct?</td><td>~&plusmn;0.81/&radic;m relative</td><td>Yes (lossless)</td></tr>
+<tr><td>HyperLogLog</td><td>How many distinct?</td><td>~&plusmn;1.04/&radic;m relative</td><td>Yes (lossless)</td></tr>
 <tr><td>Count-Min Sketch</td><td>How often is x?</td><td>Overestimate, never under</td><td>Yes (add)</td></tr>
 <tr><td>t-digest / HdrHistogram</td><td>What is p99?</td><td>Rank/relative error</td><td>Yes</td></tr>
 </tbody>

@@ -155,13 +155,13 @@
 <p>Raft (Ongaro &amp; Ousterhout, 2014) deliberately decomposes consensus into three sub-problems so it can be reasoned about and implemented correctly. Every node is in one of three states: <span class="key">follower</span>, <span class="key">candidate</span>, or <span class="key">leader</span>. Time is divided into <span class="key">terms</span>, each beginning with an election; a term is a logical clock that lets nodes detect stale leaders.</p>
 
 <h3>1. Leader election</h3>
-<p>Followers expect periodic heartbeats from the leader. If a follower's randomized election timeout (e.g. 150&ndash;300 ms) elapses without a heartbeat, it increments the term, becomes an engineer, votes for itself, and requests votes from peers. A candidate wins if it gathers votes from a <span class="key">majority</span>. Randomized timeouts make split votes rare and self-correcting.</p>
+<p>Followers expect periodic heartbeats from the leader. If a follower's randomized election timeout (e.g. 150&ndash;300 ms) elapses without a heartbeat, it increments the term, becomes a candidate, votes for itself, and requests votes from peers. A candidate wins if it gathers votes from a <span class="key">majority</span>. Randomized timeouts make split votes rare and self-correcting.</p>
 
 <h3>2. Log replication</h3>
 <p>Clients send commands to the leader. The leader appends the command to its log and sends <code>AppendEntries</code> RPCs to followers. Once a majority have persisted the entry, the leader marks it <span class="key">committed</span>, applies it to its state machine, and returns to the client. Each entry carries the term in which it was created, which is the basis of the safety argument.</p>
 
 <h3>3. Safety</h3>
-<p>The crucial guarantee is the <span class="key">Leader Completeness property</span>: a leader for a given term contains all entries committed in previous terms. Raft enforces this with the <span class="key">election restriction</span> &mdash; a node will only grant its vote to an engineer whose log is at least as up-to-date as its own. This means a node missing committed entries can never win an election, so committed entries are never lost.</p>
+<p>The crucial guarantee is the <span class="key">Leader Completeness property</span>: a leader for a given term contains all entries committed in previous terms. Raft enforces this with the <span class="key">election restriction</span> &mdash; a node will only grant its vote to a candidate whose log is at least as up-to-date as its own. This means a node missing committed entries can never win an election, so committed entries are never lost.</p>
 
 <pre><code>// Simplified AppendEntries consistency check on a follower
 if (args.prevLogTerm != log[args.prevLogIndex].term) {

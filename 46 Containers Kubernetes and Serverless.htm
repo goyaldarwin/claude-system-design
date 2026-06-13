@@ -213,7 +213,7 @@ for {
 </tbody>
 </table>
 
-<p>The reflex is to scale on CPU, but for most request-driven and especially queue-driven services, CPU lags the signal you care about. Scale on the <em>leading indicator</em>: for an HTTP service, requests-per-second per pod or p99 latency; for a consumer, <a href="08 Queues.htm">queue</a> depth or Kafka consumer lag. Tools like KEDA bridge external event sources into HPA so you can scale a deer worker fleet on partition lag directly.</p>
+<p>The reflex is to scale on CPU, but for most request-driven and especially queue-driven services, CPU lags the signal you care about. Scale on the <em>leading indicator</em>: for an HTTP service, requests-per-second per pod or p99 latency; for a consumer, <a href="08 Queues.htm">queue</a> depth or Kafka consumer lag. Tools like KEDA bridge external event sources into HPA so you can scale a worker fleet on partition lag directly.</p>
 
 <div class="callout warn"><span class="lbl">Pitfall</span> Do not run HPA and VPA on the same resource metric &mdash; they fight: VPA shrinks requests, which raises utilization %, which makes HPA add pods, which lowers utilization, which makes VPA shrink again. Use HPA on a custom metric (RPS) and let VPA handle a different dimension, or pick one.</p>
 

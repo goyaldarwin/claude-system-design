@@ -142,7 +142,7 @@
 <li><span class="key">Anti-entropy</span> — systematic, comparison-based reconciliation of the actual <em>data</em> between replicas, using Merkle trees so you don't ship terabytes to find a one-row difference.</li>
 </ul>
 
-<div class="callout note"><span class="lbl">Key insight</span> Gossip spreads <em>knowledge about the cluster</em> (membership, topology). Anti-entropy reconciles <em>the data itself</em>. Conflating the two is the single most common confusion. A failure detector tells you a node came back; anti-entropy is what actually re-syncs the rows it missed.</p></div>
+<div class="callout note"><span class="lbl">Key insight</span> Gossip spreads <em>knowledge about the cluster</em> (membership, topology). Anti-entropy reconciles <em>the data itself</em>. Conflating the two is the single most common confusion. A failure detector tells you a node came back; anti-entropy is what actually re-syncs the rows it missed.</div>
 
 <h2 id="gossip">Gossip and epidemic protocols</h2>
 <p>A gossip protocol works like rumor spreading. Periodically — say every 1 second — each node picks a small random subset of peers (often just one to three) and exchanges state with them. Information propagates exponentially: after <code>O(log N)</code> rounds, a fact known to one node is known to all with high probability. For <code>N = 1000</code> nodes and a fanout of 1, full dissemination takes roughly 10&ndash;15 rounds, i.e. ~10&ndash;15 seconds at a 1 Hz interval.</p>

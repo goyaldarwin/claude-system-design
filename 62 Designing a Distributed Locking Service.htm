@@ -213,7 +213,7 @@ def write(data, fencing_token):
 3. if my node is the lowest sequence number: LOCK ACQUIRED
 4. else: set a watch on the ONE node just below mine; wait
 5. on watch fire (predecessor gone): go to step 2</code></pre>
-<p>This gives FIFO fairness, no thundering herd, and automatic release on crash. The sequence number doubles as a coarse ordering, and ZooKeeper's <code>zxid</code> can serve as the fencing token. Chubby (Google) is philosophically similar &mdash; a small, Paxos-replicated, strongly consistent filesystem-like store whose primary <em>use</em> turned out to be coarse-grained locking and name resolution, not the locking itself.</p>
+<p>This gives FIFO fairness, no thundering herd, and automatic release on crash. The sequence number doubles as a coarse ordering, and ZooKeeper's <code>zxid</code> can serve as the fencing token. Chubby (Google) is philosophically similar &mdash; a small, Paxos-replicated, strongly consistent filesystem-like store whose primary <em>use</em> turned out to be name resolution, not the coarse-grained locking it was built for.</p>
 <div class="callout tradeoff"><span class="lbl">Trade-off</span>ZooKeeper/Chubby deliberately target <span class="key">coarse-grained</span> locks &mdash; held for minutes to hours, low acquisition rate (leader election, config ownership, shard assignment). They are <em>not</em> built for fine-grained, high-churn locks taken millions of times per second; the consensus write per acquisition makes that prohibitively expensive. If you need fine-grained locking, redesign so the contention lives inside a sharded data store, not a global coordinator.</div>
 
 <h2 id="redlock">The Redlock debate</h2>

@@ -205,7 +205,7 @@
 <p>Highest Random Weight hashing skips the ring entirely. For key <code>k</code>, compute <code>w(k, s) = hash(k, s)</code> for every server <code>s</code> and pick the <code>argmax</code>. Properties:</p>
 <ul>
 <li>Minimal disruption: adding/removing a server only reassigns the keys for which that server was (or becomes) the max — exactly <code>1/n</code> of keys move, the same guarantee as consistent hashing.</li>
-<li>No vnodes needed for balance; the max-of-uniform distribution is naturally even. Weighting uses the WRH formula <code>-weight / ln(uniform_hash)</code>.</li>
+<li>No vnodes needed for balance; the max-of-uniform distribution is naturally even. Weighting uses the weighted-HRW formula <code>-weight / ln(uniform_hash)</code>.</li>
 <li>Cost is <code>O(n)</code> per lookup vs. <code>O(log n)</code> for a sorted ring — fine for tens/hundreds of backends (CARP, many CDN/cache tiers), worse for thousands. Skeleton/hierarchical HRW restores <code>O(log n)</code>.</li>
 </ul>
 
@@ -246,7 +246,7 @@
 <li>With plain <code>hash(key) % N</code>, why does bumping <em>N</em> from 4 to 5 remap roughly 4/5 of all keys instead of just 1/5 &mdash; and why is that catastrophic for a cache cluster (thundering-herd misses to the origin)?</li>
 <li>Why does the basic hash ring only move <em>K/N</em> keys when a node joins or leaves, and exactly <em>which</em> keys move (those between the new node and its predecessor on the ring)?</li>
 <li>Without virtual nodes, why does a single physical node added to a 3-node ring tend to land badly (one node can own ~50% of the keyspace), and how do 100&ndash;200 vnodes per server drive the variance down toward an even split?</li>
-<li>How does the bounded-load variant (Mendelson/Vahdat &mdash; used by Google's load balancers) cap any node at <code>(1+&epsilon;)&middot;average</code> by walking forward on the ring to the next under-capacity node, and what does it trade away (some keys no longer land on their "natural" owner)?</li>
+<li>How does the bounded-load variant (Mirrokni/Thorup/Zadimoghaddam &mdash; used by Google's load balancers) cap any node at <code>(1+&epsilon;)&middot;average</code> by walking forward on the ring to the next under-capacity node, and what does it trade away (some keys no longer land on their "natural" owner)?</li>
 <li>Why does Dynamo/Cassandra layer a replication factor on top of the ring by walking the next <em>RF</em> distinct physical nodes clockwise, rather than just storing one copy at the primary owner?</li>
 <li>Can you explain why Maglev hashing (permutation lookup table) is preferred over a literal ring for L4 load balancers &mdash; constant-time O(1) lookup, near-perfect even split, and minimal disruption when a backend drops?</li>
 <li>When would you reach for rendezvous (HRW) hashing instead of a ring, and why does it avoid storing/maintaining ring state at the cost of O(N) hashing per lookup?</li>

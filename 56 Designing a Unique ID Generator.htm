@@ -232,7 +232,7 @@ SELECT max_id FROM id_alloc WHERE biz_tag = 'orders';
 <li><span class="key">B-trees:</span> monotonic inserts always append to the rightmost leaf page &mdash; minimal page splits, high fill factor, hot pages stay in the buffer pool. Random keys (UUIDv4) thrash the whole tree.</li>
 <li><span class="key">LSM trees:</span> sorted keys compact cleanly and, critically, enable efficient <em>range scans</em> &mdash; "fetch the last hour of events" becomes a contiguous read. Time-prefixed keys also bound which SSTables a read must touch.</li>
 </ul>
-<p>This is why <a href="38 Storage Engines LSM vs B-Tree.htm">storage-engine choice</a> and ID design must be discussed together. Two popular 128-bit sortable formats sit alongside Snowflake:</p>
+<p>This is why <a href="38 Storage Engines LSM vs B-Tree.htm">storage-engine choice</a> and ID design must be discussed together. Two popular wider sortable formats sit alongside Snowflake:</p>
 <table>
 <tr><th>Format</th><th>Bits</th><th>Layout</th><th>Notable</th></tr>
 <tr><td>Snowflake</td><td>64</td><td>41 ts(ms) + 10 node + 12 seq</td><td>fits BIGINT; needs coordinated machine-id</td></tr>

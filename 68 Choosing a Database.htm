@@ -143,7 +143,7 @@
 <tr><td><span class="key">Transactions / isolation</span></td><td>Do you need multi-row ACID, snapshot isolation, serializability?</td><td>Multi-key transactions across shards are expensive and not all stores offer them.</td></tr>
 <tr><td><span class="key">Operational maturity</span></td><td>Does your team know how to run it? Managed offering? Backup, upgrade, observability story?</td><td>The best-fit engine you cannot operate at 3 a.m. is the wrong choice.</td></tr>
 </table>
-<div class="callout note"><span class="lbl">Sequence matters</span>Resolve the dimensions in roughly this order: model fit and access pattern eliminate most engineers; consistency and scale narrow the survivors; latency, durability, and transactions break ties; operational fit is the final veto. Never start from operational fit (&ldquo;we already run Postgres&rdquo;) &mdash; that is the familiarity trap dressed up as pragmatism.</div>
+<div class="callout note"><span class="lbl">Sequence matters</span>Resolve the dimensions in roughly this order: model fit and access pattern eliminate most engines; consistency and scale narrow the survivors; latency, durability, and transactions break ties; operational fit is the final veto. Never start from operational fit (&ldquo;we already run Postgres&rdquo;) &mdash; that is the familiarity trap dressed up as pragmatism.</div>
 
 <h2 id="modelfit">Data model fit</h2>
 <p>The data model is the first filter because it is the hardest to work around. Map your dominant entity and its access shape to a model family:</p>
@@ -204,10 +204,10 @@
 </ul>
 
 <h3>Time-series &mdash; InfluxDB, Prometheus</h3>
-<p><span class="key">Nails:</span> high-cardinality append-only timestamped measurements, time-window range scans, downsampling and retention.</p>
+<p><span class="key">Nails:</span> high-volume append-only timestamped measurements, time-window range scans, downsampling and retention.</p>
 <ul>
 <li><span class="key">Use when</span> data is metrics or events indexed primarily by time &mdash; monitoring, IoT telemetry, financial ticks. These engines give you cheap rollups and TTL-based expiry for free. See <a href="66 Designing a Metrics and Monitoring System.htm">Designing a Metrics &amp; Monitoring System</a>.</li>
-<li><span class="key">Avoid when</span> the access pattern is not time-centric, or you need to mutate historical rows &mdash; time-series engines assume an immutable append workload.</li>
+<li><span class="key">Avoid when</span> the access pattern is not time-centric, or you need to mutate historical rows &mdash; time-series engines assume an immutable append workload. Watch the <em>cardinality</em>: high-cardinality label sets (per-user or per-request IDs) blow up the in-memory index of engines like Prometheus and InfluxDB &mdash; it is their classic failure mode, not a strength (see <a href="66 Designing a Metrics and Monitoring System.htm">Metrics &amp; Monitoring</a>).</li>
 </ul>
 
 <h3>NewSQL &mdash; Spanner, CockroachDB</h3>
@@ -231,7 +231,7 @@
 
 <h2 id="trap">The familiarity trap</h2>
 <p>The most common failure mode &mdash; in real architecture reviews &mdash; is choosing by familiarity: &ldquo;I&rsquo;ll use MongoDB because I know it,&rdquo; or reaching for Cassandra because it sounds web-scale. Familiarity is a legitimate <em>tiebreaker</em> under operational fit, but it must never be the <em>first</em> filter. The tell is an engineer who names the database before describing the access pattern.</p>
-<p>The inverse failure is resume-driven design: picking the trendiest store to learn it on the company&rsquo;s dime. Both errors skip the framework. The cure is the same: state the access pattern, consistency need, and scale first; let those eliminate engineers; then let familiarity and managed-service availability break the remaining tie. A principal engineer can defend the choice by walking the dimensions, not by citing comfort.</p>
+<p>The inverse failure is resume-driven design: picking the trendiest store to learn it on the company&rsquo;s dime. Both errors skip the framework. The cure is the same: state the access pattern, consistency need, and scale first; let those eliminate engines; then let familiarity and managed-service availability break the remaining tie. A principal engineer can defend the choice by walking the dimensions, not by citing comfort.</p>
 
 <h2 id="worked">A worked decision example</h2>
 <p>Suppose you are designing storage for an e-commerce platform. Rather than picking one database, decompose by workload and run each through the framework:</p>
@@ -247,7 +247,7 @@
 <p>Notice the source of truth (orders) is relational and strongly consistent; everything else is either a derived store (search) or a workload-specific optimization (sessions, clickstream, metrics). The decision was driven dimension-by-dimension, and each choice is defensible in one sentence. That is the standard.</p>
 
 <h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They state the access pattern, consistency need, and scale <em>before</em> naming any database, then let those constraints eliminate engineers. They default to relational and justify every move away from it. They reach for polyglot only when a dimension demands it, and they can name the operational cost they are taking on.</div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They state the access pattern, consistency need, and scale <em>before</em> naming any database, then let those constraints eliminate engines. They default to relational and justify every move away from it. They reach for polyglot only when a dimension demands it, and they can name the operational cost they are taking on.</div>
 <p>Probing questions to ask engineers:</p>
 <ul>
 <li>&ldquo;You picked MongoDB &mdash; what about this access pattern makes a document store better than Postgres with JSONB here?&rdquo;</li>

@@ -143,7 +143,7 @@
 <li><span class="key">Availability</span> — the system keeps making progress despite node and network failures.</li>
 </ul>
 
-<div class="callout note"><span class="lbl">Key insight</span> Distributed atomic commit is a <em>consensus problem</em> in disguise — every participant must agree on a single bit (commit or abort). That immediately ties it to the <a href="11 CAP Theorem.htm">CAP theorem</a>: under a partition you must sacrifice availability (block) or atomicity (proceed and reconcile later). 2PC chooses to block; Sagas choose to proceed and compensate.</p></div>
+<div class="callout note"><span class="lbl">Key insight</span> Distributed atomic commit is a <em>consensus problem</em> in disguise — every participant must agree on a single bit (commit or abort). That immediately ties it to the <a href="11 CAP Theorem.htm">CAP theorem</a>: under a partition you must sacrifice availability (block) or atomicity (proceed and reconcile later). 2PC chooses to block; Sagas choose to proceed and compensate.</div>
 
 <h2 id="2pc">Two-Phase Commit (2PC)</h2>
 <p><span class="key">2PC</span> is the textbook protocol for atomic commit across participants. One node acts as the <span class="pill">coordinator</span> (transaction manager); the others are <span class="pill">participants</span> (resource managers). It runs in two round trips:</p>

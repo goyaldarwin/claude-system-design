@@ -246,7 +246,7 @@ COMMIT;
 <li><span class="key">In settlement, not in ledger:</span> the PSP moved money you never recorded (a lost webhook) &mdash; post the missing transaction.</li>
 <li><span class="key">Amount/fee mismatch:</span> book the difference to a fee or FX account.</li>
 </ul>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat reconciliation as a first-class subsystem, not an afterthought, and they make the live path <em>self-healing</em>: discrepancies feed an automated repair pipeline, with a human-reviewed exception queue for the residue. They also instrument a real-time invariant check &mdash; periodically asserting the ledger sums to zero &mdash; so corruption is detected in minutes, not at the next audit.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat reconciliation as a first-class subsystem, not an afterthought, and they make the live path <em>self-healing</em>: discrepancies feed an automated repair pipeline, with a human-reviewed exception queue for the residue. They also instrument a real-time invariant check &mdash; periodically asserting the ledger sums to zero &mdash; so corruption is detected in minutes, not at the next audit.</div>
 
 <h2 id="consistency">Step 8: Consistency choices &amp; failure modes</h2>
 <p>Through the lens of <a href="31 Consistency Models and PACELC.htm">PACELC</a>, the ledger is firmly <span class="key">PC/EC</span>: on a partition it sacrifices availability for consistency, and even in normal operation it favors consistency (strong, linearizable writes) over latency. You cannot afford a stale read that lets two concurrent withdrawals both see a sufficient balance.</p>

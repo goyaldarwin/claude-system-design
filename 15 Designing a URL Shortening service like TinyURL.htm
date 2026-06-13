@@ -205,7 +205,7 @@
 <h2 id="4-system-apis">System APIs</h2>
 <div class="clarify">Once we've finalized the requirements, it's always a good idea to define the system APIs. This would explicitly state what is expected from the system.</div>
 <p>We can have SOAP or REST APIs to expose the functionality of our service. Following could be the definitions of the APIs for creating and deleting URLs:</p>
-<pre><code>creatURL(api_dev_key, original_url, custom_alias=None user_name=None, expire_date=None)</code></pre>
+<pre><code>createURL(api_dev_key, original_url, custom_alias=None, user_name=None, expire_date=None)</code></pre>
 <p><strong>Parameters:</strong><br>
 api_dev_key (string): The API developer key of a registered account. This will be used to, among other things, throttle users based on their allocated quota.<br>
 original_url (string): Original URL to be shortened.<br>
@@ -330,14 +330,14 @@ Using base64 encoding, an 8 letter long key would result in 64^8 ~= 281 trillion
 </table>
 
 <div class="box"><b>The write-path bottleneck &amp; its fix</b>
-A naive <i>counter</i> or <i>hash-then-check-collision</i> design forces every write to touch a shared, serialized resource (the counter row, or a uniqueness read). At billions of URLs this is the single point that caps throughput and adds latency. The <b>KGS removes it</b>: pre-generation moves the expensive uniqueness work <i>offline</i>, and block allocation means the hot path is a local, in-memory <code>pop()</code> from a server's pre-fetched chunk. Trade-off: keys handed to a server that then crashes are lost &mdash; acceptable, since 68B+ keys (62<sup>6</sup> &asymp; 56.8 billion) is a vast space. Run two KGS replicas with separate key ranges so it is not itself a SPOF.</div>
+A naive <i>counter</i> or <i>hash-then-check-collision</i> design forces every write to touch a shared, serialized resource (the counter row, or a uniqueness read). At billions of URLs this is the single point that caps throughput and adds latency. The <b>KGS removes it</b>: pre-generation moves the expensive uniqueness work <i>offline</i>, and block allocation means the hot path is a local, in-memory <code>pop()</code> from a server's pre-fetched chunk. Trade-off: keys handed to a server that then crashes are lost &mdash; acceptable, since 56.8B+ keys (62<sup>6</sup> &asymp; 56.8 billion) is a vast space. Run two KGS replicas with separate key ranges so it is not itself a SPOF.</div>
 
 <h3>301 vs 302 &mdash; the analytics decision</h3>
 <div class="box"><b>Why 302, not 301</b>
 A <b>301 (permanent)</b> tells the browser and every intermediary "this short URL <i>is</i> the long URL, forever" &mdash; so the client caches it and <b>future clicks never hit your servers again.</b> Great for redirect latency, fatal for analytics and for ever changing/expiring the target. A <b>302 (temporary)</b> forces the browser back to your service on every click, so you capture click counts, geo, referrer, device. The cost is load: every click is a round-trip you must serve. TinyURL/Bitly use 302 precisely because the click data is the product. If you don't care about analytics and want max speed, 301 is cheaper.</div>
 
 <h3>Caching &mdash; the 80/20 rule &amp; eviction</h3>
-<p>Reads dominate massively (a write-once, read-many workload; ratios of 100:1 are typical). Per the Pareto observation, <b>~20% of URLs generate ~80% of the traffic</b>, so you cache aggressively. If you serve ~20K redirects/sec and the daily read volume is, say, ~17B/day, caching 20% of one day's hot set keeps the working set in memory at a few hundred GB &mdash; spread across a Redis/Memcached fleet. On a cache miss: read from DB, then populate the cache. <b>Eviction: LRU</b> fits naturally because the hot set drifts (a viral link is hot for hours then cold). Replicate cache nodes so a single node loss doesn't stampede the DB.</p>
+<p>Reads dominate massively (a write-once, read-many workload; ratios of 100:1 are typical). Per the Pareto observation, <b>~20% of URLs generate ~80% of the traffic</b>, so you cache aggressively. If you serve ~20K redirects/sec and the daily read volume is, say, ~1.7B/day, caching 20% of one day's hot set keeps the working set in memory at a few hundred GB &mdash; spread across a Redis/Memcached fleet. On a cache miss: read from DB, then populate the cache. <b>Eviction: LRU</b> fits naturally because the hot set drifts (a viral link is hot for hours then cold). Replicate cache nodes so a single node loss doesn't stampede the DB.</p>
 
 <h3>Why a NoSQL / key-value store fits</h3>
 <div class="box"><b>No joins, no transactions, pure point lookups</b>

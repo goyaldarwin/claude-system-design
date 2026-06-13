@@ -270,7 +270,7 @@
 
 <h3>4. Which protocols are actually on the wire?</h3>
 <ul>
-<li><span class="key">Client &harr; LB &harr; server:</span> TCP for an <a href="#">L4</a> LB (forwards packets by IP/port); HTTP/HTTPS for an L7 LB (understands requests, routes by URL/header, terminates TLS). This is the L4-vs-L7 split above.</li>
+<li><span class="key">Client &harr; LB &harr; server:</span> TCP for an L4 LB (forwards packets by IP/port); HTTP/HTTPS for an L7 LB (understands requests, routes by URL/header, terminates TLS). This is the L4-vs-L7 split above.</li>
 <li><span class="key">Health checks:</span> periodic TCP connect or HTTP <code>GET /health</code>.</li>
 <li><span class="key">LB failover:</span> VRRP / keepalived for the VIP.</li>
 <li><span class="key">Service registry:</span> servers register over HTTP/gRPC; the registry replicates internally via <a href="30 Consensus and Raft.htm">Raft/ZAB</a>; membership and failure detection often use a <a href="34 Anti-Entropy and Gossip.htm">gossip protocol (SWIM)</a>.</li>

@@ -294,7 +294,7 @@ func createPayment(key string, req PaymentReq) Result {
 <li><strong>You cannot validate resilience without <a href="48 Observability.htm">observability</a>.</strong> You need the metrics, traces, and SLO dashboards (see <a href="47 SLI SLO SLA and Error Budgets.htm">SLI/SLO/SLA</a>) to even know whether an experiment passed.</li>
 </ul>
 
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat the fallback path as a <strong>first-class, continuously-tested code path</strong>, not an emergency hatch. The most common production surprise is discovering the fallback was itself broken &mdash; it called the same down dependency, or threw on the degraded input. GameDays and automated chaos experiments are how you find that <em>before</em> the incident.</p></div>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat the fallback path as a <strong>first-class, continuously-tested code path</strong>, not an emergency hatch. The most common production surprise is discovering the fallback was itself broken &mdash; it called the same down dependency, or threw on the degraded input. GameDays and automated chaos experiments are how you find that <em>before</em> the incident.</div>
 
 <h2 id="mastery">Principal-level mastery check</h2>
 

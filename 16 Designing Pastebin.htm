@@ -157,7 +157,7 @@
 </ol>
 <p><strong>Extended Requirements:</strong></p>
 <ol>
-<li>Analytics, e.g., how many times a times a paste was accessed?</li>
+<li>Analytics, e.g., how many times a paste was accessed?</li>
 <li>Our service should also be accessible through REST APIs by other services.</li>
 </ol>
 
@@ -181,7 +181,7 @@
 <blockquote><p>64^6 ~= 68.7 billion unique strings</p></blockquote>
 <p>If it takes one byte to store one character, total size required to store 3.6B keys would be:</p>
 <blockquote><p>3.6B * 6 =&gt; 22 GB</p></blockquote>
-<p>22GB is negligible compared to 36TB. To keep some margin, we will assume a 70% capacity model (meaning we don't want to use more than 70% of our total storage capacity at any point), which raises our storage needs up to 47TB.</p>
+<p>22GB is negligible compared to 36TB. To keep some margin, we will add 30% headroom on top of the raw requirement, which raises our storage needs up to 47TB (36TB &times; 1.3).</p>
 <p><strong>Bandwidth estimates:</strong> For write requests, we expect 12 new pastes per second, resulting in 120KB of ingress per second.</p>
 <blockquote><p>12 * 10KB =&gt; 120 KB/s</p></blockquote>
 <p>As for read request, we expect 58 requests per second. Therefore, total data egress (sent to users) will be 0.6 MB/s.</p>
@@ -193,7 +193,7 @@
 
 <h2 id="5-system-apis">System APIs</h2>
 <p>We can have SOAP or REST APIs to expose the functionality of our service. Following could be the definitions of the APIs to create/retrieve/delete Pastes:</p>
-<pre><code>addPaste(api_dev_key, paste_data, custom_url=None user_name=None, paste_name=None, expire_date=None)</code></pre>
+<pre><code>addPaste(api_dev_key, paste_data, custom_url=None, user_name=None, paste_name=None, expire_date=None)</code></pre>
 <p><strong>Parameters:</strong><br>
 api_dev_key (string): The API developer key of a registered account. This will be used to, among other things, throttle users based on their allocated quota.<br>
 paste_data (string): Textual data of the paste.<br>

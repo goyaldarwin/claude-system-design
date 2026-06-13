@@ -159,7 +159,7 @@
 <li>Least Recently Used (LRU): Discards the least recently used items first.</li>
 <li>Most Recently Used (MRU): Discards, in contrast to LRU, the most recently used items first.</li>
 <li>Least Frequently Used (LFU): Counts how often an item is needed. Those that are used least often are discarded first.</li>
-<li>Random Replacement (RR): Randomly selects an engineer item and discards it to make space when necessary.</li>
+<li>Random Replacement (RR): Randomly selects an item and discards it to make space when necessary.</li>
 </ol>
 
 <style>
@@ -211,7 +211,7 @@
 <p>LRU is cheap but blind to frequency &mdash; a single scan of cold data evicts the genuinely hot working set (scan resistance failure). Modern caches do better:</p>
 <ul>
 <li><b>LFU</b> tracks frequency, but naive LFU never ages out keys that were hot long ago and is expensive to maintain exactly.</li>
-<li><b>W-TinyLFU</b> (the default in <a href="53 Designing a Distributed Cache.htm">Caffeine</a>) combines a small LRU admission window with a frequency filter: an engineer is admitted to the main cache only if a <a href="42 Probabilistic Data Structures.htm">Count-Min Sketch</a> says it is accessed more often than the victim it would evict. Frequency counts are periodically halved (aging). This delivers near-optimal hit ratios at O(1) cost with tiny memory overhead.</li>
+<li><b>W-TinyLFU</b> (the default in <a href="53 Designing a Distributed Cache.htm">Caffeine</a>) combines a small LRU admission window with a frequency filter: an entry is admitted to the main cache only if a <a href="42 Probabilistic Data Structures.htm">Count-Min Sketch</a> says it is accessed more often than the victim it would evict. Frequency counts are periodically halved (aging). This delivers near-optimal hit ratios at O(1) cost with tiny memory overhead.</li>
 <li><b>ARC</b> (Adaptive Replacement Cache) maintains two LRU lists &mdash; recency and frequency &mdash; plus ghost lists of recently-evicted keys, and self-tunes the split between them. Scan-resistant and tuning-free, though patent history pushed many open-source systems toward W-TinyLFU instead.</li>
 </ul>
 
@@ -247,7 +247,7 @@
 <h2>Principal-level mastery check</h2>
 <ul>
 <li>Can you contrast <b>write-through</b>, <b>write-back</b>, and <b>write-around</b> on three axes — write latency, durability/data-loss window, and read-hit rate for freshly written keys — and pick the right one for a financial ledger vs. a metrics-ingest pipeline vs. a write-heavy log store?</li>
-<li>Why does a single popular key expiring cause a <b>cache stampede</b> (thundering herd) where thousands of requests hammer the DB at once, and how do you prevent it — per-key locks / single-flight, probabilistic early recomputation (XFetch with the <i>e<sup>-(delta·beta)·ln(rand)</sup></i> rule), stale-while-revalidate, or jittered TTLs?</li>
+<li>Why does a single popular key expiring cause a <b>cache stampede</b> (thundering herd) where thousands of requests hammer the DB at once, and how do you prevent it — per-key locks / single-flight, probabilistic early recomputation (XFetch &mdash; refresh when <code>now &minus; delta&middot;beta&middot;ln(rand) &ge; expiry</code>), stale-while-revalidate, or jittered TTLs?</li>
 <li>Why does plain <b>LRU</b> get polluted by a one-time scan of cold keys, and what does <b>W-TinyLFU</b> (the policy behind Caffeine) do differently with its frequency sketch and admission window that pushes hit ratios closer to optimal — and when would simple <b>LFU</b> or <b>LRU</b> still be the right call?</li>
 <li>Can you describe the <b>hot-key problem</b> — one key (a celebrity profile, a flash-sale SKU) saturating a single Redis shard's CPU/NIC — and the mitigations: key-splitting/replication across N copies, a local in-process L1 tier in front of the shared cache, or request coalescing at the edge?</li>
 <li>Why does <b>cache-aside</b> have a consistency race where a concurrent reader can repopulate a stale value <i>after</i> a writer deletes it, leaving the cache permanently wrong until TTL — and how do delete-after-write ordering, versioned writes, or short TTL bounds limit the damage?</li>

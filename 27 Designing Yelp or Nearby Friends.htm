@@ -211,8 +211,8 @@ A JSON containing information about a list of businesses matching the search que
 <blockquote>Select * from Places where Latitude between X-D and X+D and Longitude between Y-D and Y+D and GridID in (GridID, GridID1, GridID2, ..., GridID8)</blockquote>
 <p>This will undoubtedly improve the runtime of our query.</p>
 <p><strong>Should we keep our index in memory?</strong> Maintaining the index in memory will improve the performance of our service. We can keep our index in a hash table, where 'key' would be the grid number and 'value' would be the list of places contained in that grid.</p>
-<p><strong>How much memory will we need to store the index?</strong> Let's assume our search radius is 10 miles, given that total area of the earth is around 200 million square miles; we will have 20 million grids. We would need a four bytes number to uniquely identify each grid, and since LocationID is 8 bytes, therefore we would need 4GB of memory (ignoring hash table overhead) to store the index.</p>
-<blockquote>(4 * 20M) + (8 * 500M) ~= 4 GB</blockquote>
+<p><strong>How much memory will we need to store the index?</strong> Let's assume our search radius is 10 miles, given that total area of the earth is around 200 million square miles; with a 10mi &times; 10mi grid (100 sq mi each) we will have 2 million grids. We would need a four bytes number to uniquely identify each grid, and since LocationID is 8 bytes, therefore we would need 4GB of memory (ignoring hash table overhead) to store the index.</p>
+<blockquote>(4 * 2M) + (8 * 500M) ~= 4 GB</blockquote>
 <p>This solution can still run slow for those grids that have a lot of places since our places are not uniformly distributed among grids. We can have a thickly dense area with a lot of places, and on the other hand, we can have areas which are sparsely populated.</p>
 <p>This problem can be solved if we can dynamically adjust our grid size, such that whenever we have a grid with a lot of places we break it down to create smaller grids. One challenge with this approach could be, how would we map these grids to locations? Also, how can we find all the neighboring grids of a grid?</p>
 

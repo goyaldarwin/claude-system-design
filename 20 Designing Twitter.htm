@@ -166,7 +166,7 @@
 <p>Let’s assume we have one billion total users, with 200 million daily active users (DAU). Also, we have 100 million new tweets every day, and on average each user follows 200 people.</p>
 <p><strong>How many favorites per day?</strong> If on average each user favorites five tweets per day, we will have:</p>
 <blockquote>200M users * 5 favorites =&gt; 1B favorites</blockquote>
-<p><strong>How many total tweet-views our system will generate?</strong> Let’s assume on average a user visits their timeline two times a day and visits five other people’s pages. One each page if a user sees 20 tweets, total tweet-views our system will generate:</p>
+<p><strong>How many total tweet-views our system will generate?</strong> Let’s assume on average a user visits their timeline two times a day and visits five other people’s pages. On each page if a user sees 20 tweets, total tweet-views our system will generate:</p>
 <blockquote>200M DAU * ((2 + 5) * 20 tweets) =&gt; 28B/day</blockquote>
 <p><strong>Storage Estimates</strong> Let’s say each tweet has 140 characters and we need two bytes to store a character without compression. Let’s assume we need 30 bytes to store metadata with each tweet (like ID, timestamp, user ID, etc.). Total storage we would need:</p>
 <blockquote>100M * (280 + 30) bytes =&gt; 30GB/day</blockquote>
@@ -176,7 +176,7 @@
 <p><strong>Bandwidth Estimates</strong> Since total ingress is 24TB per day, this would translate into 290MB/sec.</p>
 <p>Remember that we have 28B tweet views per day. We must show the photo of every tweet (if it has a photo), but let’s assume that the users watch every 3rd video they see in their timeline. So, total egress will be:</p>
 <blockquote>(28B * 280 bytes) / 86400s of text  =&gt; 93MB/s<br>
-+ (28B/5 * 200KB ) / 86400s of photos =&gt; 13GB/S<br>
++ (28B/5 * 200KB ) / 86400s of photos =&gt; 13GB/s<br>
 + (28B/10/3 * 2MB ) / 86400s of Videos =&gt; 22GB/s<br>
 Total ~= 35GB/s</blockquote>
 
@@ -221,7 +221,7 @@ A successful post will return the URL to access that tweet. Otherwise, an approp
 <p>This approach solves the problem of hot users, but in contrast to sharding by UserID, we have to query all database partitions to find tweets of a user, which can result in higher latencies.</p>
 <p>We can further improve our performance by introducing cache to store hot tweets in front of the database servers.</p>
 <p><strong>Sharding based on Tweet creation time:</strong> Storing tweets based on recency will give us the advantage of fetching all the top tweets quickly, and we only have to query a very small set of servers. But the problem here is that the traffic load will not be distributed, e.g., while writing, all new tweets will be going to one server, and the remaining servers will be sitting idle. Similarly while reading, the server holding latest data will have a very high load as compared to servers holding old data.</p>
-<p><strong>What if we can combine sharding by TweedID and Tweet creation time?</strong> If we don’t store tweet creation time separately and use TweetID to reflect that, we can get benefits of both the approaches. This way it will be quite quick to find latest Tweets. For this, we must make each TweetID universally unique in our system, and each TweetID should contain timestamp too.</p>
+<p><strong>What if we can combine sharding by TweetID and Tweet creation time?</strong> If we don’t store tweet creation time separately and use TweetID to reflect that, we can get benefits of both the approaches. This way it will be quite quick to find latest Tweets. For this, we must make each TweetID universally unique in our system, and each TweetID should contain timestamp too.</p>
 <p>We can use epoch time for this. Let’s say our TweetID will have two parts; the first part will be representing epoch seconds and the second part will be an auto-incrementing sequence. So, to make a new TweetID, we can take the current epoch time and append an auto-incrementing number to it. We can figure out shard number from this TweetID and store it there.</p>
 <p>What could be the size of our TweetID? Let’s say our epoch time starts today, how many bits we would need to store the number of seconds for next 50 years?</p>
 <blockquote>86400 sec/day * 365 (days a year) * 50 (years) =&gt; 1.6B</blockquote>
