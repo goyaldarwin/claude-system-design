@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SLI, SLO, SLA and Error Budgets</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05 Sharding or Data Partitioning.htm" href="05 Sharding or Data Partitioning.htm"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06 Indexes.htm" href="06 Indexes.htm"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07 Proxies.htm" href="07 Proxies.htm"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08 Queues.htm" href="08 Queues.htm"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09 Redundancy and Replication.htm" href="09 Redundancy and Replication.htm"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16 Designing Pastebin.htm" href="16 Designing Pastebin.htm"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17 Designing Instagram.htm" href="17 Designing Instagram.htm"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18 Designing Dropbox.htm" href="18 Designing Dropbox.htm"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19 Designing Facebook Messenger.htm" href="19 Designing Facebook Messenger.htm"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20 Designing Twitter.htm" href="20 Designing Twitter.htm"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21 Designing Youtube or Netflix.htm" href="21 Designing Youtube or Netflix.htm"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22 Designing Typeahead Suggestion.htm" href="22 Designing Typeahead Suggestion.htm"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23 Designing an API Rate Limiter (_New_).htm" href="23 Designing an API Rate Limiter (_New_).htm"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24 Designing Twitter Search.htm" href="24 Designing Twitter Search.htm"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25 Designing a Web Crawler.htm" href="25 Designing a Web Crawler.htm"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26Designing Facebook’s Newsfeed.htm" href="26Designing Facebook’s Newsfeed.htm"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27 Designing Yelp or Nearby Friends.htm" href="27 Designing Yelp or Nearby Friends.htm"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28 Designing Uber backend.htm" href="28 Designing Uber backend.htm"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29 Design BookMyShow (_New_).htm" href="29 Design BookMyShow (_New_).htm"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30 Consensus and Raft.htm" href="30 Consensus and Raft.htm"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31 Consistency Models and PACELC.htm" href="31 Consistency Models and PACELC.htm"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32 Distributed Transactions.htm" href="32 Distributed Transactions.htm"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33 Time Clocks and Ordering.htm" href="33 Time Clocks and Ordering.htm"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34 Anti-Entropy and Gossip.htm" href="34 Anti-Entropy and Gossip.htm"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35 CRDTs.htm" href="35 CRDTs.htm"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36 Leader Election and Coordination.htm" href="36 Leader Election and Coordination.htm"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37 Replication Deep Dive.htm" href="37 Replication Deep Dive.htm"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38 Storage Engines LSM vs B-Tree.htm" href="38 Storage Engines LSM vs B-Tree.htm"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39 Kafka and Log-based Messaging.htm" href="39 Kafka and Log-based Messaging.htm"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40 Stream Processing and CDC.htm" href="40 Stream Processing and CDC.htm"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41 Batch and Big Data Processing.htm" href="41 Batch and Big Data Processing.htm"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42 Probabilistic Data Structures.htm" href="42 Probabilistic Data Structures.htm"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="64 Search and Elasticsearch.htm" href="64 Search and Elasticsearch.htm"><span class="n">64</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="43 Microservices and Service Mesh.htm" href="43 Microservices and Service Mesh.htm"><span class="n">43</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="44 API Design REST gRPC GraphQL.htm" href="44 API Design REST gRPC GraphQL.htm"><span class="n">44</span>API Design</a>
+<a class="lk" data-file="45 Event-Driven Architecture.htm" href="45 Event-Driven Architecture.htm"><span class="n">45</span>Event-Driven Architecture</a>
+<a class="lk" data-file="46 Containers Kubernetes and Serverless.htm" href="46 Containers Kubernetes and Serverless.htm"><span class="n">46</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="65 Object Storage and CDN.htm" href="65 Object Storage and CDN.htm"><span class="n">65</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk active" data-file="47 SLI SLO SLA and Error Budgets.htm" href="47 SLI SLO SLA and Error Budgets.htm"><span class="n">47</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="48 Observability.htm" href="48 Observability.htm"><span class="n">48</span>Observability</a>
+<a class="lk" data-file="49 Resilience Patterns.htm" href="49 Resilience Patterns.htm"><span class="n">49</span>Resilience Patterns</a>
+<a class="lk" data-file="50 Deployment Strategies.htm" href="50 Deployment Strategies.htm"><span class="n">50</span>Deployment Strategies</a>
+<a class="lk" data-file="51 Multi-Region and Disaster Recovery.htm" href="51 Multi-Region and Disaster Recovery.htm"><span class="n">51</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="52 Security in System Design.htm" href="52 Security in System Design.htm"><span class="n">52</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="53 Designing a Distributed Cache.htm" href="53 Designing a Distributed Cache.htm"><span class="n">53</span>Distributed Cache</a>
+<a class="lk" data-file="54 Designing a Distributed Message Queue.htm" href="54 Designing a Distributed Message Queue.htm"><span class="n">54</span>Distributed Message Queue</a>
+<a class="lk" data-file="55 Designing a Key-Value Store.htm" href="55 Designing a Key-Value Store.htm"><span class="n">55</span>Key-Value Store</a>
+<a class="lk" data-file="56 Designing a Unique ID Generator.htm" href="56 Designing a Unique ID Generator.htm"><span class="n">56</span>Unique ID Generator</a>
+<a class="lk" data-file="57 Designing a Notification System.htm" href="57 Designing a Notification System.htm"><span class="n">57</span>Notification System</a>
+<a class="lk" data-file="58 Designing a Distributed Job Scheduler.htm" href="58 Designing a Distributed Job Scheduler.htm"><span class="n">58</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="59 Designing a Payment System.htm" href="59 Designing a Payment System.htm"><span class="n">59</span>Payment System</a>
+<a class="lk" data-file="60 Designing Collaborative Editing.htm" href="60 Designing Collaborative Editing.htm"><span class="n">60</span>Collaborative Editing</a>
+<a class="lk" data-file="61 Designing Ad Click Aggregation.htm" href="61 Designing Ad Click Aggregation.htm"><span class="n">61</span>Ad Click Aggregation</a>
+<a class="lk" data-file="62 Designing a Distributed Locking Service.htm" href="62 Designing a Distributed Locking Service.htm"><span class="n">62</span>Distributed Locking</a>
+<a class="lk" data-file="66 Designing a Metrics and Monitoring System.htm" href="66 Designing a Metrics and Monitoring System.htm"><span class="n">66</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="67 Architectural Styles and How to Choose.htm" href="67 Architectural Styles and How to Choose.htm"><span class="n">67</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="68 Choosing a Database.htm" href="68 Choosing a Database.htm"><span class="n">68</span>Choosing a Database</a>
+<a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
+<a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Interviewing</h5>
+<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; SLI, SLO, SLA and Error Budgets</div>
+
+<h1>SLI, SLO, SLA and Error Budgets</h1>
+<p class="sub">The vocabulary that turns "is the service reliable?" into a number you can measure, alert on, and trade against feature velocity.</p>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#vocab">The vocabulary: SLI, SLO, SLA</a></li>
+<li><a href="#sli">Choosing good SLIs</a></li>
+<li><a href="#slo">Setting SLOs: the request/success ratio and percentiles</a></li>
+<li><a href="#budget">Error budgets as a control system</a></li>
+<li><a href="#burn">Burn-rate alerting</a></li>
+<li><a href="#nines">The fallacy of 100% and the cost of each nine</a></li>
+<li><a href="#interview">Principal-level interview lens</a></li>
+</ul>
+</div>
+
+<h2 id="vocab">The vocabulary: SLI, SLO, SLA</h2>
+<p>These three terms come from Google's SRE practice and are constantly confused, including by senior engineers. Getting them straight is the price of admission to any serious reliability conversation.</p>
+<ul>
+<li><span class="key">SLI &mdash; Service Level Indicator:</span> a <em>measurement</em>. A quantitative metric of some aspect of the service, almost always expressed as a ratio of good events to total events over a window. Example: "the proportion of HTTP requests served in under 300&nbsp;ms." An SLI is a number between 0 and 100%.</li>
+<li><span class="key">SLO &mdash; Service Level Objective:</span> a <em>target</em> for an SLI. "99.9% of requests served in under 300&nbsp;ms over a rolling 28-day window." The SLO is an internal commitment the team holds itself to. It has no direct external consequence.</li>
+<li><span class="key">SLA &mdash; Service Level Agreement:</span> a <em>contract</em> with a customer that includes consequences &mdash; service credits, refunds, penalties &mdash; if the objective is missed. An SLA is a business and legal artifact, not an engineering one.</li>
+</ul>
+<div class="callout note"><span class="lbl">Key insight</span>The relationship is a strict hierarchy: <span class="key">SLA &lt; SLO &lt; the reliability you actually deliver</span>. Your internal SLO is deliberately tighter than the SLA you sign, so that when you start trending toward an SLO breach you still have a buffer of weeks before you owe anyone money. If your SLA is 99.9% and your SLO is also 99.9%, you have no margin and will be writing refund checks the first time the SLO wobbles. A common rule of thumb: set the SLO one extra nine tighter, or at least add a comfortable gap.</div>
+<p>One subtle but important point: <span class="key">not every service needs an SLA, but every user-facing service should have an SLO.</span> Internal services frequently have SLOs and no SLA at all &mdash; the "contract" is just the expectation other teams build against. Conversely, signing an SLA without an internal SLO to back it is how organizations sleepwalk into penalty payments.</p>
+
+<h2 id="sli">Choosing good SLIs</h2>
+<p>An SLI is only useful if it correlates with what users actually experience. A CPU-utilization graph is a fine operational metric but a terrible SLI &mdash; users do not care about your CPU, they care whether their request succeeded and was fast. Good SLIs measure the <span class="key">user-visible boundary</span> of the service. The canonical SLI categories:</p>
+<ul>
+<li><span class="key">Availability:</span> the fraction of valid requests that succeed. For request-driven services this is the workhorse SLI.</li>
+<li><span class="key">Latency:</span> the fraction of requests served faster than a threshold. Almost always the most user-impactful SLI for interactive systems.</li>
+<li><span class="key">Throughput / freshness:</span> for pipelines and streaming systems, how much data is processed and how stale the output is. See <a href="40 Stream Processing and CDC.htm">Stream Processing and CDC</a> and <a href="41 Batch and Big Data Processing.htm">Batch and Big Data Processing</a>.</li>
+<li><span class="key">Error rate:</span> the inverse framing of availability &mdash; the fraction of requests that fail with 5xx, timeouts, or malformed responses.</li>
+<li><span class="key">Correctness / durability:</span> the fraction of operations that return the right answer, or the fraction of stored objects not lost. Often the hardest to measure but the most damaging to violate. S3 advertises "eleven nines" of durability, which is a correctness SLI, not an availability one.</li>
+</ul>
+
+<h3>The good-events / valid-events ratio</h3>
+<p>The most durable way to specify an SLI is as a ratio with carefully defined numerator and denominator:</p>
+<pre><code>SLI = good events / valid events
+
+availability_sli = (count of requests with status &lt; 500 and not timeout)
+                 / (count of all requests, excluding client errors we don't own)
+
+latency_sli      = (count of requests faster than 300ms)
+                 / (count of all valid requests)</code></pre>
+<p>The hard, interesting work is in the definitions. <span class="key">What counts as "valid"?</span> A 400 caused by a malformed client request is usually <em>not</em> your fault and should be excluded from the denominator &mdash; otherwise a buggy client tanks your SLO. A 429 from your own <a href="23 Designing an API Rate Limiter (_New_).htm">rate limiter</a> is arguably a <em>success</em> (the system worked as designed) and might be excluded too. Where you measure also matters: at the load balancer, you miss failures that never reached it; at the client, you capture the true experience but conflate it with the user's own network. Principal engineers debate the denominator as hard as the numerator.</p>
+<div class="callout warn"><span class="lbl">Pitfall</span>Measuring availability at the server misses the failures that matter most: the requests that timed out before your server logged anything, or that failed at a CDN/<a href="03 Load Balancing.htm">load balancer</a> hop you don't instrument. The infamous failure mode is a service reporting "99.99% availability" from its own logs while users see a hard outage, because the requests never arrived to be counted. Where you measure is a design decision, not a detail.</div>
+
+<h2 id="slo">Setting SLOs: percentiles, not averages</h2>
+<p>The single most important SLI discipline is to <span class="key">specify latency as a percentile, never as an average</span>. The mean is actively misleading for latency because the distribution is heavily right-skewed: a handful of multi-second requests barely move the mean while ruining the experience for real users.</p>
+<table>
+<tr><th>Statistic</th><th>What it tells you</th><th>Why it misleads</th></tr>
+<tr><td>Mean (average)</td><td>Central tendency</td><td>A 10&nbsp;ms median and a 5&nbsp;s tail can average to a "fine" number; hides the tail entirely</td></tr>
+<tr><td>p50 (median)</td><td>Typical experience</td><td>Says nothing about the unhappy half-percent</td></tr>
+<tr><td>p99</td><td>Tail latency &mdash; the slow 1%</td><td>The right target for most user-facing SLOs</td></tr>
+<tr><td>p99.9</td><td>Worst-case tail</td><td>Where retries, GC pauses, cold caches, and tail amplification show up</td></tr>
+</table>
+<p><span class="key">Why p99 (and p99.9) matter so much:</span> in a system that fans out a single user action into many backend calls &mdash; a typical microservices request hitting dozens of services &mdash; the user waits for the <em>slowest</em> of those calls. This is <span class="key">tail latency amplification</span>: if each backend has a 1% chance of being slow, a request touching 100 backends has roughly a 63% chance of hitting at least one slow one. So the <em>median</em> user experience is governed by your backends' <em>p99</em>, not their median. Jeff Dean's "The Tail at Scale" is the canonical reference. This is also why <a href="49 Resilience Patterns.htm">resilience patterns</a> like hedged requests and timeouts exist &mdash; to cut the tail.</p>
+<div class="callout ok"><span class="lbl">What strong candidates do</span>They never say "the SLO is 200&nbsp;ms latency." They say "the SLO is p99 latency under 200&nbsp;ms, measured at the edge, over a rolling 28-day window, excluding requests that 4xx for client reasons." Every clause &mdash; the percentile, the threshold, the measurement point, the window, the exclusions &mdash; is a deliberate choice that changes what the number means.</div>
+
+<h3>The measurement window</h3>
+<p>SLOs are defined over a window, typically a <span class="key">rolling 28 days</span> (four weeks captures weekly cyclicality and is divisible cleanly). A rolling window is preferred over a calendar month because it avoids the perverse incentive of "we already blew the budget on the 3rd, so reliability doesn't matter for the rest of the month." With a rolling window, every bad day ages out 28 days later, so the budget continuously replenishes.</p>
+
+<h2 id="budget">Error budgets as a control system</h2>
+<p>The <span class="key">error budget</span> is the inverse of the SLO. If your SLO is 99.9% availability, your error budget is 0.1% &mdash; the amount of unreliability you are <em>allowed</em> to spend. Over a 28-day window:</p>
+<pre><code>error budget = (1 - SLO) &times; total events
+
+For 99.9% over 28 days at 1000 req/s:
+  total requests   = 1000 &times; 86400 &times; 28  &asymp; 2.42 billion
+  budget (0.1%)    &asymp; 2.42 million failed requests allowed
+
+Expressed as time (a simplification, see warning below):
+  99.9%  over 28 days  &rarr;  ~40 minutes of downtime
+  99.99% over 28 days  &rarr;  ~4 minutes
+  99.999% over 28 days &rarr;  ~24 seconds</code></pre>
+<div class="callout warn"><span class="lbl">Pitfall</span>"Minutes of downtime" is a lossy way to express an error budget. A request-ratio budget and a time budget diverge under partial failure: if 5% of requests fail continuously, you are never "down" but you burn budget steadily. Prefer the <span class="key">request-success ratio</span> as the source of truth and treat time-based figures as intuition pumps only.</div>
+
+<h3>How the budget arbitrates velocity vs. reliability</h3>
+<p>This is the real reason error budgets exist, and the part interviewers probe. The eternal tension is between product teams (who want to ship features fast) and SRE/ops (who want stability). Without a shared number, this is a religious war settled by whoever shouts loudest. The error budget makes it a <span class="key">data-driven contract</span>:</p>
+<ul>
+<li><span class="key">Budget remaining:</span> the team ships freely. Risky changes, faster rollouts, more experiments &mdash; the budget is there to be spent. An <em>unused</em> error budget is a signal you are being too conservative and shipping too slowly.</li>
+<li><span class="key">Budget exhausted:</span> a pre-agreed policy kicks in &mdash; typically a <span class="key">feature freeze</span>. All engineering effort redirects to reliability work until the budget recovers. No debate, no escalation, the policy was agreed in advance when everyone was calm.</li>
+</ul>
+<p>The genius is that it aligns incentives: the product team now <em>owns</em> reliability, because their feature velocity is gated by it. They stop treating outages as "ops' problem." This is why <a href="50 Deployment Strategies.htm">deployment strategies</a> like canary and progressive rollout matter &mdash; they let you spend budget in small, observable increments rather than betting it all on a big-bang release. The budget also funds deliberate risk: planned <a href="09 Redundancy and Replication.htm">failover</a> drills and chaos experiments are legitimate budget expenditures.</p>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>An error budget makes the velocity/reliability trade-off explicit but it is only as good as the policy attached to it and the leadership willingness to enforce a freeze. The most common failure is a budget that everyone watches and no one acts on &mdash; "we're over budget but we have a launch, so we'll ship anyway." A budget with no teeth is just a dashboard.</div>
+
+<h2 id="burn">Burn-rate alerting</h2>
+<p>Naively, you might alert "fire when the 28-day SLO is breached." That is useless &mdash; by the time the rolling window crosses the threshold, you have already been failing for a long time. The modern approach, from the Google SRE Workbook, is <span class="key">multi-window, multi-burn-rate alerting</span>.</p>
+<p>The <span class="key">burn rate</span> is how fast you are consuming the error budget relative to the rate that would exhaust it exactly at the end of the window. A burn rate of 1 means you'll spend the whole budget over 28 days. A burn rate of 14.4 means you'll exhaust the entire 28-day budget in 2 days.</p>
+<pre><code>burn_rate = (observed error rate) / (1 - SLO)
+
+# Example: SLO 99.9%, so budget error rate = 0.001
+# If current error rate = 0.014, burn_rate = 14
+# That burns the full 28-day budget in 28/14 = 2 days</code></pre>
+<p>You configure multiple alerts at different burn rates and time windows, trading off how much budget you're willing to lose before paging against how many false pages you tolerate:</p>
+<table>
+<tr><th>Burn rate</th><th>Long window</th><th>Short window (guard)</th><th>Budget consumed before page</th><th>Severity</th></tr>
+<tr><td>14.4&times;</td><td>1 hour</td><td>5 min</td><td>~2%</td><td>Page immediately</td></tr>
+<tr><td>6&times;</td><td>6 hours</td><td>30 min</td><td>~5%</td><td>Page</td></tr>
+<tr><td>1&times;</td><td>3 days</td><td>6 hours</td><td>~10%</td><td>Ticket (no page)</td></tr>
+</table>
+<p>The <span class="key">short window acts as a guard</span>: the alert only fires if both the long window <em>and</em> the recent short window are burning hot. This stops a long-window alert from continuing to page for an hour after the incident has already been fixed (good for fast reset) and stops a brief blip from tripping the slow-burn alert. Fast burns page a human; slow burns open a ticket. Tying alerts to budget burn rather than raw thresholds is what keeps on-call humane and meaningful &mdash; see <a href="48 Observability.htm">Observability</a> for how these signals are collected and surfaced.</p>
+<div class="callout note"><span class="lbl">Key insight</span>Burn-rate alerting solves the classic alerting dilemma. Threshold alerts ("error rate &gt; 1%") are either too sensitive (page on every blip) or too slow (miss a sustained slow bleed). Symptom-based, budget-relative alerting pages proportional to <em>user harm per unit time</em>, which is exactly what you want a human woken up for.</div>
+
+<h2 id="nines">The fallacy of 100% and the cost of each nine</h2>
+<p>The most important reliability insight, and the one that separates principal engineers from the rest: <span class="key">100% is the wrong target for almost everything.</span> The reasons are both economic and physical.</p>
+<ul>
+<li><span class="key">The user can't tell.</span> Between the service and the user sits the user's WiFi, their ISP, DNS, their phone's flaky radio, and the public internet &mdash; a chain that is itself maybe 99.9% reliable. Pushing your service from 99.99% to 99.999% is invisible to a user whose own connection is the bottleneck. You are spending fortunes on reliability the user physically cannot perceive.</li>
+<li><span class="key">Each nine costs roughly an order of magnitude more.</span> Going from 99.9% to 99.99% typically means redundant everything, multi-AZ then <a href="51 Multi-Region and Disaster Recovery.htm">multi-region</a>, automated failover, and far more sophisticated <a href="49 Resilience Patterns.htm">resilience patterns</a>. The next nine after that may require active-active across regions, removal of every shared dependency, and a doubling of operational maturity.</li>
+<li><span class="key">100% forbids change.</span> You cannot deploy, patch, or experiment if you have zero budget for error. A 100% target is a velocity freeze in disguise. The error budget exists precisely to <em>spend</em> on the risk of shipping.</li>
+</ul>
+<table>
+<tr><th>Availability</th><th>Downtime / 30 days</th><th>Downtime / year</th><th>Typical cost tier</th></tr>
+<tr><td>99% (two nines)</td><td>~7.2 hours</td><td>~3.65 days</td><td>Single node, best-effort</td></tr>
+<tr><td>99.9% (three nines)</td><td>~43 minutes</td><td>~8.76 hours</td><td>Redundant, single region</td></tr>
+<tr><td>99.99% (four nines)</td><td>~4.3 minutes</td><td>~52.6 minutes</td><td>Multi-AZ, automated failover</td></tr>
+<tr><td>99.999% (five nines)</td><td>~26 seconds</td><td>~5.26 minutes</td><td>Multi-region active-active</td></tr>
+</table>
+<div class="callout ok"><span class="lbl">What strong candidates do</span>They ask "what reliability does this service actually need?" before quoting a number. A payment authorization path (<a href="59 Designing a Payment System.htm">payment system</a>) may justify five nines and the cost that comes with it; an internal analytics dashboard is fine at 99%. They right-size the target to the user impact and the cost of the next nine, rather than reflexively chasing 100%. They also distinguish criticality <em>within</em> a service &mdash; the read path and the write path often warrant different SLOs.</div>
+
+<h2 id="interview">Principal-level interview lens</h2>
+<div class="callout ok"><span class="lbl">What strong candidates do</span>Strong candidates treat reliability as a quantified, negotiable budget rather than a vibe. They define SLIs as good/valid ratios with explicit numerators, denominators, and measurement points; they always specify latency SLOs as percentiles with a window; they connect the error budget to a concrete velocity policy with leadership buy-in; and they reflexively question whether more nines are worth the cost. They know the difference between an internal SLO and a customer SLA, and they design the gap between them deliberately.</div>
+<ul>
+<li>A team tells you their service is "99.99% available" based on their server access logs, but customers report frequent outages. Walk me through every reason those two facts can both be true, and how you'd fix the measurement.</li>
+<li>Your service fans out each user request to 30 backend microservices. Each backend has a p99 of 50&nbsp;ms. What is the user-facing latency distribution, and what techniques would you use to control the tail?</li>
+<li>You're signing an SLA with a customer for 99.9% availability. What internal SLO would you set, why the gap, and how would you structure burn-rate alerts to give your team time to react before you owe service credits?</li>
+<li>The product team has blown through the error budget two weeks into a 28-day window but has a major launch scheduled. The pre-agreed policy is a feature freeze. What do you actually do, and how do you keep the budget from becoming a dashboard nobody respects?</li>
+<li>How would you define SLIs for a system that isn't request/response &mdash; say a <a href="39 Kafka and Log-based Messaging.htm">Kafka</a>-based pipeline or a <a href="58 Designing a Distributed Job Scheduler.htm">job scheduler</a>? What replaces availability and latency?</li>
+<li>Leadership wants to "add another nine" to a service. How do you estimate the cost, identify which dependency is the limiting factor, and decide whether it's worth it?</li>
+</ul>
+
+<div class="navfoot"><a href="46 Containers Kubernetes and Serverless.htm">&lsaquo; Prev: Containers, Kubernetes and Serverless</a><a class="nx" href="48 Observability.htm">Next: Observability &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

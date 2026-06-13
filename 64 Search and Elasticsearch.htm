@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Search and Elasticsearch</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05 Sharding or Data Partitioning.htm" href="05 Sharding or Data Partitioning.htm"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06 Indexes.htm" href="06 Indexes.htm"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07 Proxies.htm" href="07 Proxies.htm"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08 Queues.htm" href="08 Queues.htm"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09 Redundancy and Replication.htm" href="09 Redundancy and Replication.htm"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16 Designing Pastebin.htm" href="16 Designing Pastebin.htm"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17 Designing Instagram.htm" href="17 Designing Instagram.htm"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18 Designing Dropbox.htm" href="18 Designing Dropbox.htm"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19 Designing Facebook Messenger.htm" href="19 Designing Facebook Messenger.htm"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20 Designing Twitter.htm" href="20 Designing Twitter.htm"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21 Designing Youtube or Netflix.htm" href="21 Designing Youtube or Netflix.htm"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22 Designing Typeahead Suggestion.htm" href="22 Designing Typeahead Suggestion.htm"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23 Designing an API Rate Limiter (_New_).htm" href="23 Designing an API Rate Limiter (_New_).htm"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24 Designing Twitter Search.htm" href="24 Designing Twitter Search.htm"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25 Designing a Web Crawler.htm" href="25 Designing a Web Crawler.htm"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26Designing Facebook’s Newsfeed.htm" href="26Designing Facebook’s Newsfeed.htm"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27 Designing Yelp or Nearby Friends.htm" href="27 Designing Yelp or Nearby Friends.htm"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28 Designing Uber backend.htm" href="28 Designing Uber backend.htm"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29 Design BookMyShow (_New_).htm" href="29 Design BookMyShow (_New_).htm"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30 Consensus and Raft.htm" href="30 Consensus and Raft.htm"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31 Consistency Models and PACELC.htm" href="31 Consistency Models and PACELC.htm"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32 Distributed Transactions.htm" href="32 Distributed Transactions.htm"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33 Time Clocks and Ordering.htm" href="33 Time Clocks and Ordering.htm"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34 Anti-Entropy and Gossip.htm" href="34 Anti-Entropy and Gossip.htm"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35 CRDTs.htm" href="35 CRDTs.htm"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36 Leader Election and Coordination.htm" href="36 Leader Election and Coordination.htm"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37 Replication Deep Dive.htm" href="37 Replication Deep Dive.htm"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38 Storage Engines LSM vs B-Tree.htm" href="38 Storage Engines LSM vs B-Tree.htm"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39 Kafka and Log-based Messaging.htm" href="39 Kafka and Log-based Messaging.htm"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40 Stream Processing and CDC.htm" href="40 Stream Processing and CDC.htm"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41 Batch and Big Data Processing.htm" href="41 Batch and Big Data Processing.htm"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42 Probabilistic Data Structures.htm" href="42 Probabilistic Data Structures.htm"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk active" data-file="64 Search and Elasticsearch.htm" href="64 Search and Elasticsearch.htm"><span class="n">64</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="43 Microservices and Service Mesh.htm" href="43 Microservices and Service Mesh.htm"><span class="n">43</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="44 API Design REST gRPC GraphQL.htm" href="44 API Design REST gRPC GraphQL.htm"><span class="n">44</span>API Design</a>
+<a class="lk" data-file="45 Event-Driven Architecture.htm" href="45 Event-Driven Architecture.htm"><span class="n">45</span>Event-Driven Architecture</a>
+<a class="lk" data-file="46 Containers Kubernetes and Serverless.htm" href="46 Containers Kubernetes and Serverless.htm"><span class="n">46</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="65 Object Storage and CDN.htm" href="65 Object Storage and CDN.htm"><span class="n">65</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="47 SLI SLO SLA and Error Budgets.htm" href="47 SLI SLO SLA and Error Budgets.htm"><span class="n">47</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="48 Observability.htm" href="48 Observability.htm"><span class="n">48</span>Observability</a>
+<a class="lk" data-file="49 Resilience Patterns.htm" href="49 Resilience Patterns.htm"><span class="n">49</span>Resilience Patterns</a>
+<a class="lk" data-file="50 Deployment Strategies.htm" href="50 Deployment Strategies.htm"><span class="n">50</span>Deployment Strategies</a>
+<a class="lk" data-file="51 Multi-Region and Disaster Recovery.htm" href="51 Multi-Region and Disaster Recovery.htm"><span class="n">51</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="52 Security in System Design.htm" href="52 Security in System Design.htm"><span class="n">52</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="53 Designing a Distributed Cache.htm" href="53 Designing a Distributed Cache.htm"><span class="n">53</span>Distributed Cache</a>
+<a class="lk" data-file="54 Designing a Distributed Message Queue.htm" href="54 Designing a Distributed Message Queue.htm"><span class="n">54</span>Distributed Message Queue</a>
+<a class="lk" data-file="55 Designing a Key-Value Store.htm" href="55 Designing a Key-Value Store.htm"><span class="n">55</span>Key-Value Store</a>
+<a class="lk" data-file="56 Designing a Unique ID Generator.htm" href="56 Designing a Unique ID Generator.htm"><span class="n">56</span>Unique ID Generator</a>
+<a class="lk" data-file="57 Designing a Notification System.htm" href="57 Designing a Notification System.htm"><span class="n">57</span>Notification System</a>
+<a class="lk" data-file="58 Designing a Distributed Job Scheduler.htm" href="58 Designing a Distributed Job Scheduler.htm"><span class="n">58</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="59 Designing a Payment System.htm" href="59 Designing a Payment System.htm"><span class="n">59</span>Payment System</a>
+<a class="lk" data-file="60 Designing Collaborative Editing.htm" href="60 Designing Collaborative Editing.htm"><span class="n">60</span>Collaborative Editing</a>
+<a class="lk" data-file="61 Designing Ad Click Aggregation.htm" href="61 Designing Ad Click Aggregation.htm"><span class="n">61</span>Ad Click Aggregation</a>
+<a class="lk" data-file="62 Designing a Distributed Locking Service.htm" href="62 Designing a Distributed Locking Service.htm"><span class="n">62</span>Distributed Locking</a>
+<a class="lk" data-file="66 Designing a Metrics and Monitoring System.htm" href="66 Designing a Metrics and Monitoring System.htm"><span class="n">66</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="67 Architectural Styles and How to Choose.htm" href="67 Architectural Styles and How to Choose.htm"><span class="n">67</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="68 Choosing a Database.htm" href="68 Choosing a Database.htm"><span class="n">68</span>Choosing a Database</a>
+<a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
+<a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Interviewing</h5>
+<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Search and Elasticsearch</div>
+
+<h1>Search and Elasticsearch</h1>
+<p class="sub"><em>How full-text search engines actually work, and the six dimensions that drive every Elasticsearch design decision.</em></p>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#inverted">1. The inverted index &mdash; how search really works</a></li>
+<li><a href="#shards">2. Shards &amp; replicas</a></li>
+<li><a href="#mappings">3. Mappings &amp; analyzers</a></li>
+<li><a href="#query-filter">4. Query vs filter context</a></li>
+<li><a href="#indexing">5. The indexing model &mdash; near-real-time &amp; segments</a></li>
+<li><a href="#cluster">6. Cluster roles &amp; scaling</a></li>
+<li><a href="#notprimary">When NOT to use Elasticsearch</a></li>
+<li><a href="#interview">Principal-level interview lens</a></li>
+</ul>
+</div>
+
+<p>Almost every interview that touches "let the user search by free text" eventually arrives at a search engine, and in practice that engine is Lucene wearing an Elasticsearch (or OpenSearch) coat. A principal-level answer is not "throw it in Elasticsearch." It is a defensible position across six axes: how the index is structured, how it is partitioned, how fields are mapped, how queries are scored, how writes become visible, and how the cluster is shaped. This lesson walks those six dimensions, each with the mechanism, the numbers, and the failure mode that matters.</p>
+
+<h2 id="inverted">1. The inverted index &mdash; how search really works</h2>
+<p>A relational <a href="06 Indexes.htm">B-tree index</a> answers "find the row whose <code>id = 42</code>" or "rows where <code>price BETWEEN 10 AND 20</code>." It is built for <em>looking up a document by an attribute value</em>. Full-text search asks the inverse question: "find every document that <em>contains</em> the word <span class="key">consensus</span>." A B-tree on a <code>TEXT</code> column cannot help &mdash; it indexes the whole string, not the words inside it, and <code>LIKE '%consensus%'</code> degrades to a full scan.</p>
+<p>The data structure built for this is the <span class="key">inverted index</span>. Instead of mapping <em>document &rarr; terms</em>, it maps <em>term &rarr; the list of documents containing it</em>. That per-term list is a <span class="key">postings list</span>:</p>
+<pre><code>term        postings (docId : term-frequency : positions)
+---------   ----------------------------------------------
+"raft"      [ 3:2:(5,40), 17:1:(12), 88:1:(2) ]
+"consensus" [ 3:1:(6),   17:3:(1,13,40) ]
+"quorum"    [ 88:4:(...) ]</code></pre>
+<p>To answer <code>"raft consensus"</code> the engine fetches the two postings lists and intersects them &mdash; documents 3 and 17 contain both. Because postings lists are sorted by <code>docId</code>, intersection is a linear merge, and the lists themselves are delta-and-bitpack compressed so they stay cache-friendly. This is the same family of structures behind <a href="24 Designing Twitter Search.htm">Twitter Search</a>, where tweets are tokenized and fanned into postings as they arrive.</p>
+<p>Two pieces make the magic work:</p>
+<ul>
+<li><span class="key">Tokenization / analysis:</span> the text <code>"Raft, the consensus algorithm!"</code> is broken into terms (<code>raft</code>, <code>consensus</code>, <code>algorithm</code>), lowercased, punctuation stripped, and optionally stemmed (<code>running &rarr; run</code>). The <em>same</em> analyzer runs at index time and query time so the terms line up.</li>
+<li><span class="key">The term dictionary:</span> Lucene stores the sorted set of terms in an FST (finite-state transducer), giving O(term length) lookups and cheap prefix/wildcard traversal &mdash; the basis of autocomplete and fuzzy matching.</li>
+</ul>
+<p>Relevance comes from the numbers already in the postings: term frequency, document frequency, and field length feed the <span class="key">BM25</span> scoring function (Lucene's default since 6.0), so a rare word that appears many times in a short document ranks that document highly. This is why search returns a <em>ranked</em> result set rather than the unordered set a SQL <code>WHERE</code> returns.</p>
+<div class="callout note"><span class="lbl">Key insight</span>A B-tree is optimized for "which value does this row have?" An inverted index is optimized for "which rows contain this value?" They are duals, not substitutes. That is the whole reason a search engine exists alongside your primary database rather than replacing it &mdash; see <a href="38 Storage Engines LSM vs B-Tree.htm">Storage Engines: LSM vs B-Tree</a>.</div>
+
+<h2 id="shards">2. Shards &amp; replicas</h2>
+<p>An Elasticsearch <span class="key">index</span> is split into <span class="key">primary shards</span>, and each primary shard is an independent Lucene index that can live on any data node. This is how a single logical index scales beyond one machine &mdash; the same partitioning idea as <a href="05 Sharding or Data Partitioning.htm">Sharding / Partitioning</a>, applied to search. A document is routed to a shard by <code>shard = hash(routing_key) % number_of_primary_shards</code>; by default the routing key is the document <code>_id</code>.</p>
+<p>The consequence of that formula is the single most-tested fact about Elasticsearch: <span class="key">the primary shard count is fixed at index creation.</span> Change the divisor and every document hashes to a different shard, so the routing breaks. To re-shard you must <em>reindex</em> into a new index with a new shard count (the <code>_reindex</code> or <code>_split</code>/<code>_shrink</code> APIs) and swap an alias over &mdash; you cannot mutate it in place.</p>
+<p><span class="key">Replica shards</span> are full copies of a primary on <em>different</em> nodes. They do two jobs: high availability (a replica is promoted if its primary's node dies) and read throughput (searches round-robin across primary <em>and</em> replicas). Replica count, unlike primary count, can be changed live. So the design rule is:</p>
+<ul>
+<li><span class="key">Primaries</span> &mdash; set for total data volume and write parallelism; pick carefully, you live with it.</li>
+<li><span class="key">Replicas</span> &mdash; dial up for query QPS and resilience; cheap to change at runtime.</li>
+</ul>
+<p><span class="key">Shard sizing</span> is where most clusters go wrong. Rules of thumb that hold up in production:</p>
+<ul>
+<li>Target <strong>tens of GB per shard</strong> &mdash; roughly 10&ndash;50 GB, and keep shards under the ~2 billion-document Lucene hard limit well in advance.</li>
+<li>Keep total shard count proportional to heap: aim for <strong>&lt; 20 shards per GB of JVM heap</strong> on a node (a 30 GB-heap node tops out around 600 shards).</li>
+<li>Avoid <span class="key">over-sharding</span>: every shard is a separate Lucene index with its own memory overhead (segment metadata, FSTs, thread-pool slots). A thousand 50 MB shards is far worse than ten 5 GB shards &mdash; the cluster state balloons, the master node struggles, and every search fans out to a thousand tiny tasks.</li>
+</ul>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>More primary shards raise write parallelism and let you spread data wider, but every query must scatter to all of them and gather/merge the results &mdash; scatter-gather latency is bounded by the <em>slowest</em> shard. Fewer, larger shards lower coordination overhead but cap parallelism and make rebalancing chunkier. For time-series/log data, prefer one index per time window (e.g. daily) with a handful of shards each, managed by ILM, rather than one giant index.</div>
+
+<h2 id="mappings">3. Mappings &amp; analyzers</h2>
+<p>The <span class="key">mapping</span> is the schema: it declares each field's type and, for text, which analyzer processes it. The decision that trips up most people is <code>text</code> vs <code>keyword</code>:</p>
+<table>
+<tr><th>Type</th><th>Analyzed?</th><th>Use for</th></tr>
+<tr><td><code>text</code></td><td>Yes &mdash; tokenized into terms, full-text searchable, <em>not</em> usable for exact-match/sort/aggregations</td><td>Body, title, description &mdash; "find documents mentioning X"</td></tr>
+<tr><td><code>keyword</code></td><td>No &mdash; stored as a single exact token</td><td>Status, tags, IDs, enums &mdash; exact filters, sorting, aggregations, term facets</td></tr>
+</table>
+<p>The standard pattern is a <span class="key">multi-field</span>: map a field as <code>text</code> for searching <em>and</em> add a <code>.keyword</code> sub-field for aggregating and sorting. You are designing the mapping <em>for the query you intend to run</em> &mdash; if you will never full-text search the field, make it <code>keyword</code> and save the analysis cost; if you will only ever match it loosely, you may not need the <code>keyword</code> variant.</p>
+<p>An <span class="key">analyzer</span> is a pipeline of three stages:</p>
+<ol>
+<li><span class="key">Character filters</span> &mdash; pre-process raw text (strip HTML, map <code>&amp;</code> &rarr; <code>and</code>).</li>
+<li><span class="key">Tokenizer</span> &mdash; split into tokens (standard, whitespace, edge-ngram for autocomplete, pattern).</li>
+<li><span class="key">Token filters</span> &mdash; lowercase, stop-word removal, stemming, synonyms, ASCII-folding.</li>
+</ol>
+<p>Choosing the analyzer is a product decision masquerading as a config knob: stemming makes <code>running</code> match <code>run</code> (good for recall) but can over-match; edge-ngrams enable type-ahead but multiply index size; language analyzers handle accents and compound words.</p>
+<div class="callout warn"><span class="lbl">Footgun</span><span class="key">Dynamic mapping</span> auto-infers a type the first time it sees a field, which is convenient in a demo and dangerous in production. A field that arrives once as <code>"12345"</code> becomes <code>text</code>+<code>keyword</code> forever; a deeply nested JSON blob with unbounded keys triggers <span class="key">mapping explosion</span> &mdash; thousands of fields bloat cluster state and can take the cluster down. Set <code>"dynamic": "strict"</code> (or <code>false</code>) on anything user-supplied, and define mappings explicitly.</div>
+
+<h2 id="query-filter">4. Query vs filter context</h2>
+<p>Every clause in an Elasticsearch query runs in one of two contexts, and knowing which is the difference between a 5 ms and a 500 ms request:</p>
+<ul>
+<li><span class="key">Query context</span> answers "<em>how well</em> does this document match?" &mdash; it computes a relevance <code>_score</code> via BM25. Use it for the free-text part the user actually cares about ranking by. It is more expensive and is <em>not</em> cached, because the score depends on the whole result set.</li>
+<li><span class="key">Filter context</span> answers a yes/no: "<em>does</em> this document match?" &mdash; no scoring. Use it for structured constraints (<code>status: active</code>, <code>created &gt;= 2024-01-01</code>, <code>tenant_id: 42</code>). Filters are <span class="key">cacheable</span>.</li>
+</ul>
+<p>The canonical shape is a <code>bool</code> query that puts the scored part in <code>must</code> and everything else in <code>filter</code>:</p>
+<pre><code>{ "query": { "bool": {
+  "must":   [ { "match": { "body": "raft consensus" } } ],   // scored
+  "filter": [ { "term":  { "status": "published" } },        // cached, no score
+              { "range": { "created": { "gte": "2024-01-01" } } } ]
+}}}</code></pre>
+<p>Filters hit the <span class="key">filter cache</span> (a per-segment bitset of matching docs). Once <code>status: published</code> has been evaluated for a segment, the bitset is reused across every subsequent query on that segment &mdash; effectively free. The mistake to avoid is dumping exact-match constraints into <code>must</code>: they get needlessly scored and never cached, so a tenant-isolation clause that should be a free filter becomes a per-query CPU cost.</p>
+
+<h2 id="indexing">5. The indexing model &mdash; near-real-time &amp; segments</h2>
+<p>Elasticsearch is <span class="key">near-real-time</span>, not real-time. A document you index is not instantly searchable. Understanding why requires the Lucene segment model, which is structurally close to an <a href="38 Storage Engines LSM vs B-Tree.htm">LSM tree</a>: writes accumulate in memory and are periodically flushed to immutable on-disk files.</p>
+<ol>
+<li>An indexed document lands in an in-memory <span class="key">buffer</span> and is appended to the <span class="key">translog</span> (a write-ahead log) for durability.</li>
+<li>On <span class="key">refresh</span> &mdash; by default every <strong>1 second</strong> &mdash; the buffer is written to a new in-memory/page-cache <span class="key">segment</span> and becomes searchable. This refresh, not the write itself, is what makes the doc visible. Raising <code>refresh_interval</code> to <code>30s</code> (or disabling it during a bulk load) dramatically cuts indexing cost at the price of staleness.</li>
+<li>Segments are <span class="key">immutable</span>. An update writes a new document and marks the old one deleted (a tombstone); a delete is just a tombstone. Nothing is mutated in place.</li>
+<li>On <span class="key">flush</span>, segments are fsync'd and the translog is truncated &mdash; this is the real durability boundary.</li>
+<li>Because each refresh births a new small segment, a background <span class="key">merge</span> continually combines small segments into larger ones, physically dropping tombstoned docs. Merging is the source of <span class="key">write amplification</span> &mdash; the same data is rewritten several times &mdash; and is the main consumer of disk I/O on a write-heavy cluster.</li>
+</ol>
+<p>Two operational levers follow directly:</p>
+<ul>
+<li><span class="key">Bulk indexing.</span> Index via the <code>_bulk</code> API in batches of a few MB / thousands of docs. One request per document wastes a network round-trip and a refresh cycle on each. For heavy backfills: set <code>refresh_interval: -1</code>, set <code>number_of_replicas: 0</code>, bulk-load, then restore both &mdash; this can be an order of magnitude faster.</li>
+<li><span class="key">Durability vs latency.</span> The translog fsyncs every <code>5s</code> by default (<code>async</code>), so a node crash can lose up to ~5 s of writes. <code>index.translog.durability: request</code> fsyncs on every request &mdash; safer, slower.</li>
+</ul>
+<div class="callout note"><span class="lbl">Mechanism</span>The 1-second refresh is exactly why "I wrote it but search can't find it yet" is normal, not a bug. If a workflow needs read-your-write, either <code>GET /index/_doc/{id}</code> (the realtime get path reads the translog and bypasses refresh) or call <code>?refresh=wait_for</code> on the write &mdash; never lower <code>refresh_interval</code> globally just to satisfy one path.</div>
+
+<h2 id="cluster">6. Cluster roles &amp; scaling</h2>
+<p>An Elasticsearch cluster is not a uniform blob of nodes; nodes take <span class="key">roles</span>, and separating them is how you scale and stay stable:</p>
+<ul>
+<li><span class="key">Master-eligible nodes</span> &mdash; own the cluster state (mappings, shard locations, routing table) and elect a leader via a Raft-like quorum protocol. Run a dedicated, odd number (3 is standard) so a split brain cannot form &mdash; the same majority logic as <a href="30 Consensus and Raft.htm">Consensus &amp; Raft</a>. Keep them off the data path so a hot query can't destabilize cluster management.</li>
+<li><span class="key">Data nodes</span> &mdash; hold shards, do the indexing and the actual search work. Scale these for storage and CPU.</li>
+<li><span class="key">Coordinating nodes</span> &mdash; the scatter-gather brains: receive a search, fan it to the relevant shards, then merge and rank the partial results. Dedicated coordinators absorb the merge cost off the data nodes for high-fan-out queries.</li>
+<li><span class="key">Ingest nodes</span> &mdash; run pre-processing pipelines (enrich, parse, geoip) before documents are indexed.</li>
+</ul>
+<p>The principal framing is that <span class="key">indexing throughput and search throughput are separate scaling problems</span>. Heavy writes are bottlenecked by merges and translog fsyncs on data nodes; heavy reads are bottlenecked by shard fan-out and merge cost. You scale write capacity by adding primaries/data nodes and tuning refresh; you scale read capacity by adding replicas and coordinators. Conflating them &mdash; "just add nodes" &mdash; is a junior answer.</p>
+<p>For time-based data, <span class="key">hot / warm / cold tiers</span> map index age to hardware cost: fresh, frequently-queried indices live on hot nodes (NVMe, lots of RAM); aging indices roll to warm (cheaper disks, fewer replicas) and then cold/frozen (object-storage-backed, searchable but slow), driven by Index Lifecycle Management. This is the search-engine version of the storage-tiering you would design for <a href="65 Object Storage and CDN.htm">Object Storage</a>.</p>
+<p>On the consistency axis, Elasticsearch is a <span class="key">CP-leaning</span> system for cluster metadata but tunable for data. A write succeeds when the primary and the configured number of replicas (<code>wait_for_active_shards</code>) acknowledge it; the default replication is synchronous to in-sync replicas, so a quorum acknowledges before the client sees success, but the refresh-then-visible delay means reads across replicas can momentarily diverge. The knobs you trade are exactly the ones from <a href="31 Consistency Models and PACELC.htm">Consistency Models &amp; PACELC</a>: refresh interval vs freshness, translog durability vs write latency, replica acks vs availability.</p>
+
+<h2 id="notprimary">When NOT to use Elasticsearch &mdash; and how to keep it in sync</h2>
+<p>The most important principal instinct: <span class="key">Elasticsearch is a search/analytics layer, not a system of record.</span> Reasons not to make it your primary store:</p>
+<ul>
+<li>No real transactions, no joins, no foreign keys &mdash; it is a denormalized document store.</li>
+<li>The near-real-time visibility delay and the up-to-5 s translog window are wrong for "money must be durable the instant the API returns."</li>
+<li>Reindexing to change a mapping or shard count is painful if it holds your only copy of the data.</li>
+<li>Segment merges and analysis make it heavier per-write than a purpose-built OLTP store.</li>
+</ul>
+<p>So the standard architecture is: keep the source of truth in a transactional database, and treat Elasticsearch as a <em>derived</em> read model. Avoid the <span class="key">dual-write</span> anti-pattern &mdash; writing to the DB and to ES from application code in two steps &mdash; because a crash between the two leaves them permanently inconsistent with no clean recovery. Instead, drive ES from the database's commit log via <span class="key">Change Data Capture</span>: a connector (Debezium, etc.) tails the WAL/binlog and streams changes into ES, typically through Kafka. This gives you a single durable ordering of changes, idempotent replay, and a clean rebuild path &mdash; the pattern covered in <a href="40 Stream Processing and CDC.htm">Stream Processing &amp; CDC</a>. Because the index is derived, you can blow it away and rebuild from the log at any time.</p>
+<p>Finally, search and approximate structures often combine: a <a href="42 Probabilistic Data Structures.htm">Bloom filter</a> can short-circuit "does this term exist at all in this segment?" before touching the postings list, and HyperLogLog-style sketches back cardinality aggregations &mdash; useful when an exact distinct count over billions of docs would be too expensive.</p>
+
+<h2 id="interview">Principal-level interview lens</h2>
+<div class="callout ok"><span class="lbl">What strong candidates do</span>They treat Elasticsearch as a <em>derived</em> read model fed by CDC, never as the system of record, and they justify it on the six axes &mdash; index structure, sharding, mapping, query/filter, indexing model, cluster shape &mdash; rather than reaching for it reflexively. They size shards in tens of GB, separate write-scaling from read-scaling, and put tenant/structured constraints in filter context for free caching.</div>
+<p>Probing questions to ask candidates:</p>
+<ul>
+<li>"You picked 30 primary shards. Justify the number &mdash; and what do you do in a year when the data has 5&times;'d?"</li>
+<li>"A user creates a record and immediately searches for it but gets nothing. Walk me through why, and how you'd fix it without globally lowering <code>refresh_interval</code>."</li>
+<li>"When would you map a field as <code>keyword</code> vs <code>text</code>, and what breaks if you sort or aggregate on a <code>text</code> field?"</li>
+<li>"Your service writes to Postgres and to Elasticsearch in the same request. What's wrong with that, and what's the right pattern?"</li>
+<li>"Indexing is keeping up but search latency spikes at p99. Where do you look first &mdash; shards, merges, query vs filter, or coordinator fan-out?"</li>
+<li>"Why is the inverted index the right structure here and a B-tree the wrong one? When would you keep both?"</li>
+</ul>
+
+<div class="navfoot">
+<a href="42 Probabilistic Data Structures.htm">&lsaquo; Prev: Probabilistic Data Structures</a>
+<a class="nx" href="43 Microservices and Service Mesh.htm">Next: Microservices &amp; Service Mesh &rsaquo;</a>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

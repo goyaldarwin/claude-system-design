@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designing Typeahead Suggestion</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05 Sharding or Data Partitioning.htm" href="05 Sharding or Data Partitioning.htm"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06 Indexes.htm" href="06 Indexes.htm"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07 Proxies.htm" href="07 Proxies.htm"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08 Queues.htm" href="08 Queues.htm"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09 Redundancy and Replication.htm" href="09 Redundancy and Replication.htm"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16 Designing Pastebin.htm" href="16 Designing Pastebin.htm"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17 Designing Instagram.htm" href="17 Designing Instagram.htm"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18 Designing Dropbox.htm" href="18 Designing Dropbox.htm"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19 Designing Facebook Messenger.htm" href="19 Designing Facebook Messenger.htm"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20 Designing Twitter.htm" href="20 Designing Twitter.htm"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21 Designing Youtube or Netflix.htm" href="21 Designing Youtube or Netflix.htm"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk active" data-file="22 Designing Typeahead Suggestion.htm" href="22 Designing Typeahead Suggestion.htm"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23 Designing an API Rate Limiter (_New_).htm" href="23 Designing an API Rate Limiter (_New_).htm"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24 Designing Twitter Search.htm" href="24 Designing Twitter Search.htm"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25 Designing a Web Crawler.htm" href="25 Designing a Web Crawler.htm"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26Designing Facebook’s Newsfeed.htm" href="26Designing Facebook’s Newsfeed.htm"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27 Designing Yelp or Nearby Friends.htm" href="27 Designing Yelp or Nearby Friends.htm"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28 Designing Uber backend.htm" href="28 Designing Uber backend.htm"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29 Design BookMyShow (_New_).htm" href="29 Design BookMyShow (_New_).htm"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30 Consensus and Raft.htm" href="30 Consensus and Raft.htm"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31 Consistency Models and PACELC.htm" href="31 Consistency Models and PACELC.htm"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32 Distributed Transactions.htm" href="32 Distributed Transactions.htm"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33 Time Clocks and Ordering.htm" href="33 Time Clocks and Ordering.htm"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34 Anti-Entropy and Gossip.htm" href="34 Anti-Entropy and Gossip.htm"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35 CRDTs.htm" href="35 CRDTs.htm"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36 Leader Election and Coordination.htm" href="36 Leader Election and Coordination.htm"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37 Replication Deep Dive.htm" href="37 Replication Deep Dive.htm"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38 Storage Engines LSM vs B-Tree.htm" href="38 Storage Engines LSM vs B-Tree.htm"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39 Kafka and Log-based Messaging.htm" href="39 Kafka and Log-based Messaging.htm"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40 Stream Processing and CDC.htm" href="40 Stream Processing and CDC.htm"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41 Batch and Big Data Processing.htm" href="41 Batch and Big Data Processing.htm"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42 Probabilistic Data Structures.htm" href="42 Probabilistic Data Structures.htm"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="64 Search and Elasticsearch.htm" href="64 Search and Elasticsearch.htm"><span class="n">64</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="43 Microservices and Service Mesh.htm" href="43 Microservices and Service Mesh.htm"><span class="n">43</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="44 API Design REST gRPC GraphQL.htm" href="44 API Design REST gRPC GraphQL.htm"><span class="n">44</span>API Design</a>
+<a class="lk" data-file="45 Event-Driven Architecture.htm" href="45 Event-Driven Architecture.htm"><span class="n">45</span>Event-Driven Architecture</a>
+<a class="lk" data-file="46 Containers Kubernetes and Serverless.htm" href="46 Containers Kubernetes and Serverless.htm"><span class="n">46</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="65 Object Storage and CDN.htm" href="65 Object Storage and CDN.htm"><span class="n">65</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="47 SLI SLO SLA and Error Budgets.htm" href="47 SLI SLO SLA and Error Budgets.htm"><span class="n">47</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="48 Observability.htm" href="48 Observability.htm"><span class="n">48</span>Observability</a>
+<a class="lk" data-file="49 Resilience Patterns.htm" href="49 Resilience Patterns.htm"><span class="n">49</span>Resilience Patterns</a>
+<a class="lk" data-file="50 Deployment Strategies.htm" href="50 Deployment Strategies.htm"><span class="n">50</span>Deployment Strategies</a>
+<a class="lk" data-file="51 Multi-Region and Disaster Recovery.htm" href="51 Multi-Region and Disaster Recovery.htm"><span class="n">51</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="52 Security in System Design.htm" href="52 Security in System Design.htm"><span class="n">52</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="53 Designing a Distributed Cache.htm" href="53 Designing a Distributed Cache.htm"><span class="n">53</span>Distributed Cache</a>
+<a class="lk" data-file="54 Designing a Distributed Message Queue.htm" href="54 Designing a Distributed Message Queue.htm"><span class="n">54</span>Distributed Message Queue</a>
+<a class="lk" data-file="55 Designing a Key-Value Store.htm" href="55 Designing a Key-Value Store.htm"><span class="n">55</span>Key-Value Store</a>
+<a class="lk" data-file="56 Designing a Unique ID Generator.htm" href="56 Designing a Unique ID Generator.htm"><span class="n">56</span>Unique ID Generator</a>
+<a class="lk" data-file="57 Designing a Notification System.htm" href="57 Designing a Notification System.htm"><span class="n">57</span>Notification System</a>
+<a class="lk" data-file="58 Designing a Distributed Job Scheduler.htm" href="58 Designing a Distributed Job Scheduler.htm"><span class="n">58</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="59 Designing a Payment System.htm" href="59 Designing a Payment System.htm"><span class="n">59</span>Payment System</a>
+<a class="lk" data-file="60 Designing Collaborative Editing.htm" href="60 Designing Collaborative Editing.htm"><span class="n">60</span>Collaborative Editing</a>
+<a class="lk" data-file="61 Designing Ad Click Aggregation.htm" href="61 Designing Ad Click Aggregation.htm"><span class="n">61</span>Ad Click Aggregation</a>
+<a class="lk" data-file="62 Designing a Distributed Locking Service.htm" href="62 Designing a Distributed Locking Service.htm"><span class="n">62</span>Distributed Locking</a>
+<a class="lk" data-file="66 Designing a Metrics and Monitoring System.htm" href="66 Designing a Metrics and Monitoring System.htm"><span class="n">66</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="67 Architectural Styles and How to Choose.htm" href="67 Architectural Styles and How to Choose.htm"><span class="n">67</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="68 Choosing a Database.htm" href="68 Choosing a Database.htm"><span class="n">68</span>Choosing a Database</a>
+<a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
+<a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Interviewing</h5>
+<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Typeahead Suggestion</div>
+<h1>Designing Typeahead Suggestion</h1>
+<p class="sub"><em>Designing a real-time suggestion service that recommends terms to users as they type a search query, served from an in-memory trie within tight latency bounds.</em></p>
+
+<p>Let's design a real-time suggestion service, which will recommend terms to users as they enter text for searching.</p>
+<p><strong>Similar Services:</strong> Auto-suggestions, Typeahead search<br>
+<strong>Difficulty:</strong> Medium</p>
+
+<div class="sechead">1. What is Typeahead Suggestion?</div>
+<p>Typeahead suggestions enable users to search for known and frequently searched terms. As the user types into the search box, it tries to predict the query based on the characters the user has entered and gives a list of suggestion to complete the query. Typeahead suggestions help the user to articulate their search queries better. It’s not about speeding up the search process but rather about&nbsp;guiding&nbsp;the users and lending them a helping hand in constructing their search query.</p>
+
+<div class="sechead">2. Requirements and Goals of the System</div>
+<p><strong>Functional Requirements:</strong> As the user types in their query, our service should suggest top 10 terms starting with whatever user has typed.</p>
+<p><strong>Non-function Requirements:</strong> The suggestions should appear in real-time. The user should be able to see the suggestions within 200ms.</p>
+
+<div class="sechead">3. Basic System Design and Algorithm</div>
+<p>The problem we are solving is that we have a lot of ‘strings’ that we need to store in such a way that users can search on any prefix. Our service will suggest next terms that will match the given prefix. For example, if our database contains following terms: cap, cat, captain, capital; and the user has typed in ‘cap’, our system should suggest ‘cap’, ‘captain’ and ‘capital’.</p>
+<p>Since we’ve to serve a lot of queries with minimum latency, we need to come up with a scheme that can efficiently store our data such that it can be queried quickly. We can’t depend upon some database for this; we need to store our index in memory in a highly efficient data structure.</p>
+<p>One of the most appropriate data structure that can serve our purpose would be the Trie (pronounced “try”). A trie is a tree-like data structure used to store phrases where each node stores a character of the phrase in a sequential manner. For example, if we need to store ‘cap, cat, caption, captain, capital’ in the trie, it would look like:</p>
+<p style="text-align:center;"><img src="./_principal_files/img/22_typeahead_trie.png" alt="diagram"></p>
+<p>Now if the user has typed ‘cap’, our service can traverse the trie to go to the node ‘P’ to find all the terms that start with this prefix (e.g., cap-tion, cap-ital etc).</p>
+<p>We can merge nodes that have only one branch to save storage space. The above trie can be stored like this:</p>
+<p style="text-align:center;"><img src="./_principal_files/img/22_typeahead_trie_merged.png" alt="diagram"></p>
+<p><strong>Should we’ve case insensitive trie?</strong> For simplicity and search use case let’s assume our data is case insensitive.</p>
+<p><strong>How to find top suggestion?</strong> Now that we can find all the terms given a prefix, how can we know what’re the top 10 terms that we should suggest? One simple solution could be to store the count of searches that terminated at each node, e.g., if users have searched about ‘CAPTAIN’ 100 times and ‘CAPTION’ 500 times, we can store this number with the last character of the phrase. So now if the user has typed ‘CAP’ we know the top most searched word under the prefix ‘CAP’ is ‘CAPTION’. So given a prefix, we can traverse the sub-tree under it, to find the top suggestions.</p>
+<p><strong>Given a prefix, how much time it can take to traverse its sub-tree?</strong> Given the amount of data we need to index, we should expect a huge tree. Even, traversing a sub-tree would take really long, e.g., the phrase ‘system design interview questions’ is 30 levels deep. Since we’ve very tight latency requirements, we do need to improve the efficiency of our solution.</p>
+<p><strong>Can we store top suggestions with each node?</strong> This can surely speed up our searches but will require a lot of extra storage. We can store top 10 suggestions at each node that we can return to the user. We’ve to bear the big increase in our storage capacity to achieve the required efficiency.</p>
+<p>We can optimize our storage by storing only references of the terminal nodes rather than storing the entire phrase. To find the suggested term we’ve to traverse back using the parent reference from the terminal node. We will also need to store the frequency with each reference to keep track of top suggestions.</p>
+<p><strong>How would we build this trie?</strong> We can efficiently build our trie bottom up. Each parent node will recursively call all the child nodes to calculate their top suggestions and their counts. Parent nodes will combine top suggestions from all of their children to determine their top suggestions.</p>
+<p><strong>How to update the trie?</strong> Assumeing five billion searches every day, which would give us approximately 60K queries per second. If we try to update our trie for every query it’ll be extremely resource intensive and this can hamper our read requests too. One solution to handle this could be to update our trie offline after a certain interval.</p>
+<p>As the new queries come in, we can log them and also track their frequencies. Either we can log every query or do sampling and log every 1000th query. For example, if we don’t want to show a term which is searched for less than 1000 times, it’s safe to log every 1000th searched term.</p>
+<p>We can have a <a href="https://en.wikipedia.org/wiki/MapReduce" target="_blank">Map-Reduce (MR)</a> setup to process all the logging data periodically, say every hour. These MR jobs will calculate frequencies of all searched terms in the past hour. We can then update our trie with this new data. We can take the current snapshot of the trie and update it with all the new terms and their frequencies. We should do this offline, as we don’t want our read queries to be blocked by update trie requests. We can have two options:</p>
+<ol>
+<li>We can make a copy of the trie on each server to update it offline. Once done we can switch to start using it and discard the old one.</li>
+<li>Another option is we can have a master-slave configuration for each trie server. We can update slave while the master is serving traffic. Once the update is complete, we can make the slave our new master. We can later update our old master, which can then start serving traffic too.</li>
+</ol>
+<p><strong>How can we update the frequencies of typeahead suggestions?</strong> Since we are storing frequencies of our typeahead suggestions with each node, we need to update them too. We can update only difference in frequencies rather than recounting all search terms from scratch. If we’re keeping count of all the terms searched in last 10 days, we’ll need to subtract the counts from the time period no longer included and add the counts for the new time period being included. We can add and subtract frequencies based on <a href="https://en.wikipedia.org/wiki/Moving_average#Exponential_moving_average" target="_blank">Exponential Moving Average (EMA)</a> of each term. In EMA, we give more weight to the latest data. It’s also known as the exponentially weighted moving average.</p>
+<p>After inserting a new term in the trie, we’ll go to the terminal node of the phrase and increase its frequency. Since we’re storing the top 10 queries in each node, it is possible that this particular search term jumped into the top 10 queries of a few other nodes. So, we need to update the top 10 queries of those nodes then. We’ve to traverse back from the node to all the way up to the root. For every parent, we check if the current query is part of the top 10. If so, we update the corresponding frequency. If not, we check if the current query’s frequency is high enough to be a part of the top 10. If so, we insert this new term and remove the term with the lowest frequency.</p>
+<p><strong>How can we remove a term from the trie?</strong> Let’s say we’ve to remove a term from the trie, because of some legal issue or hate or piracy etc. We can completely remove such terms from the trie when the regular update happens, meanwhile, we can add a filtering layer on each server, which will remove any such term before sending them to users.</p>
+<p><strong>What could be different ranking criteria for suggestions?</strong> In addition to a simple count, for terms ranking, we have to consider other factors too, e.g., freshness, user location, language, demographics, personal history etc.</p>
+
+<div class="sechead">4. Permanent Storage of the Trie</div>
+<p><strong>How to store trie in a file so that we can rebuild our trie easily - this will be needed when a machine restarts?</strong> We can take snapshot of our trie periodically and store it in a file. This will enable us to rebuild a trie if the server goes down. To store, we can start with the root node and save the trie level-by-level. With each node we can store what character it contains and how many children it has. Right after each node we should put all of its children. Let’s assume we have following trie:</p>
+<p style="text-align:center;"><img src="./_principal_files/img/22_typeahead_trie_storage.png" alt="diagram"></p>
+<p>If we store this trie in a file with the above-mentioned scheme, we will have: “C2,A2,R1,T,P,O1,D”. From this, we can easily rebuild our trie.</p>
+<p>If you’ve noticed we are not storing top suggestions and their counts with each node, it is hard to store this information, as our trie is being stored top down, we don’t have child nodes created before the parent, so there is no easy way to store their references. For this, we have to recalculate all the top terms with counts. This can be done while we are building the trie. Each node will calculate its top suggestions and pass it to its parent. Each parent node will merge results from all of its children to figure out its top suggestions.</p>
+
+<div class="sechead">5. Scale Estimation</div>
+<p>If we are building a service, which has the same scale as that of Google, we can expect 5 billion searches every day, which would give us approximately 60K queries per second.</p>
+<p>Since there will be a lot of duplicates in 5 billion queries, we can assume that only 20% of these will be unique. If we only want to index top 50% of the search terms, we can get rid of a lot of less frequently searched queries. Let’s assume we will have 100 million unique terms for which we want to build an index.</p>
+<p><strong>Storage Estimation:</strong> If on the average each query consists of 3 words, and if the average length of a word is 5 characters, this will give us 15 characters of average query size. Assuming we need 2 bytes to store a character, we will need 30 bytes to store an average query. So total storage we will need:</p>
+<blockquote>100 million * 30 bytes =&gt; 3 GB</blockquote>
+<p>We can expect some growth in this data every day, but we should also be removing some terms that are not searched anymore. If we assume we have 2% new queries every day and if we are maintaining our index for last one year, total storage we should expect:</p>
+<blockquote>3GB + (0.02 * 3 GB * 365 days) =&gt; 25 GB</blockquote>
+
+<div class="sechead">6. Data Partition</div>
+<p>Although our index can easily fit on one server, we can still partition it in order to meet our requirements of higher efficiency and lower latencies. How can we efficiently partition our data to distribute it onto multiple servers?</p>
+<p><strong>a. Range Based Partitioning:</strong> What if we store our phrases in separate partitions based on their first letter. So we save all the terms starting with letter ‘A’ in one partition and those that start with letter ‘B’ into another partition and so on. We can even combine certain less frequently occurring letters into one database partition. We should come up with this partitioning scheme statically so that we can always store and search terms in a predictable manner.</p>
+<p>The main problem with this approach is that it can lead to unbalanced servers, for instance; if we decide to put all terms starting with letter ‘E’ into a DB partition, but later we realize that we have too many terms that start with letter ‘E’, which we can’t fit into one DB partition.</p>
+<p>We can see that the above problem will happen with every statically defined scheme. It is not possible to calculate if each of our partitions will fit on one server statically.</p>
+<p><strong>b. Partition based on the maximum capacity of the server:</strong> Let’s say we partition our trie based on the maximum memory capacity of the servers. We can keep storing data on a server as long as it has memory available. Whenever a sub-tree cannot fit into a server, we break our partition there to assign that range to this server and move on the next server to repeat this process. Let’s say, if our first trie server can store all terms from ‘A’ to ‘AABC’, which mean our next server will store from ‘AABD’ onwards. If our second server could store up to ‘BXA’, next serve will start from ‘BXB’ and so on. We can keep a hash table to quickly access this partitioning scheme:</p>
+<p>Server 1, A-AABC<br>
+Server 2, AABD-BXA<br>
+Server 3, BXB-CDA</p>
+<p>For querying, if the user has typed ‘A’ we have to query both server 1 and 2 to find the top suggestions. When the user has typed ‘AA’, still we have to query server 1 and 2, but when the user has typed ‘AAA’ we only need to query server 1.</p>
+<p>We can have a load balancer in front of our trie servers, which can store this mapping and redirect traffic. Also if we are querying from multiple servers, either we need to merge the results at the server side to calculate overall top results,  or make our clients do that. If we prefer to do this on the server side, we need to introduce another layer of servers between load balancers and trie servers, let’s call them aggregator. These servers will aggregate results from multiple trie servers and return the top results to the client.</p>
+<p>Partitioning based on the maximum capacity can still lead us to hotspots e.g., if there are a lot of queries for terms starting with ‘cap’, the server holding it will have a high load compared to others.</p>
+<p><strong>c. Partition based on the hash of the term:</strong> Each term will be passed to a hash function, which will generate a server number and we will store the term on that server. This will make our term distribution random and hence minimizing hotspots. To find typeahead suggestions for a term, we have to ask all servers and then aggregate the results. We have to use consistent hashing for fault tolerance and load distribution.</p>
+
+<div class="sechead">7. Cache</div>
+<p>We should realize that caching the top searched terms will be extremely helpful in our service. There will be a small percentage of queries that will be responsible for most of the traffic. We can have separate cache servers in front of the trie servers, holding most frequently searched terms and their typeahead suggestions. Application servers should check these cache servers before hitting the trie servers to see if they have the desired searched terms.</p>
+<p>We can also build a simple Machine Learning (ML) model that can try to predict the engagement on each suggestion based on simple counting, personalization, or trending data etc., and cache these terms.</p>
+
+<div class="sechead">8. Replication and Load Balancer</div>
+<p>We should have replicas for our trie servers both for load balancing and also for fault tolerance. We also need a load balancer that keeps track of our data partitioning scheme and redirects traffic based on the prefixes.</p>
+
+<div class="sechead">9. Fault Tolerance</div>
+<p><strong>What will happen when a trie server goes down?</strong> As discussed above we can have a master-slave configuration, if the master dies slave can take over after failover. Any server that comes back up, can rebuild the trie based on the last snapshot.</p>
+
+<div class="sechead">10. Typeahead Client</div>
+<p>We can perform the following optimizations on the client to improve user’s experience:</p>
+<ol>
+<li>The client should only try hitting the server if the user has not pressed any key for 50ms.</li>
+<li>If the user is constantly typing, the client can cancel the in-progress requests.</li>
+<li>Initially, the client can wait until the user enters a couple of characters.</li>
+<li>Clients can pre-fetch some data from the server to save future requests.</li>
+<li>Clients can store the recent history of suggestions locally. Recent history has a very high rate of being reused.</li>
+<li>Establishing an early connection with server turns out to be one of the most important factors. As soon as the user opens the search engine website, the client can open a connection with the server. So when user types in the first character, client doesn’t waste time in establishing the connection.</li>
+<li>The server can push some part of their cache to CDNs and Internet Service Providers (ISPs) for efficiency.</li>
+</ol>
+
+<div class="sechead">11. Personalization</div>
+<p>Users will receive some typeahead suggestions based on their historical searches, location, language, etc. We can store the personal history of each user separately on the server and cache them on the client too. The server can add these personalized terms in the final set, before sending it to the user. Personalized searches should always come before others.</p>
+
+<div class="navfoot"><a href="21 Designing Youtube or Netflix.htm">&lsaquo; Prev: YouTube / Netflix</a><a class="nx" href="23 Designing an API Rate Limiter (_New_).htm">Next: Designing an API Rate Limiter &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Storage Engines: LSM-Trees vs B-Trees</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05 Sharding or Data Partitioning.htm" href="05 Sharding or Data Partitioning.htm"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06 Indexes.htm" href="06 Indexes.htm"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07 Proxies.htm" href="07 Proxies.htm"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08 Queues.htm" href="08 Queues.htm"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09 Redundancy and Replication.htm" href="09 Redundancy and Replication.htm"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16 Designing Pastebin.htm" href="16 Designing Pastebin.htm"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17 Designing Instagram.htm" href="17 Designing Instagram.htm"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18 Designing Dropbox.htm" href="18 Designing Dropbox.htm"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19 Designing Facebook Messenger.htm" href="19 Designing Facebook Messenger.htm"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20 Designing Twitter.htm" href="20 Designing Twitter.htm"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21 Designing Youtube or Netflix.htm" href="21 Designing Youtube or Netflix.htm"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22 Designing Typeahead Suggestion.htm" href="22 Designing Typeahead Suggestion.htm"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23 Designing an API Rate Limiter (_New_).htm" href="23 Designing an API Rate Limiter (_New_).htm"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24 Designing Twitter Search.htm" href="24 Designing Twitter Search.htm"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25 Designing a Web Crawler.htm" href="25 Designing a Web Crawler.htm"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26Designing Facebook’s Newsfeed.htm" href="26Designing Facebook’s Newsfeed.htm"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27 Designing Yelp or Nearby Friends.htm" href="27 Designing Yelp or Nearby Friends.htm"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28 Designing Uber backend.htm" href="28 Designing Uber backend.htm"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29 Design BookMyShow (_New_).htm" href="29 Design BookMyShow (_New_).htm"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30 Consensus and Raft.htm" href="30 Consensus and Raft.htm"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31 Consistency Models and PACELC.htm" href="31 Consistency Models and PACELC.htm"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32 Distributed Transactions.htm" href="32 Distributed Transactions.htm"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33 Time Clocks and Ordering.htm" href="33 Time Clocks and Ordering.htm"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34 Anti-Entropy and Gossip.htm" href="34 Anti-Entropy and Gossip.htm"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35 CRDTs.htm" href="35 CRDTs.htm"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36 Leader Election and Coordination.htm" href="36 Leader Election and Coordination.htm"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37 Replication Deep Dive.htm" href="37 Replication Deep Dive.htm"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk active" data-file="38 Storage Engines LSM vs B-Tree.htm" href="38 Storage Engines LSM vs B-Tree.htm"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39 Kafka and Log-based Messaging.htm" href="39 Kafka and Log-based Messaging.htm"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40 Stream Processing and CDC.htm" href="40 Stream Processing and CDC.htm"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41 Batch and Big Data Processing.htm" href="41 Batch and Big Data Processing.htm"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42 Probabilistic Data Structures.htm" href="42 Probabilistic Data Structures.htm"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="64 Search and Elasticsearch.htm" href="64 Search and Elasticsearch.htm"><span class="n">64</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="43 Microservices and Service Mesh.htm" href="43 Microservices and Service Mesh.htm"><span class="n">43</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="44 API Design REST gRPC GraphQL.htm" href="44 API Design REST gRPC GraphQL.htm"><span class="n">44</span>API Design</a>
+<a class="lk" data-file="45 Event-Driven Architecture.htm" href="45 Event-Driven Architecture.htm"><span class="n">45</span>Event-Driven Architecture</a>
+<a class="lk" data-file="46 Containers Kubernetes and Serverless.htm" href="46 Containers Kubernetes and Serverless.htm"><span class="n">46</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="65 Object Storage and CDN.htm" href="65 Object Storage and CDN.htm"><span class="n">65</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="47 SLI SLO SLA and Error Budgets.htm" href="47 SLI SLO SLA and Error Budgets.htm"><span class="n">47</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="48 Observability.htm" href="48 Observability.htm"><span class="n">48</span>Observability</a>
+<a class="lk" data-file="49 Resilience Patterns.htm" href="49 Resilience Patterns.htm"><span class="n">49</span>Resilience Patterns</a>
+<a class="lk" data-file="50 Deployment Strategies.htm" href="50 Deployment Strategies.htm"><span class="n">50</span>Deployment Strategies</a>
+<a class="lk" data-file="51 Multi-Region and Disaster Recovery.htm" href="51 Multi-Region and Disaster Recovery.htm"><span class="n">51</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="52 Security in System Design.htm" href="52 Security in System Design.htm"><span class="n">52</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="53 Designing a Distributed Cache.htm" href="53 Designing a Distributed Cache.htm"><span class="n">53</span>Distributed Cache</a>
+<a class="lk" data-file="54 Designing a Distributed Message Queue.htm" href="54 Designing a Distributed Message Queue.htm"><span class="n">54</span>Distributed Message Queue</a>
+<a class="lk" data-file="55 Designing a Key-Value Store.htm" href="55 Designing a Key-Value Store.htm"><span class="n">55</span>Key-Value Store</a>
+<a class="lk" data-file="56 Designing a Unique ID Generator.htm" href="56 Designing a Unique ID Generator.htm"><span class="n">56</span>Unique ID Generator</a>
+<a class="lk" data-file="57 Designing a Notification System.htm" href="57 Designing a Notification System.htm"><span class="n">57</span>Notification System</a>
+<a class="lk" data-file="58 Designing a Distributed Job Scheduler.htm" href="58 Designing a Distributed Job Scheduler.htm"><span class="n">58</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="59 Designing a Payment System.htm" href="59 Designing a Payment System.htm"><span class="n">59</span>Payment System</a>
+<a class="lk" data-file="60 Designing Collaborative Editing.htm" href="60 Designing Collaborative Editing.htm"><span class="n">60</span>Collaborative Editing</a>
+<a class="lk" data-file="61 Designing Ad Click Aggregation.htm" href="61 Designing Ad Click Aggregation.htm"><span class="n">61</span>Ad Click Aggregation</a>
+<a class="lk" data-file="62 Designing a Distributed Locking Service.htm" href="62 Designing a Distributed Locking Service.htm"><span class="n">62</span>Distributed Locking</a>
+<a class="lk" data-file="66 Designing a Metrics and Monitoring System.htm" href="66 Designing a Metrics and Monitoring System.htm"><span class="n">66</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="67 Architectural Styles and How to Choose.htm" href="67 Architectural Styles and How to Choose.htm"><span class="n">67</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="68 Choosing a Database.htm" href="68 Choosing a Database.htm"><span class="n">68</span>Choosing a Database</a>
+<a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
+<a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Interviewing</h5>
+<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part B: Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Storage Engines: LSM-Trees vs B-Trees</div>
+
+<h1>Storage Engines: LSM-Trees vs B-Trees</h1>
+<p class="sub"><em>How databases actually put bytes on disk &mdash; the single decision that quietly dictates your system's write throughput, read latency, and storage bill.</em></p>
+
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+<li><a href="#why">Why the storage engine is the foundation</a></li>
+<li><a href="#btree">B-Trees: the read-optimized incumbent</a></li>
+<li><a href="#lsm">LSM-Trees: the write-optimized challenger</a></li>
+<li><a href="#amplification">The three amplifications</a></li>
+<li><a href="#compaction">Compaction strategies</a></li>
+<li><a href="#bloom">Bloom filters &amp; avoiding disk reads</a></li>
+<li><a href="#durability">WAL, page cache, and durability</a></li>
+<li><a href="#choosing">Choosing an engine in practice</a></li>
+<li><a href="#interview">Principal-level interview lens</a></li>
+</ul>
+</div>
+
+<h2 id="why">Why the storage engine is the foundation</h2>
+<p>A storage engine is the component that turns logical operations (<code>get(key)</code>, <code>put(key, value)</code>, range scans) into physical I/O against disk and memory. Two families dominate: <span class="key">B-Trees</span> (MySQL/InnoDB, PostgreSQL, most relational systems, plus key-value stores like BoltDB and LMDB) and <span class="key">LSM-Trees</span> (Cassandra, ScyllaDB, RocksDB, LevelDB, HBase, and the storage layer under CockroachDB, TiKV, and many time-series databases).</p>
+<p>This choice is not a detail you bolt on later. It determines whether your database is happiest under write-heavy or read-heavy load, how much SSD you burn, how predictable your tail latency is, and even how your operational pages look at 3am. When you design a system on top of a database, you are inheriting its storage engine's physics. A principal engineer should be able to reason about those physics directly rather than treating the database as a black box.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span> Both families exist to solve the same enemy: random I/O is slow, sequential I/O is fast. They make opposite bets. B-Trees mutate data in place (random writes, sequential-ish reads). LSM-Trees only ever append (sequential writes, scattered reads they then claw back with indexes, caches, and Bloom filters).</p></div>
+
+<h2 id="btree">B-Trees: the read-optimized incumbent</h2>
+<p>A B-Tree (almost always a <span class="key">B+Tree</span> in real systems) is a balanced, high-fanout tree stored as fixed-size <span class="key">pages</span> (typically 4&nbsp;KB, 8&nbsp;KB, or 16&nbsp;KB &mdash; InnoDB defaults to 16&nbsp;KB). Internal pages hold keys plus pointers to child pages; leaf pages hold the actual rows (in a clustered index) or pointers to them. Fanout is high &mdash; a single 16&nbsp;KB page can hold hundreds of keys &mdash; so even a billion-row table is only ~4 levels deep. That means a point lookup is roughly <span class="key">4 page reads</span>, with the upper levels almost always cached. This is closely tied to how <a href="06 Indexes.htm">database indexes</a> are physically laid out.</p>
+
+<h3>In-place updates</h3>
+<p>The defining property of a B-Tree is that updates mutate the page where the key already lives. To update a row you find its leaf page, modify it, and write the page back. This keeps the tree authoritative and read-optimal &mdash; one place to look for any key &mdash; but it forces <span class="key">random writes</span>: the page you must overwrite could be anywhere on disk.</p>
+
+<h3>The torn-page problem and the WAL</h3>
+<p>Overwriting a page is dangerous: a crash mid-write can leave a half-written page (a <span class="key">torn page</span>). B-Trees solve this with a <a href="#durability">write-ahead log</a> (WAL, called the redo log in InnoDB). Every mutation is appended to the WAL <em>before</em> the page is modified, so recovery can replay or roll back. PostgreSQL additionally writes full page images to the WAL after each checkpoint to defend against torn pages.</p>
+
+<pre><code>// B-Tree insert (simplified, ignoring concurrency)
+write_ahead_log.append(redo_record(key, value))   // durable first
+page = find_leaf(root, key)                        // ~log_b(N) page reads
+if page.has_room():
+    page.insert(key, value)                        // mutate in place
+else:
+    new_page = split(page)                          // structural change
+    propagate_split_key_to_parent(new_page)         // may cascade up
+mark_dirty(page)                                    // flushed later by checkpoint</code></pre>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> B-Trees give you excellent read latency and trivial range scans (leaf pages are linked in key order), at the cost of write amplification from page splits, random write placement, and the WAL doubling every write. Reads are O(log&nbsp;N) and crucially each key lives in exactly one place.</p></div>
+
+<h3>Fragmentation</h3>
+<p>Over time, splits and deletes leave pages partially full. A page that's 60% full wastes 40% of its I/O bandwidth on every read. This is why <code>VACUUM</code> (Postgres) and <code>OPTIMIZE TABLE</code> (MySQL) exist &mdash; they rebuild pages to reclaim space and restore density. B-Trees trade a small, bounded space overhead for in-place locality.</p>
+
+<h2 id="lsm">LSM-Trees: the write-optimized challenger</h2>
+<p>A Log-Structured Merge-Tree refuses to do random writes at all. Every write is an append. The structure has three moving parts:</p>
+<ol>
+<li><span class="key">Memtable</span> &mdash; an in-memory sorted structure (typically a skip list or balanced tree). Writes go here, kept sorted by key. Fast: it's RAM.</li>
+<li><span class="key">WAL</span> &mdash; before touching the memtable, the write is appended to an on-disk commit log so an unflushed memtable survives a crash.</li>
+<li><span class="key">SSTables</span> (Sorted String Tables) &mdash; when the memtable hits a size threshold (e.g. 64&nbsp;MB), it is frozen and flushed to disk as an immutable, sorted file. New writes go to a fresh memtable.</li>
+</ol>
+
+<h3>Immutability changes everything</h3>
+<p>SSTables are never modified. An update to an existing key is just a newer entry written to the current memtable; it will land in a newer SSTable. A delete is a special marker called a <span class="key">tombstone</span> &mdash; you can't erase a key that lives in an immutable file, so you write a record that says "this key is dead." The newest value always wins, determined by which SSTable (or memtable) is more recent.</p>
+
+<pre><code>// LSM write path -- always sequential, always fast
+write_ahead_log.append(key, value)        // durable, sequential append
+memtable.put(key, value)                  // in-memory sorted insert
+if memtable.size() >= FLUSH_THRESHOLD:
+    sstable = memtable.freeze().flush()   // sequential write of a sorted file
+    memtable = new Memtable()
+    wal.rotate()
+
+// LSM read path -- newest-first, must check multiple layers
+def get(key):
+    if key in memtable: return memtable[key]
+    for sstable in sstables_newest_to_oldest():
+        if bloom_filter(sstable).might_contain(key):   // skip most files
+            v = sstable.lookup(key)                     // binary search + index
+            if v is not None: return v
+    return NOT_FOUND</code></pre>
+
+<p>The read path is the price you pay. A key could live in the memtable or in any of dozens of SSTables. Without help, a read becomes "check everywhere," which is why LSM engines lean hard on <a href="#bloom">Bloom filters</a>, sparse per-file indexes, and block caches. This pattern &mdash; cheap writes, work shifted to read time and background merges &mdash; is the heart of <a href="55 Designing a Key-Value Store.htm">designing a key-value store</a>.</p>
+
+<div class="callout ok"><span class="lbl">What strong candidates do</span> They explain why LSM writes are fast in physical terms: a write is an in-memory insert plus a sequential log append, with no read-modify-write of a disk page. On an SSD, sequential append also produces friendlier wear patterns and fewer flash-translation-layer rewrites than scattered in-place updates.</p></div>
+
+<h2 id="amplification">The three amplifications</h2>
+<p>Every storage engine is a balancing act between three competing costs. Articulating this triangle is the single most important thing in this lesson.</p>
+
+<table>
+<thead><tr><th>Amplification</th><th>Definition</th><th>Hurts</th></tr></thead>
+<tbody>
+<tr><td><span class="key">Write</span></td><td>Bytes physically written to disk &divide; bytes the application asked to write</td><td>SSD endurance, write throughput</td></tr>
+<tr><td><span class="key">Read</span></td><td>Disk reads (or pages touched) per logical read</td><td>Read latency, IOPS budget</td></tr>
+<tr><td><span class="key">Space</span></td><td>Bytes on disk &divide; bytes of live logical data</td><td>Storage cost, cache efficiency</td></tr>
+</tbody>
+</table>
+
+<p>You cannot minimize all three at once &mdash; the RUM conjecture (Read, Update, Memory) formalizes that optimizing two corners worsens the third. The engines sit at different points:</p>
+<ul>
+<li><strong>B-Trees:</strong> low read amplification (one place to look), moderate space amplification (fragmentation), and meaningful write amplification &mdash; a single row update can rewrite a full 16&nbsp;KB page plus its WAL record. Random-write heavy.</li>
+<li><strong>LSM-Trees:</strong> very low write amplification at ingest, but reads must consult multiple SSTables (read amplification) and a key may exist in several files before compaction (space amplification from stale versions and tombstones).</li>
+</ul>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> "LSM has lower write amplification" is only true at ingest. <span class="key">Compaction</span> rewrites data repeatedly as it merges levels &mdash; leveled compaction can produce write amplification of 10&ndash;30x over a record's lifetime. The amplification didn't disappear; it moved from the foreground write path to a background process. The win is that it's now sequential and off the critical path, not that it's free.</p></div>
+
+<h2 id="compaction">Compaction strategies</h2>
+<p>SSTables accumulate. Without merging them, reads degrade (more files to check) and space balloons (stale versions and tombstones never get reclaimed). <span class="key">Compaction</span> is the background process that merges SSTables, discards overwritten values, and drops tombstones whose deletes are now globally settled. The strategy you pick is the central LSM tuning knob.</p>
+
+<h3>Size-tiered compaction (STCS)</h3>
+<p>Merge SSTables of <em>similar size</em> into a larger one. When you have N files of roughly the same size, merge them into one file N times bigger. This is the Cassandra default and is friendly to write-heavy workloads &mdash; fewer, larger merges.</p>
+<ul>
+<li><strong>Pro:</strong> low write amplification, great for ingest-heavy workloads.</li>
+<li><strong>Con:</strong> high space amplification (during a major compaction you may need ~2x the data size in free disk), and a key can live in many overlapping large files, hurting reads.</li>
+</ul>
+
+<h3>Leveled compaction (LCS)</h3>
+<p>Organize SSTables into levels (L0, L1, L2&hellip;), each ~10x larger than the previous. Within a level (except L0), SSTables have <span class="key">non-overlapping key ranges</span> &mdash; so a given key exists in at most one file per level. RocksDB and LevelDB default to this.</p>
+<ul>
+<li><strong>Pro:</strong> bounded read amplification (~one file per level &asymp; 7&ndash;10 files worst case) and low, predictable space amplification (~10%).</li>
+<li><strong>Con:</strong> high write amplification &mdash; merging into the next level rewrites overlapping data, often 10&ndash;30x.</li>
+</ul>
+
+<table>
+<thead><tr><th></th><th>Size-tiered</th><th>Leveled</th></tr></thead>
+<tbody>
+<tr><td>Write amplification</td><td>Low</td><td>High</td></tr>
+<tr><td>Read amplification</td><td>High (overlapping files)</td><td>Low (one file/level)</td></tr>
+<tr><td>Space amplification</td><td>High (~2x spikes)</td><td>Low (~10%)</td></tr>
+<tr><td>Best for</td><td>Write-heavy ingest</td><td>Read-heavy, space-sensitive</td></tr>
+</tbody>
+</table>
+
+<p>Hybrids exist: ScyllaDB's incremental and hybrid strategies, RocksDB's <em>universal</em> compaction, and Cassandra's time-window compaction (TWCS) for time-series data, where old time windows never need re-merging.</p>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> Compaction competes with foreground traffic for disk IOPS and CPU. Mistuned compaction is one of the most common causes of LSM tail-latency blowups and "write stalls" &mdash; if flushes outrun compaction, L0 fills up and the engine throttles or blocks writes. Tombstones are a classic landmine: in time-series or queue-like access patterns you can scan thousands of tombstones to return zero rows, and a tombstone can't be dropped until you're sure every replica has seen the delete (the <code>gc_grace_seconds</code> window in Cassandra).</p></div>
+
+<h2 id="bloom">Bloom filters &amp; avoiding disk reads</h2>
+<p>The LSM read amplification problem &mdash; "the key might be in any SSTable" &mdash; is mitigated by a <span class="key">Bloom filter</span> per SSTable. A Bloom filter is a compact probabilistic set membership structure: ask "is key X in this file?" and it answers either "definitely not" or "probably yes." A negative is authoritative, so you skip that file entirely without touching disk. See <a href="42 Probabilistic Data Structures.htm">Probabilistic Data Structures</a> for the mechanics.</p>
+<p>With a ~1% false-positive rate (about 10 bits/key), the vast majority of SSTables are eliminated for any given lookup, collapsing read amplification from "every file" to "the handful of files that might genuinely have it, plus an occasional false positive." This is what makes point lookups on a large LSM store practical at all.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span> Bloom filters only help point lookups. They do <em>nothing</em> for range scans, because a range query can't ask "is key X present" &mdash; it must inspect every SSTable whose key range overlaps the query. This is why range-scan-heavy workloads (analytics, time-series rollups) favor leveled compaction's non-overlapping ranges or sometimes a B-Tree outright. Engines also keep a per-file sparse index (one key per block) and a block cache so that even a "probably yes" only reads one data block.</p></div>
+
+<h2 id="durability">WAL, page cache, and durability</h2>
+<p>Both engine families share two underpinnings worth making explicit.</p>
+
+<h3>Write-ahead logging</h3>
+<p>The WAL is the durability backbone for both. The contract is the same: append the intended change to a sequential log and <code>fsync</code> it <em>before</em> acknowledging the write, so a crash never loses an acknowledged operation. In a B-Tree the WAL protects against torn pages and lets dirty pages flush lazily at checkpoints. In an LSM tree the WAL protects the in-memory memtable, which would otherwise vanish on crash. Either way, group commit batches many transactions into one <code>fsync</code> to amortize the cost &mdash; the difference between thousands and tens of thousands of writes per second. The WAL also underpins <a href="37 Replication Deep Dive.htm">replication</a>: ship the log to followers and they reconstruct identical state.</p>
+
+<h3>Page cache</h3>
+<p>The OS page cache (and the engine's own buffer pool, like InnoDB's) keeps hot pages in RAM. For a B-Tree, the upper tree levels and hot leaves stay cached, so a "4 page read" lookup is usually zero disk reads. For an LSM tree, the block cache holds frequently read SSTable blocks. <a href="04 Caching.htm">Caching</a> is what hides most of the engine's worst-case I/O behavior from your latency graphs &mdash; until your working set exceeds RAM, at which point the engine's true read amplification surfaces brutally.</p>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> Capacity planning that ignores working-set-vs-RAM is a trap. An LSM store benchmarks beautifully while everything fits in cache, then falls off a cliff when the dataset outgrows RAM and reads start hitting all those SSTables. Always benchmark with a dataset several times larger than memory.</p></div>
+
+<h2 id="choosing">Choosing an engine in practice</h2>
+<p>The decision flows almost entirely from your read/write ratio and access pattern.</p>
+<ul>
+<li><strong>Write-heavy ingest, point/recent reads</strong> (event logging, metrics, IoT telemetry, message queues, write-mostly KV): <span class="pill">LSM</span>. Sequential writes and Bloom-filtered point reads play to its strengths. This is why Cassandra, RocksDB, and time-series stores are LSM-based.</li>
+<li><strong>Read-heavy, transactional, lots of range scans and updates-in-place</strong> (OLTP, anything with rich secondary indexes and strong consistency): <span class="pill">B-Tree</span>. Predictable latency, one authoritative location per key, mature transactional support. This is the InnoDB/Postgres home turf.</li>
+<li><strong>Mixed / "it depends on the table"</strong>: increasingly the line blurs. MyRocks puts an LSM (RocksDB) under MySQL for write-heavy fleets (Facebook's user-DB tier). MongoDB's WiredTiger offers both a B-Tree and an LSM mode. CockroachDB and TiKV build distributed SQL on top of RocksDB. The storage engine is becoming a per-workload choice, not a per-product one.</li>
+</ul>
+
+<p>This decision interacts with everything above it: it shapes how you do <a href="05 Sharding or Data Partitioning.htm">sharding</a> (LSM's sequential writes tolerate hot shards differently), it factors into the <a href="10 SQL vs. NoSQL.htm">SQL vs NoSQL</a> conversation (most NoSQL write-scalable stores are LSM under the hood), and it constrains the consistency and replication options discussed in the <a href="11 CAP Theorem.htm">CAP theorem</a> and <a href="37 Replication Deep Dive.htm">replication</a> lessons.</p>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> A clean mental model: <strong>B-Trees optimize for reads and pay at write time; LSM-Trees optimize for writes and pay at read time and in background compaction.</strong> Neither is "faster" &mdash; they relocate cost to wherever you've decided you can afford it. The principal-level skill is naming <em>which</em> cost your workload can absorb.</p></div>
+
+<h2 id="interview">Principal-level interview lens</h2>
+<div class="callout ok"><span class="lbl">What strong candidates do</span> They never say "use NoSQL because it's faster." They connect the storage engine to the workload's physics: read/write ratio, working-set size vs RAM, access pattern (point vs range), and durability needs. They can sketch the LSM write path and read path from memory, explain the three amplifications and the RUM conjecture, and articulate why compaction strategy is the dominant LSM tuning knob. Crucially, they recognize that the engine choice constrains every layer above it &mdash; sharding, replication, consistency, and tail latency all inherit from it &mdash; and they name concrete systems (InnoDB, RocksDB, Cassandra, WiredTiger, MyRocks) to ground the discussion.</p></div>
+
+<ul>
+<li>Your service does 50k writes/sec of immutable event records and reads only the most recent value per key. Walk me through which storage engine you'd pick and trace the exact write and read paths. Where does the latency hide, and what breaks first under load?</li>
+<li>We chose an LSM store and our p99 read latency periodically spikes to 10x baseline. Give me three distinct root causes and how you'd distinguish them with metrics.</li>
+<li>Explain write, read, and space amplification. For leveled vs size-tiered compaction, which amplification does each minimize and at whose expense? When would you deliberately choose the higher-write-amplification strategy?</li>
+<li>A Bloom filter says a key is "probably present" but it isn't actually in that SSTable. What happens, what did it cost, and why are Bloom filters useless for range scans?</li>
+<li>We're deleting millions of rows from a Cassandra table and reads are getting slower instead of faster. What's happening, and why can't the database just remove the data immediately?</li>
+<li>Both B-Trees and LSM-Trees use a WAL. If they both log every write before acknowledging, where does the actual difference in write performance come from? Be specific about disk access patterns.</li>
+</ul>
+
+<div class="navfoot"><a href="37 Replication Deep Dive.htm">&lsaquo; Prev: Replication Deep Dive</a><a class="nx" href="39 Kafka and Log-based Messaging.htm">Next: Kafka and Log-based Messaging &rsaquo;</a></div>
+
+</div>
+</div>
+</div>
+</body>
+</html>

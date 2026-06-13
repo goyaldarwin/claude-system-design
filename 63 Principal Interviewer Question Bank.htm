@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Principal Interviewer's Question Bank</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05 Sharding or Data Partitioning.htm" href="05 Sharding or Data Partitioning.htm"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06 Indexes.htm" href="06 Indexes.htm"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07 Proxies.htm" href="07 Proxies.htm"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08 Queues.htm" href="08 Queues.htm"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09 Redundancy and Replication.htm" href="09 Redundancy and Replication.htm"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16 Designing Pastebin.htm" href="16 Designing Pastebin.htm"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17 Designing Instagram.htm" href="17 Designing Instagram.htm"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18 Designing Dropbox.htm" href="18 Designing Dropbox.htm"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19 Designing Facebook Messenger.htm" href="19 Designing Facebook Messenger.htm"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20 Designing Twitter.htm" href="20 Designing Twitter.htm"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21 Designing Youtube or Netflix.htm" href="21 Designing Youtube or Netflix.htm"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22 Designing Typeahead Suggestion.htm" href="22 Designing Typeahead Suggestion.htm"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23 Designing an API Rate Limiter (_New_).htm" href="23 Designing an API Rate Limiter (_New_).htm"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24 Designing Twitter Search.htm" href="24 Designing Twitter Search.htm"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25 Designing a Web Crawler.htm" href="25 Designing a Web Crawler.htm"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26Designing Facebook’s Newsfeed.htm" href="26Designing Facebook’s Newsfeed.htm"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27 Designing Yelp or Nearby Friends.htm" href="27 Designing Yelp or Nearby Friends.htm"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28 Designing Uber backend.htm" href="28 Designing Uber backend.htm"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29 Design BookMyShow (_New_).htm" href="29 Design BookMyShow (_New_).htm"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30 Consensus and Raft.htm" href="30 Consensus and Raft.htm"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31 Consistency Models and PACELC.htm" href="31 Consistency Models and PACELC.htm"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32 Distributed Transactions.htm" href="32 Distributed Transactions.htm"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33 Time Clocks and Ordering.htm" href="33 Time Clocks and Ordering.htm"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34 Anti-Entropy and Gossip.htm" href="34 Anti-Entropy and Gossip.htm"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35 CRDTs.htm" href="35 CRDTs.htm"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36 Leader Election and Coordination.htm" href="36 Leader Election and Coordination.htm"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37 Replication Deep Dive.htm" href="37 Replication Deep Dive.htm"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38 Storage Engines LSM vs B-Tree.htm" href="38 Storage Engines LSM vs B-Tree.htm"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39 Kafka and Log-based Messaging.htm" href="39 Kafka and Log-based Messaging.htm"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40 Stream Processing and CDC.htm" href="40 Stream Processing and CDC.htm"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41 Batch and Big Data Processing.htm" href="41 Batch and Big Data Processing.htm"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42 Probabilistic Data Structures.htm" href="42 Probabilistic Data Structures.htm"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="64 Search and Elasticsearch.htm" href="64 Search and Elasticsearch.htm"><span class="n">64</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="43 Microservices and Service Mesh.htm" href="43 Microservices and Service Mesh.htm"><span class="n">43</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="44 API Design REST gRPC GraphQL.htm" href="44 API Design REST gRPC GraphQL.htm"><span class="n">44</span>API Design</a>
+<a class="lk" data-file="45 Event-Driven Architecture.htm" href="45 Event-Driven Architecture.htm"><span class="n">45</span>Event-Driven Architecture</a>
+<a class="lk" data-file="46 Containers Kubernetes and Serverless.htm" href="46 Containers Kubernetes and Serverless.htm"><span class="n">46</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="65 Object Storage and CDN.htm" href="65 Object Storage and CDN.htm"><span class="n">65</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="47 SLI SLO SLA and Error Budgets.htm" href="47 SLI SLO SLA and Error Budgets.htm"><span class="n">47</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="48 Observability.htm" href="48 Observability.htm"><span class="n">48</span>Observability</a>
+<a class="lk" data-file="49 Resilience Patterns.htm" href="49 Resilience Patterns.htm"><span class="n">49</span>Resilience Patterns</a>
+<a class="lk" data-file="50 Deployment Strategies.htm" href="50 Deployment Strategies.htm"><span class="n">50</span>Deployment Strategies</a>
+<a class="lk" data-file="51 Multi-Region and Disaster Recovery.htm" href="51 Multi-Region and Disaster Recovery.htm"><span class="n">51</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="52 Security in System Design.htm" href="52 Security in System Design.htm"><span class="n">52</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="53 Designing a Distributed Cache.htm" href="53 Designing a Distributed Cache.htm"><span class="n">53</span>Distributed Cache</a>
+<a class="lk" data-file="54 Designing a Distributed Message Queue.htm" href="54 Designing a Distributed Message Queue.htm"><span class="n">54</span>Distributed Message Queue</a>
+<a class="lk" data-file="55 Designing a Key-Value Store.htm" href="55 Designing a Key-Value Store.htm"><span class="n">55</span>Key-Value Store</a>
+<a class="lk" data-file="56 Designing a Unique ID Generator.htm" href="56 Designing a Unique ID Generator.htm"><span class="n">56</span>Unique ID Generator</a>
+<a class="lk" data-file="57 Designing a Notification System.htm" href="57 Designing a Notification System.htm"><span class="n">57</span>Notification System</a>
+<a class="lk" data-file="58 Designing a Distributed Job Scheduler.htm" href="58 Designing a Distributed Job Scheduler.htm"><span class="n">58</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="59 Designing a Payment System.htm" href="59 Designing a Payment System.htm"><span class="n">59</span>Payment System</a>
+<a class="lk" data-file="60 Designing Collaborative Editing.htm" href="60 Designing Collaborative Editing.htm"><span class="n">60</span>Collaborative Editing</a>
+<a class="lk" data-file="61 Designing Ad Click Aggregation.htm" href="61 Designing Ad Click Aggregation.htm"><span class="n">61</span>Ad Click Aggregation</a>
+<a class="lk" data-file="62 Designing a Distributed Locking Service.htm" href="62 Designing a Distributed Locking Service.htm"><span class="n">62</span>Distributed Locking</a>
+<a class="lk" data-file="66 Designing a Metrics and Monitoring System.htm" href="66 Designing a Metrics and Monitoring System.htm"><span class="n">66</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="67 Architectural Styles and How to Choose.htm" href="67 Architectural Styles and How to Choose.htm"><span class="n">67</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="68 Choosing a Database.htm" href="68 Choosing a Database.htm"><span class="n">68</span>Choosing a Database</a>
+<a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
+<a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Interviewing</h5>
+<a class="lk active" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+
+<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part G: Interviewing &nbsp;&rsaquo;&nbsp; Principal Interviewer's Question Bank</div>
+
+<h1>Principal Interviewer's Question Bank</h1>
+<p class="sub"><em>The course index and the interviewer's playbook &mdash; how to run a senior/staff/principal system design interview, what signal to extract, and the "go deeper" questions that separate a strong principal from a competent senior.</em></p>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#index">Course index &mdash; all lessons</a></li>
+<li><a href="#whatchanges">What changes at principal level</a></li>
+<li><a href="#rubric">The signal rubric: strong vs weak per dimension</a></li>
+<li><a href="#bank">The probing question bank by topic</a></li>
+<li><a href="#flags">Red flags &amp; green flags</a></li>
+<li><a href="#mapping">Topic &rarr; design-problem coverage map</a></li>
+<li><a href="#running">Running the 45-minute loop</a></li>
+<li><a href="#interview">Principal-level interview lens</a></li>
+</ul>
+</div>
+
+<h2 id="index">Course index &mdash; all lessons</h2>
+<p>This file is the home base for the whole course. Every other lesson breadcrumbs back here. Use it as a study map or as a quick jump table while you are conducting an interview and want to pull up the reference for a topic the candidate just raised.</p>
+
+<h3>Fundamentals &amp; Building Blocks (01&ndash;14)</h3>
+<ul>
+<li><a href="01 Why System Design Interviews_.htm">01 &mdash; Why System Design Interviews?</a></li>
+<li><a href="02 System Design Basics.htm">02 &mdash; System Design Basics</a></li>
+<li><a href="03 Load Balancing.htm">03 &mdash; Load Balancing</a></li>
+<li><a href="04 Caching.htm">04 &mdash; Caching</a></li>
+<li><a href="05 Sharding or Data Partitioning.htm">05 &mdash; Sharding / Data Partitioning</a></li>
+<li><a href="06 Indexes.htm">06 &mdash; Indexes</a></li>
+<li><a href="07 Proxies.htm">07 &mdash; Proxies</a></li>
+<li><a href="08 Queues.htm">08 &mdash; Queues</a></li>
+<li><a href="09 Redundancy and Replication.htm">09 &mdash; Redundancy and Replication</a></li>
+<li><a href="10 SQL vs. NoSQL.htm">10 &mdash; SQL vs. NoSQL</a></li>
+<li><a href="11 CAP Theorem.htm">11 &mdash; CAP Theorem</a></li>
+<li><a href="12 Consistent Hashing.htm">12 &mdash; Consistent Hashing</a></li>
+<li><a href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm">13 &mdash; Long-Polling vs WebSockets vs SSE</a></li>
+<li><a href="14 System Design Interviews_ A step by step guide.htm">14 &mdash; System Design Interviews: A Step-by-Step Guide</a></li>
+</ul>
+
+<h3>Classic Design Problems (15&ndash;29)</h3>
+<ul>
+<li><a href="15 Designing a URL Shortening service like TinyURL.htm">15 &mdash; URL Shortener (TinyURL)</a></li>
+<li><a href="16 Designing Pastebin.htm">16 &mdash; Pastebin</a></li>
+<li><a href="17 Designing Instagram.htm">17 &mdash; Instagram</a></li>
+<li><a href="18 Designing Dropbox.htm">18 &mdash; Dropbox</a></li>
+<li><a href="19 Designing Facebook Messenger.htm">19 &mdash; Facebook Messenger</a></li>
+<li><a href="20 Designing Twitter.htm">20 &mdash; Twitter</a></li>
+<li><a href="21 Designing Youtube or Netflix.htm">21 &mdash; YouTube / Netflix</a></li>
+<li><a href="22 Designing Typeahead Suggestion.htm">22 &mdash; Typeahead Suggestion</a></li>
+<li><a href="23 Designing an API Rate Limiter (_New_).htm">23 &mdash; API Rate Limiter</a></li>
+<li><a href="24 Designing Twitter Search.htm">24 &mdash; Twitter Search</a></li>
+<li><a href="25 Designing a Web Crawler.htm">25 &mdash; Web Crawler</a></li>
+<li><a href="26Designing Facebook&#8217;s Newsfeed.htm">26 &mdash; Facebook&#8217;s Newsfeed</a></li>
+<li><a href="27 Designing Yelp or Nearby Friends.htm">27 &mdash; Yelp / Nearby Friends</a></li>
+<li><a href="28 Designing Uber backend.htm">28 &mdash; Uber Backend</a></li>
+<li><a href="29 Design BookMyShow (_New_).htm">29 &mdash; BookMyShow</a></li>
+</ul>
+
+<h3>Distributed Systems Theory (30&ndash;36)</h3>
+<ul>
+<li><a href="30 Consensus and Raft.htm">30 &mdash; Consensus and Raft</a></li>
+<li><a href="31 Consistency Models and PACELC.htm">31 &mdash; Consistency Models and PACELC</a></li>
+<li><a href="32 Distributed Transactions.htm">32 &mdash; Distributed Transactions</a></li>
+<li><a href="33 Time Clocks and Ordering.htm">33 &mdash; Time, Clocks and Ordering</a></li>
+<li><a href="34 Anti-Entropy and Gossip.htm">34 &mdash; Anti-Entropy and Gossip</a></li>
+<li><a href="35 CRDTs.htm">35 &mdash; CRDTs</a></li>
+<li><a href="36 Leader Election and Coordination.htm">36 &mdash; Leader Election and Coordination</a></li>
+</ul>
+
+<h3>Data-Intensive Systems (37&ndash;42)</h3>
+<ul>
+<li><a href="37 Replication Deep Dive.htm">37 &mdash; Replication Deep Dive</a></li>
+<li><a href="38 Storage Engines LSM vs B-Tree.htm">38 &mdash; Storage Engines: LSM vs B-Tree</a></li>
+<li><a href="39 Kafka and Log-based Messaging.htm">39 &mdash; Kafka and Log-based Messaging</a></li>
+<li><a href="40 Stream Processing and CDC.htm">40 &mdash; Stream Processing and CDC</a></li>
+<li><a href="41 Batch and Big Data Processing.htm">41 &mdash; Batch and Big Data Processing</a></li>
+<li><a href="42 Probabilistic Data Structures.htm">42 &mdash; Probabilistic Data Structures</a></li>
+<li><a href="64 Search and Elasticsearch.htm">64 &mdash; Search and Elasticsearch</a></li>
+</ul>
+
+<h3>Modern Architecture (43&ndash;46)</h3>
+<ul>
+<li><a href="43 Microservices and Service Mesh.htm">43 &mdash; Microservices and Service Mesh</a></li>
+<li><a href="44 API Design REST gRPC GraphQL.htm">44 &mdash; API Design: REST / gRPC / GraphQL</a></li>
+<li><a href="45 Event-Driven Architecture.htm">45 &mdash; Event-Driven Architecture</a></li>
+<li><a href="46 Containers Kubernetes and Serverless.htm">46 &mdash; Containers, Kubernetes and Serverless</a></li>
+<li><a href="65 Object Storage and CDN.htm">65 &mdash; Object Storage and CDN</a></li>
+</ul>
+
+<h3>Reliability &amp; Operations (47&ndash;51)</h3>
+<ul>
+<li><a href="47 SLI SLO SLA and Error Budgets.htm">47 &mdash; SLI, SLO, SLA and Error Budgets</a></li>
+<li><a href="48 Observability.htm">48 &mdash; Observability</a></li>
+<li><a href="49 Resilience Patterns.htm">49 &mdash; Resilience Patterns</a></li>
+<li><a href="50 Deployment Strategies.htm">50 &mdash; Deployment Strategies</a></li>
+<li><a href="51 Multi-Region and Disaster Recovery.htm">51 &mdash; Multi-Region and Disaster Recovery</a></li>
+</ul>
+
+<h3>Security (52)</h3>
+<ul>
+<li><a href="52 Security in System Design.htm">52 &mdash; Security in System Design</a></li>
+</ul>
+
+<h3>Advanced Design Problems (53&ndash;62)</h3>
+<ul>
+<li><a href="53 Designing a Distributed Cache.htm">53 &mdash; Distributed Cache</a></li>
+<li><a href="54 Designing a Distributed Message Queue.htm">54 &mdash; Distributed Message Queue</a></li>
+<li><a href="55 Designing a Key-Value Store.htm">55 &mdash; Key-Value Store</a></li>
+<li><a href="56 Designing a Unique ID Generator.htm">56 &mdash; Unique ID Generator</a></li>
+<li><a href="57 Designing a Notification System.htm">57 &mdash; Notification System</a></li>
+<li><a href="58 Designing a Distributed Job Scheduler.htm">58 &mdash; Distributed Job Scheduler</a></li>
+<li><a href="59 Designing a Payment System.htm">59 &mdash; Payment System</a></li>
+<li><a href="60 Designing Collaborative Editing.htm">60 &mdash; Collaborative Editing</a></li>
+<li><a href="61 Designing Ad Click Aggregation.htm">61 &mdash; Ad Click Aggregation</a></li>
+<li><a href="62 Designing a Distributed Locking Service.htm">62 &mdash; Distributed Locking Service</a></li>
+<li><a href="66 Designing a Metrics and Monitoring System.htm">66 &mdash; Metrics and Monitoring System</a></li>
+</ul>
+
+<h3>Architecture &amp; Technology Choices (67&ndash;70)</h3>
+<ul>
+<li><a href="67 Architectural Styles and How to Choose.htm">67 &mdash; Architectural Styles and How to Choose</a></li>
+<li><a href="68 Choosing a Database.htm">68 &mdash; Choosing a Database</a></li>
+<li><a href="69 Choosing a Message Broker.htm">69 &mdash; Choosing a Message Broker</a></li>
+<li><a href="70 Domain-Driven Design.htm">70 &mdash; Domain-Driven Design</a></li>
+</ul>
+
+<hr>
+
+<h2 id="whatchanges">What changes at principal level</h2>
+<p>A mid-level system design interview is largely a <span class="key">vocabulary and component-assembly test</span>: can the candidate name a load balancer, a cache, a sharded database, a message queue, and wire them into a diagram that survives the back-of-the-envelope math? That bar is necessary but nowhere near sufficient for staff and principal. At those levels you are hiring someone who will <em>set technical direction for systems other people build</em>, so the interview must surface judgment, not recall.</p>
+
+<p>The shift is along seven axes. A principal-level candidate should demonstrate most of them without prompting; a senior candidate usually demonstrates two or three and reaches the rest only when you pull.</p>
+
+<table>
+<thead><tr><th>Axis</th><th>Mid / Senior</th><th>Principal</th></tr></thead>
+<tbody>
+<tr><td>Trade-off reasoning</td><td>Picks a reasonable option, can justify it</td><td>Names the 2&ndash;3 viable options, states the axis of the trade-off, and explains under what future conditions they'd reverse the decision</td></tr>
+<tr><td>Ambiguity</td><td>Waits for, or asks for, the requirements</td><td>Drives the requirements &mdash; proposes a scope, gets it confirmed, and explicitly de-scopes what they will <em>not</em> build</td></tr>
+<tr><td>Scale</td><td>Quotes &ldquo;it scales horizontally&rdquo;</td><td>Identifies the specific resource that saturates first (CPU, IOPS, fan-out, hot key, connection count) and the number at which it does</td></tr>
+<tr><td>Failure</td><td>Adds replicas and retries</td><td>Reasons about partial failure, blast radius, correlated failure, and what the system does while degraded</td></tr>
+<tr><td>Cost</td><td>Rarely mentioned</td><td>Treats $/request, storage growth, and cross-AZ/region egress as first-class design constraints</td></tr>
+<tr><td>Evolution</td><td>Designs the end state</td><td>Designs the migration path from today's system to the end state, online, with rollback</td></tr>
+<tr><td>Operability</td><td>&ldquo;We'll add monitoring&rdquo;</td><td>Names the SLIs, the alert thresholds, the runbook for the top failure mode</td></tr>
+</tbody>
+</table>
+
+<div class="callout note"><span class="lbl">Key insight</span> The single most reliable principal signal is <strong>self-driven de-scoping under ambiguity</strong>. Anyone can add a component. Deciding what <em>not</em> to build, stating it out loud, and getting buy-in is the behavior that correlates with people who keep large systems shippable. If a candidate never narrows the problem, you are likely looking at a senior, not a principal.</div>
+
+<h2 id="rubric">The signal rubric: strong vs weak per dimension</h2>
+<p>Score along eight dimensions. For each, the difference between a 2 (senior) and a 4 (principal) is the column on the right. Don't average to a number in your head &mdash; write a sentence of evidence per dimension, because hiring committees argue over evidence, not scores.</p>
+
+<h3>1. Requirements clarification</h3>
+<table>
+<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<tbody>
+<tr><td>Jumps to a diagram. Asks one or two surface questions (&ldquo;how many users?&rdquo;).</td><td>Separates functional from non-functional. Pins read/write ratio, latency budget, consistency expectation, and durability target. States explicit non-goals (&ldquo;I'm not handling moderation or billing in this hour&rdquo;).</td></tr>
+</tbody>
+</table>
+<p>Probe: <em>&ldquo;What can we drop from v1 and still ship something useful?&rdquo;</em> The candidate who has a crisp answer here is thinking like an owner. See <a href="14 System Design Interviews_ A step by step guide.htm">14 &mdash; the step-by-step guide</a> for the canonical clarification flow.</p>
+
+<h3>2. Estimation / capacity</h3>
+<table>
+<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<tbody>
+<tr><td>Picks round numbers with no derivation; never converts QPS to bytes, IOPS, or machines.</td><td>Derives peak QPS from DAU and a peak-factor, converts to storage growth/year, derives the bottleneck resource, and sizes the fleet. Distinguishes average from p99.</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> Don't reward fast arithmetic. Reward arithmetic that <em>changes the design</em>. The point of estimation is to discover that, say, the write volume needs an LSM engine (<a href="38 Storage Engines LSM vs B-Tree.htm">38</a>) rather than a B-tree, or that the fan-out at 100M followers forces a hybrid push/pull feed (<a href="26Designing Facebook&#8217;s Newsfeed.htm">26</a>). If the numbers never feed back into a decision, they're theater.</div>
+
+<h3>3. Data modeling &amp; partitioning</h3>
+<table>
+<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<tbody>
+<tr><td>One big table. Partition key is &ldquo;user_id&rdquo; with no thought about skew.</td><td>Chooses access-pattern-driven schema, picks a partition key that avoids hot shards, and discusses re-sharding / consistent hashing (<a href="12 Consistent Hashing.htm">12</a>) when the fleet grows. Knows when to denormalize.</td></tr>
+</tbody>
+</table>
+
+<h3>4. Deep-dive on the bottleneck</h3>
+<table>
+<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<tbody>
+<tr><td>Stays at the box-and-arrow level the whole time.</td><td>Picks the riskiest component and goes three layers down &mdash; e.g. inside the queue, discusses partition assignment, consumer-group rebalancing, and exactly-once vs at-least-once (<a href="39 Kafka and Log-based Messaging.htm">39</a>, <a href="54 Designing a Distributed Message Queue.htm">54</a>).</td></tr>
+</tbody>
+</table>
+
+<h3>5. Failure modes</h3>
+<table>
+<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<tbody>
+<tr><td>&ldquo;We have replicas, so we're fine.&rdquo;</td><td>Walks through leader loss, network partition, slow-but-alive node (gray failure), thundering herd on cache miss, and poison messages. Knows the difference between fail-stop and Byzantine. References resilience patterns (<a href="49 Resilience Patterns.htm">49</a>) &mdash; circuit breakers, bulkheads, backpressure.</td></tr>
+</tbody>
+</table>
+
+<h3>6. Consistency &amp; correctness</h3>
+<table>
+<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<tbody>
+<tr><td>Says &ldquo;strongly consistent&rdquo; or &ldquo;eventually consistent&rdquo; as a slogan.</td><td>Names the actual model (linearizable, read-your-writes, monotonic reads, causal), maps it to PACELC (<a href="31 Consistency Models and PACELC.htm">31</a>), and accepts the latency cost. Knows where consensus (<a href="30 Consensus and Raft.htm">30</a>) is needed and where it's overkill.</td></tr>
+</tbody>
+</table>
+
+<h3>7. Operability &amp; SLOs</h3>
+<table>
+<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<tbody>
+<tr><td>&ldquo;We'll set up Grafana.&rdquo;</td><td>Defines SLIs that match user pain, sets an SLO and an error budget (<a href="47 SLI SLO SLA and Error Budgets.htm">47</a>), names the one metric they'd page on, and sketches the top runbook. Designs for debuggability (<a href="48 Observability.htm">48</a>) with trace IDs end-to-end.</td></tr>
+</tbody>
+</table>
+
+<h3>8. Evolution &amp; migration</h3>
+<table>
+<thead><tr><th>Weak</th><th>Strong (principal)</th></tr></thead>
+<tbody>
+<tr><td>Designs only the steady state.</td><td>Explains how to get there from a monolith/legacy DB online: dual writes, backfill, shadow reads, cutover with a kill switch, and rollback. Treats schema/version evolution as a permanent constraint, not a one-time event.</td></tr>
+</tbody>
+</table>
+
+<div class="callout ok"><span class="lbl">What strong candidates do</span> They volunteer the migration story before you ask. &ldquo;The end state is sharded Postgres with Vitess, but we can't flip overnight &mdash; here's the dual-write + backfill + shadow-read sequence and how I'd verify parity before cutover.&rdquo; That sentence alone is worth a full grade because it proves they've actually shipped large changes, not just whiteboarded them.</div>
+
+<h2 id="bank">The probing question bank by topic</h2>
+<p>Use these as the &ldquo;go deeper&rdquo; layer once the candidate has put down a baseline design. The goal is not to trap them &mdash; it's to find the depth at which they run out of real experience. A principal should have <em>somewhere</em> they can take you four levels down.</p>
+
+<h3>Consistency &amp; transactions</h3>
+<ul>
+<li>You said &ldquo;eventually consistent.&rdquo; What's the actual convergence bound, and what does a client observe in the meantime? Can a user read their own write?</li>
+<li>Where in this design do you genuinely need linearizability, and where would causal or read-your-writes be enough? What does the stronger choice cost you in latency and availability? (<a href="31 Consistency Models and PACELC.htm">31</a>)</li>
+<li>This operation spans two services. Two-phase commit, Saga, or an outbox? Walk me through the failure where the coordinator dies after prepare. (<a href="32 Distributed Transactions.htm">32</a>)</li>
+<li>How do you order events across nodes without a global clock? When does a Lamport clock suffice and when do you need a vector clock or TrueTime-style bounds? (<a href="33 Time Clocks and Ordering.htm">33</a>)</li>
+<li>If two replicas concurrently update the same item, who wins &mdash; and how does the loser find out? Would a CRDT remove the conflict entirely here? (<a href="35 CRDTs.htm">35</a>)</li>
+</ul>
+
+<h3>Partitioning &amp; hot spots</h3>
+<ul>
+<li>Your partition key is X. Show me the access pattern that creates a hot shard, and what you do when one celebrity/tenant is 30% of traffic.</li>
+<li>You need to add capacity at 2&times; the fleet. With your hashing scheme, how many keys move? (<a href="12 Consistent Hashing.htm">12</a>)</li>
+<li>How do you do a range scan when data is hash-partitioned? What changes if the workload becomes range-heavy?</li>
+<li>Re-sharding under live traffic &mdash; describe the split, the double-read window, and how you avoid losing writes during the move. (<a href="05 Sharding or Data Partitioning.htm">05</a>)</li>
+</ul>
+
+<h3>Caching</h3>
+<ul>
+<li>Cache-aside vs write-through vs write-back &mdash; which, and what's your stale-read window? (<a href="04 Caching.htm">04</a>)</li>
+<li>A hot key expires and 50k requests hit the DB in the same millisecond. Walk me through your stampede prevention &mdash; single-flight, lease, or probabilistic early expiry.</li>
+<li>How do you invalidate? What's the consistency contract between cache and source of truth, and how do you detect when they drift?</li>
+<li>At what hit ratio does the cache stop paying for itself given the cross-AZ network cost of a miss?</li>
+</ul>
+
+<h3>Consensus &amp; coordination</h3>
+<ul>
+<li>You put a Raft group here. Why? What's the latency floor (one round-trip to a majority) and can the rest of the system tolerate it? (<a href="30 Consensus and Raft.htm">30</a>)</li>
+<li>What happens to writes during a leader election? How long is the window, and is that acceptable for this SLO?</li>
+<li>You're using ZooKeeper/etcd for leader election. What's your fencing token story so the old leader can't keep writing after it loses the lock? (<a href="36 Leader Election and Coordination.htm">36</a>, <a href="62 Designing a Distributed Locking Service.htm">62</a>)</li>
+<li>Can you avoid consensus here entirely &mdash; e.g. with idempotency + a CRDT or with single-writer-per-partition? Consensus is expensive; justify it.</li>
+</ul>
+
+<h3>Reliability &amp; SLOs</h3>
+<ul>
+<li>Pick the one SLI a user actually feels. What's the SLO, and what does the error budget buy the team? (<a href="47 SLI SLO SLA and Error Budgets.htm">47</a>)</li>
+<li>A dependency you call is at 50% error rate. What does your service do &mdash; fail open, fail closed, degrade, shed load? (<a href="49 Resilience Patterns.htm">49</a>)</li>
+<li>Describe a correlated failure that takes out a whole AZ. What's the blast radius, and how do you fail over without a thundering retry storm? (<a href="51 Multi-Region and Disaster Recovery.htm">51</a>)</li>
+<li>How would you deploy a risky change to this service safely? Canary, blue-green, feature flag &mdash; and what's the automated rollback trigger? (<a href="50 Deployment Strategies.htm">50</a>)</li>
+<li>One request fans out to twelve services and is slow. How do you find the culprit at 3am? (<a href="48 Observability.htm">48</a>)</li>
+</ul>
+
+<h3>Security</h3>
+<ul>
+<li>Where's the trust boundary? What's authenticated, what's authorized, and what's encrypted in transit vs at rest? (<a href="52 Security in System Design.htm">52</a>)</li>
+<li>How do you stop one tenant from reading another's data in a shared multi-tenant store?</li>
+<li>This endpoint takes user input that becomes a query/key. Injection and key-collision risks?</li>
+<li>How do you rate-limit and protect against abuse without hurting legitimate burst traffic? (<a href="23 Designing an API Rate Limiter (_New_).htm">23</a>)</li>
+</ul>
+
+<h3>Cost</h3>
+<ul>
+<li>What's the dominant cost line &mdash; compute, storage, or network egress? Estimate $/million requests.</li>
+<li>You're replicating across three regions. What does cross-region egress cost, and can you cut it with locality or async replication?</li>
+<li>Storage grows N TB/month forever. What's your tiering / TTL / compaction story so cost doesn't grow unbounded? (<a href="38 Storage Engines LSM vs B-Tree.htm">38</a>)</li>
+</ul>
+
+<h2 id="flags">Red flags &amp; green flags</h2>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> Red flags &mdash; any one is a yellow, two or more is usually a no-hire at principal:
+<ul>
+<li><strong>Over-engineering.</strong> Reaches for Kafka, Kubernetes, and a service mesh before establishing that a single Postgres won't do. Solutions in search of a problem.</li>
+<li><strong>Cargo-culting microservices.</strong> Splits into 15 services on the first diagram with no discussion of transaction boundaries or the operational tax. (<a href="43 Microservices and Service Mesh.htm">43</a>)</li>
+<li><strong>Ignoring failure.</strong> The happy path is fully drawn; &ldquo;what if this node dies?&rdquo; produces a blank stare or &ldquo;we add a replica.&rdquo;</li>
+<li><strong>No numbers.</strong> Cannot connect QPS to machines, bytes, or dollars. Every choice is vibes.</li>
+<li><strong>Can't de-scope.</strong> Tries to build everything in 45 minutes and runs out of time with a shallow design everywhere and depth nowhere.</li>
+<li><strong>Defends instead of adapts.</strong> When you point out a flaw, argues rather than updating the design. Principals change their mind on evidence.</li>
+</ul>
+</div>
+
+<div class="callout ok"><span class="lbl">What strong candidates do</span> Green flags &mdash; the behaviors that distinguish a principal:
+<ul>
+<li><strong>Drives the conversation.</strong> Sets the agenda, manages their own time, tells you what they'll skip and why.</li>
+<li><strong>Quantifies.</strong> Every major decision is backed by a number that actually moved the design.</li>
+<li><strong>Names explicit trade-offs.</strong> &ldquo;I'm choosing availability over consistency here because a stale like-count is fine; I'd choose the opposite for the payment ledger.&rdquo; (<a href="11 CAP Theorem.htm">11</a>, <a href="59 Designing a Payment System.htm">59</a>)</li>
+<li><strong>Designs for failure and operability</strong> as a default, not when prompted.</li>
+<li><strong>Considers migration/evolution</strong> &mdash; how this ships incrementally and how it changes in two years.</li>
+<li><strong>Knows what they don't know.</strong> Says &ldquo;I haven't run this at that scale; here's how I'd de-risk it with a load test before committing.&rdquo;</li>
+</ul>
+</div>
+
+<h2 id="mapping">Topic &rarr; design-problem coverage map</h2>
+<p>If you want to test a specific competency, here's which design problem naturally surfaces it. Useful for picking a prompt that probes the exact skill you're unsure about after the first round.</p>
+
+<table>
+<thead><tr><th>Competency to test</th><th>Best design prompts</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Read fan-out &amp; feed generation</td><td><a href="20 Designing Twitter.htm">20 Twitter</a>, <a href="26Designing Facebook&#8217;s Newsfeed.htm">26 Newsfeed</a>, <a href="17 Designing Instagram.htm">17 Instagram</a></td><td>Forces push vs pull vs hybrid, hot-key (celebrity) handling</td></tr>
+<tr><td>Strong consistency &amp; ledgers</td><td><a href="59 Designing a Payment System.htm">59 Payments</a>, <a href="29 Design BookMyShow (_New_).htm">29 BookMyShow</a></td><td>Idempotency, exactly-once, double-booking, reconciliation</td></tr>
+<tr><td>Consensus &amp; coordination</td><td><a href="62 Designing a Distributed Locking Service.htm">62 Locking</a>, <a href="58 Designing a Distributed Job Scheduler.htm">58 Scheduler</a></td><td>Leader election, fencing tokens, split-brain</td></tr>
+<tr><td>Partitioning &amp; storage engines</td><td><a href="55 Designing a Key-Value Store.htm">55 KV Store</a>, <a href="53 Designing a Distributed Cache.htm">53 Cache</a></td><td>Consistent hashing, replication, LSM vs B-tree</td></tr>
+<tr><td>Streaming &amp; back-pressure</td><td><a href="54 Designing a Distributed Message Queue.htm">54 Message Queue</a>, <a href="61 Designing Ad Click Aggregation.htm">61 Ad Click Agg</a></td><td>Delivery semantics, windowing, late/duplicate events (<a href="40 Stream Processing and CDC.htm">40</a>)</td></tr>
+<tr><td>Conflict resolution / offline</td><td><a href="60 Designing Collaborative Editing.htm">60 Collaborative Editing</a>, <a href="18 Designing Dropbox.htm">18 Dropbox</a></td><td>OT vs CRDT, sync, causal ordering (<a href="35 CRDTs.htm">35</a>)</td></tr>
+<tr><td>Geo / spatial indexing</td><td><a href="28 Designing Uber backend.htm">28 Uber</a>, <a href="27 Designing Yelp or Nearby Friends.htm">27 Yelp</a></td><td>Geohash/quadtree, matching, real-time location</td></tr>
+<tr><td>ID generation &amp; uniqueness</td><td><a href="56 Designing a Unique ID Generator.htm">56 Unique ID</a>, <a href="15 Designing a URL Shortening service like TinyURL.htm">15 TinyURL</a></td><td>Snowflake, clock skew, collision avoidance</td></tr>
+<tr><td>Real-time delivery</td><td><a href="19 Designing Facebook Messenger.htm">19 Messenger</a>, <a href="57 Designing a Notification System.htm">57 Notifications</a></td><td>WebSockets vs SSE vs long-poll (<a href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm">13</a>), fan-out, dedupe</td></tr>
+<tr><td>Throughput &amp; large media</td><td><a href="21 Designing Youtube or Netflix.htm">21 YouTube/Netflix</a>, <a href="25 Designing a Web Crawler.htm">25 Web Crawler</a></td><td>CDN, chunking, queue-driven pipelines, politeness</td></tr>
+<tr><td>Search &amp; ranking</td><td><a href="24 Designing Twitter Search.htm">24 Twitter Search</a>, <a href="22 Designing Typeahead Suggestion.htm">22 Typeahead</a></td><td>Inverted index, sharded search, trie + ranking</td></tr>
+</tbody>
+</table>
+
+<h2 id="running">Running the 45-minute loop</h2>
+<p>Calibrate your time-keeping so the depth lands where the signal is. A loose budget:</p>
+
+<table>
+<thead><tr><th>Minutes</th><th>Phase</th><th>What you're listening for</th></tr></thead>
+<tbody>
+<tr><td>0&ndash;5</td><td>Frame the problem</td><td>Do they clarify and de-scope, or start drawing?</td></tr>
+<tr><td>5&ndash;10</td><td>Estimation</td><td>Do the numbers drive a decision?</td></tr>
+<tr><td>10&ndash;20</td><td>High-level design</td><td>Coherent baseline; clear data flow; sensible component choices</td></tr>
+<tr><td>20&ndash;35</td><td>Deep dive (you steer)</td><td>Pick the riskiest part; push for depth and failure reasoning</td></tr>
+<tr><td>35&ndash;42</td><td>Operate &amp; evolve</td><td>SLOs, top runbook, migration story</td></tr>
+<tr><td>42&ndash;45</td><td>Candidate Q&amp;A</td><td>The questions they ask are themselves signal</td></tr>
+</tbody>
+</table>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> Breadth vs depth in the deep-dive. You can either probe one component to bedrock or sample three components shallowly. For principal, <strong>prefer depth</strong>: one bedrock dive tells you whether they actually operate systems, whereas breadth only re-confirms vocabulary you already measured in the high-level phase. Sample breadth only if the candidate's baseline was so generic you can't tell where their real experience is.</div>
+
+<div class="callout note"><span class="lbl">Key insight</span> The best calibration trick: when the candidate makes a choice, change one requirement (&ldquo;now writes are 10&times; reads&rdquo;, &ldquo;now it must be multi-region active-active&rdquo;) and watch whether the design <em>flexes coherently</em> or collapses. Principals have a mental model they can re-run; weaker candidates have a memorized diagram that doesn't survive perturbation.</div>
+
+<h2 id="interview">Principal-level interview lens</h2>
+
+<div class="callout ok"><span class="lbl">What strong candidates do</span> As the interviewer, you're not grading the diagram &mdash; you're grading the <em>reasoning that produced it</em> and whether it would survive contact with production. The strongest candidates treat you as a collaborator: they think out loud, surface their own assumptions, quantify, name the trade-off explicitly, choose, and then tell you the conditions under which they'd revisit the choice. They reach bedrock on at least one component and they volunteer the migration and failure stories before you ask. They are visibly comfortable saying &ldquo;I'd de-risk that with a load test rather than guess.&rdquo;</div>
+
+<p>Sharp probing questions to keep in your pocket, regardless of the prompt:</p>
+<ul>
+<li>&ldquo;If you had to cut this design in half to ship in one quarter, what's the half you cut &mdash; and what breaks if you're wrong about it being safe to cut?&rdquo;</li>
+<li>&ldquo;Name the single resource that saturates first as we 10&times; the load, and the number it saturates at. What's your second bottleneck after you fix the first?&rdquo;</li>
+<li>&ldquo;Walk me through the worst 3am page this system produces. What fired, what's the runbook, and why didn't it auto-heal?&rdquo;</li>
+<li>&ldquo;Where did you choose availability over consistency, and where the opposite? Convince me a stale read is acceptable in the first case and unacceptable in the second.&rdquo;</li>
+<li>&ldquo;You're migrating the live system from today's design to this one with zero downtime. Give me the sequence and the rollback trigger.&rdquo;</li>
+<li>&ldquo;What's the dominant cost line, and what design change would halve it without halving reliability?&rdquo;</li>
+</ul>
+
+<div class="navfoot"><a href="66 Designing a Metrics and Monitoring System.htm">&lsaquo; Prev: Designing a Metrics and Monitoring System</a><a class="nx" href="01 Why System Design Interviews_.htm">Next: Back to start &rsaquo;</a></div>
+
+</div>
+</div>
+</div>
+</body>
+</html>

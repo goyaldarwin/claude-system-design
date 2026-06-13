@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 400" font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <rect width="460" height="400" fill="#ffffff"/>
+  <text x="230" y="34" text-anchor="middle" font-size="19" font-weight="700" fill="#1a1d24">CAP theorem</text>
+  <text x="230" y="56" text-anchor="middle" font-size="13" fill="#5b6472">pick at most two during a network partition</text>
+  <g fill-opacity="0.42" stroke-width="2">
+    <circle cx="190" cy="160" r="95" fill="#85b7eb" stroke="#185fa5"/>
+    <circle cx="270" cy="160" r="95" fill="#9fe1cb" stroke="#0f6e56"/>
+    <circle cx="230" cy="240" r="95" fill="#f0997b" stroke="#993c1d"/>
+  </g>
+  <text x="150" y="135" text-anchor="middle" font-size="16" font-weight="700" fill="#0c447c">C</text>
+  <text x="150" y="153" text-anchor="middle" font-size="11" fill="#0c447c">Consistency</text>
+  <text x="312" y="135" text-anchor="middle" font-size="16" font-weight="700" fill="#085041">A</text>
+  <text x="312" y="153" text-anchor="middle" font-size="11" fill="#085041">Availability</text>
+  <text x="230" y="285" text-anchor="middle" font-size="16" font-weight="700" fill="#712b13">P</text>
+  <text x="230" y="303" text-anchor="middle" font-size="11" fill="#712b13">Partition tolerance</text>
+  <text x="175" y="205" text-anchor="middle" font-size="11" font-weight="600" fill="#1a1d24">CP</text>
+  <text x="288" y="205" text-anchor="middle" font-size="11" font-weight="600" fill="#1a1d24">AP</text>
+  <text x="230" y="158" text-anchor="middle" font-size="11" font-weight="600" fill="#1a1d24">CA*</text>
+  <text x="230" y="378" text-anchor="middle" font-size="11" fill="#5b6472">*CA is not achievable in a real distributed system — partitions are not optional</text>
+</svg>

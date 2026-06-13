@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designing Ad Click Aggregation</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05 Sharding or Data Partitioning.htm" href="05 Sharding or Data Partitioning.htm"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06 Indexes.htm" href="06 Indexes.htm"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07 Proxies.htm" href="07 Proxies.htm"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08 Queues.htm" href="08 Queues.htm"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09 Redundancy and Replication.htm" href="09 Redundancy and Replication.htm"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16 Designing Pastebin.htm" href="16 Designing Pastebin.htm"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17 Designing Instagram.htm" href="17 Designing Instagram.htm"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18 Designing Dropbox.htm" href="18 Designing Dropbox.htm"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19 Designing Facebook Messenger.htm" href="19 Designing Facebook Messenger.htm"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20 Designing Twitter.htm" href="20 Designing Twitter.htm"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21 Designing Youtube or Netflix.htm" href="21 Designing Youtube or Netflix.htm"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22 Designing Typeahead Suggestion.htm" href="22 Designing Typeahead Suggestion.htm"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23 Designing an API Rate Limiter (_New_).htm" href="23 Designing an API Rate Limiter (_New_).htm"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24 Designing Twitter Search.htm" href="24 Designing Twitter Search.htm"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25 Designing a Web Crawler.htm" href="25 Designing a Web Crawler.htm"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26Designing Facebook’s Newsfeed.htm" href="26Designing Facebook’s Newsfeed.htm"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27 Designing Yelp or Nearby Friends.htm" href="27 Designing Yelp or Nearby Friends.htm"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28 Designing Uber backend.htm" href="28 Designing Uber backend.htm"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29 Design BookMyShow (_New_).htm" href="29 Design BookMyShow (_New_).htm"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30 Consensus and Raft.htm" href="30 Consensus and Raft.htm"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31 Consistency Models and PACELC.htm" href="31 Consistency Models and PACELC.htm"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32 Distributed Transactions.htm" href="32 Distributed Transactions.htm"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33 Time Clocks and Ordering.htm" href="33 Time Clocks and Ordering.htm"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34 Anti-Entropy and Gossip.htm" href="34 Anti-Entropy and Gossip.htm"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35 CRDTs.htm" href="35 CRDTs.htm"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36 Leader Election and Coordination.htm" href="36 Leader Election and Coordination.htm"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37 Replication Deep Dive.htm" href="37 Replication Deep Dive.htm"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38 Storage Engines LSM vs B-Tree.htm" href="38 Storage Engines LSM vs B-Tree.htm"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39 Kafka and Log-based Messaging.htm" href="39 Kafka and Log-based Messaging.htm"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40 Stream Processing and CDC.htm" href="40 Stream Processing and CDC.htm"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41 Batch and Big Data Processing.htm" href="41 Batch and Big Data Processing.htm"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42 Probabilistic Data Structures.htm" href="42 Probabilistic Data Structures.htm"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="64 Search and Elasticsearch.htm" href="64 Search and Elasticsearch.htm"><span class="n">64</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="43 Microservices and Service Mesh.htm" href="43 Microservices and Service Mesh.htm"><span class="n">43</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="44 API Design REST gRPC GraphQL.htm" href="44 API Design REST gRPC GraphQL.htm"><span class="n">44</span>API Design</a>
+<a class="lk" data-file="45 Event-Driven Architecture.htm" href="45 Event-Driven Architecture.htm"><span class="n">45</span>Event-Driven Architecture</a>
+<a class="lk" data-file="46 Containers Kubernetes and Serverless.htm" href="46 Containers Kubernetes and Serverless.htm"><span class="n">46</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="65 Object Storage and CDN.htm" href="65 Object Storage and CDN.htm"><span class="n">65</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="47 SLI SLO SLA and Error Budgets.htm" href="47 SLI SLO SLA and Error Budgets.htm"><span class="n">47</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="48 Observability.htm" href="48 Observability.htm"><span class="n">48</span>Observability</a>
+<a class="lk" data-file="49 Resilience Patterns.htm" href="49 Resilience Patterns.htm"><span class="n">49</span>Resilience Patterns</a>
+<a class="lk" data-file="50 Deployment Strategies.htm" href="50 Deployment Strategies.htm"><span class="n">50</span>Deployment Strategies</a>
+<a class="lk" data-file="51 Multi-Region and Disaster Recovery.htm" href="51 Multi-Region and Disaster Recovery.htm"><span class="n">51</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="52 Security in System Design.htm" href="52 Security in System Design.htm"><span class="n">52</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="53 Designing a Distributed Cache.htm" href="53 Designing a Distributed Cache.htm"><span class="n">53</span>Distributed Cache</a>
+<a class="lk" data-file="54 Designing a Distributed Message Queue.htm" href="54 Designing a Distributed Message Queue.htm"><span class="n">54</span>Distributed Message Queue</a>
+<a class="lk" data-file="55 Designing a Key-Value Store.htm" href="55 Designing a Key-Value Store.htm"><span class="n">55</span>Key-Value Store</a>
+<a class="lk" data-file="56 Designing a Unique ID Generator.htm" href="56 Designing a Unique ID Generator.htm"><span class="n">56</span>Unique ID Generator</a>
+<a class="lk" data-file="57 Designing a Notification System.htm" href="57 Designing a Notification System.htm"><span class="n">57</span>Notification System</a>
+<a class="lk" data-file="58 Designing a Distributed Job Scheduler.htm" href="58 Designing a Distributed Job Scheduler.htm"><span class="n">58</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="59 Designing a Payment System.htm" href="59 Designing a Payment System.htm"><span class="n">59</span>Payment System</a>
+<a class="lk" data-file="60 Designing Collaborative Editing.htm" href="60 Designing Collaborative Editing.htm"><span class="n">60</span>Collaborative Editing</a>
+<a class="lk active" data-file="61 Designing Ad Click Aggregation.htm" href="61 Designing Ad Click Aggregation.htm"><span class="n">61</span>Ad Click Aggregation</a>
+<a class="lk" data-file="62 Designing a Distributed Locking Service.htm" href="62 Designing a Distributed Locking Service.htm"><span class="n">62</span>Distributed Locking</a>
+<a class="lk" data-file="66 Designing a Metrics and Monitoring System.htm" href="66 Designing a Metrics and Monitoring System.htm"><span class="n">66</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="67 Architectural Styles and How to Choose.htm" href="67 Architectural Styles and How to Choose.htm"><span class="n">67</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="68 Choosing a Database.htm" href="68 Choosing a Database.htm"><span class="n">68</span>Choosing a Database</a>
+<a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
+<a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Interviewing</h5>
+<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing Ad Click Aggregation</div>
+
+<h1>Designing Ad Click Aggregation</h1>
+<p class="sub"><em>A money-correct, near-real-time pipeline that ingests billions of click events a day, tolerates late and duplicate events, and serves both sub-minute dashboards and audited billing totals.</em></p>
+
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+<li><a href="#problem">Problem framing &amp; why it&rsquo;s hard</a></li>
+<li><a href="#requirements">Requirements &amp; scale estimation</a></li>
+<li><a href="#api">Event schema &amp; query API</a></li>
+<li><a href="#arch">High-level architecture</a></li>
+<li><a href="#ingest">Ingestion: Kafka as the source of truth</a></li>
+<li><a href="#stream">Stream processing: windows &amp; watermarks</a></li>
+<li><a href="#dedup">Exactly-once &amp; the duplicate-click problem</a></li>
+<li><a href="#probabilistic">Distinct counts &amp; heavy hitters</a></li>
+<li><a href="#storage">Time-series storage &amp; rollups</a></li>
+<li><a href="#lambda">Lambda vs Kappa: reconciliation for billing</a></li>
+<li><a href="#skew">Hot partitions &amp; skew</a></li>
+<li><a href="#interview">Principal-level interview lens</a></li>
+</ul>
+</div>
+
+<h2 id="problem">Problem framing &amp; why it&rsquo;s hard</h2>
+<p>An ad click aggregation system sits between two unforgiving consumers. <span class="key">Advertisers and dashboards</span> want fresh numbers &mdash; clicks, impressions, click-through rate, spend &mdash; with sub-minute latency so they can pause a campaign before it burns budget. <span class="key">Billing and finance</span> want the <em>same</em> numbers to be exactly right, auditable, and stable months later. Those two goals pull in opposite directions: speed favors approximate, in-memory, eventually-consistent aggregation; correctness favors deterministic, replayable batch computation.</p>
+<p>This is the canonical interview problem for testing whether a candidate understands <span class="key">stream/batch duality</span>. A weak answer reaches for &ldquo;just count in Redis.&rdquo; A strong answer treats the raw event log as the source of truth, builds fast approximate views on top, and keeps a slower authoritative recompute path for the money.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span> The hard part is not throughput &mdash; Kafka and a stream processor handle billions of events trivially. The hard part is <strong>correctness under failure</strong>: events arrive late, out of order, and duplicated, and the billing total must still tie out to the penny.</div>
+
+<h2 id="requirements">Requirements &amp; scale estimation</h2>
+<h3>Functional</h3>
+<ul>
+<li>Ingest click (and impression) events: <code>{ad_id, campaign_id, advertiser_id, user_id, click_id, ts, ip, country, device}</code>.</li>
+<li>Serve aggregated metrics by dimension (ad, campaign, advertiser, country) over time buckets (per-minute, per-hour, per-day).</li>
+<li>Return top-N ads/campaigns by clicks (heavy hitters) and unique-user counts (distinct).</li>
+<li>Near-real-time dashboards: freshness target ~1 minute.</li>
+<li>Authoritative billing totals: recomputed and reconciled, correct to the exact count.</li>
+</ul>
+<h3>Non-functional</h3>
+<ul>
+<li><span class="key">High write volume, low read volume.</span> Writes dominate by orders of magnitude.</li>
+<li>Tolerate late events (mobile devices offline for hours) and duplicates (client retries, at-least-once delivery).</li>
+<li>Durable: no event silently dropped. Replayable: any time window can be recomputed from raw.</li>
+<li>Available for reads even during a region failure.</li>
+</ul>
+
+<h3>Back-of-envelope</h3>
+<table>
+<thead><tr><th>Quantity</th><th>Estimate</th><th>Derivation</th></tr></thead>
+<tbody>
+<tr><td>Click events/day</td><td>~1 billion</td><td>Given baseline</td></tr>
+<tr><td>Average write QPS</td><td>~11.5 K/s</td><td>1e9 / 86400</td></tr>
+<tr><td>Peak write QPS</td><td>~50&ndash;100 K/s</td><td>5&ndash;10&times; diurnal/event spikes</td></tr>
+<tr><td>Event size on wire</td><td>~200&ndash;400 B</td><td>Compact Avro/Protobuf</td></tr>
+<tr><td>Raw ingest/day</td><td>~300 GB&ndash;1 TB/day</td><td>1e9 &times; ~0.3 KB</td></tr>
+<tr><td>Impressions:clicks</td><td>~100:1</td><td>If impressions counted too, multiply ingest by ~100 &rArr; 100 B events/day</td></tr>
+<tr><td>Dashboard read QPS</td><td>~hundreds</td><td>Aggregates fan out from a small number of dashboards</td></tr>
+</tbody>
+</table>
+<p>The 100:1 impression ratio matters: if impressions are in scope you are at <strong>100 billion events/day</strong>, ~1&ndash;1.5 M events/sec peak. That changes the storage tier and forces aggressive pre-aggregation rather than retaining raw impressions forever. State the assumption explicitly. Capacity math borrows directly from <a href="14 System Design Interviews_ A step by step guide.htm">the estimation guide</a>.</p>
+
+<h2 id="api">Event schema &amp; query API</h2>
+<p>The producer-supplied <code>click_id</code> is the linchpin of dedup &mdash; it must be generated once at click time (see <a href="56 Designing a Unique ID Generator.htm">Unique ID Generator</a>) and carried through retries unchanged.</p>
+<pre><code>// Ingested event (Avro)
+ClickEvent {
+  click_id:    string   // idempotency key, stable across retries
+  ad_id:       long
+  campaign_id: long
+  advertiser_id: long
+  user_id:     long      // hashed
+  event_ts:    long      // EVENT time (when click happened, ms)
+  ingest_ts:   long      // PROCESSING time (when we received it)
+  country:     string
+  device:      string
+  ip:          string
+}
+
+// Read API
+GET /v1/metrics?dimension=campaign&amp;id=42
+     &amp;metric=clicks&amp;from=2026-06-12T00:00&amp;to=2026-06-12T23:59&amp;granularity=1h
+GET /v1/topn?dimension=ad&amp;metric=clicks&amp;window=1h&amp;n=100
+GET /v1/distinct?dimension=campaign&amp;id=42&amp;metric=unique_users&amp;window=1d
+</code></pre>
+<div class="callout warn"><span class="lbl">Pitfall</span> Distinguish <strong>event time</strong> (when the click physically happened) from <strong>processing time</strong> (when your pipeline saw it). Aggregating by processing time is trivial but wrong for billing &mdash; an event that arrives 3 hours late must land in the hour it <em>occurred</em>, not the hour it arrived. Everything downstream keys on <code>event_ts</code>.</div>
+
+<h2 id="arch">High-level architecture</h2>
+<p>The shape is a textbook ingest &rarr; log &rarr; dual-path-process &rarr; serve pipeline:</p>
+<pre><code>  Ad servers / SDKs
+        |  (HTTP/UDP beacon)
+        v
+  +-----------+      +-------------------+
+  | Collector |----&gt;|  Kafka (raw_clicks)|----+----&gt; Cold store (S3/HDFS, partitioned by hour)
+  | (stateless)|     |  partitioned by    |    |        ^ authoritative raw log
+  +-----------+      |  ad_id/key, RF=3   |    |
+                     +-------------------+    |
+                              |               |
+                  (speed path)|               |(batch path, nightly + on-demand)
+                              v               v
+                  +---------------------+   +--------------------+
+                  | Stream processor    |   | Batch recompute    |
+                  | (Flink): windowed   |   | (Spark): exact     |
+                  | aggregates, dedup,  |   | re-aggregation     |
+                  | HLL / Count-Min     |   | over raw log       |
+                  +---------------------+   +--------------------+
+                              |               |
+                              v               v
+                  +-------------------------------------+
+                  | Time-series / OLAP store            |
+                  | (Druid / ClickHouse / Pinot)        |
+                  | minute -> hour -> day rollups        |
+                  +-------------------------------------+
+                              |
+                              v
+                       Dashboard / Query API
+</code></pre>
+
+<h2 id="ingest">Ingestion: Kafka as the source of truth</h2>
+<p>Collectors are thin, stateless, horizontally scaled behind a <a href="03 Load Balancing.htm">load balancer</a>. Their only job: validate, enrich (geo from IP), serialize, and produce to <a href="39 Kafka and Log-based Messaging.htm">Kafka</a>. Kafka is deliberately the <span class="key">durable, replayable source of truth</span> &mdash; not the collector&rsquo;s memory, not the database. Retain raw events 7&ndash;30 days in Kafka and indefinitely in cold object storage (S3/HDFS) partitioned by <code>event_hour</code>.</p>
+<ul>
+<li><strong>Partitioning:</strong> partition by a key that spreads load and co-locates aggregation. Keying by <code>ad_id</code> lets a single stream task own all clicks for an ad (cheap local aggregation) but invites <a href="05 Sharding or Data Partitioning.htm">skew</a> when one ad goes viral (see <a href="#skew">below</a>). A common compromise: partition by <code>hash(ad_id)</code> for spread, accept that a stream operator must shuffle/rekey before aggregating.</li>
+<li><strong>Replication factor 3, acks=all</strong> so a broker loss never drops an event. For billing, durability beats latency on the write path.</li>
+<li><strong>Producer idempotence + transactional writes</strong> (Kafka <code>enable.idempotence=true</code>, transactional producer) eliminate <em>broker-side</em> duplicates from producer retries &mdash; but not application-level duplicate clicks. Those are handled later.</li>
+</ul>
+<div class="callout note"><span class="lbl">Key insight</span> Persisting raw events to a log <em>before</em> any aggregation is the single most important decision. It decouples ingest from processing, absorbs spikes, lets you replay to fix bugs, and gives the batch path an authoritative input. This is the same log-as-source-of-truth principle from <a href="40 Stream Processing and CDC.htm">Stream Processing and CDC</a>.</div>
+
+<h2 id="stream">Stream processing: windows &amp; watermarks</h2>
+<p>The speed path uses a stream processor (Flink is the reference; Kafka Streams or Spark Structured Streaming work too) to maintain windowed aggregates keyed by dimension. Three concepts do the heavy lifting:</p>
+<h3>Tumbling event-time windows</h3>
+<p>Aggregate into fixed, non-overlapping buckets keyed on <code>event_ts</code> &mdash; e.g. 1-minute tumbling windows per <code>(campaign_id, country)</code>. Output incremental counts as windows fire.</p>
+<h3>Watermarks</h3>
+<p>A <span class="key">watermark</span> is the processor&rsquo;s assertion that &ldquo;I believe I have seen all events with <code>event_ts &le; W</code>.&rdquo; It is computed as <code>max(event_ts seen) &minus; allowedLateness</code>. When the watermark passes a window&rsquo;s end, the window <em>fires</em> and emits its result. Watermarks are how a stream system reasons about completeness in the face of out-of-order arrival.</p>
+<pre><code>stream
+  .assignTimestampsAndWatermarks(
+     forBoundedOutOfOrderness(Duration.ofMinutes(2)))   // tolerate 2 min lateness
+  .keyBy(e -&gt; e.campaign_id)
+  .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+  .allowedLateness(Time.hours(1))      // late events still update the bucket
+  .sideOutputLateData(lateTag)          // VERY late events -&gt; correction stream
+  .aggregate(new CountAggregator());
+</code></pre>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> Watermark lateness is a <strong>latency-vs-completeness dial</strong>. A 2-minute bound means windows fire 2 minutes after their end &mdash; fresh, but events later than 2 min are &ldquo;late.&rdquo; A larger bound captures more stragglers but delays every result. There is no setting that is both perfectly fresh and perfectly complete; that gap is exactly why the batch path exists.</div>
+<p>Mobile clients buffered offline can deliver clicks <em>hours</em> late. You cannot hold a window open for hours. Practical answer: emit a best-effort result at watermark time, route very-late events to a <em>correction stream</em> that issues delta updates to the store, and rely on the nightly batch recompute to make the final number authoritative. The deeper treatment of windowing, watermarks, and late-data handling lives in <a href="40 Stream Processing and CDC.htm">Stream Processing and CDC</a>.</p>
+
+<h2 id="dedup">Exactly-once &amp; the duplicate-click problem</h2>
+<p>Two distinct duplication sources, two distinct mechanisms:</p>
+<h3>1. Pipeline-internal exactly-once</h3>
+<p>If a stream task crashes and restarts, will it double-count? Flink&rsquo;s <span class="key">checkpoint + two-phase-commit sink</span> gives end-to-end exactly-once <em>for the pipeline</em>: operator state and Kafka offsets are checkpointed atomically; on recovery the processor rewinds to the last checkpoint and replays, and the transactional sink ensures emitted results are committed exactly once. Combined with Kafka transactional reads/writes this closes the internal gap.</p>
+<h3>2. Application-level duplicate clicks</h3>
+<p>The user&rsquo;s device retried the beacon; the same physical click arrives as N events. Exactly-once processing will faithfully count all N &mdash; they are genuinely distinct messages. The defense is <span class="key">idempotency on <code>click_id</code></span>:</p>
+<ul>
+<li><strong>Streaming dedup window:</strong> keep a set of recently-seen <code>click_id</code>s in operator state (RocksDB-backed, keyed, TTL&rsquo;d to e.g. 24h). First sighting counts; later sightings are dropped. Bounded memory because state is TTL&rsquo;d.</li>
+<li><strong>Probabilistic pre-filter:</strong> front the exact set with a Bloom filter to cheaply reject definite-new IDs without a state lookup. A Bloom filter never yields false negatives, so a &ldquo;not seen&rdquo; answer is trustworthy; only &ldquo;maybe seen&rdquo; needs the exact check. (See <a href="42 Probabilistic Data Structures.htm">Probabilistic Data Structures</a>.)</li>
+<li><strong>Batch dedup:</strong> the recompute path deduplicates by <code>GROUP BY click_id</code> (or <code>DISTINCT click_id</code>) over the full raw log &mdash; exact and immune to window-boundary edge cases. This is the authoritative dedup; the streaming filter is best-effort for freshness.</li>
+</ul>
+<div class="callout warn"><span class="lbl">Pitfall</span> A duplicate that arrives <em>after</em> the streaming dedup window has expired (e.g. the same <code>click_id</code> 26 hours later) will slip past the stream filter. This is acceptable <em>only</em> because the nightly batch recompute over the immutable raw log is the source of truth for billing. Never bill directly off streaming counts.</div>
+
+<h2 id="probabilistic">Distinct counts &amp; heavy hitters</h2>
+<p>Two metrics are infeasible to compute exactly at scale in real time, so we use sketches:</p>
+<h3>Unique users &mdash; HyperLogLog</h3>
+<p>Counting distinct users per campaign exactly would require holding every user_id in a set &mdash; gigabytes per high-traffic campaign. <span class="key">HyperLogLog</span> estimates cardinality in ~1.5 KB with ~2% error, and crucially HLL sketches are <strong>mergeable</strong>: per-minute sketches union into per-hour and per-day sketches without re-reading raw data. Store the sketch in each rollup bucket, not just the scalar count.</p>
+<h3>Top-N ads &mdash; Count-Min Sketch</h3>
+<p>Top-N by clicks over a sliding window is a heavy-hitters problem. A <span class="key">Count-Min sketch</span> tracks approximate per-key frequencies in fixed memory (it over-counts, never under-counts), paired with a small heap of current candidates to surface the top-N. Exact top-N would need a counter per ad_id &mdash; fine for thousands of ads, prohibitive when there are tens of millions of long-tail creatives.</p>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> Sketches trade <strong>bounded memory and mergeability</strong> for <strong>bounded error</strong>. That is the right trade for dashboards and trend detection. It is the <em>wrong</em> trade for billing, where ~2% error on spend is unacceptable &mdash; billing-critical counts (total clicks) are kept exact via the batch path. Know which metrics tolerate approximation and which do not.</div>
+
+<h2 id="storage">Time-series storage &amp; rollups</h2>
+<p>Serve queries from a columnar OLAP / time-series store &mdash; <span class="pill">Apache Druid</span>, <span class="pill">ClickHouse</span>, or <span class="pill">Apache Pinot</span> &mdash; not from the operational database. These engines are built for exactly this access pattern: high-cardinality dimensional filters over time ranges, columnar compression, and ingestion-time rollup.</p>
+<ul>
+<li><strong>Pre-aggregation / rollups:</strong> the stream writes per-minute granules; a rollup job (or the store&rsquo;s native rollup) folds minute &rarr; hour &rarr; day. A &ldquo;clicks last 30 days&rdquo; query reads ~30 day-granules, not 43 M minute-rows.</li>
+<li><strong>Retention tiers:</strong> minute granularity for ~7 days, hour for ~90 days, day forever. Raw events live only in the cold log.</li>
+<li><strong>Store sketches alongside scalars</strong> so distinct-count and top-N queries remain mergeable across the rollup hierarchy.</li>
+</ul>
+<p>Why not a generic <a href="10 SQL vs. NoSQL.htm">SQL or NoSQL</a> store? An RDBMS chokes on this write rate and full-scan aggregation; a plain KV store can hold pre-aggregated counters but can&rsquo;t answer ad-hoc dimensional roll-ups efficiently. A purpose-built OLAP engine with <a href="06 Indexes.htm">columnar indexing</a> wins decisively.</p>
+
+<h2 id="lambda">Lambda vs Kappa: reconciliation for billing</h2>
+<p>This is the architectural crux. Two patterns:</p>
+<table>
+<thead><tr><th></th><th>Lambda</th><th>Kappa</th></tr></thead>
+<tbody>
+<tr><td>Paths</td><td>Speed (stream) + Batch (recompute)</td><td>Stream only; recompute by replaying the log</td></tr>
+<tr><td>Correctness fix</td><td>Nightly batch overwrites approximate streaming results</td><td>Re-run the stream job over historical log offsets</td></tr>
+<tr><td>Cost</td><td>Two codebases / engines to maintain</td><td>One engine; reprocessing is just replay</td></tr>
+<tr><td>Best when</td><td>Strict audited correctness needed (billing)</td><td>Logic is purely stream-expressible; ops simplicity prized</td></tr>
+</tbody>
+</table>
+<p>For ad billing the pragmatic answer is <span class="key">Lambda, or Kappa-with-replay</span>. The speed path serves dashboards within a minute (approximate, dedup best-effort, sketch-based distincts). A <a href="41 Batch and Big Data Processing.htm">batch recompute</a> (Spark over the raw S3/HDFS log, partitioned by hour) runs on a schedule and produces the <strong>authoritative, exact, fully-deduplicated</strong> totals. Reconciliation overwrites the streaming numbers for closed time windows; billing reads only reconciled buckets.</p>
+<pre><code>-- Batch recompute (authoritative), run hourly/nightly over raw log
+SELECT campaign_id, date_trunc('hour', event_ts) AS bucket,
+       COUNT(DISTINCT click_id)        AS exact_clicks,   -- dedup is exact here
+       approx_count_distinct(user_id)  AS unique_users
+FROM   raw_clicks
+WHERE  event_ts &gt;= :window_start AND event_ts &lt; :window_end
+GROUP  BY campaign_id, bucket;
+-- result UPSERTs into the serving store, marking bucket = FINALIZED
+</code></pre>
+<div class="callout note"><span class="lbl">Key insight</span> Modern practice trends toward Kappa: keep one streaming codebase, and when you need a correctness recompute, replay the immutable Kafka/object-store log through the same job with relaxed (or infinite) lateness. You get a single source of truth for logic. Whether you call it Lambda or Kappa, the non-negotiable is: <strong>billing reads reconciled results derived from the immutable raw log, never live streaming state.</strong></p></div>
+
+<h2 id="skew">Hot partitions &amp; skew</h2>
+<p>A Super Bowl ad or a celebrity tweet drives one <code>ad_id</code> to a huge fraction of total traffic. If you partition by <code>ad_id</code>, one Kafka partition and one stream task melt while the rest idle &mdash; the classic <a href="05 Sharding or Data Partitioning.htm">hot-partition</a> problem.</p>
+<ul>
+<li><strong>Key salting:</strong> partition on <code>(ad_id, salt)</code> where <code>salt &isin; [0, N)</code>, spreading a hot ad across N partitions, then sum the N partial counts in a second aggregation stage. Use a small N only for detected hot keys to avoid blowing up cardinality everywhere.</li>
+<li><strong>Two-phase (combine then reduce) aggregation:</strong> pre-aggregate locally per task (a local combiner cuts the shuffle volume by orders of magnitude), then merge partials by key. Skew on the final merge for one key is small because the input is already partial sums, not raw events.</li>
+<li><strong>Adaptive rebalancing:</strong> detect hot keys at runtime (a Count-Min sketch of key frequencies works) and dynamically increase their salt fan-out.</li>
+<li><strong>Backpressure:</strong> Kafka&rsquo;s durable buffer plus the processor&rsquo;s backpressure absorb spikes so the collector never has to drop &mdash; the log is the shock absorber. See <a href="49 Resilience Patterns.htm">Resilience Patterns</a>.</li>
+</ul>
+<div class="callout warn"><span class="lbl">Pitfall</span> Consistent-hash partitioning (<a href="12 Consistent Hashing.htm">Consistent Hashing</a>) spreads keys evenly but does <em>not</em> save you from a single hot key &mdash; all events for one key still hash to one partition. Skew on a single key needs salting or two-phase aggregation, not just a better hash function.</div>
+
+<h2 id="interview">Principal-level interview lens</h2>
+<div class="callout ok"><span class="lbl">What strong candidates do</span> They immediately separate the <strong>fast-approximate</strong> path from the <strong>slow-exact</strong> path and explain why billing cannot trust streaming counts. They reason in <strong>event time vs processing time</strong> and name watermarks as the completeness mechanism. They distinguish pipeline-exactly-once (checkpoints + transactional sinks) from application-level duplicate clicks (idempotency on <code>click_id</code>). They reach for HLL/Count-Min only where approximation is acceptable and keep billing counts exact. They anticipate hot partitions and propose salting / two-phase aggregation before being prompted. They treat the raw log as the immutable source of truth that makes every correction a replay.</div>
+<ul>
+<li>Your dashboard shows 1,000,000 clicks for a campaign at 11:59; the nightly batch recompute says 985,000. Walk me through every reason the numbers differ, and which one is correct for billing &mdash; and why.</li>
+<li>A mobile SDK buffers clicks offline and flushes them 6 hours later. Trace one such event through your pipeline. Where does it land, what fires, and what gets corrected?</li>
+<li>How do you guarantee a click retried 4 times is counted once in real time? Once in billing? Are those the same mechanism &mdash; and what happens if the retry arrives after your dedup window expires?</li>
+<li>One ad gets 40% of all traffic during a live event. Show me exactly where the system buckles and how you keep aggregation balanced without losing per-ad accuracy.</li>
+<li>You found a bug that mis-attributed clicks for the last 3 days. How do you recompute correct totals, and what does your architecture need for that to be cheap and safe?</li>
+<li>Why not skip the stream processor and just batch every 5 minutes? Why not skip batch and serve billing straight off the stream? Defend the dual path on cost.</li>
+</ul>
+
+<div class="navfoot"><a href="60 Designing Collaborative Editing.htm">&lsaquo; Prev: Designing Collaborative Editing</a><a class="nx" href="62 Designing a Distributed Locking Service.htm">Next: Designing a Distributed Locking Service &rsaquo;</a></div>
+
+</div>
+</div>
+</div>
+</body>
+</html>

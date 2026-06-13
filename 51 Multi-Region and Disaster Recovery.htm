@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Region and Disaster Recovery</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05 Sharding or Data Partitioning.htm" href="05 Sharding or Data Partitioning.htm"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06 Indexes.htm" href="06 Indexes.htm"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07 Proxies.htm" href="07 Proxies.htm"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08 Queues.htm" href="08 Queues.htm"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09 Redundancy and Replication.htm" href="09 Redundancy and Replication.htm"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16 Designing Pastebin.htm" href="16 Designing Pastebin.htm"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17 Designing Instagram.htm" href="17 Designing Instagram.htm"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18 Designing Dropbox.htm" href="18 Designing Dropbox.htm"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19 Designing Facebook Messenger.htm" href="19 Designing Facebook Messenger.htm"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20 Designing Twitter.htm" href="20 Designing Twitter.htm"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21 Designing Youtube or Netflix.htm" href="21 Designing Youtube or Netflix.htm"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22 Designing Typeahead Suggestion.htm" href="22 Designing Typeahead Suggestion.htm"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23 Designing an API Rate Limiter (_New_).htm" href="23 Designing an API Rate Limiter (_New_).htm"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24 Designing Twitter Search.htm" href="24 Designing Twitter Search.htm"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25 Designing a Web Crawler.htm" href="25 Designing a Web Crawler.htm"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26Designing Facebook’s Newsfeed.htm" href="26Designing Facebook’s Newsfeed.htm"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27 Designing Yelp or Nearby Friends.htm" href="27 Designing Yelp or Nearby Friends.htm"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28 Designing Uber backend.htm" href="28 Designing Uber backend.htm"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29 Design BookMyShow (_New_).htm" href="29 Design BookMyShow (_New_).htm"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30 Consensus and Raft.htm" href="30 Consensus and Raft.htm"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31 Consistency Models and PACELC.htm" href="31 Consistency Models and PACELC.htm"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32 Distributed Transactions.htm" href="32 Distributed Transactions.htm"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33 Time Clocks and Ordering.htm" href="33 Time Clocks and Ordering.htm"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34 Anti-Entropy and Gossip.htm" href="34 Anti-Entropy and Gossip.htm"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35 CRDTs.htm" href="35 CRDTs.htm"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36 Leader Election and Coordination.htm" href="36 Leader Election and Coordination.htm"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37 Replication Deep Dive.htm" href="37 Replication Deep Dive.htm"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38 Storage Engines LSM vs B-Tree.htm" href="38 Storage Engines LSM vs B-Tree.htm"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39 Kafka and Log-based Messaging.htm" href="39 Kafka and Log-based Messaging.htm"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40 Stream Processing and CDC.htm" href="40 Stream Processing and CDC.htm"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41 Batch and Big Data Processing.htm" href="41 Batch and Big Data Processing.htm"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42 Probabilistic Data Structures.htm" href="42 Probabilistic Data Structures.htm"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="64 Search and Elasticsearch.htm" href="64 Search and Elasticsearch.htm"><span class="n">64</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="43 Microservices and Service Mesh.htm" href="43 Microservices and Service Mesh.htm"><span class="n">43</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="44 API Design REST gRPC GraphQL.htm" href="44 API Design REST gRPC GraphQL.htm"><span class="n">44</span>API Design</a>
+<a class="lk" data-file="45 Event-Driven Architecture.htm" href="45 Event-Driven Architecture.htm"><span class="n">45</span>Event-Driven Architecture</a>
+<a class="lk" data-file="46 Containers Kubernetes and Serverless.htm" href="46 Containers Kubernetes and Serverless.htm"><span class="n">46</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="65 Object Storage and CDN.htm" href="65 Object Storage and CDN.htm"><span class="n">65</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="47 SLI SLO SLA and Error Budgets.htm" href="47 SLI SLO SLA and Error Budgets.htm"><span class="n">47</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="48 Observability.htm" href="48 Observability.htm"><span class="n">48</span>Observability</a>
+<a class="lk" data-file="49 Resilience Patterns.htm" href="49 Resilience Patterns.htm"><span class="n">49</span>Resilience Patterns</a>
+<a class="lk" data-file="50 Deployment Strategies.htm" href="50 Deployment Strategies.htm"><span class="n">50</span>Deployment Strategies</a>
+<a class="lk active" data-file="51 Multi-Region and Disaster Recovery.htm" href="51 Multi-Region and Disaster Recovery.htm"><span class="n">51</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="52 Security in System Design.htm" href="52 Security in System Design.htm"><span class="n">52</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="53 Designing a Distributed Cache.htm" href="53 Designing a Distributed Cache.htm"><span class="n">53</span>Distributed Cache</a>
+<a class="lk" data-file="54 Designing a Distributed Message Queue.htm" href="54 Designing a Distributed Message Queue.htm"><span class="n">54</span>Distributed Message Queue</a>
+<a class="lk" data-file="55 Designing a Key-Value Store.htm" href="55 Designing a Key-Value Store.htm"><span class="n">55</span>Key-Value Store</a>
+<a class="lk" data-file="56 Designing a Unique ID Generator.htm" href="56 Designing a Unique ID Generator.htm"><span class="n">56</span>Unique ID Generator</a>
+<a class="lk" data-file="57 Designing a Notification System.htm" href="57 Designing a Notification System.htm"><span class="n">57</span>Notification System</a>
+<a class="lk" data-file="58 Designing a Distributed Job Scheduler.htm" href="58 Designing a Distributed Job Scheduler.htm"><span class="n">58</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="59 Designing a Payment System.htm" href="59 Designing a Payment System.htm"><span class="n">59</span>Payment System</a>
+<a class="lk" data-file="60 Designing Collaborative Editing.htm" href="60 Designing Collaborative Editing.htm"><span class="n">60</span>Collaborative Editing</a>
+<a class="lk" data-file="61 Designing Ad Click Aggregation.htm" href="61 Designing Ad Click Aggregation.htm"><span class="n">61</span>Ad Click Aggregation</a>
+<a class="lk" data-file="62 Designing a Distributed Locking Service.htm" href="62 Designing a Distributed Locking Service.htm"><span class="n">62</span>Distributed Locking</a>
+<a class="lk" data-file="66 Designing a Metrics and Monitoring System.htm" href="66 Designing a Metrics and Monitoring System.htm"><span class="n">66</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="67 Architectural Styles and How to Choose.htm" href="67 Architectural Styles and How to Choose.htm"><span class="n">67</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="68 Choosing a Database.htm" href="68 Choosing a Database.htm"><span class="n">68</span>Choosing a Database</a>
+<a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
+<a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Interviewing</h5>
+<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part D: Reliability and Operations &nbsp;&rsaquo;&nbsp; Multi-Region and Disaster Recovery</div>
+
+<h1>Multi-Region and Disaster Recovery</h1>
+<p class="sub">Surviving the loss of an entire region &mdash; and proving you can &mdash; without quietly buying yourself a split-brain or a six-figure replication bill.</p>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#why">Why a region disappears</a></li>
+<li><a href="#rporto">RPO and RTO drive everything</a></li>
+<li><a href="#topologies">Active-passive vs active-active</a></li>
+<li><a href="#replication">Cross-region replication and the consistency tax</a></li>
+<li><a href="#routing">Global routing: GeoDNS and anycast</a></li>
+<li><a href="#strategies">The four DR strategies</a></li>
+<li><a href="#failover">Failover orchestration and split-brain</a></li>
+<li><a href="#residency">Data residency and sovereignty</a></li>
+<li><a href="#testing">Testing DR: game days</a></li>
+<li><a href="#interview">Principal-level interview lens</a></li>
+</ul>
+</div>
+
+<h2 id="why">Why a region disappears</h2>
+<p>A <span class="key">region</span> is a cluster of physically separate data centers (availability zones) close enough to share single-digit-millisecond links. Multi-AZ redundancy &mdash; the subject of <a href="09 Redundancy and Replication.htm">Redundancy and Replication</a> &mdash; protects you from a rack, a switch, or a whole building burning down. It does <em>not</em> protect you from the events that take a region offline as a unit:</p>
+<ul>
+<li><span class="key">Correlated infrastructure failure:</span> a fiber cut, a power-grid event, or a cooling failure that hits multiple AZs at once.</li>
+<li><span class="key">Control-plane outages:</span> the region's API, IAM, or DNS layer fails so you cannot even launch capacity &mdash; the most common real-world &ldquo;region down&rdquo; scenario.</li>
+<li><span class="key">Bad deploys and poisoned data:</span> a config push or schema migration that replicates instantly to every AZ. Note this is a <em>logical</em> disaster &mdash; a hot standby that faithfully replicated the corruption is no help.</li>
+<li><span class="key">Regional capacity exhaustion</span> during a large-scale event affecting many tenants simultaneously.</li>
+</ul>
+<div class="callout note"><span class="lbl">Key insight</span>Multi-region is not &ldquo;more redundancy.&rdquo; It is a categorically different problem because the failure unit (the region) now has wide-area latency &mdash; 60&ndash;150&nbsp;ms round-trip between continents &mdash; which makes synchronous replication across regions a non-starter for most write paths. Everything downstream is a consequence of that latency.</div>
+
+<h2 id="rporto">RPO and RTO drive everything</h2>
+<p>Before drawing any boxes, a principal pins down two numbers per workload. They are the contract that dictates topology and cost.</p>
+<ul>
+<li><span class="key">RPO (Recovery Point Objective):</span> how much <em>data</em> you can afford to lose, measured in time. RPO = 0 means not a single committed write may be lost. RPO = 5&nbsp;min means losing the last five minutes of writes is acceptable.</li>
+<li><span class="key">RTO (Recovery Time Objective):</span> how long the service may be <em>down</em> before it must be serving again.</li>
+</ul>
+<table>
+<tr><th>Workload</th><th>Realistic RPO</th><th>Realistic RTO</th><th>Implied architecture</th></tr>
+<tr><td>Payment ledger</td><td>0</td><td>&lt; 1 min</td><td>Synchronous quorum or active-active with conflict-free design</td></tr>
+<tr><td>User-facing SaaS app</td><td>seconds&ndash;1 min</td><td>1&ndash;5 min</td><td>Warm standby, async replication</td></tr>
+<tr><td>Analytics / reporting</td><td>hours</td><td>hours</td><td>Pilot light or backup-restore</td></tr>
+<tr><td>Internal batch jobs</td><td>1 day</td><td>1 day</td><td>Backup-restore from object storage</td></tr>
+</table>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>RPO and RTO are bought with money and complexity, and the cost curve is steep near zero. Going from RPO = minutes (async replica) to RPO = 0 (synchronous quorum) often means accepting cross-region write latency on every transaction &mdash; see <a href="31 Consistency Models and PACELC.htm">PACELC</a> below. The principal's job is to push back on a blanket &ldquo;everything needs RPO 0&rdquo; and tie each target to actual business loss.</div>
+
+<h2 id="topologies">Active-passive vs active-active</h2>
+
+<h3>Active-passive (failover)</h3>
+<p>One region serves all traffic; a second region holds a replica that is idle (or serves only reads). On disaster you <span class="key">promote</span> the standby and redirect traffic. Simpler to reason about &mdash; there is exactly one writer, so no cross-region conflict resolution &mdash; but you pay for capacity you rarely use, and the standby is exercised only during the rare, high-stress moment you can least afford surprises.</p>
+
+<h3>Active-active</h3>
+<p>Both (or all) regions serve live traffic concurrently. Capacity is utilized, latency is low because users hit the nearest region, and a region loss removes only its share of traffic. The cost is brutal: with more than one writer you must solve <span class="key">cross-region write conflicts</span>. Your options are (a) partition the keyspace so each region owns a disjoint set of write keys (sticky routing / cell-based, no real conflicts), (b) a globally-consistent store that runs consensus across regions (Spanner-class, paying the latency &mdash; see <a href="30 Consensus and Raft.htm">Consensus and Raft</a>), or (c) <a href="35 CRDTs.htm">CRDTs</a> / last-writer-wins for genuinely commutative data.</p>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>&ldquo;Active-active&rdquo; with naive bidirectional async replication on a normal RDBMS is a trap. Two regions accept conflicting writes to the same row, replication carries both, and you silently corrupt data or deadlock. Active-active demands a conflict strategy <em>by design</em>, not bolted on. If you cannot name yours, you have active-passive with extra steps.</div>
+
+<h2 id="replication">Cross-region replication and the consistency tax</h2>
+<p>The unavoidable physics: a packet between, say, us-east and eu-west takes ~70&ndash;90&nbsp;ms one way. <span class="key">Synchronous</span> replication across that link means every write waits a full round trip for the remote ack &mdash; 150+&nbsp;ms added to <em>every</em> commit. <span class="key">Asynchronous</span> replication acks locally and ships the change in the background, keeping writes fast but creating <span class="key">replication lag</span> &mdash; the window of data you lose if the primary dies mid-flight. That window <em>is</em> your RPO.</p>
+
+<p>This is exactly <a href="31 Consistency Models and PACELC.htm">PACELC</a> stated operationally: <strong>P</strong>artition &rarr; choose <strong>A</strong>vailability or <strong>C</strong>onsistency; <strong>E</strong>lse (normal operation) &rarr; choose <strong>L</strong>atency or <strong>C</strong>onsistency. Cross-region replication forces the &ldquo;E&rdquo; clause into your face on the steady-state path, not just during failures.</p>
+
+<table>
+<tr><th>Mode</th><th>Write latency</th><th>RPO on region loss</th><th>Conflict risk</th></tr>
+<tr><td>Sync (quorum across regions)</td><td>High (+WAN RTT)</td><td>0</td><td>None (single agreed order)</td></tr>
+<tr><td>Semi-sync (1 remote ack)</td><td>Medium</td><td>~0 if remote survives</td><td>Low</td></tr>
+<tr><td>Async (log shipping)</td><td>Low</td><td>= replication lag</td><td>Medium (on failover)</td></tr>
+</table>
+
+<p>Patterns that get used in practice (covered in depth in <a href="37 Replication Deep Dive.htm">Replication Deep Dive</a>): a single global write leader with regional read replicas (low write availability, simple); leaderless quorum tuned with R + W &gt; N spanning regions; or change-data-capture streaming (<a href="40 Stream Processing and CDC.htm">Stream Processing and CDC</a>) onto a durable log like <a href="39 Kafka and Log-based Messaging.htm">Kafka</a> with MirrorMaker replicating topics region-to-region.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span>Decouple replication of the <em>durable log</em> from replication of <em>materialized state</em>. If your source of truth is an append-only log replicated cross-region, every regional store is a deterministic projection you can rebuild. This converts &ldquo;restore the database&rdquo; into &ldquo;replay from the last offset,&rdquo; which is far more testable and bounds RPO to log-replication lag.</div>
+
+<h2 id="routing">Global routing: GeoDNS and anycast</h2>
+<p>Surviving a region is useless if traffic keeps arriving at the dead one. Two mechanisms steer it:</p>
+<ul>
+<li><span class="key">GeoDNS / latency-based DNS</span> (Route&nbsp;53, NS1, Cloudflare): the DNS resolver returns a region-specific IP based on the client's location or measured latency, with health checks that withdraw a region's records when it fails. Cheap and simple, but bounded by <span class="key">DNS TTL</span> and client/resolver caching &mdash; a 60&nbsp;s TTL still leaves stragglers for minutes, so DNS failover RTO is rarely better than a few minutes.</li>
+<li><span class="key">Anycast</span>: the same IP is announced via BGP from multiple regions; the network routes each client to the topologically nearest one. Failover is near-instant (BGP withdrawal) and there is no TTL problem, but you need control of the IP space / a provider that offers it, and in-flight TCP connections still break on reroute. This is how global load balancers and CDNs front their edges.</li>
+</ul>
+<p>In a real stack these compose: anycast (or a global LB) at the edge for fast steering, GeoDNS for coarse region selection, and <a href="03 Load Balancing.htm">regional load balancers</a> behind that. Health-check thresholds matter more than people expect &mdash; too sensitive and a transient blip triggers a needless, risky regional failover; too lax and you bleed errors for minutes.</p>
+
+<h2 id="strategies">The four DR strategies</h2>
+<p>The canonical spectrum, ordered by decreasing RTO/RPO and increasing cost. Map each workload's targets to the cheapest tier that meets them.</p>
+<table>
+<tr><th>Strategy</th><th>What's running in DR region</th><th>Typical RTO</th><th>Typical RPO</th><th>Cost</th></tr>
+<tr><td><span class="key">Backup &amp; restore</span></td><td>Nothing; backups in cross-region object storage</td><td>Hours</td><td>Hours (last backup)</td><td>$</td></tr>
+<tr><td><span class="key">Pilot light</span></td><td>Core data replicating; everything else off, infra as code ready to scale up</td><td>Tens of min</td><td>Minutes</td><td>$$</td></tr>
+<tr><td><span class="key">Warm standby</span></td><td>Scaled-down full stack, live but small</td><td>Minutes</td><td>Seconds&ndash;min</td><td>$$$</td></tr>
+<tr><td><span class="key">Hot / multi-site (active-active)</span></td><td>Full capacity serving live traffic</td><td>Near-zero</td><td>Near-zero</td><td>$$$$</td></tr>
+</table>
+<p>A mature organization rarely picks one tier for everything. The payment ledger is hot/multi-site; the user app is warm standby; the data warehouse is pilot light; internal tooling is backup-restore. Tiering by RPO/RTO is how you keep the DR bill sane while still being able to honor your <a href="47 SLI SLO SLA and Error Budgets.htm">SLAs</a>.</p>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>Backups are not DR until you have <em>restored</em> from them, cross-region, on a clean account, and measured how long it took. Untested backups have a habit of being unrestorable: missing encryption keys, IAM roles that only exist in the primary region, or a restore that takes 9 hours when your RTO is 1. The restore path is the deliverable, not the backup.</div>
+
+<h2 id="failover">Failover orchestration and split-brain</h2>
+<p>Failover is where most DR plans die. The hard part is not promoting the standby &mdash; it is deciding <em>whether</em> to, automatically, under uncertainty, without creating two primaries.</p>
+
+<h3>The split-brain problem</h3>
+<p>A network partition between regions looks identical to a dead primary from the standby's point of view. If the standby promotes itself while the original primary is actually alive but unreachable, you now have <span class="key">two writers</span> diverging. When the partition heals you have irreconcilable history. This is the single most dangerous failure mode in multi-region.</p>
+<p>Defenses, in order of robustness:</p>
+<ol>
+<li><span class="key">External arbiter / quorum witness:</span> place a tiebreaker in a <em>third</em> region. Promotion requires majority agreement, so a partitioned minority cannot promote itself. This is the consensus answer &mdash; see <a href="36 Leader Election and Coordination.htm">Leader Election and Coordination</a> and <a href="62 Designing a Distributed Locking Service.htm">Distributed Locking Service</a>.</li>
+<li><span class="key">Fencing / STONITH:</span> before the new primary accepts writes, the old one must be conclusively isolated (revoke its DB credentials, withdraw its routes, fence its storage). A fencing token (monotonic epoch) attached to every write lets storage reject a stale, deposed leader.</li>
+<li><span class="key">Human-gated failover</span> for the highest-stakes systems: automation gathers evidence and stages everything, a human pulls the trigger. Slower RTO, but eliminates the &ldquo;flapping health check triggered a 3 a.m. unnecessary failover&rdquo; class of self-inflicted outages.</li>
+</ol>
+
+<pre><code>def maybe_failover(primary_health, witness):
+    # Never promote on local opinion alone.
+    if primary_health.is_unreachable():
+        if not witness.confirms_primary_down():   # 3rd-region arbiter
+            return STAY_PASSIVE        # likely a partition, not a death
+        if not fence(old_primary):     # revoke creds, withdraw routes
+            return STAY_PASSIVE        # cannot guarantee single writer
+        epoch = bump_epoch()           # monotonic fencing token
+        promote_standby(epoch)
+        repoint_traffic()              # DNS/anycast/global LB
+        return PROMOTED
+    return STAY_PASSIVE</code></pre>
+
+<div class="callout note"><span class="lbl">Key insight</span>Failback is the forgotten second half. After the original region recovers it is now <em>behind</em> and may contain writes that never replicated. You cannot just flip traffic back. You need a controlled resync (often a full reseed) and a re-validated data reconciliation before the old primary rejoins. Plan failback at design time or you will improvise it during an incident.</div>
+
+<h2 id="residency">Data residency and sovereignty</h2>
+<p>Geography is no longer just a latency knob; it is a legal constraint. <span class="key">GDPR</span> (EU), and analogous laws in India, China, Brazil, and others, restrict where personal data may be <em>stored and processed</em>. This collides head-on with naive multi-region replication: replicating EU customer PII into a US region for DR may itself be the violation.</p>
+<ul>
+<li><span class="key">Data partitioning by residency:</span> shard such that an EU user's data lives only in EU regions, with its own intra-EU DR pairing (e.g. eu-west &harr; eu-central). The DR topology must respect the residency boundary &mdash; you get a separate DR domain per jurisdiction.</li>
+<li><span class="key">Right to erasure</span> complicates backups: a user requesting deletion must be erased from backups and replicas too, which is hard with immutable backup snapshots. Crypto-shredding (per-user keys you can destroy) is a common pattern.</li>
+<li><span class="key">Control vs data plane:</span> often you can run a global control plane while keeping the data plane pinned per region &mdash; a cell-based architecture aligns naturally with this.</li>
+</ul>
+
+<h2 id="testing">Testing DR: game days</h2>
+<p>A DR plan that has never been exercised is a hypothesis, not a capability. The discipline is <span class="key">game days</span> &mdash; scheduled exercises that actually trigger the failure.</p>
+<ul>
+<li><span class="key">Regional evacuation drills:</span> deliberately fail a region out of rotation (block its traffic, fence it) during business hours and confirm the others absorb the load within RTO. Netflix's Chaos Kong popularized killing an entire region on purpose.</li>
+<li><span class="key">Restore drills:</span> restore production backups into an isolated account on a cadence and time it against RPO/RTO. Automate it &mdash; a green check on a dashboard is the only proof that matters.</li>
+<li><span class="key">Failback drills:</span> the half everyone skips. Rehearse the resync-and-return path.</li>
+<li><span class="key">Dependency mapping:</span> game days surface hidden coupling &mdash; the &ldquo;independent&rdquo; DR region that secretly calls a service still living only in the primary.</li>
+</ul>
+<p>Tie the outcomes into your <a href="48 Observability.htm">observability</a> and <a href="47 SLI SLO SLA and Error Budgets.htm">error budget</a> practice: a failed game day spends budget on hardening before it spends it on an outage. Also revisit <a href="49 Resilience Patterns.htm">Resilience Patterns</a> (bulkheads, circuit breakers) &mdash; multi-region only helps if a region's failure does not cascade through shared dependencies before you can evacuate it.</p>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>Beware the shared global dependency that quietly defeats your whole design: one DNS provider, one IAM control plane, one shared message bus, one global config service. If a single component spans all regions and it fails, your beautiful multi-region topology fails as one unit. Map every global singleton and ask &ldquo;what is its blast radius?&rdquo;</div>
+
+<h2 id="interview">Principal-level interview lens</h2>
+<div class="callout ok"><span class="lbl">What strong candidates do</span>They start from RPO/RTO numbers tied to business impact and let those derive the topology &mdash; never reaching for &ldquo;active-active everywhere&rdquo; reflexively. They immediately name the cross-region latency tax and which write paths can or cannot pay it. They proactively raise split-brain and propose a third-region arbiter plus fencing rather than waiting to be prompted. They distinguish physical disasters (region loss) from logical ones (bad deploys, data corruption) and note that replication does not protect against the latter. And they treat failback and DR testing as first-class deliverables, not afterthoughts.</div>
+<ul>
+<li>Your standby promotes itself during a network partition while the primary is actually alive. Walk me through exactly how your design prevents the resulting split-brain &mdash; and how it reconciles state when the partition heals.</li>
+<li>Marketing pushes a config that corrupts a key table; it replicates to every region in 200&nbsp;ms. Your hot standby is now corrupted too. What in your architecture saves you, and what is your real RPO for <em>logical</em> disasters?</li>
+<li>You're told payments need RPO 0 and RTO under a minute across continents. Quantify the steady-state write-latency cost of synchronous cross-region commit, and propose an alternative that meets the intent without it.</li>
+<li>GDPR says EU user data cannot leave the EU. How does that constraint reshape your DR topology, your backups, and your handling of a right-to-erasure request?</li>
+<li>What is the difference between failover RTO with GeoDNS versus anycast, and what specifically determines each? When would you still gate failover behind a human?</li>
+<li>You've had clean multi-region for two years and never failed over for real. How confident are you it works, and what concrete evidence would you produce to a board after an audit?</li>
+</ul>
+
+<div class="navfoot"><a href="50 Deployment Strategies.htm">&lsaquo; Prev: Deployment Strategies</a><a class="nx" href="52 Security in System Design.htm">Next: Security in System Design &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

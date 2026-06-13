@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designing an API Rate Limiter</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05 Sharding or Data Partitioning.htm" href="05 Sharding or Data Partitioning.htm"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06 Indexes.htm" href="06 Indexes.htm"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07 Proxies.htm" href="07 Proxies.htm"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08 Queues.htm" href="08 Queues.htm"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09 Redundancy and Replication.htm" href="09 Redundancy and Replication.htm"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16 Designing Pastebin.htm" href="16 Designing Pastebin.htm"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17 Designing Instagram.htm" href="17 Designing Instagram.htm"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18 Designing Dropbox.htm" href="18 Designing Dropbox.htm"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19 Designing Facebook Messenger.htm" href="19 Designing Facebook Messenger.htm"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20 Designing Twitter.htm" href="20 Designing Twitter.htm"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21 Designing Youtube or Netflix.htm" href="21 Designing Youtube or Netflix.htm"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22 Designing Typeahead Suggestion.htm" href="22 Designing Typeahead Suggestion.htm"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk active" data-file="23 Designing an API Rate Limiter (_New_).htm" href="23 Designing an API Rate Limiter (_New_).htm"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24 Designing Twitter Search.htm" href="24 Designing Twitter Search.htm"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25 Designing a Web Crawler.htm" href="25 Designing a Web Crawler.htm"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26Designing Facebook’s Newsfeed.htm" href="26Designing Facebook’s Newsfeed.htm"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27 Designing Yelp or Nearby Friends.htm" href="27 Designing Yelp or Nearby Friends.htm"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28 Designing Uber backend.htm" href="28 Designing Uber backend.htm"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29 Design BookMyShow (_New_).htm" href="29 Design BookMyShow (_New_).htm"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30 Consensus and Raft.htm" href="30 Consensus and Raft.htm"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31 Consistency Models and PACELC.htm" href="31 Consistency Models and PACELC.htm"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32 Distributed Transactions.htm" href="32 Distributed Transactions.htm"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33 Time Clocks and Ordering.htm" href="33 Time Clocks and Ordering.htm"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34 Anti-Entropy and Gossip.htm" href="34 Anti-Entropy and Gossip.htm"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35 CRDTs.htm" href="35 CRDTs.htm"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36 Leader Election and Coordination.htm" href="36 Leader Election and Coordination.htm"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37 Replication Deep Dive.htm" href="37 Replication Deep Dive.htm"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38 Storage Engines LSM vs B-Tree.htm" href="38 Storage Engines LSM vs B-Tree.htm"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39 Kafka and Log-based Messaging.htm" href="39 Kafka and Log-based Messaging.htm"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40 Stream Processing and CDC.htm" href="40 Stream Processing and CDC.htm"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41 Batch and Big Data Processing.htm" href="41 Batch and Big Data Processing.htm"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42 Probabilistic Data Structures.htm" href="42 Probabilistic Data Structures.htm"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="64 Search and Elasticsearch.htm" href="64 Search and Elasticsearch.htm"><span class="n">64</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="43 Microservices and Service Mesh.htm" href="43 Microservices and Service Mesh.htm"><span class="n">43</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="44 API Design REST gRPC GraphQL.htm" href="44 API Design REST gRPC GraphQL.htm"><span class="n">44</span>API Design</a>
+<a class="lk" data-file="45 Event-Driven Architecture.htm" href="45 Event-Driven Architecture.htm"><span class="n">45</span>Event-Driven Architecture</a>
+<a class="lk" data-file="46 Containers Kubernetes and Serverless.htm" href="46 Containers Kubernetes and Serverless.htm"><span class="n">46</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="65 Object Storage and CDN.htm" href="65 Object Storage and CDN.htm"><span class="n">65</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="47 SLI SLO SLA and Error Budgets.htm" href="47 SLI SLO SLA and Error Budgets.htm"><span class="n">47</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="48 Observability.htm" href="48 Observability.htm"><span class="n">48</span>Observability</a>
+<a class="lk" data-file="49 Resilience Patterns.htm" href="49 Resilience Patterns.htm"><span class="n">49</span>Resilience Patterns</a>
+<a class="lk" data-file="50 Deployment Strategies.htm" href="50 Deployment Strategies.htm"><span class="n">50</span>Deployment Strategies</a>
+<a class="lk" data-file="51 Multi-Region and Disaster Recovery.htm" href="51 Multi-Region and Disaster Recovery.htm"><span class="n">51</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="52 Security in System Design.htm" href="52 Security in System Design.htm"><span class="n">52</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="53 Designing a Distributed Cache.htm" href="53 Designing a Distributed Cache.htm"><span class="n">53</span>Distributed Cache</a>
+<a class="lk" data-file="54 Designing a Distributed Message Queue.htm" href="54 Designing a Distributed Message Queue.htm"><span class="n">54</span>Distributed Message Queue</a>
+<a class="lk" data-file="55 Designing a Key-Value Store.htm" href="55 Designing a Key-Value Store.htm"><span class="n">55</span>Key-Value Store</a>
+<a class="lk" data-file="56 Designing a Unique ID Generator.htm" href="56 Designing a Unique ID Generator.htm"><span class="n">56</span>Unique ID Generator</a>
+<a class="lk" data-file="57 Designing a Notification System.htm" href="57 Designing a Notification System.htm"><span class="n">57</span>Notification System</a>
+<a class="lk" data-file="58 Designing a Distributed Job Scheduler.htm" href="58 Designing a Distributed Job Scheduler.htm"><span class="n">58</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="59 Designing a Payment System.htm" href="59 Designing a Payment System.htm"><span class="n">59</span>Payment System</a>
+<a class="lk" data-file="60 Designing Collaborative Editing.htm" href="60 Designing Collaborative Editing.htm"><span class="n">60</span>Collaborative Editing</a>
+<a class="lk" data-file="61 Designing Ad Click Aggregation.htm" href="61 Designing Ad Click Aggregation.htm"><span class="n">61</span>Ad Click Aggregation</a>
+<a class="lk" data-file="62 Designing a Distributed Locking Service.htm" href="62 Designing a Distributed Locking Service.htm"><span class="n">62</span>Distributed Locking</a>
+<a class="lk" data-file="66 Designing a Metrics and Monitoring System.htm" href="66 Designing a Metrics and Monitoring System.htm"><span class="n">66</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="67 Architectural Styles and How to Choose.htm" href="67 Architectural Styles and How to Choose.htm"><span class="n">67</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="68 Choosing a Database.htm" href="68 Choosing a Database.htm"><span class="n">68</span>Choosing a Database</a>
+<a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
+<a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Interviewing</h5>
+<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing an API Rate Limiter</div>
+<h1>Designing an API Rate Limiter</h1>
+<p class="sub"><em>Let's design an API Rate Limiter that throttles users based on the number of requests they send within a time window. Difficulty Level: Medium.</em></p>
+
+<div class="sechead">1. What is a Rate Limiter?</div>
+<p>Imagine we&rsquo;ve a service which is receiving a huge number of requests, but it can only serve a limited number of requests per second. To handle this problem, we would need some kind of throttling or rate limiting mechanism that will allow only a certain number of requests which our service can respond to. A rate limiter, at a high-level, limits the number of events an entity (user, device, IP, etc.) can perform in a particular time window. For example:</p>
+<ul>
+<li>A user can send only one message per second.</li>
+<li>A user is allowed only three failed credit card transactions per day.</li>
+<li>A single IP can only create twenty accounts per day.</li>
+</ul>
+<p>In general, a rate limiter caps how many requests a sender can issue in a specific time window. It then blocks requests once the cap is reached.</p>
+
+<div class="sechead">2. Why do we need API rate limiting?</div>
+<p>Rate Limiting helps to protect services against abusive behaviors targeting the application layer like <a href="https://en.wikipedia.org/wiki/Denial-of-service_attack" target="_blank">Denial-of-service (DOS)</a> attacks, brute-force password attempts, brute-force credit card transactions, etc. These attacks are usually a barrage of HTTP/S requests which may look like they are coming from real users, but are typically generated by machines (or bots). As a result, these attacks are often harder to detect and can more easily bring down a service, application, or an API.</p>
+<p>Rate limiting is also used to prevent revenue loss, to reduce infrastructure costs, to stop spam and online harassment. Following is a list of scenarios that can benefit from Rate limiting by making a service (or API) more reliable:</p>
+<ul>
+<li><strong>Misbehaving clients/scripts:</strong> Either intentionally or unintentionally, some entities can overwhelm a service by sending a large number of requests. Another scenario could be when a user is sending a lot of lower-priority requests, and we want to make sure that it doesn&rsquo;t affect the high-priority traffic. For example, users sending a high volume of requests for analytics data should not be allowed to hamper critical transactions for other users.</li>
+<li><strong>Security:</strong>&nbsp;By limiting the number of the second-factor attempts (in 2-factor auth) that the users are allowed to perform, for example, the number of times they&rsquo;re allowed to try with a wrong password.</li>
+<li><strong>To prevent abusive behavior and bad design practices:</strong>&nbsp;Without API limits, developers of client applications would use sloppy development tactics, for example requesting the same information over and over again.</li>
+<li><strong>To keep costs and resource usage under control:</strong> Services are generally designed for normal input behavior, for example, a user writing a single post in a minute. Computers could easily push thousands/second through an API. Rate limiter enables controls on service APIs.</li>
+<li><strong>Revenue:</strong>&nbsp;Certain services might want to limit operations based on the tier of their customer&rsquo;s service, and thus create a revenue model based on rate limiting. There could be default limits for all the APIs a service offers. To go beyond that, the user has to buy higher limits</li>
+<li><strong>To eliminate spikiness in traffic:</strong> So that a service stays up for everyone else.</li>
+</ul>
+
+<div class="sechead">3. Requirements and Goals of the System</div>
+<p>Our Rate Limiter should meet the following requirements:</p>
+<p><strong>Functional Requirements:</strong></p>
+<ol>
+<li>Limit the number of requests an entity can send to an API within a time window, e.g., 15 requests per second.</li>
+<li>The APIs are accessible through a cluster, so the rate limit should be&nbsp;considered across different servers. The user should get an error message whenever the&nbsp;defined threshold is crossed within a single server or across a combination of servers.</li>
+</ol>
+<p><strong>Non-Functional Requirements:</strong></p>
+<ol>
+<li>The system should be highly available. The rate limiter should always work since it protects our service from external attacks.</li>
+<li>Our rate limiter should not introduce substantial latencies affecting the user experience.</li>
+</ol>
+
+<div class="sechead">4. How to do Rate Limiting?</div>
+<p><strong>Rate Limiting</strong> is a process that is used to define the rate and speed at which consumers can access APIs. <strong>Throttling</strong> is the process of controlling the usage of the APIs by customers during a given period. Throttling can be defined at the application level and/or API level. When a throttle limit is crossed,&nbsp;the server returns &ldquo;429&rdquo; as HTTP&nbsp;status to the user with message content as &ldquo;Too many requests&rdquo;.</p>
+
+<div class="sechead">5. What are different types of throttling?</div>
+<p>Here are the three famous throttling types that are used by different services:</p>
+<p><strong>Hard Throttling:</strong> The number of API requests cannot exceed the throttle limit.</p>
+<p><strong>Soft Throttling:</strong> In this type, we can set the API request limit to exceed a certain percentage. For example, if we have rate-limit of 100 messages a minute and 10% exceed limit. Our rate limiter will allow up to 110 messages per minute.</p>
+<p><strong>Elastic or Dynamic Throttling</strong>: Under Elastic throttling, the number of requests can go beyond the threshold if the system has some resources available. For example, if a user is allowed only 100 messages a minute, we can let the user send more than 100 messages a minute if there are free resources available in the system.</p>
+
+<div class="sechead">6. What are different types of algorithms used for Rate Limiting?</div>
+<p>Following are the two types of algorithms used for Rate Limiting:</p>
+<p><strong>Fixed Window Algorithm:</strong> In this algorithm, the time window is considered from the start of the time-unit to the end of the time-unit. For example, a period would be considered as 0-60 seconds for a minute irrespective of the time frame at which the API request has been made. In the diagram below, there are two messages between 0-1 second and three messages between 1-2 second. If we&rsquo;ve a rate limiting of two messages a second, this algorithm will throttle only &lsquo;m5&rsquo;.</p>
+<p class="legacy-note">The original lesson showed a timeline diagram here illustrating the Fixed Window algorithm (messages m1&ndash;m5 across the 0&ndash;1s and 1&ndash;2s windows, with m5 throttled).</p>
+<p><strong>Rolling Window Algorithm:</strong> In this algorithm, the time window is considered from the fraction of the time at which the request is made plus the time window length. For example, if there are two messages sent at 300th&nbsp;millisecond and 400th&nbsp;millisecond of a second, we&rsquo;ll count them as two messages from 300th&nbsp;millisecond of that second up to the 300th&nbsp;millisecond of next second.&nbsp;In the above diagram, keeping two messages a second, we&rsquo;ll throttle &lsquo;m3&rsquo; and &lsquo;m4&rsquo;.</p>
+
+<div class="sechead">7. High level design for Rate Limiter</div>
+<p>Rate Limiter will be responsible for deciding which request will be served by the API servers and which request will be declined. Once a new request arrives, Web Server first asks the Rate Limiter to decide if it will be served or throttled. If the request is not throttled, then it&rsquo;ll be passed to the API servers.</p>
+<p class="legacy-note">The original lesson included a high-level architecture diagram here (caption: &ldquo;High level design for Rate Limiter&rdquo;) showing the client &rarr; Web Server &rarr; Rate Limiter decision &rarr; API servers flow.</p>
+
+<div class="sechead">8. Basic System Design and Algorithm</div>
+<p>Let&rsquo;s take the example where we want to limit the number of requests per user. Under this scenario, for each unique user, we would keep a count representing how many requests the user has made and a timestamp when we started counting the requests. We can keep it in a hashtable, where the &lsquo;key&rsquo; would be the &lsquo;UserID&rsquo; and &lsquo;value&rsquo; would be a structure containing an integer for the &lsquo;Count&rsquo; and an integer for the Epoch time:</p>
+<p class="legacy-note">The original lesson showed a diagram here of the hashtable structure: key = UserID, value = { Count, Epoch time }.</p>
+<p>Let&rsquo;s assume our rate limiter is allowing three requests per minute per user, so whenever a new request comes in, our rate limiter will perform following steps:</p>
+<ol>
+<li>
+<p>If the &lsquo;UserID&rsquo; is not present in the hash-table, insert it and set the &lsquo;Count&rsquo; to 1 and &lsquo;StarteTime&rsquo; to the current time (normalized to a minute) , and allow the request.</p>
+</li>
+<li>
+<p>Otherwise, find the record of the &lsquo;UserID&rsquo; and if &lsquo;CurrentTime &ndash; StartTime &gt;= 1 min&rsquo;, set the &lsquo;StartTime&rsquo; to the current time and &lsquo;Count&rsquo; to 1, and allow the request.</p>
+</li>
+<li>
+<p>If &lsquo;CurrentTime - StartTime &lt;= 1 min&rsquo; and</p>
+<ul>
+<li>If &lsquo;Count &lt; 3&rsquo;, increment the Count and allow the request.</li>
+<li>If &lsquo;Count &gt;= 3&rsquo;, reject the request.</li>
+</ul>
+</li>
+</ol>
+<p class="legacy-note">The original lesson included a flowchart diagram here illustrating the above Fixed Window request-handling steps.</p>
+<p><strong>What are the some problems with our algorithm?</strong></p>
+<ol>
+<li>This is a <strong>Fixed Window</strong> algorithm, as we&rsquo;re resetting the &lsquo;StartTime&rsquo; at the end of every minute, which means it can potentially allow twice the number of requests per minute. Imagine if Kristie sends three requests at the last second of a minute, then she can immediately send three more requests at the very first second of the next minute, resulting in 6 requests in the span of two seconds. The solution to this problem would be a sliding window algorithm which we&rsquo;ll discuss later.</li>
+</ol>
+<p class="legacy-note">The original lesson showed a diagram here illustrating the Fixed Window edge case (6 requests within two seconds across the window boundary).</p>
+<ol start="2">
+<li><strong>Atomicity:</strong> In a distributed environment, the &ldquo;read-and-then-write&rdquo; behavior can create a race condition. Imagine if Kristie&rsquo;s current &lsquo;Count&rsquo; is &ldquo;2&rdquo; and that she issues two more requests. If two separate processes served each of these requests and concurrently read the Count before either of them updated it, each process would think the Kristie can have one more request and that she had not hit the rate limit.</li>
+</ol>
+<p class="legacy-note">The original lesson showed a diagram here illustrating the atomicity / race condition problem under concurrent reads of the Count.</p>
+<p>If we are using <a href="https://en.wikipedia.org/wiki/Redis" target="_blank">Redis</a> to store our key-value, one solution to resolve the atomicity problem is to use <a href="https://redis.io/topics/distlock" target="_blank">Redis lock</a> for the duration of the read-update operation. This, however, would come at the expense of slowing down concurrent requests from the same user and introducing another layer of complexity. We can use <a href="https://en.wikipedia.org/wiki/Memcached" target="_blank">Memcached</a>, but it would have comparable complications.</p>
+<p>If we are using a simple hash-table, we can have a custom implementation for &lsquo;locking&rsquo; each record to solve our atomicity problems.</p>
+<p><strong>How much memory would we need to store all of the user data?</strong> Let&rsquo;s assume the simple solution where we are keeping all of the data in a hash-table.</p>
+<p>Let&rsquo;s assume &lsquo;UserID&rsquo; takes 8 bytes. Let&rsquo;s also assume a 2 byte &lsquo;Count&rsquo;, which can count up to 65k, is sufficient for our use case. Although epoch time will need 4 bytes, we can choose to store only the minute and second part, which can fit into 2 bytes. Hence, we need total 12 bytes to store a user&rsquo;s data:</p>
+<blockquote>8 + 2 + 2 = 12 bytes</blockquote>
+<p>Let&rsquo;s assume our hash-table has an overhead of 20 bytes for each record. If we need to track one million users at any time, the total memory we would need would be 32MB:</p>
+<blockquote>(12 + 20) bytes * 1 million =&gt; 32MB</blockquote>
+<p>If we assume that we would need a 4-byte number to lock each user&rsquo;s record to resolve our atomicity problems, we would require a total 36MB memory.</p>
+<p>This can easily fit on a single server, however we would not like to route all of our traffic through a single machine. Also, if we assume a rate limit of 10 requests per second, this would translate into 10 million QPS for our rate limiter! This would be too much for a single server. Practically we can assume we would use Redis or Memcached kind of a solution in a distributed setup. We&rsquo;ll be storing all the data in the remote Redis servers, and all the Rate Limiter servers will read (and update) these servers before serving or throttling any request.</p>
+
+<div class="sechead">9. Sliding Window algorithm</div>
+<p>We can maintain a sliding window if we can keep track of each request per user. We can store the timestamp of each request in a Redis <a href="https://redis.io/topics/data-types" target="_blank">Sorted Set</a> in our &lsquo;value&rsquo; field of hash-table.</p>
+<p class="legacy-note">The original lesson showed a diagram here of the Sliding Window data structure: a hash-table keyed by UserID with a Redis Sorted Set of request timestamps as the value.</p>
+<p>Let&rsquo;s assume our rate limiter is allowing three requests per minute per user, so whenever a new request comes in the Rate Limiter will perform following steps:</p>
+<ol>
+<li>
+<p>Remove all the timestamps from the Sorted Set that are older than &ldquo;CurrentTime - 1 minute&rdquo;.</p>
+</li>
+<li>
+<p>Count the total number of elements in the sorted set. Reject the request if this count is greater than our throttling limit of &ldquo;3&rdquo;.</p>
+</li>
+<li>
+<p>Insert the current time in the sorted set, and accept the request.</p>
+</li>
+</ol>
+<p class="legacy-note">The original lesson included a diagram here illustrating the Sliding Window steps (purging old timestamps, counting, and inserting the current timestamp).</p>
+<p><strong>How much memory would we need to store all of the user data for sliding window?</strong> Let&rsquo;s assume &lsquo;UserID&rsquo; takes 8 bytes. Each epoch time will require 4 bytes. Let&rsquo;s suppose we need a rate limiting of 500 requests per hour. Let&rsquo;s assume 20 bytes overhead for hash-table and 20 bytes overhead for the Sorted Set. At max, we would need a total of 12KB to store one user&rsquo;s data:</p>
+<blockquote>8 + (4 + 20 (sorted set overhead)) * 500 + 20 (hash-table overhead) = 12KB</blockquote>
+<p>Here are reserving 20 bytes overhead per element. In a sorted set, we can assume that we need at least two pointers to maintain order among elements. One pointer to the previous element and one to the next element. On a 64bit machine, each pointer will cost 8 bytes. So we will need 16 bytes for pointers. We added an extra word (4 bytes) for storing other overhead.</p>
+<p>If we need to track one million users at any time, total memory we would need would be 12GB:</p>
+<blockquote>12KB * 1 million ~= 12GB</blockquote>
+<p>Sliding Window Algorithm is taking a lot of memory compared to the Fixed Window; this would be a scalability issue. What if we can combine the above two algorithms to optimize our memory usage?</p>
+
+<div class="sechead">10. Sliding Window with Counters</div>
+<p>What if we keep track of request counts for each user using multiple fixed time windows, e.g., 1/60th the size of our rate limit&rsquo;s time window. For example, if we&rsquo;ve an hourly rate limit, we can keep a count for each minute and calculate the sum of all counters in the past hour when we receive a new request to calculate the throttling limit. This would reduce our memory footprint. Let&rsquo;s take an example where we rate limit at 500 requests per hour with an additional limit of 10 requests per minute. This means that when the sum of the counters with timestamps in the past hour exceeds the request threshold (500), Kristie has exceeded the rate limit. In addition to that, she can&rsquo;t send more than ten requests per minute. This would be a reasonable and a practical consideration, as none of the real users would send frequent requests. Even if they do, they will see success with retries since their limits get reset every minute.</p>
+<p>We can store our counters in a <a href="https://redis.io/topics/data-types" target="_blank">Redis Hash</a> - as it offers extremely efficient storage for fewer than 100 keys. When each request increments a counter in the hash, it also sets the hash to <a href="https://redis.io/commands/ttl" target="_blank">expire</a> an hour later. We&rsquo;ll normailze each &lsquo;time&rsquo; to a minute.</p>
+<p class="legacy-note">The original lesson showed a diagram here of the Sliding Window with Counters structure: per-user Redis Hash holding per-minute counters that expire after an hour.</p>
+<p><strong>How much memory we would need to store all the user data for sliding window with counters?</strong> Let&rsquo;s assume &lsquo;UserID&rsquo; takes 8 bytes. Each epoch time will need 4 bytes and the Counter would need 2 bytes. Let&rsquo;s suppose we need a rate limiting of 500 requests per hour. Assume 20 bytes overhead for hash-table and 20 bytes for Redis hash. Since we&rsquo;ll keep a count for each minute, at max, we would need 60 entries for each user. We would need a total of 1.6KB to store one user&rsquo;s data:</p>
+<blockquote>8 + (4 + 2 + 20 (Redis hash overhead)) * 60 + 20 (hash-table overhead) = 1.6KB</blockquote>
+<p>If we need to track one million users at any time, total memory we would need would be 1.6GB:</p>
+<blockquote>1.6KB * 1 million ~= 1.6GB</blockquote>
+<p>So, our &lsquo;Sliding Window with Counters&rsquo; algorithm uses 86% less memory than simple sliding window algorithm</p>
+
+<div class="sechead">11. Data Sharding and Caching</div>
+<p>We can shard based on the &lsquo;UserID&rsquo; to distribute user&rsquo;s data. For fault tolerance and replication we should use <a href="12 Consistent Hashing.htm" target="_blank">Consistent Hashing</a>. If we want to have different throttling limits for different APIs, we can choose to shard per user per API. Take the example of <a href="15 Designing a URL Shortening service like TinyURL.htm" target="_blank">URL Shortner</a>, we can have different rate limiter for <strong>creatURL()</strong> and <strong>deleteUR()</strong> APIs for each user or IP.</p>
+<p>If our APIs are partitioned, a practical consideration could be to have a separate (somewhat smaller) rate limiter for each API shard as well. Let&rsquo;s take the example of our URL Shortener, where we want to limit each user to not create more than 100 short URLs per hour. Assuming, we are using <strong>Hash-Based Partitioning</strong> for our <strong>creatURL()</strong> API, we can rate limit each partition to allow a user to create not more than three short URLs per minute, in addition to 100 short URLs per hour.</p>
+<p>Our system can get huge benefits from caching recent active users. Application servers before hitting backend servers can quickly check if the cache has the desired record. Our rate limiter can greatly benefit from the <strong>Write-back cache</strong>, by updating all counters and timestamps in cache only. The write to the permanent storage can be done at fixed intervals. This way we can ensure minimum latency added to the user&rsquo;s requests by the rate limiter. The reads can always hit the cache first, this will be extremely useful once the user has hit their maximum limit and the rate limiter will only be reading data without any updates.</p>
+<p>Least Recently Used (LRU) can be a reasonable cache eviction policy for our system.</p>
+
+<div class="sechead">12. Should we rate limit by IP or by user?</div>
+<p>Let&rsquo;s discuss pros and cons of using each one of these schemes:</p>
+<p><strong>IP:</strong> In this scheme, we throttle request per-IP, although it&rsquo;s not really optimal in terms of differentiating between &lsquo;good&rsquo; and &lsquo;bad&rsquo; actors, it&rsquo;s still better than not have rate limiting at all. The biggest problem with IP based throttling is when multiple users share a single public IP like in an internet cafe or smartphone users that are using the same gateway. One bad user can cause throttling to other users. Another issue could arise while caching IP-based limits, as there are a huge number of IPv6 addresses available to a hacker from even one computer, it&rsquo;s trivial to make a server run out of memory tracking IPv6 addresses!</p>
+<p><strong>User:</strong> Rate limiting can be done on APIs after user authentication. Once authenticated, the user will be provided with a token which the user will pass with each request. This will ensure that we will rate limit against a particular API that has a valid authentication token. But what if we have to rate limit on the login API itself? The weakness of this rate-limiting would be that a hacker can perform a denial of service attack against a user by entering wrong credentials up to the limit, after that the actual user will not be able to login.</p>
+<p><strong><em>How about if we combine the above two schemes?</em></strong></p>
+<p><strong>Hybrid:</strong> A right approach could be to do both per-IP and per-user rate limiting, as they both have weaknesses when implemented alone. Though, this will result in more cache entries with more details per entry hence requiring more memory and storage.</p>
+
+<div class="navfoot"><a href="22 Designing Typeahead Suggestion.htm">&lsaquo; Prev: Typeahead Suggestion</a><a class="nx" href="24 Designing Twitter Search.htm">Next: Designing Twitter Search &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Design Interviews: A Step-by-Step Guide</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05 Sharding or Data Partitioning.htm" href="05 Sharding or Data Partitioning.htm"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06 Indexes.htm" href="06 Indexes.htm"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07 Proxies.htm" href="07 Proxies.htm"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08 Queues.htm" href="08 Queues.htm"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09 Redundancy and Replication.htm" href="09 Redundancy and Replication.htm"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk active" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16 Designing Pastebin.htm" href="16 Designing Pastebin.htm"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17 Designing Instagram.htm" href="17 Designing Instagram.htm"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18 Designing Dropbox.htm" href="18 Designing Dropbox.htm"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19 Designing Facebook Messenger.htm" href="19 Designing Facebook Messenger.htm"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20 Designing Twitter.htm" href="20 Designing Twitter.htm"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21 Designing Youtube or Netflix.htm" href="21 Designing Youtube or Netflix.htm"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22 Designing Typeahead Suggestion.htm" href="22 Designing Typeahead Suggestion.htm"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23 Designing an API Rate Limiter (_New_).htm" href="23 Designing an API Rate Limiter (_New_).htm"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24 Designing Twitter Search.htm" href="24 Designing Twitter Search.htm"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25 Designing a Web Crawler.htm" href="25 Designing a Web Crawler.htm"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26Designing Facebook’s Newsfeed.htm" href="26Designing Facebook’s Newsfeed.htm"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27 Designing Yelp or Nearby Friends.htm" href="27 Designing Yelp or Nearby Friends.htm"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28 Designing Uber backend.htm" href="28 Designing Uber backend.htm"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29 Design BookMyShow (_New_).htm" href="29 Design BookMyShow (_New_).htm"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30 Consensus and Raft.htm" href="30 Consensus and Raft.htm"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31 Consistency Models and PACELC.htm" href="31 Consistency Models and PACELC.htm"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32 Distributed Transactions.htm" href="32 Distributed Transactions.htm"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33 Time Clocks and Ordering.htm" href="33 Time Clocks and Ordering.htm"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34 Anti-Entropy and Gossip.htm" href="34 Anti-Entropy and Gossip.htm"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35 CRDTs.htm" href="35 CRDTs.htm"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36 Leader Election and Coordination.htm" href="36 Leader Election and Coordination.htm"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37 Replication Deep Dive.htm" href="37 Replication Deep Dive.htm"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38 Storage Engines LSM vs B-Tree.htm" href="38 Storage Engines LSM vs B-Tree.htm"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39 Kafka and Log-based Messaging.htm" href="39 Kafka and Log-based Messaging.htm"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40 Stream Processing and CDC.htm" href="40 Stream Processing and CDC.htm"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41 Batch and Big Data Processing.htm" href="41 Batch and Big Data Processing.htm"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42 Probabilistic Data Structures.htm" href="42 Probabilistic Data Structures.htm"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="64 Search and Elasticsearch.htm" href="64 Search and Elasticsearch.htm"><span class="n">64</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="43 Microservices and Service Mesh.htm" href="43 Microservices and Service Mesh.htm"><span class="n">43</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="44 API Design REST gRPC GraphQL.htm" href="44 API Design REST gRPC GraphQL.htm"><span class="n">44</span>API Design</a>
+<a class="lk" data-file="45 Event-Driven Architecture.htm" href="45 Event-Driven Architecture.htm"><span class="n">45</span>Event-Driven Architecture</a>
+<a class="lk" data-file="46 Containers Kubernetes and Serverless.htm" href="46 Containers Kubernetes and Serverless.htm"><span class="n">46</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="65 Object Storage and CDN.htm" href="65 Object Storage and CDN.htm"><span class="n">65</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="47 SLI SLO SLA and Error Budgets.htm" href="47 SLI SLO SLA and Error Budgets.htm"><span class="n">47</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="48 Observability.htm" href="48 Observability.htm"><span class="n">48</span>Observability</a>
+<a class="lk" data-file="49 Resilience Patterns.htm" href="49 Resilience Patterns.htm"><span class="n">49</span>Resilience Patterns</a>
+<a class="lk" data-file="50 Deployment Strategies.htm" href="50 Deployment Strategies.htm"><span class="n">50</span>Deployment Strategies</a>
+<a class="lk" data-file="51 Multi-Region and Disaster Recovery.htm" href="51 Multi-Region and Disaster Recovery.htm"><span class="n">51</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="52 Security in System Design.htm" href="52 Security in System Design.htm"><span class="n">52</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="53 Designing a Distributed Cache.htm" href="53 Designing a Distributed Cache.htm"><span class="n">53</span>Distributed Cache</a>
+<a class="lk" data-file="54 Designing a Distributed Message Queue.htm" href="54 Designing a Distributed Message Queue.htm"><span class="n">54</span>Distributed Message Queue</a>
+<a class="lk" data-file="55 Designing a Key-Value Store.htm" href="55 Designing a Key-Value Store.htm"><span class="n">55</span>Key-Value Store</a>
+<a class="lk" data-file="56 Designing a Unique ID Generator.htm" href="56 Designing a Unique ID Generator.htm"><span class="n">56</span>Unique ID Generator</a>
+<a class="lk" data-file="57 Designing a Notification System.htm" href="57 Designing a Notification System.htm"><span class="n">57</span>Notification System</a>
+<a class="lk" data-file="58 Designing a Distributed Job Scheduler.htm" href="58 Designing a Distributed Job Scheduler.htm"><span class="n">58</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="59 Designing a Payment System.htm" href="59 Designing a Payment System.htm"><span class="n">59</span>Payment System</a>
+<a class="lk" data-file="60 Designing Collaborative Editing.htm" href="60 Designing Collaborative Editing.htm"><span class="n">60</span>Collaborative Editing</a>
+<a class="lk" data-file="61 Designing Ad Click Aggregation.htm" href="61 Designing Ad Click Aggregation.htm"><span class="n">61</span>Ad Click Aggregation</a>
+<a class="lk" data-file="62 Designing a Distributed Locking Service.htm" href="62 Designing a Distributed Locking Service.htm"><span class="n">62</span>Distributed Locking</a>
+<a class="lk" data-file="66 Designing a Metrics and Monitoring System.htm" href="66 Designing a Metrics and Monitoring System.htm"><span class="n">66</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="67 Architectural Styles and How to Choose.htm" href="67 Architectural Styles and How to Choose.htm"><span class="n">67</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="68 Choosing a Database.htm" href="68 Choosing a Database.htm"><span class="n">68</span>Choosing a Database</a>
+<a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
+<a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Interviewing</h5>
+<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; System Design Interviews: A Step-by-Step Guide</div>
+<h1>System Design Interviews: A Step-by-Step Guide</h1>
+<p class="sub"><em>A seven-step framework for tackling open-ended system design interviews — from clarifying requirements through identifying and resolving bottlenecks.</em></p>
+
+<p>Lots of people struggle with system design interviews (SDIs) primarily because of 1) Unstructured nature of SDIs, where you're asked to work on an open-ended design problem that doesn't have a standard answer, 2) Your lack of experience in developing large scale systems and, 3) You've not spend enough time to prepare for SDIs.</p>
+
+<p>Just like coding interviews, candidates who haven't spent time preparing for SDIs mostly perform poorly. This gets aggravated when you're interviewing at the top companies like Google, Facebook, Uber, etc. In these companies, if a candidate doesn't perform above average, they have a limited chance to get an offer. On the other hand, a good performance always results in a better offer (higher position and salary), since it reflects your ability to handle complex systems.</p>
+
+<p>In this course, we'll follow a step by step approach to solve multiple design problems. Here are those seven steps:</p>
+
+<div class="sechead">Step 1: Requirements clarifications</div>
+
+<p>Always ask questions to find the exact scope of the problem you're solving. Design questions are mostly open-ended, and they don't have ONE correct answer, that's why clarifying ambiguities early in the interview becomes critical. Candidates who spend enough time to clearly define the end goals of the system, always have a better chance to be successful in the interview. Also, since you only have 35-40 minutes to design a (supposedly) large system, you should clarify what parts of the system you would be focusing on.</p>
+
+<p>Under each step, we'll try to give examples of different design considerations for developing a Twitter-like service.</p>
+
+<p>Here are some questions for designing Twitter that should be answered before moving on to next steps:</p>
+
+<ul>
+<li>Will users of our service be able to post tweets and follow other people?</li>
+<li>Should we also design to create and display user's timeline?</li>
+<li>Will tweets contain photos and videos?</li>
+<li>Are we focusing on backend only or are we developing front-end too?</li>
+<li>Will users be able to search tweets?</li>
+<li>Do we need to display hot trending topics?</li>
+<li>Would there be any push notification for new (or important) tweets?</li>
+</ul>
+
+<p>All such question will determine how our end design will look like.</p>
+
+<div class="sechead">Step 2: System interface definition</div>
+
+<p>Define what APIs are expected from the system. This would not only establish the exact contract expected from the system but would also ensure if you haven't gotten any requirements wrong. Some examples for our Twitter-like service would be:</p>
+
+<pre><code>postTweet(user_id, tweet_data, tweet_location, user_location, timestamp, …)
+
+generateTimeline(user_id, current_time, user_location, …)
+
+markTweetFavorite(user_id, tweet_id, timestamp, …)</code></pre>
+
+<div class="sechead">Step 3: Back-of-the-envelope estimation</div>
+
+<p>It's always a good idea to estimate the scale of the system you're going to design. This would also help later when you'll be focusing on scaling, partitioning, load balancing and caching.</p>
+
+<ul>
+<li>What scale is expected from the system (e.g., number of new tweets, number of tweet views, how many timeline generations per sec., etc.)?</li>
+<li>How much storage would we need? We'll have different numbers if users can have photos and videos in their tweets.</li>
+<li>What network bandwidth usage are we expecting? This would be crucial in deciding how would we manage traffic and balance load between servers.</li>
+</ul>
+
+<div class="sechead">Step 4: Defining data model</div>
+
+<p>Defining the data model early will clarify how data will flow among different components of the system. Later, it will guide towards data partitioning and management. Candidate should be able to identify various entities of the system, how they will interact with each other and different aspect of data management like storage, transportation, encryption, etc. Here are some entities for our Twitter-like service:</p>
+
+<p><strong>User:</strong> UserID, Name, Email, DoB, CreationData, LastLogin, etc.<br>
+<strong>Tweet:</strong> TweetID, Content, TweetLocation, NumberOfLikes, TimeStamp, etc.<br>
+<strong>UserFollowos:</strong> UserdID1, UserID2<br>
+<strong>FavoriteTweets:</strong> UserID, TweetID, TimeStamp</p>
+
+<p>Which database system should we use? Would NoSQL like <a href="https://en.wikipedia.org/wiki/Apache_Cassandra" target="_blank">Cassandra</a> best fits our needs, or we should use MySQL-like solution. What kind of block storage should we use to store photos and videos?</p>
+
+<div class="sechead">Step 5: High-level design</div>
+
+<p>Draw a block diagram with 5-6 boxes representing core components of your system. You should identify enough components that are needed to solve the actual problem from end-to-end.</p>
+
+<p>For Twitter, at a high level, we would need multiple application servers to serve all the read/write requests with load balancers in front of them for traffic distributions. If we're assuming that we'll have a lot more read traffic (as compared to write), we can decide to have separate servers for handling these scenarios. On the backend, we need an efficient database that can store all the tweets and can support a huge number of reads. We would also need a distributed file storage system for storing photos and videos.</p>
+
+<img src="./_principal_files/img/5759778777202688.png" alt="diagram">
+
+<div class="sechead">Step 6: Detailed design</div>
+
+<p>Dig deeper into 2-3 components; interviewers feedback should always guide you towards which parts of the system she wants you to explain further. You should be able to provide different approaches, their pros and cons, and why would you choose one? Remember there is no single answer, the only thing important is to consider tradeoffs between different options while keeping system constraints in mind.</p>
+
+<ul>
+<li>Since we'll be storing a huge amount of data, how should we partition our data to distribute it to multiple databases? Should we try to store all the data of a user on the same database? What issue can it cause?</li>
+<li>How would we handle hot users, who tweet a lot or follow lots of people?</li>
+<li>Since user's timeline will contain most recent (and relevant) tweets, should we try to store our data in such a way that is optimized to scan latest tweets?</li>
+<li>How much and at which layer should we introduce cache to speed things up?</li>
+<li>What components need better load balancing?</li>
+</ul>
+
+<div class="sechead">Step 7: Identifying and resolving bottlenecks</div>
+
+<p>Try to discuss as many bottlenecks as possible and different approaches to mitigate them.</p>
+
+<ul>
+<li>Is there any single point of failure in our system? What are we doing to mitigate it?</li>
+<li>Do we've enough replicas of the data so that if we lose a few servers, we can still serve our users?</li>
+<li>Similarly, do we've enough copies of different services running, such that a few failures will not cause total system shutdown?</li>
+<li>How are we monitoring the performance of our service? Do we get alerts whenever critical components fail or their performance degrade?</li>
+</ul>
+
+<p>In summary, preparation and being organized during the interview are the keys to be successful in system design interviews.</p>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Conducting principal-level system design interviews</h2>
+<p>The 2018 lesson treats the interview as a checklist: clarify, estimate, draw boxes, talk about scaling. That framing produces a passing mid-level signal. At the principal/staff bar the rubric inverts: the interviewer is no longer grading whether you <em>can</em> produce a working design, but whether you behave like the most senior engineer in the room when the problem is deliberately underspecified. The single biggest differentiator is who is driving. A mid-level candidate waits to be told the scope; a principal candidate <b>imposes</b> a scope, states the assumptions out loud, and gets explicit buy-in before drawing anything.</p>
+
+<h3>The driving behaviors that separate the bands</h3>
+<p>A staff-level answer is a sequence of defensible decisions, each tied to a number and a trade-off. The candidate should narrate the funnel: what is in scope, what is explicitly <b>de-scoped</b>, and why. De-scoping is itself a strong signal &mdash; saying &ldquo;I&rsquo;ll treat payments as an external service with an idempotent API and not design the ledger today&rdquo; shows judgment about where the interesting complexity lives. The candidate then commits to a small set of functional requirements, derives non-functional targets (a latency SLO, an availability target, a consistency model), and only then reaches for components.</p>
+
+<div class="box"><b>Estimation discipline</b>
+Back-of-envelope is not arithmetic theater &mdash; it is how you justify every box. 100M DAU &times; 10 writes/day &asymp; 1B writes/day &asymp; ~12k writes/sec average, ~5&times; at peak &rarr; ~60k/sec. At 1&nbsp;KB/write that is ~1&nbsp;TB/day, ~365&nbsp;TB/yr before replication. Those three numbers decide whether a single Postgres primary is laughable, whether you need partitioning, and how many cache nodes you provision. A candidate who designs before estimating is guessing.</div>
+
+<h3>Signals a principal interviewer actively probes</h3>
+<table>
+<tr><th>Signal</th><th>Mid-level answer</th><th>Principal answer</th></tr>
+<tr><td>Requirements</td><td>Asks &ldquo;what features?&rdquo; then waits</td><td>Proposes scope, names what to cut, confirms SLOs</td></tr>
+<tr><td>Estimation</td><td>&ldquo;It needs to be scalable&rdquo;</td><td>QPS, storage/yr, fan-out, cache hit-rate, $ /month</td></tr>
+<tr><td>Data model</td><td>Lists tables</td><td>Access patterns first; picks B-tree vs <a href="38 Storage Engines LSM vs B-Tree.htm">LSM</a>, partition key, hot-key mitigation</td></tr>
+<tr><td>Bottleneck</td><td>Scales everything evenly</td><td>Identifies the <em>one</em> real bottleneck and goes deep there</td></tr>
+<tr><td>Failure</td><td>Adds &ldquo;a load balancer&rdquo;</td><td>Reasons about partial failure, retries, idempotency, blast radius</td></tr>
+</table>
+
+<h3>Deep-dive on the real bottleneck</h3>
+<p>Breadth is table stakes; depth is the differentiator. The interviewer steers toward the component where the difficulty concentrates &mdash; the timeline fan-out in a feed, the dedup/exactly-once path in a payment system, the inverted-index update in search. A principal candidate recognizes the pivot and trades fluently: push vs pull fan-out and the celebrity-account hybrid; read-repair vs synchronous quorum; write-through vs write-back caching and the resulting staleness window. Naming a specific algorithm (consistent hashing with virtual nodes, HyperLogLog for cardinality, CRDTs for conflict-free merge, a leader-election via Raft) signals that the breadth is backed by real machinery.</p>
+
+<h3>Design for failure and operability</h3>
+<p>Mid-level designs assume the happy path. The principal bar requires reasoning about partial failure as a first-class concern: what happens when a dependency is slow rather than down, how retries avoid building a retry storm (exponential backoff with jitter, token-bucket retry budgets), where circuit breakers and bulkheads cap the blast radius, and how the system degrades gracefully instead of cascading. These map directly to the <a href="49 Resilience Patterns.htm">Resilience Patterns</a> a candidate should be able to name without prompting. Equally important is operability: how would you know it broke? A strong candidate ties the design back to concrete <a href="47 SLI SLO SLA and Error Budgets.htm">SLOs &amp; Error Budgets</a> &mdash; which SLI is measured at which boundary, what the error budget permits, and what alert fires before users notice.</p>
+
+<h3>Cost awareness and evolution</h3>
+<p>Two dimensions the 2018 lesson omits entirely. <b>Cost</b>: a principal candidate sanity-checks the bill &mdash; cross-AZ replication traffic, the egress cost of a chatty microservice mesh, the difference between keeping 365&nbsp;TB hot in an in-memory cache versus tiering cold data to object storage. <b>Evolution</b>: the most senior signal is migration thinking. How does this design get from the current monolith to the proposed architecture without a big-bang cutover? Expect discussion of dual-writes, backfill jobs, shadow traffic, the strangler-fig pattern, and how to roll back. A system that cannot be incrementally adopted is an academic exercise.</p>
+
+<h3>Red flags that cap the score</h3>
+<ul>
+<li><b>No numbers.</b> Designing capacity, sharding, or caching without estimation is the most common down-level signal.</li>
+<li><b>Cargo-cult microservices.</b> Reaching for Kafka, a service mesh, and twelve services for a problem a single partitioned datastore solves &mdash; complexity with no justification.</li>
+<li><b>Over-engineering for scale that doesn&rsquo;t exist.</b> Multi-region active-active for a 10k-user internal tool.</li>
+<li><b>Ignoring failure.</b> Never asking &ldquo;what happens when this dies?&rdquo; or assuming the network is reliable.</li>
+<li><b>Passive driving.</b> Waiting to be told the requirements, the scope, and the next step.</li>
+</ul>
+<p>If you are on the other side of the table, structure the session so each of these signals has room to surface &mdash; the full playbook and a calibrated <a href="63 Principal Interviewer Question Bank.htm">Principal Interviewer&#39;s Question Bank</a> give per-signal prompts and follow-ups to push a strong candidate to the next layer of depth.</p>
+
+<div class="seealso"><b>See also:</b> <a href="63 Principal Interviewer Question Bank.htm">Principal Interviewer&#39;s Question Bank</a>, <a href="47 SLI SLO SLA and Error Budgets.htm">SLOs &amp; Error Budgets</a>, <a href="49 Resilience Patterns.htm">Resilience Patterns</a></div>
+</div>
+
+<div class="navfoot"><a href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm">&lsaquo; Prev: Long-Polling vs WebSockets vs SSE</a><a class="nx" href="15 Designing a URL Shortening service like TinyURL.htm">Next: Designing a URL Shortening Service &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

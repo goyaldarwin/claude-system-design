@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conflict-free Replicated Data Types (CRDTs)</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05 Sharding or Data Partitioning.htm" href="05 Sharding or Data Partitioning.htm"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06 Indexes.htm" href="06 Indexes.htm"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07 Proxies.htm" href="07 Proxies.htm"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08 Queues.htm" href="08 Queues.htm"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09 Redundancy and Replication.htm" href="09 Redundancy and Replication.htm"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16 Designing Pastebin.htm" href="16 Designing Pastebin.htm"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17 Designing Instagram.htm" href="17 Designing Instagram.htm"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18 Designing Dropbox.htm" href="18 Designing Dropbox.htm"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19 Designing Facebook Messenger.htm" href="19 Designing Facebook Messenger.htm"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20 Designing Twitter.htm" href="20 Designing Twitter.htm"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21 Designing Youtube or Netflix.htm" href="21 Designing Youtube or Netflix.htm"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22 Designing Typeahead Suggestion.htm" href="22 Designing Typeahead Suggestion.htm"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23 Designing an API Rate Limiter (_New_).htm" href="23 Designing an API Rate Limiter (_New_).htm"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24 Designing Twitter Search.htm" href="24 Designing Twitter Search.htm"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25 Designing a Web Crawler.htm" href="25 Designing a Web Crawler.htm"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26Designing Facebook’s Newsfeed.htm" href="26Designing Facebook’s Newsfeed.htm"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27 Designing Yelp or Nearby Friends.htm" href="27 Designing Yelp or Nearby Friends.htm"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28 Designing Uber backend.htm" href="28 Designing Uber backend.htm"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29 Design BookMyShow (_New_).htm" href="29 Design BookMyShow (_New_).htm"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30 Consensus and Raft.htm" href="30 Consensus and Raft.htm"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31 Consistency Models and PACELC.htm" href="31 Consistency Models and PACELC.htm"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32 Distributed Transactions.htm" href="32 Distributed Transactions.htm"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33 Time Clocks and Ordering.htm" href="33 Time Clocks and Ordering.htm"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34 Anti-Entropy and Gossip.htm" href="34 Anti-Entropy and Gossip.htm"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk active" data-file="35 CRDTs.htm" href="35 CRDTs.htm"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36 Leader Election and Coordination.htm" href="36 Leader Election and Coordination.htm"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37 Replication Deep Dive.htm" href="37 Replication Deep Dive.htm"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38 Storage Engines LSM vs B-Tree.htm" href="38 Storage Engines LSM vs B-Tree.htm"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39 Kafka and Log-based Messaging.htm" href="39 Kafka and Log-based Messaging.htm"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40 Stream Processing and CDC.htm" href="40 Stream Processing and CDC.htm"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41 Batch and Big Data Processing.htm" href="41 Batch and Big Data Processing.htm"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42 Probabilistic Data Structures.htm" href="42 Probabilistic Data Structures.htm"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="64 Search and Elasticsearch.htm" href="64 Search and Elasticsearch.htm"><span class="n">64</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="43 Microservices and Service Mesh.htm" href="43 Microservices and Service Mesh.htm"><span class="n">43</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="44 API Design REST gRPC GraphQL.htm" href="44 API Design REST gRPC GraphQL.htm"><span class="n">44</span>API Design</a>
+<a class="lk" data-file="45 Event-Driven Architecture.htm" href="45 Event-Driven Architecture.htm"><span class="n">45</span>Event-Driven Architecture</a>
+<a class="lk" data-file="46 Containers Kubernetes and Serverless.htm" href="46 Containers Kubernetes and Serverless.htm"><span class="n">46</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="65 Object Storage and CDN.htm" href="65 Object Storage and CDN.htm"><span class="n">65</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="47 SLI SLO SLA and Error Budgets.htm" href="47 SLI SLO SLA and Error Budgets.htm"><span class="n">47</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="48 Observability.htm" href="48 Observability.htm"><span class="n">48</span>Observability</a>
+<a class="lk" data-file="49 Resilience Patterns.htm" href="49 Resilience Patterns.htm"><span class="n">49</span>Resilience Patterns</a>
+<a class="lk" data-file="50 Deployment Strategies.htm" href="50 Deployment Strategies.htm"><span class="n">50</span>Deployment Strategies</a>
+<a class="lk" data-file="51 Multi-Region and Disaster Recovery.htm" href="51 Multi-Region and Disaster Recovery.htm"><span class="n">51</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="52 Security in System Design.htm" href="52 Security in System Design.htm"><span class="n">52</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="53 Designing a Distributed Cache.htm" href="53 Designing a Distributed Cache.htm"><span class="n">53</span>Distributed Cache</a>
+<a class="lk" data-file="54 Designing a Distributed Message Queue.htm" href="54 Designing a Distributed Message Queue.htm"><span class="n">54</span>Distributed Message Queue</a>
+<a class="lk" data-file="55 Designing a Key-Value Store.htm" href="55 Designing a Key-Value Store.htm"><span class="n">55</span>Key-Value Store</a>
+<a class="lk" data-file="56 Designing a Unique ID Generator.htm" href="56 Designing a Unique ID Generator.htm"><span class="n">56</span>Unique ID Generator</a>
+<a class="lk" data-file="57 Designing a Notification System.htm" href="57 Designing a Notification System.htm"><span class="n">57</span>Notification System</a>
+<a class="lk" data-file="58 Designing a Distributed Job Scheduler.htm" href="58 Designing a Distributed Job Scheduler.htm"><span class="n">58</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="59 Designing a Payment System.htm" href="59 Designing a Payment System.htm"><span class="n">59</span>Payment System</a>
+<a class="lk" data-file="60 Designing Collaborative Editing.htm" href="60 Designing Collaborative Editing.htm"><span class="n">60</span>Collaborative Editing</a>
+<a class="lk" data-file="61 Designing Ad Click Aggregation.htm" href="61 Designing Ad Click Aggregation.htm"><span class="n">61</span>Ad Click Aggregation</a>
+<a class="lk" data-file="62 Designing a Distributed Locking Service.htm" href="62 Designing a Distributed Locking Service.htm"><span class="n">62</span>Distributed Locking</a>
+<a class="lk" data-file="66 Designing a Metrics and Monitoring System.htm" href="66 Designing a Metrics and Monitoring System.htm"><span class="n">66</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="67 Architectural Styles and How to Choose.htm" href="67 Architectural Styles and How to Choose.htm"><span class="n">67</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="68 Choosing a Database.htm" href="68 Choosing a Database.htm"><span class="n">68</span>Choosing a Database</a>
+<a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
+<a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Interviewing</h5>
+<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part A: Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Conflict-free Replicated Data Types (CRDTs)</div>
+
+<h1>Conflict-free Replicated Data Types (CRDTs)</h1>
+<p class="sub">Data structures that converge to the same state under concurrent, conflict-free, multi-master writes &mdash; no consensus, no coordination, no last-writer wipes your edit.</p>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#why">Why CRDTs exist</a></li>
+<li><a href="#math">The math: join-semilattices &amp; monotonic merge</a></li>
+<li><a href="#two-flavors">Two flavors: state-based vs operation-based</a></li>
+<li><a href="#catalog">A catalog of concrete CRDTs</a></li>
+<li><a href="#sequences">Sequence CRDTs for collaborative text</a></li>
+<li><a href="#vs-ot">CRDTs vs Operational Transformation</a></li>
+<li><a href="#practice">Real systems</a></li>
+<li><a href="#interview">Principal-level interview lens</a></li>
+</ul>
+</div>
+
+<h2 id="why">Why CRDTs exist</h2>
+<p>Strongly consistent systems force every write through a single ordering point &mdash; a leader, a quorum, a consensus log. That gives you linearizability but costs you availability and latency: during a partition the minority side must reject writes (see <a href="30 Consensus and Raft.htm">Consensus and Raft</a> and the CP corner of <a href="11 CAP Theorem.htm">CAP Theorem</a>). For a huge class of workloads &mdash; shopping carts, presence, counters, collaborative documents, multi-region caches, offline-first mobile apps &mdash; that is the wrong trade. You want every replica to accept writes locally, immediately, even while partitioned, and you want them to <em>automatically</em> reconcile when they reconnect.</p>
+<p>The naive AP approach &mdash; <span class="key">last-writer-wins</span> on a whole object using wall-clock timestamps &mdash; silently discards concurrent updates and is at the mercy of clock skew (see <a href="33 Time Clocks and Ordering.htm">Time, Clocks and Ordering</a>). Dynamo-style systems exposed sibling versions and pushed conflict resolution onto the application, which is error-prone. <span class="key">CRDTs</span> (Shapiro, Pregui&ccedil;a, Baquero, Zawirski, 2011) are the principled answer: data types whose merge function is mathematically guaranteed to converge regardless of message order, duplication, or delay &mdash; so reconciliation is built into the type, not bolted on by the app.</p>
+<div class="callout note"><span class="lbl">Key insight</span>A CRDT trades away the ability to enforce <em>global invariants</em> (e.g. "balance never goes negative", "username is unique") in exchange for coordination-free availability. It guarantees <span class="key">Strong Eventual Consistency (SEC)</span>: any two replicas that have received the same set of updates &mdash; in any order &mdash; are in the same state. No rollbacks, no conflicts surfaced to the user.</div>
+
+<h2 id="math">The math: join-semilattices and monotonic merge</h2>
+<p>The convergence guarantee is not a heuristic; it falls out of order theory. A <span class="key">join-semilattice</span> is a set <code>S</code> with a partial order <code>&le;</code> and a binary <span class="key">join</span> (least upper bound) operation <code>&#8852;</code> that is:</p>
+<ul>
+<li><span class="key">Commutative:</span> <code>a &#8852; b = b &#8852; a</code> &mdash; order of merges does not matter.</li>
+<li><span class="key">Associative:</span> <code>(a &#8852; b) &#8852; c = a &#8852; (b &#8852; c)</code> &mdash; grouping does not matter.</li>
+<li><span class="key">Idempotent:</span> <code>a &#8852; a = a</code> &mdash; receiving the same state twice changes nothing.</li>
+</ul>
+<p>Those three properties (often abbreviated <span class="key">ACI</span>) are exactly the algebra of an unreliable network: messages get reordered (commutativity handles it), batched (associativity), and duplicated/redelivered (idempotence). If every local update only moves a replica's state <em>upward</em> in the lattice (a <span class="key">monotonic</span> inflation) and merges compute the join, then all replicas climb toward the same least upper bound. Convergence is a theorem, not a hope.</p>
+<pre><code>// The whole contract for a state-based CRDT
+state   : element of a join-semilattice S
+update  : S -&gt; S          // must be an inflation: s &le; update(s)
+merge   : S x S -&gt; S      // merge(a,b) = a &#8852; b  (LUB; commutative, assoc, idempotent)
+query   : S -&gt; V          // pure read, no side effects</code></pre>
+<p>Example: a single integer under <code>max</code>. <code>max</code> is commutative, associative, idempotent; updates only increase the value. Merge two replicas by taking the max and they converge. Most CRDTs are clever compositions of these primitive lattices (max, union, products, maps) so the join distributes elementwise.</p>
+
+<h2 id="two-flavors">Two flavors: state-based (CvRDT) vs operation-based (CmRDT)</h2>
+<p>There are two dual ways to build a CRDT, and a principal candidate should be able to argue the trade-off between them on demand.</p>
+
+<h3>State-based &mdash; CvRDT (convergent)</h3>
+<p>Replicas apply updates locally, then periodically ship their <em>entire state</em> to peers, who <code>merge</code> it via the join. Correctness only requires the join to be ACI; the transport may lose, reorder, or duplicate messages freely. This pairs naturally with the gossip / anti-entropy machinery in <a href="34 Anti-Entropy and Gossip.htm">Anti-Entropy and Gossip</a> &mdash; you just exchange states on a gossip round and merge.</p>
+<ul>
+<li><span class="pill">+ robust</span> tolerates any message loss/dup/reorder; transport need not be reliable.</li>
+<li><span class="pill">+ simple</span> the only proof obligation is "merge is a join".</li>
+<li><span class="pill">&minus; heavy</span> shipping full state is expensive as objects grow. <span class="key">Delta-state CRDTs</span> (&delta;-CRDTs, Almeida et al.) fix this by shipping only the join-irreducible deltas instead of the whole state.</li>
+</ul>
+
+<h3>Operation-based &mdash; CmRDT (commutative)</h3>
+<p>Replicas broadcast each <em>operation</em> (not state). Each replica applies operations locally and to inbound ops. Correctness requires concurrent operations to <span class="key">commute</span>, and the delivery layer to provide <span class="key">reliable causal broadcast</span> with exactly-once delivery (causal so that, e.g., a remove sees the matching add).</p>
+<ul>
+<li><span class="pill">+ compact</span> only the small op travels, not the whole object.</li>
+<li><span class="pill">&minus; demanding</span> needs a reliable, exactly-once, causally-ordered delivery layer &mdash; the network burden moves up the stack.</li>
+</ul>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>State-based pushes complexity into the <em>data type</em> (idempotent merges) and asks little of the network. Op-based pushes complexity into the <em>network</em> (causal exactly-once delivery) and keeps messages tiny. The two are theoretically equivalent in expressive power &mdash; you can emulate either with the other &mdash; but they fail differently in production. Pure op-based breaks badly if a message is duplicated; that is why most real engines (Automerge, Yjs, Riak) use delta-state or op-based-with-dedup hybrids.</div>
+
+<h2 id="catalog">A catalog of concrete CRDTs</h2>
+
+<h3>Counters</h3>
+<p><span class="key">G-Counter</span> (grow-only): a vector of per-replica counts, one slot per replica id. Increment bumps only your own slot. Merge is elementwise <code>max</code>; value is the sum of all slots. Because each replica owns its slot, two concurrent increments never collide.</p>
+<pre><code>// G-Counter at replica i, with N replicas
+P : map&lt;replicaId, int&gt;        // all zero initially
+increment():        P[i] += 1
+value():            return sum(P.values())
+merge(other):       for r in replicas: P[r] = max(P[r], other.P[r])</code></pre>
+<p><span class="key">PN-Counter</span>: two G-Counters, <code>P</code> for increments and <code>N</code> for decrements; value is <code>sum(P) - sum(N)</code>. This is how you build a decrementable counter (a like/unlike count, inventory tally) that still converges &mdash; you cannot subtract directly because decrement is not an inflation, so you track removals in a separate grow-only structure.</p>
+
+<h3>Sets</h3>
+<table>
+<thead><tr><th>Type</th><th>Behavior</th><th>Limitation</th></tr></thead>
+<tbody>
+<tr><td><span class="key">G-Set</span></td><td>Grow-only set; merge = union.</td><td>Cannot remove elements.</td></tr>
+<tr><td><span class="key">2P-Set</span></td><td>Two G-Sets: <code>added</code> and <code>tombstones</code>. An element is present iff in <code>added</code> and not in <code>tombstones</code>.</td><td>Once removed, an element can <em>never</em> be re-added (tombstone wins forever). Tombstone set grows unbounded.</td></tr>
+<tr><td><span class="key">LWW-Element-Set</span></td><td>Tag each add/remove with a timestamp; latest wins per element.</td><td>Depends on a tie-break/clock; concurrent add+remove resolved by policy, not by causality.</td></tr>
+<tr><td><span class="key">OR-Set</span> (Observed-Remove)</td><td>Each add attaches a unique tag (replica id + counter / UUID). Remove deletes only the tags it has <em>observed</em>. Element present iff it has at least one unremoved tag.</td><td>Tag bookkeeping; needs tombstones/version vectors unless compacted.</td></tr>
+</tbody>
+</table>
+<div class="callout note"><span class="lbl">Key insight</span>The <span class="key">OR-Set</span> is the workhorse and the one to reach for in interviews. It resolves the classic <em>add-wins</em> semantics for concurrent add/remove: if one replica adds <code>x</code> and another concurrently removes <code>x</code>, the add wins, because the remove only tombstones the tags it has actually seen &mdash; it cannot delete a tag created concurrently. This matches user intuition far better than 2P-Set's "removal is forever".</div>
+
+<h3>Registers</h3>
+<p><span class="key">LWW-Register</span>: holds a single value plus a timestamp; merge keeps the value with the higher timestamp (ties broken deterministically by replica id). Simple, but it <em>silently discards</em> concurrent writes &mdash; the loser is gone. Use a logical clock or hybrid logical clock, never raw wall-clock, to bound the damage from skew. <span class="key">MV-Register</span> (multi-value) instead keeps <em>all</em> concurrently-written values (using a version vector to detect concurrency) and surfaces the conflict set to the application &mdash; this is the Dynamo "siblings" model expressed as a CRDT.</p>
+
+<h2 id="sequences">Sequence CRDTs for collaborative text</h2>
+<p>Ordered lists (the text of a shared document) are the hard case: concurrent inserts at "the same position" must end up in a stable, agreed order on every replica without a central server. Naive index-based positions break instantly &mdash; remote ops shift the indices out from under you.</p>
+<p>The trick is to give every character/element a <span class="key">stable, globally-unique, densely-orderable identifier</span> so order is intrinsic to the element, not a mutable index:</p>
+<ul>
+<li><span class="key">RGA</span> (Replicated Growable Array): each element references the id of the element it was inserted <em>after</em>; concurrent inserts at the same anchor are ordered by a per-element timestamp/id. Deletes leave tombstones.</li>
+<li><span class="key">LSEQ / Logoot / Treedoc</span>: assign each position a <em>fractional / variable-length path identifier</em> between its neighbours, so you can always mint a new id strictly between any two existing ones (dense order). LSEQ adapts the allocation strategy to keep identifiers from growing too long under interleaved editing.</li>
+<li><span class="key">YATA</span> (used by <a href="60 Designing Collaborative Editing.htm">Yjs</a>) and <span class="key">Automerge</span>'s sequence type are the modern, production-tuned descendants.</li>
+</ul>
+<div class="callout warn"><span class="lbl">Pitfall</span>Two well-known costs of sequence CRDTs: (1) <span class="key">tombstone accumulation</span> &mdash; deleted characters linger as metadata; long-lived documents need garbage collection that itself requires knowing all replicas have seen the delete. (2) <span class="key">interleaving anomalies</span> &mdash; some early algorithms (and a famous bug class in Logoot) can interleave two users' concurrently-typed words into garbage like "HWeolrllod". RGA-family algorithms with proper origin tracking avoid this; verify any sequence CRDT against the interleaving test.</div>
+
+<h2 id="vs-ot">CRDTs vs Operational Transformation</h2>
+<p><span class="key">Operational Transformation</span> (OT) &mdash; the algorithm behind Google Docs &mdash; solves the same collaborative-editing problem differently. OT transforms each incoming operation against concurrent ones (an <code>index 5 insert</code> becomes <code>index 6</code> after a remote insert at 3) so they apply consistently. CRDTs instead make operations <em>commute by construction</em> via unique ids, so no transformation is needed.</p>
+<table>
+<thead><tr><th>Dimension</th><th>OT</th><th>CRDT</th></tr></thead>
+<tbody>
+<tr><td>Server requirement</td><td>Typically needs a central server to order/transform ops; pure P2P OT transform functions are notoriously hard to prove correct.</td><td>Pure peer-to-peer; no central authority needed.</td></tr>
+<tr><td>Correctness proof</td><td>Transform functions must satisfy TP1/TP2; many published OT algorithms were later found buggy.</td><td>Convergence follows from lattice/commutativity algebra &mdash; easier to reason about.</td></tr>
+<tr><td>Metadata cost</td><td>Low &mdash; ops carry just indices.</td><td>Higher &mdash; per-element ids and tombstones.</td></tr>
+<tr><td>Offline / partition</td><td>Works but reconciliation is server-mediated.</td><td>First-class offline support; merge on reconnect.</td></tr>
+</tbody>
+</table>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>The industry has been migrating toward CRDTs for new collaborative and local-first products (Figma, Linear, Apple Notes, many Y.js apps) precisely because they drop the central-server requirement and support offline editing cleanly. OT still wins on memory footprint and is entrenched where a server already mediates every edit (Google Docs). See <a href="60 Designing Collaborative Editing.htm">Designing Collaborative Editing</a> for the full system design.</div>
+
+<h2 id="practice">Real systems</h2>
+<ul>
+<li><span class="key">Riak</span> shipped the first mainstream CRDT library ("Riak DT") &mdash; counters, sets, maps, registers &mdash; built on its Dynamo-style vector-clock foundation, letting the database auto-resolve siblings instead of returning conflicts to the app.</li>
+<li><span class="key">Redis (Active-Active / CRDB)</span> in Redis Enterprise implements geo-distributed multi-master replication where Redis types (strings as LWW/MV registers, counters as PN-counters, sets as OR-Sets, sorted sets) are backed by CRDTs so each region accepts local writes and converges. Plain open-source Redis is single-master and is <em>not</em> this.</li>
+<li><span class="key">Automerge</span> and <span class="key">Yjs</span> are the dominant JSON/document CRDT libraries powering local-first and collaborative apps; they use op-based/delta encodings with binary compaction and run in the browser and on mobile.</li>
+<li><span class="key">Azure Cosmos DB</span> multi-region writes and various caches expose CRDT-style merge policies; CDNs and presence/online-status systems lean on grow-only sets and counters.</li>
+<li>Amazon's original shopping-cart conflict resolution is the canonical motivating example: merging carts as an OR-Set-like union means a deleted-then-re-added item resurfaces &mdash; an availability-favoring choice over losing a customer's add.</li>
+</ul>
+<div class="callout warn"><span class="lbl">Pitfall</span>CRDTs are not a universal substitute for consensus. They cannot enforce cross-key invariants: "total inventory &ge; 0", "this seat is booked by exactly one person", "balance never overdraws". Those require coordination (locks, consensus, or compensating reservation patterns). A common architecture splits the system &mdash; CRDTs for the high-volume, conflict-tolerant 95% (carts, presence, edits) and a consensus/transactional core for the invariant-critical 5% (payment capture, seat allocation). See <a href="32 Distributed Transactions.htm">Distributed Transactions</a> and <a href="31 Consistency Models and PACELC.htm">Consistency Models &amp; PACELC</a>.</div>
+
+<h2 id="interview">Principal-level interview lens</h2>
+<div class="callout ok"><span class="lbl">What strong candidates do</span>They lead with the algebra &mdash; "I need a merge that's commutative, associative, idempotent so it survives reorder/dup/redelivery" &mdash; rather than memorized type names. They pick the <em>right</em> type for the semantics (OR-Set for add-wins, PN-Counter for likes, MV-Register when conflicts must be surfaced) and they name the costs out loud: tombstone GC, metadata growth, and the inability to enforce global invariants. They explicitly draw the boundary between the CRDT-able part of the system and the part that still needs consensus, and they choose state-based vs op-based based on what the network layer can guarantee.</div>
+<ul>
+<li>Walk me through why a G-Counter cannot just be a single integer with <code>+=</code> and merge-by-max. Why does each replica need its own slot? What breaks otherwise?</li>
+<li>A user adds an item to a shared list on their phone (offline) while another device removes the same item. With a 2P-Set, an LWW-Set, and an OR-Set, what does each converge to &mdash; and which matches user expectation?</li>
+<li>You have a PN-Counter for available inventory across 5 regions. Each region decrements on a sale. Explain precisely why this can oversell, and what minimal coordination you would add to prevent going negative without globally serializing all sales.</li>
+<li>State-based vs op-based: your replication runs over an at-least-once message bus with no ordering guarantees. Which flavor do you choose and why? What changes if you instead have a reliable causal-broadcast layer?</li>
+<li>Tombstones accumulate forever in a long-lived collaborative document. Design a safe garbage-collection scheme. What do you need to know about every replica before you can physically delete a tombstone, and how does that reintroduce a coordination problem?</li>
+<li>Compare CRDT-based and OT-based collaborative text editing for a product that must work fully offline for days. Which do you pick, what's your metadata budget, and how do you test for interleaving anomalies?</li>
+</ul>
+
+<div class="navfoot"><a href="34 Anti-Entropy and Gossip.htm">&lsaquo; Prev: Anti-Entropy and Gossip</a><a class="nx" href="36 Leader Election and Coordination.htm">Next: Leader Election and Coordination &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

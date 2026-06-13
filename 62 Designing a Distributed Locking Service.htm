@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designing a Distributed Locking Service</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05 Sharding or Data Partitioning.htm" href="05 Sharding or Data Partitioning.htm"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06 Indexes.htm" href="06 Indexes.htm"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07 Proxies.htm" href="07 Proxies.htm"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08 Queues.htm" href="08 Queues.htm"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09 Redundancy and Replication.htm" href="09 Redundancy and Replication.htm"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16 Designing Pastebin.htm" href="16 Designing Pastebin.htm"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17 Designing Instagram.htm" href="17 Designing Instagram.htm"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18 Designing Dropbox.htm" href="18 Designing Dropbox.htm"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19 Designing Facebook Messenger.htm" href="19 Designing Facebook Messenger.htm"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20 Designing Twitter.htm" href="20 Designing Twitter.htm"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21 Designing Youtube or Netflix.htm" href="21 Designing Youtube or Netflix.htm"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22 Designing Typeahead Suggestion.htm" href="22 Designing Typeahead Suggestion.htm"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23 Designing an API Rate Limiter (_New_).htm" href="23 Designing an API Rate Limiter (_New_).htm"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24 Designing Twitter Search.htm" href="24 Designing Twitter Search.htm"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25 Designing a Web Crawler.htm" href="25 Designing a Web Crawler.htm"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26Designing Facebook’s Newsfeed.htm" href="26Designing Facebook’s Newsfeed.htm"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27 Designing Yelp or Nearby Friends.htm" href="27 Designing Yelp or Nearby Friends.htm"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28 Designing Uber backend.htm" href="28 Designing Uber backend.htm"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29 Design BookMyShow (_New_).htm" href="29 Design BookMyShow (_New_).htm"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30 Consensus and Raft.htm" href="30 Consensus and Raft.htm"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31 Consistency Models and PACELC.htm" href="31 Consistency Models and PACELC.htm"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32 Distributed Transactions.htm" href="32 Distributed Transactions.htm"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33 Time Clocks and Ordering.htm" href="33 Time Clocks and Ordering.htm"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34 Anti-Entropy and Gossip.htm" href="34 Anti-Entropy and Gossip.htm"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35 CRDTs.htm" href="35 CRDTs.htm"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36 Leader Election and Coordination.htm" href="36 Leader Election and Coordination.htm"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37 Replication Deep Dive.htm" href="37 Replication Deep Dive.htm"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38 Storage Engines LSM vs B-Tree.htm" href="38 Storage Engines LSM vs B-Tree.htm"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39 Kafka and Log-based Messaging.htm" href="39 Kafka and Log-based Messaging.htm"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40 Stream Processing and CDC.htm" href="40 Stream Processing and CDC.htm"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41 Batch and Big Data Processing.htm" href="41 Batch and Big Data Processing.htm"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42 Probabilistic Data Structures.htm" href="42 Probabilistic Data Structures.htm"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="64 Search and Elasticsearch.htm" href="64 Search and Elasticsearch.htm"><span class="n">64</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="43 Microservices and Service Mesh.htm" href="43 Microservices and Service Mesh.htm"><span class="n">43</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="44 API Design REST gRPC GraphQL.htm" href="44 API Design REST gRPC GraphQL.htm"><span class="n">44</span>API Design</a>
+<a class="lk" data-file="45 Event-Driven Architecture.htm" href="45 Event-Driven Architecture.htm"><span class="n">45</span>Event-Driven Architecture</a>
+<a class="lk" data-file="46 Containers Kubernetes and Serverless.htm" href="46 Containers Kubernetes and Serverless.htm"><span class="n">46</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="65 Object Storage and CDN.htm" href="65 Object Storage and CDN.htm"><span class="n">65</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="47 SLI SLO SLA and Error Budgets.htm" href="47 SLI SLO SLA and Error Budgets.htm"><span class="n">47</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="48 Observability.htm" href="48 Observability.htm"><span class="n">48</span>Observability</a>
+<a class="lk" data-file="49 Resilience Patterns.htm" href="49 Resilience Patterns.htm"><span class="n">49</span>Resilience Patterns</a>
+<a class="lk" data-file="50 Deployment Strategies.htm" href="50 Deployment Strategies.htm"><span class="n">50</span>Deployment Strategies</a>
+<a class="lk" data-file="51 Multi-Region and Disaster Recovery.htm" href="51 Multi-Region and Disaster Recovery.htm"><span class="n">51</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="52 Security in System Design.htm" href="52 Security in System Design.htm"><span class="n">52</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="53 Designing a Distributed Cache.htm" href="53 Designing a Distributed Cache.htm"><span class="n">53</span>Distributed Cache</a>
+<a class="lk" data-file="54 Designing a Distributed Message Queue.htm" href="54 Designing a Distributed Message Queue.htm"><span class="n">54</span>Distributed Message Queue</a>
+<a class="lk" data-file="55 Designing a Key-Value Store.htm" href="55 Designing a Key-Value Store.htm"><span class="n">55</span>Key-Value Store</a>
+<a class="lk" data-file="56 Designing a Unique ID Generator.htm" href="56 Designing a Unique ID Generator.htm"><span class="n">56</span>Unique ID Generator</a>
+<a class="lk" data-file="57 Designing a Notification System.htm" href="57 Designing a Notification System.htm"><span class="n">57</span>Notification System</a>
+<a class="lk" data-file="58 Designing a Distributed Job Scheduler.htm" href="58 Designing a Distributed Job Scheduler.htm"><span class="n">58</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="59 Designing a Payment System.htm" href="59 Designing a Payment System.htm"><span class="n">59</span>Payment System</a>
+<a class="lk" data-file="60 Designing Collaborative Editing.htm" href="60 Designing Collaborative Editing.htm"><span class="n">60</span>Collaborative Editing</a>
+<a class="lk" data-file="61 Designing Ad Click Aggregation.htm" href="61 Designing Ad Click Aggregation.htm"><span class="n">61</span>Ad Click Aggregation</a>
+<a class="lk active" data-file="62 Designing a Distributed Locking Service.htm" href="62 Designing a Distributed Locking Service.htm"><span class="n">62</span>Distributed Locking</a>
+<a class="lk" data-file="66 Designing a Metrics and Monitoring System.htm" href="66 Designing a Metrics and Monitoring System.htm"><span class="n">66</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="67 Architectural Styles and How to Choose.htm" href="67 Architectural Styles and How to Choose.htm"><span class="n">67</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="68 Choosing a Database.htm" href="68 Choosing a Database.htm"><span class="n">68</span>Choosing a Database</a>
+<a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
+<a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Interviewing</h5>
+<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part F: System Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Locking Service</div>
+
+<h1>Designing a Distributed Locking Service</h1>
+<p class="sub">Mutual exclusion across machines that crash and partition &mdash; why locks need consensus, why TTLs alone are unsafe, and why fencing tokens are the real fix.</p>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#req">Requirements and scope</a></li>
+<li><a href="#need">Do you actually need a distributed lock?</a></li>
+<li><a href="#why-consensus">Why a lock needs consensus underneath</a></li>
+<li><a href="#leases">Lease-based locks with TTL</a></li>
+<li><a href="#fencing">The fencing-token problem</a></li>
+<li><a href="#zk">Sessions and ephemeral nodes (ZooKeeper / Chubby)</a></li>
+<li><a href="#redlock">The Redlock debate</a></li>
+<li><a href="#api">A reference design and API</a></li>
+<li><a href="#interview">Principal-level interview lens</a></li>
+</ul>
+</div>
+
+<h2 id="req">Requirements and scope</h2>
+<p>The brief: design a service that lets independent processes &mdash; running on different machines, in different datacenters, with no shared memory &mdash; coordinate exclusive access to a resource. This is the role played by <span class="key">Google Chubby</span>, <span class="key">Apache ZooKeeper</span>, <span class="key">etcd</span>, and <span class="key">HashiCorp Consul</span> in real fleets.</p>
+<p>Functional requirements:</p>
+<ul>
+<li><span class="key">Mutual exclusion:</span> at most one client holds a named lock at any instant.</li>
+<li><span class="key">Acquire / release / try-acquire</span> with optional blocking and a wait queue (fairness).</li>
+<li><span class="key">Shared/exclusive (read/write)</span> modes are a common extension.</li>
+<li>Lock <span class="key">ownership metadata</span> &mdash; who holds it, since when &mdash; for debugging and observability.</li>
+</ul>
+<p>Non-functional requirements &mdash; these dominate the design:</p>
+<ul>
+<li><span class="key">Safety:</span> never grant the same exclusive lock to two clients. This is non-negotiable and must survive crashes, GC pauses, and partitions.</li>
+<li><span class="key">Liveness (no deadlock):</span> if a lock holder crashes, the lock must eventually be reclaimable. A lock you can never release is worse than no lock.</li>
+<li><span class="key">Fault tolerance:</span> the service survives the loss of a minority of nodes.</li>
+<li><span class="key">Low, predictable latency</span> for acquire/release; locks sit on the hot path.</li>
+</ul>
+<div class="callout warn"><span class="lbl">Pitfall</span>Safety and liveness pull in opposite directions. To guarantee liveness you must time out crashed holders; but a "crashed" holder can just be paused (GC, VM migration, network blip) and wake up still believing it holds the lock. Reconciling these two is the entire substance of this problem.</div>
+
+<h2 id="need">Do you actually need a distributed lock?</h2>
+<p>A principal should open by interrogating the requirement, because distributed locks are reached for far too often and are a frequent source of correctness bugs. There are two legitimate purposes, and they have very different bars:</p>
+<ul>
+<li><span class="key">Efficiency:</span> avoid doing duplicate work (e.g. only one worker regenerates a cache entry). A rare double-execution is merely wasteful. A weak, single-node lock is fine here.</li>
+<li><span class="key">Correctness:</span> two clients writing the same resource would corrupt data or double-charge a customer. Here a single violation is a catastrophe, and you need the full machinery below.</li>
+</ul>
+<div class="callout ok"><span class="lbl">What strong candidates do</span>They ask <em>"efficiency or correctness?"</em> first. If correctness, they push back on whether a lock is even the right tool: often the better answer is to make the operation idempotent, use an atomic compare-and-swap / conditional write on the resource itself, partition work so a single owner is structurally guaranteed (e.g. Kafka partition assignment), or use a database transaction. A lock is a coordination band-aid layered <em>outside</em> the system of record; pushing the invariant <em>into</em> the system of record is almost always safer.</div>
+<p>This connects directly to <a href="58 Designing a Distributed Job Scheduler.htm">Designing a Distributed Job Scheduler</a> (ensuring a task runs once) and <a href="36 Leader Election and Coordination.htm">Leader Election and Coordination</a> (a "lock held forever by one process" is just leader election).</p>
+
+<h2 id="why-consensus">Why a lock needs consensus underneath</h2>
+<p>The naive design &mdash; a single server holding an in-memory hash of <code>lockName &rarr; owner</code> &mdash; gives perfect mutual exclusion until that server dies, at which point every lock is lost and liveness is gone. To be fault tolerant you must replicate the lock state, and the instant you replicate state across machines you are forced to solve agreement: which replica's view of "who holds lock L" is authoritative when they disagree?</p>
+<p>That is the <span class="key">consensus</span> problem. A distributed lock service is, at its core, a thin API over a <span class="key">replicated state machine</span> driven by a consensus log &mdash; Raft in etcd and Consul, Zab (a Paxos relative) in ZooKeeper, Paxos in Chubby. The lock state is just an entry in a consistently-replicated, linearizable key-value store. "Acquire lock L" becomes a CAS append to the consensus log: <em>create key <code>/locks/L</code> if it does not exist</em>. Because consensus gives <span class="key">linearizability</span>, every client sees a single agreed history of acquisitions and releases.</p>
+<div class="callout note"><span class="lbl">Key insight</span>You cannot build a <em>correct</em> distributed lock on top of a store that lacks linearizable, fault-tolerant compare-and-set. That is why locks are built on Chubby/ZooKeeper/etcd and not on an eventually-consistent store or a single Redis node. The lock service inherits the CP nature of its consensus core (see <a href="30 Consensus and Raft.htm">Consensus and Raft</a> and <a href="11 CAP Theorem.htm">CAP Theorem</a>): during a partition the minority side cannot grant locks, by design.</div>
+<p>The consensus layer also gives a clean answer to ordering and fairness. Because every operation is sequenced in the replicated log, the service can hand out locks in request order and there is a single global timeline of events (relevant when reasoning about happens-before; see <a href="33 Time Clocks and Ordering.htm">Time, Clocks and Ordering</a>).</p>
+
+<h2 id="leases">Lease-based locks with TTL</h2>
+<p>To prevent a crashed holder from deadlocking the lock forever, locks are granted as <span class="key">leases</span>: a lock is held only for a bounded time-to-live (TTL), and the holder must <span class="key">renew</span> (heartbeat) before expiry to keep it. If the holder crashes, it stops renewing, the lease expires, and the service reclaims the lock automatically.</p>
+<pre><code>// Client side: acquire then keep alive
+lease = locks.acquire("L", ttl=15s)        // CAS create in consensus store
+spawn renewer:
+    every 5s: locks.renew(lease)            // extend TTL while alive
+do_work_under_lock()
+locks.release(lease)
+stop renewer</code></pre>
+<p>The TTL is a tension knob. <span class="key">Short TTL</span> = fast crash recovery but more renewal traffic and higher risk of false expiry under load. <span class="key">Long TTL</span> = cheap, but a crashed holder blocks others for a long time. etcd implements this with a <code>Lease</code> object that keys attach to; ZooKeeper achieves the same effect via <em>session</em> timeouts (below).</p>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Time-based leases require <em>bounded clock drift</em> and <em>bounded scheduling delay</em> to be safe. Neither is guaranteed in practice: a stop-the-world GC pause, a hypervisor freezing a VM for live migration, or a long disk stall can exceed any TTL you pick. This is exactly where TTL-only locks become <em>unsafe</em>, which motivates fencing tokens.</div>
+
+<h2 id="fencing">The fencing-token problem</h2>
+<p>This is the heart of the lesson and Martin Kleppmann's well-known critique. Consider the failure timeline that any TTL-based lock permits:</p>
+<ol>
+<li>Client&nbsp;1 acquires lock L with a 15s lease and begins writing to a shared store.</li>
+<li>Client&nbsp;1 hits a <span class="key">stop-the-world GC pause</span> (or VM migration, or a swapped-out page) lasting 20s.</li>
+<li>The lease expires at 15s. The lock service, correctly, reclaims L and grants it to Client&nbsp;2.</li>
+<li>Client&nbsp;2 begins writing to the shared store.</li>
+<li>Client&nbsp;1 resumes from its pause &mdash; <em>still believing it holds the lock</em> &mdash; and issues its delayed write.</li>
+</ol>
+<p>Now two clients write concurrently. The lock service did nothing wrong; the lock was correctly exclusive at every instant according to its own clock. The bug is that <span class="key">the client's belief about holding the lock is stale</span>, and the protected resource has no way to know that. <strong>No TTL, however carefully tuned, closes this hole</strong> &mdash; the pause can always exceed it, and you cannot detect "this node is paused" from inside the node.</p>
+<div class="callout warn"><span class="lbl">Pitfall</span>Adding a "check the lock again right before writing" step does <em>not</em> fix this. The pause can occur in the window between the check and the write. Mutual exclusion on the lock does not imply mutual exclusion on the resource; the gap between them is unbounded.</div>
+<h3>The fix: monotonic fencing tokens</h3>
+<p>The lock service returns, with every grant, a <span class="key">fencing token</span> &mdash; a number that strictly increases on each successful acquisition (a monotonic counter maintained in the consensus log; ZooKeeper's <code>zxid</code> / per-node version, etcd's <code>revision</code>, serve this role). The client passes this token on every write to the protected resource, and the resource (or its storage layer / gateway) <span class="key">rejects any write carrying a token lower than the highest it has already seen</span>.</p>
+<pre><code>// Lock service
+token = consensus.next_monotonic_token()    // strictly increasing, never reused
+grant(client, lease, token)
+
+// Protected storage, on every write
+def write(data, fencing_token):
+    if fencing_token &lt;= self.max_seen_token:
+        reject("stale token")                // an old, paused holder is fenced out
+    self.max_seen_token = fencing_token
+    apply(data)</code></pre>
+<p>Replaying the timeline: Client&nbsp;1 holds token 33, Client&nbsp;2 gets token 34. When Client&nbsp;2 writes, the store records max_seen=34. When the paused Client&nbsp;1 finally writes with token 33, the store sees 33&nbsp;&le;&nbsp;34 and rejects it. The stale holder is <span class="key">fenced</span>.</p>
+<div class="callout note"><span class="lbl">Key insight</span>The lock service alone can never guarantee correctness, because correctness depends on what the <em>resource</em> does. Fencing pushes the final enforcement into the resource itself: the lock orders intentions, the fencing token lets the resource reject out-of-order effects. A correctness-critical design that uses a lock <em>without</em> a fencing mechanism on the protected resource is, by Kleppmann's argument, simply broken &mdash; and a strong candidate will name this explicitly.</div>
+<p>The catch: this only works if the protected resource can <em>check and store</em> a token. Many can (databases via a <code>WHERE token &gt; ?</code> conditional update, object stores via conditional writes / preconditions). Some cannot &mdash; an arbitrary side-effecting API with no idempotency or versioning support cannot be safely fenced, which is itself a signal that a lock is the wrong tool for that interaction.</p>
+
+<h2 id="zk">Sessions and ephemeral nodes (ZooKeeper / Chubby)</h2>
+<p>ZooKeeper offers an elegant lock primitive built on two features. A <span class="key">session</span> is a client&ndash;cluster connection with a negotiated timeout; the client heartbeats to keep it alive, and if heartbeats stop the session expires server-side. An <span class="key">ephemeral znode</span> is a node tied to a session &mdash; when the session ends (crash, network loss, expiry) the ZooKeeper cluster automatically deletes the node. This is the lease mechanism realized as data, with crash-cleanup handled by the cluster rather than the client.</p>
+<p>The canonical recipe avoids the <span class="key">herd effect</span> (every waiter waking on each release) by using sequential ephemeral nodes and each waiter watching only its immediate predecessor:</p>
+<pre><code>// ZooKeeper exclusive lock recipe
+1. create("/lock/req-", EPHEMERAL | SEQUENTIAL)   // -&gt; /lock/req-0000000017
+2. children = sorted(getChildren("/lock"))
+3. if my node is the lowest sequence number: LOCK ACQUIRED
+4. else: set a watch on the ONE node just below mine; wait
+5. on watch fire (predecessor gone): go to step 2</code></pre>
+<p>This gives FIFO fairness, no thundering herd, and automatic release on crash. The sequence number doubles as a coarse ordering, and ZooKeeper's <code>zxid</code> can serve as the fencing token. Chubby (Google) is philosophically similar &mdash; a small, Paxos-replicated, strongly consistent filesystem-like store whose primary <em>use</em> turned out to be coarse-grained locking and name resolution, not the locking itself.</p>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>ZooKeeper/Chubby deliberately target <span class="key">coarse-grained</span> locks &mdash; held for minutes to hours, low acquisition rate (leader election, config ownership, shard assignment). They are <em>not</em> built for fine-grained, high-churn locks taken millions of times per second; the consensus write per acquisition makes that prohibitively expensive. If you need fine-grained locking, redesign so the contention lives inside a sharded data store, not a global coordinator.</div>
+
+<h2 id="redlock">The Redlock debate</h2>
+<p>Redis is fast and tempting, so it is constantly used for locking. The key distinctions:</p>
+<ul>
+<li><span class="key">Single-node Redis lock</span> &mdash; <code>SET resource token NX PX 15000</code> &mdash; is fine for the <em>efficiency</em> use case but unsafe for <em>correctness</em>. Redis replication is asynchronous: if the master grants a lock and crashes before replicating to its replica, the promoted replica has no record of the lock, and a second client can acquire it. Mutual exclusion is silently violated.</li>
+<li><span class="key">Redlock</span> is Redis's multi-node algorithm: acquire the lock on a majority of N independent Redis masters within a time bound. The argument is that majority acquisition tolerates a minority of node failures.</li>
+</ul>
+<p><span class="key">The debate.</span> Kleppmann argued Redlock is unsafe for correctness because it relies on <em>wall-clock timing assumptions</em> rather than consensus: clock jumps (NTP steps), GC pauses, and process stalls can cause two clients to believe they hold the lock simultaneously, and Redlock provides <em>no fencing token</em> to backstop that. Antirez (Redis's author) rebutted that the timing assumptions are reasonable in practice and that fencing can be layered on top. The principal-level takeaways are durable regardless of who "won":</p>
+<ol>
+<li>For correctness-critical locks, prefer a system whose safety rests on <span class="key">consensus</span> (etcd, ZooKeeper, Consul), not on synchronized clocks.</li>
+<li>Whatever lock you use, if correctness matters you still need <span class="key">fencing tokens on the resource</span> &mdash; the lock service alone is never sufficient. This is the through-line that makes the Redlock argument secondary.</li>
+<li>For pure efficiency locks, a single-node Redis lock is pragmatic, cheap, and entirely defensible. Match the mechanism to the cost of a violation.</li>
+</ol>
+
+<h2 id="api">A reference design and API</h2>
+<p>Putting it together: a lock service is a stateless API tier in front of a 3- or 5-node consensus cluster (Raft). The API tier routes writes to the current Raft leader; the cluster tolerates the loss of a minority (1 of 3, 2 of 5).</p>
+<table>
+<tr><th>Operation</th><th>Semantics</th><th>Returns</th></tr>
+<tr><td><code>acquire(name, ttl, mode)</code></td><td>CAS-create lock key via consensus; block or queue if held</td><td>lease handle + <span class="key">fencing token</span></td></tr>
+<tr><td><code>tryAcquire(name, ttl)</code></td><td>Non-blocking; fail fast if held</td><td>lease | null</td></tr>
+<tr><td><code>renew(lease)</code></td><td>Extend TTL; fails if lease already expired/lost</td><td>ok | LOST</td></tr>
+<tr><td><code>release(lease)</code></td><td>Delete lock key via consensus</td><td>ok</td></tr>
+<tr><td><code>watch(name)</code></td><td>Notify on release (avoids polling / herd)</td><td>stream</td></tr>
+</table>
+<p>Critical client-side contract: the <code>renew</code> call must return <code>LOST</code> if the lease expired, and the application <strong>must stop work immediately and not write</strong> if it ever observes a lost lease &mdash; but because of the pause problem, it must <em>also</em> carry the fencing token on every protected write rather than trusting its local belief. Observability matters too: emit metrics for lock hold time, contention/wait time, renewal failures, and lease expirations &mdash; a sudden spike in expirations usually means GC or network trouble, not crashes (see <a href="48 Observability.htm">Observability</a>).</p>
+<div class="callout ok"><span class="lbl">What strong candidates do</span>They sketch the full chain &mdash; consensus core for safety, leases for liveness, fencing tokens for the GC-pause hole &mdash; and they state which guarantee each layer provides and which failure each one does <em>not</em> cover. They size the lock granularity to the contention rate, and they keep returning to "what breaks if a holder pauses for 30 seconds?" as the litmus test for every design choice.</div>
+
+<h2 id="interview">Principal-level interview lens</h2>
+<div class="callout ok"><span class="lbl">What strong candidates do</span>They refuse to treat "distributed lock" as a black box. They distinguish efficiency from correctness up front, recognize that a fault-tolerant lock is a consensus problem in disguise, and &mdash; the discriminator &mdash; they raise the fencing-token / GC-pause problem <em>unprompted</em> and explain that the lock service can never guarantee correctness on its own; the protected resource must reject stale tokens. They treat Redlock skeptically for correctness-critical paths and reach for idempotency or conditional writes before reaching for a lock at all.</div>
+<p>Sharp probing questions an interviewer should ask:</p>
+<ul>
+<li>"Your lock holder pauses for 30 seconds in GC while holding a 10-second lease. Walk me through what happens, and how you prevent data corruption." (Forces fencing tokens; TTL-only answers fail here.)</li>
+<li>"Why can't I just use <code>SETNX</code> on a single Redis node for this? When is that actually fine, and when is it dangerous?"</li>
+<li>"Your lock service is built on a 3-node Raft cluster and the network partitions 1 from 2. Can clients on the minority side acquire or renew locks? Should they? What does the majority side do?"</li>
+<li>"We're acquiring this lock 500k times per second. Is ZooKeeper the right choice? If not, how do you redesign so you don't need a global lock at all?"</li>
+<li>"How do you choose the TTL? What inputs go into that number, and what fails if you pick it too short or too long?"</li>
+<li>"The protected resource is a third-party REST API with no versioning or idempotency support. Can you make this lock correct? If not, what do you tell the team?"</li>
+</ul>
+
+<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
+<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2024-05-16 at 8.23.21 AM.jpg" alt="Deadlocks and lock management" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Text explaining deadlocks, the four Coffman conditions, and deadlock prevention/recovery strategies. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+</div>
+<div class="navfoot"><a href="61 Designing Ad Click Aggregation.htm">&lsaquo; Prev: Designing Ad Click Aggregation</a><a class="nx" href="63 Principal Interviewer Question Bank.htm">Next: Principal Interviewer Question Bank &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

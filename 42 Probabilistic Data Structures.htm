@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Probabilistic Data Structures</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01 Why System Design Interviews_.htm" href="01 Why System Design Interviews_.htm"><span class="n">01</span>Why System Design Interviews?</a>
+<a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05 Sharding or Data Partitioning.htm" href="05 Sharding or Data Partitioning.htm"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06 Indexes.htm" href="06 Indexes.htm"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07 Proxies.htm" href="07 Proxies.htm"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08 Queues.htm" href="08 Queues.htm"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09 Redundancy and Replication.htm" href="09 Redundancy and Replication.htm"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10 SQL vs. NoSQL.htm" href="10 SQL vs. NoSQL.htm"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11 CAP Theorem.htm" href="11 CAP Theorem.htm"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12 Consistent Hashing.htm" href="12 Consistent Hashing.htm"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm" href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14 System Design Interviews_ A step by step guide.htm" href="14 System Design Interviews_ A step by step guide.htm"><span class="n">14</span>Interview Step-by-Step</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15 Designing a URL Shortening service like TinyURL.htm" href="15 Designing a URL Shortening service like TinyURL.htm"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16 Designing Pastebin.htm" href="16 Designing Pastebin.htm"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17 Designing Instagram.htm" href="17 Designing Instagram.htm"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18 Designing Dropbox.htm" href="18 Designing Dropbox.htm"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19 Designing Facebook Messenger.htm" href="19 Designing Facebook Messenger.htm"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20 Designing Twitter.htm" href="20 Designing Twitter.htm"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21 Designing Youtube or Netflix.htm" href="21 Designing Youtube or Netflix.htm"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22 Designing Typeahead Suggestion.htm" href="22 Designing Typeahead Suggestion.htm"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23 Designing an API Rate Limiter (_New_).htm" href="23 Designing an API Rate Limiter (_New_).htm"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24 Designing Twitter Search.htm" href="24 Designing Twitter Search.htm"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25 Designing a Web Crawler.htm" href="25 Designing a Web Crawler.htm"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26Designing Facebook’s Newsfeed.htm" href="26Designing Facebook’s Newsfeed.htm"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27 Designing Yelp or Nearby Friends.htm" href="27 Designing Yelp or Nearby Friends.htm"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28 Designing Uber backend.htm" href="28 Designing Uber backend.htm"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29 Design BookMyShow (_New_).htm" href="29 Design BookMyShow (_New_).htm"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30 Consensus and Raft.htm" href="30 Consensus and Raft.htm"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31 Consistency Models and PACELC.htm" href="31 Consistency Models and PACELC.htm"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32 Distributed Transactions.htm" href="32 Distributed Transactions.htm"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33 Time Clocks and Ordering.htm" href="33 Time Clocks and Ordering.htm"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34 Anti-Entropy and Gossip.htm" href="34 Anti-Entropy and Gossip.htm"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35 CRDTs.htm" href="35 CRDTs.htm"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36 Leader Election and Coordination.htm" href="36 Leader Election and Coordination.htm"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37 Replication Deep Dive.htm" href="37 Replication Deep Dive.htm"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38 Storage Engines LSM vs B-Tree.htm" href="38 Storage Engines LSM vs B-Tree.htm"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39 Kafka and Log-based Messaging.htm" href="39 Kafka and Log-based Messaging.htm"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40 Stream Processing and CDC.htm" href="40 Stream Processing and CDC.htm"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41 Batch and Big Data Processing.htm" href="41 Batch and Big Data Processing.htm"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk active" data-file="42 Probabilistic Data Structures.htm" href="42 Probabilistic Data Structures.htm"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="64 Search and Elasticsearch.htm" href="64 Search and Elasticsearch.htm"><span class="n">64</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="43 Microservices and Service Mesh.htm" href="43 Microservices and Service Mesh.htm"><span class="n">43</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="44 API Design REST gRPC GraphQL.htm" href="44 API Design REST gRPC GraphQL.htm"><span class="n">44</span>API Design</a>
+<a class="lk" data-file="45 Event-Driven Architecture.htm" href="45 Event-Driven Architecture.htm"><span class="n">45</span>Event-Driven Architecture</a>
+<a class="lk" data-file="46 Containers Kubernetes and Serverless.htm" href="46 Containers Kubernetes and Serverless.htm"><span class="n">46</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="65 Object Storage and CDN.htm" href="65 Object Storage and CDN.htm"><span class="n">65</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="47 SLI SLO SLA and Error Budgets.htm" href="47 SLI SLO SLA and Error Budgets.htm"><span class="n">47</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="48 Observability.htm" href="48 Observability.htm"><span class="n">48</span>Observability</a>
+<a class="lk" data-file="49 Resilience Patterns.htm" href="49 Resilience Patterns.htm"><span class="n">49</span>Resilience Patterns</a>
+<a class="lk" data-file="50 Deployment Strategies.htm" href="50 Deployment Strategies.htm"><span class="n">50</span>Deployment Strategies</a>
+<a class="lk" data-file="51 Multi-Region and Disaster Recovery.htm" href="51 Multi-Region and Disaster Recovery.htm"><span class="n">51</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="52 Security in System Design.htm" href="52 Security in System Design.htm"><span class="n">52</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="53 Designing a Distributed Cache.htm" href="53 Designing a Distributed Cache.htm"><span class="n">53</span>Distributed Cache</a>
+<a class="lk" data-file="54 Designing a Distributed Message Queue.htm" href="54 Designing a Distributed Message Queue.htm"><span class="n">54</span>Distributed Message Queue</a>
+<a class="lk" data-file="55 Designing a Key-Value Store.htm" href="55 Designing a Key-Value Store.htm"><span class="n">55</span>Key-Value Store</a>
+<a class="lk" data-file="56 Designing a Unique ID Generator.htm" href="56 Designing a Unique ID Generator.htm"><span class="n">56</span>Unique ID Generator</a>
+<a class="lk" data-file="57 Designing a Notification System.htm" href="57 Designing a Notification System.htm"><span class="n">57</span>Notification System</a>
+<a class="lk" data-file="58 Designing a Distributed Job Scheduler.htm" href="58 Designing a Distributed Job Scheduler.htm"><span class="n">58</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="59 Designing a Payment System.htm" href="59 Designing a Payment System.htm"><span class="n">59</span>Payment System</a>
+<a class="lk" data-file="60 Designing Collaborative Editing.htm" href="60 Designing Collaborative Editing.htm"><span class="n">60</span>Collaborative Editing</a>
+<a class="lk" data-file="61 Designing Ad Click Aggregation.htm" href="61 Designing Ad Click Aggregation.htm"><span class="n">61</span>Ad Click Aggregation</a>
+<a class="lk" data-file="62 Designing a Distributed Locking Service.htm" href="62 Designing a Distributed Locking Service.htm"><span class="n">62</span>Distributed Locking</a>
+<a class="lk" data-file="66 Designing a Metrics and Monitoring System.htm" href="66 Designing a Metrics and Monitoring System.htm"><span class="n">66</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="67 Architectural Styles and How to Choose.htm" href="67 Architectural Styles and How to Choose.htm"><span class="n">67</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="68 Choosing a Database.htm" href="68 Choosing a Database.htm"><span class="n">68</span>Choosing a Database</a>
+<a class="lk" data-file="69 Choosing a Message Broker.htm" href="69 Choosing a Message Broker.htm"><span class="n">69</span>Choosing a Message Broker</a>
+<a class="lk" data-file="70 Domain-Driven Design.htm" href="70 Domain-Driven Design.htm"><span class="n">70</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Interviewing</h5>
+<a class="lk" data-file="63 Principal Interviewer Question Bank.htm" href="63 Principal Interviewer Question Bank.htm"><span class="n">63</span>Interviewer Question Bank</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="63 Principal Interviewer Question Bank.htm">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Part B: Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Probabilistic Data Structures</div>
+
+<h1>Probabilistic Data Structures</h1>
+<p class="sub">Trading a sliver of exactness for orders-of-magnitude less memory &mdash; the sketches that make web-scale membership, cardinality, and frequency queries feasible.</p>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#why">Why approximate? The space&ndash;accuracy trade</a></li>
+<li><a href="#bloom">Bloom filters &amp; the sizing math</a></li>
+<li><a href="#counting">Counting &amp; cuckoo &amp; quotient filters</a></li>
+<li><a href="#hll">HyperLogLog: cardinality</a></li>
+<li><a href="#cms">Count-Min Sketch: frequency &amp; heavy hitters</a></li>
+<li><a href="#percentile">t-digest &amp; HdrHistogram: percentiles</a></li>
+<li><a href="#practice">Where each shows up in real systems</a></li>
+<li><a href="#interview">Principal-level interview lens</a></li>
+</ul>
+</div>
+
+<h2 id="why">Why approximate? The space&ndash;accuracy trade</h2>
+<p>An exact answer to "have I seen this URL?", "how many distinct users today?", or "what are the top-100 search terms?" requires storing every element &mdash; a hash set, a sorted dictionary, an exact counter per key. At billions of elements that is gigabytes of RAM, and RAM is the scarce resource on the hot path. <span class="key">Probabilistic data structures</span> (sketches) answer the same questions with a <em>bounded, tunable error</em> while using kilobytes to a few megabytes that does <em>not</em> grow with the number of distinct elements.</p>
+<p>The deal is always the same: you give up exactness and gain (1) sublinear or constant space, (2) constant-time updates and queries, and (3) usually <span class="key">mergeability</span> &mdash; sketches built on different shards can be unioned, which makes them perfect for distributed and streaming systems. The discipline as a principal is knowing <em>which</em> error each structure tolerates and whether your use case can live with it.</p>
+<table>
+<thead><tr><th>Structure</th><th>Question</th><th>Error shape</th><th>Mergeable</th></tr></thead>
+<tbody>
+<tr><td>Bloom filter</td><td>Is x in the set?</td><td>False positives only, no false negatives</td><td>Union (same params)</td></tr>
+<tr><td>Cuckoo / Quotient filter</td><td>Is x in the set? (+ deletes)</td><td>False positives only</td><td>Limited</td></tr>
+<tr><td>HyperLogLog</td><td>How many distinct?</td><td>~&plusmn;0.81/&radic;m relative</td><td>Yes (lossless)</td></tr>
+<tr><td>Count-Min Sketch</td><td>How often is x?</td><td>Overestimate, never under</td><td>Yes (add)</td></tr>
+<tr><td>t-digest / HdrHistogram</td><td>What is p99?</td><td>Rank/relative error</td><td>Yes</td></tr>
+</tbody>
+</table>
+
+<h2 id="bloom">Bloom filters &amp; the sizing math</h2>
+<p>A <span class="key">Bloom filter</span> is a bit array of <code>m</code> bits and <code>k</code> independent hash functions. To insert <code>x</code>, set the bits at positions <code>h<sub>1</sub>(x) &hellip; h<sub>k</sub>(x)</code>. To test membership, check whether <em>all</em> <code>k</code> bits are set. If any is zero, <code>x</code> is <span class="key">definitely not</span> present (no false negatives). If all are set, <code>x</code> is <span class="key">probably</span> present &mdash; it could be a collision with other elements (a false positive).</p>
+<pre><code>insert(x):
+    for i in 1..k:
+        bits[ h_i(x) mod m ] = 1
+
+contains(x):           # false positives possible, false negatives never
+    for i in 1..k:
+        if bits[ h_i(x) mod m ] == 0: return DEFINITELY_NOT
+    return PROBABLY_YES</code></pre>
+<p>In practice you do not need <code>k</code> distinct hash functions &mdash; <span class="key">Kirsch&ndash;Mitzenmacher double hashing</span> derives all <code>k</code> from two: <code>g<sub>i</sub>(x) = h<sub>1</sub>(x) + i&middot;h<sub>2</sub>(x)</code>, with negligible accuracy loss. This is what RocksDB, Cassandra, and Redis bitmaps actually do.</p>
+
+<h3>The sizing math you must be able to derive</h3>
+<p>Given <code>n</code> expected elements and a target false-positive probability <code>p</code>, the optimal parameters are:</p>
+<pre><code>m  =  - n * ln(p) / (ln 2)^2          # bits
+k  =  (m / n) * ln 2                  # &asymp; 0.693 * m/n  (round to int)
+p  &asymp;  (1 - e^(-k n / m))^k          # achieved FP rate</code></pre>
+<p>The headline number to memorize: about <span class="key">9.6 bits per element for a 1% false-positive rate</span>, and roughly <span class="key">+4.8 bits per element for each 10&times; reduction</span> in <code>p</code>. So 0.1% costs ~14.4 bits/element, 0.01% ~19.2 bits/element. A filter for 1&nbsp;billion URLs at 1% FP is therefore ~1.2&nbsp;GB &mdash; versus tens of GB for an exact set of the URLs themselves.</p>
+<div class="callout note"><span class="lbl">Key insight</span>Optimal <code>k</code> sets the fill ratio to exactly 1/2 &mdash; half the bits set. That is the maximum-entropy point. Using more hash functions than optimal <em>increases</em> the FP rate because you saturate the array faster than the per-test stringency helps.</div>
+<div class="callout warn"><span class="lbl">Pitfall</span>You must size for the <em>real</em> <code>n</code>. A Bloom filter degrades silently: insert 5&times; your planned <code>n</code> and the array saturates toward all-ones, driving the FP rate toward 100% with no error thrown. Standard Bloom filters also <em>cannot resize or delete</em>. Production answers are <span class="key">scalable Bloom filters</span> (a chain of filters with geometrically tightening <code>p</code>) or just rebuilding periodically.</div>
+
+<h2 id="counting">Counting, cuckoo, and quotient filters</h2>
+<p>A plain Bloom filter cannot delete &mdash; clearing a bit might unset a bit shared with another element, creating false negatives. Three structures address this:</p>
+<h3>Counting Bloom filter</h3>
+<p>Replace each bit with a small counter (typically 4 bits). Insert increments, delete decrements. This supports deletion at ~4&times; the space of a standard Bloom filter. Counters can saturate; 4 bits (max 15) is empirically safe for normal load factors.</p>
+<h3>Cuckoo filter</h3>
+<p>Stores a short <span class="key">fingerprint</span> of each element in a cuckoo hash table with two candidate buckets. Supports deletion, is more cache-friendly (one or two bucket reads vs. <code>k</code> scattered probes), and at FP rates below ~3% is <em>more space-efficient</em> than Bloom. The catch: inserts can fail when buckets fill and the cuckoo eviction chain hits its limit, so it has a hard load-factor ceiling (~95%).</p>
+<h3>Quotient filter</h3>
+<p>Stores fingerprints in a compact open-addressed table with metadata bits, giving better locality than Bloom (sequential memory access, so it works well on SSD/flash) and supporting merges and resizes. Used in some LSM and storage contexts where Bloom's random access pattern is the bottleneck.</p>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Bloom: simplest, no delete, scattered reads. Counting Bloom: delete, 4&times; space. Cuckoo: delete + better locality + smaller at low FP, but insert can fail. Quotient: best locality &amp; mergeable, slightly more complex. For an immutable per-SSTable filter (the common case in <a href="38 Storage Engines LSM vs B-Tree.htm">LSM storage engines</a>) the lack of delete is irrelevant, so plain Bloom usually wins.</div>
+
+<h2 id="hll">HyperLogLog: cardinality estimation</h2>
+<p><span class="key">HyperLogLog (HLL)</span> answers "how many <em>distinct</em> elements?" in fixed memory regardless of cardinality. The intuition: hash each element to a uniform bit string. The probability of seeing a hash with <code>&rho;</code> leading zeros is <code>2<sup>-(&rho;+1)</sup></code>, so if the longest run of leading zeros you have ever observed is <code>R</code>, the stream probably held on the order of <code>2<sup>R</sup></code> distinct items. A single estimator is wildly noisy, so HLL uses <span class="key">stochastic averaging</span>: the first <code>p</code> bits of the hash pick one of <code>m = 2<sup>p</sup></code> registers, and each register keeps the max leading-zero count seen for its bucket. The harmonic mean across registers, with a bias-correction constant <code>&alpha;<sub>m</sub></code>, yields the estimate.</p>
+<pre><code>add(x):
+    h = hash64(x)
+    idx = h >> (64 - p)              # top p bits select a register
+    w   = h << p                     # remaining bits
+    registers[idx] = max(registers[idx], leading_zeros(w) + 1)
+
+estimate():                          # standard error  &asymp; 1.04 / sqrt(m)
+    Z = sum( 2^(-registers[j]) )
+    E = alpha_m * m^2 / Z
+    # small/large-range corrections apply; HLL++ uses 64-bit hash + bias tables</code></pre>
+<p>With <code>m = 2<sup>14</sup> = 16384</code> registers of 6 bits each, HLL uses about <span class="key">12&nbsp;KB</span> and delivers a standard error of <code>1.04/&radic;16384 &asymp; 0.81%</code> &mdash; for cardinalities up into the billions. That is the basis of Redis's <code>PFADD</code> / <code>PFCOUNT</code> / <code>PFMERGE</code> (Redis implements the improved <span class="key">HLL++</span> with a sparse representation for small sets, capping at 12&nbsp;KB dense). HLLs are losslessly mergeable by taking the element-wise max of registers, which is why they are ideal for "unique visitors across 1000 shards, last 30 days" &mdash; each shard/day keeps its own HLL and you union them at query time.</p>
+<div class="callout warn"><span class="lbl">Pitfall</span>HLL gives <em>cardinality</em>, not the elements, and it cannot do reliable <em>intersections</em> &mdash; inclusion&ndash;exclusion (<code>|A&cup;B| = |A|+|B|-|A&cap;B|</code>) compounds the relative errors and explodes for similar-sized sets. If you need set intersection, reach for <span class="key">MinHash</span> / theta sketches, not HLL.</div>
+
+<h2 id="cms">Count-Min Sketch: frequency &amp; heavy hitters</h2>
+<p>A <span class="key">Count-Min Sketch (CMS)</span> estimates the frequency of each key in a stream using a 2-D array of counters: <code>d</code> rows (one hash function each) &times; <code>w</code> columns. To add <code>x</code> with weight <code>c</code>, increment <code>count[i][h<sub>i</sub>(x) mod w]</code> in every row. To query, take the <em>minimum</em> across rows &mdash; the min is the tightest bound because collisions can only ever <em>add</em> phantom counts.</p>
+<pre><code>add(x, c):
+    for i in 0..d-1:
+        count[i][ h_i(x) % w ] += c
+
+estimate(x):                         # always &ge; true count (overestimate)
+    return min over i of count[i][ h_i(x) % w ]</code></pre>
+<p>The guarantees: with <code>w = &lceil;e/&epsilon;&rceil;</code> and <code>d = &lceil;ln(1/&delta;)&rceil;</code>, the estimate exceeds the true count by at most <code>&epsilon;&middot;N</code> (N = total stream weight) with probability <code>1&minus;&delta;</code>. So error is relative to the <em>total</em> mass &mdash; CMS is accurate for heavy keys and noisy for the long tail, which is exactly the right bias for <span class="key">heavy-hitter</span> detection. Pair CMS with a small top-k heap to track the most frequent items: on each update, query CMS and conditionally update the heap. This is how you find trending hashtags, hot keys, or DDoS source IPs in one pass over a firehose.</p>
+<div class="callout note"><span class="lbl">Key insight</span>CMS only over-estimates, never under-estimates &mdash; the dual of a Bloom filter's one-sided error. The <span class="key">conservative-update</span> variant (increment only the rows currently holding the minimum) cuts overestimation substantially in practice. A close cousin, the <span class="key">Count sketch</span>, uses signed updates and the median estimator to give unbiased estimates with two-sided error &mdash; better for tail keys.</div>
+
+<h2 id="percentile">t-digest &amp; HdrHistogram: percentiles</h2>
+<p>Computing exact percentiles (p50, p99, p99.9) over a latency stream requires sorting all samples &mdash; unbounded memory. Two structures solve this for monitoring and SLO work (see <a href="47 SLI SLO SLA and Error Budgets.htm">SLIs, SLOs &amp; error budgets</a>).</p>
+<h3>HdrHistogram</h3>
+<p><span class="key">High Dynamic Range Histogram</span> uses fixed log-linear buckets covering a configured range (e.g. 1&micro;s to 1&nbsp;hour) at a chosen number of significant figures. Recording a value and reading any percentile are O(1)/O(buckets), allocation-free on the hot path &mdash; which is why it is the standard for low-latency JVM/Go services and for coordinated-omission-corrected benchmarking. Error is <em>bounded relative</em> per value (e.g. 0.1% with 3 sig-figs). Histograms are trivially additive, so you merge per-host histograms into a fleet-wide one before computing p99.</p>
+<h3>t-digest</h3>
+<p><span class="key">t-digest</span> (Ted Dunning) adaptively clusters samples with much finer resolution near the tails (q&rarr;0 and q&rarr;1) than the middle, using a "scale function" to bound cluster sizes. It gives excellent accuracy at p99/p99.9 in a few kilobytes, is mergeable, and handles arbitrary unbounded value ranges (no need to pre-declare a max). It powers percentile aggregation in Elasticsearch, Spark, and many metrics backends.</p>
+<div class="callout warn"><span class="lbl">Pitfall</span>You cannot average percentiles. Taking the mean of per-host p99s is statistically meaningless and routinely wrong by large margins. Always merge the underlying histograms/digests, <em>then</em> compute the percentile. Mergeability is the whole reason these structures exist for distributed monitoring.</div>
+
+<h2 id="practice">Where each shows up in real systems</h2>
+<ul>
+<li><span class="pill">LSM read path</span> Every SSTable in RocksDB / Cassandra / HBase / LevelDB carries a Bloom filter so a point lookup can skip files that definitely lack the key &mdash; turning a multi-file disk read into a single bit check. This is the single most important use of Bloom filters in databases. See <a href="38 Storage Engines LSM vs B-Tree.htm">Storage Engines: LSM vs B-Tree</a>.</li>
+<li><span class="pill">Crawler dedup</span> A <a href="25 Designing a Web Crawler.htm">web crawler</a> uses a Bloom filter for the "URL seen?" set &mdash; a false positive merely skips re-crawling a page (acceptable), while no false negatives means you never loop. Billions of URLs in ~GB of RAM instead of TB.</li>
+<li><span class="pill">Cache &amp; CDN</span> "One-hit-wonder" filtering: only admit a key to the <a href="04 Caching.htm">cache</a> on its second request (tracked by a Bloom filter) to avoid polluting it with single-access objects. Also used as a negative cache to short-circuit lookups for keys known absent.</li>
+<li><span class="pill">Analytics &amp; unique counts</span> HLL backs "unique visitors / DAU / distinct queries" dashboards everywhere &mdash; Redis <code>PFCOUNT</code>, Presto/Trino <code>approx_distinct</code>, BigQuery <code>APPROX_COUNT_DISTINCT</code>, Druid. Per-shard HLLs merged at query time make distinct counts cheap across <a href="05 Sharding or Data Partitioning.htm">partitioned</a> data.</li>
+<li><span class="pill">Real-time aggregation</span> In <a href="61 Designing Ad Click Aggregation.htm">ad-click aggregation</a> and stream processing, CMS finds heavy hitters (top advertisers, hot keys, fraud bursts) and HLL gives unique impressions/users per campaign &mdash; both in bounded memory in the stream layer (see <a href="40 Stream Processing and CDC.htm">Stream Processing &amp; CDC</a>).</li>
+<li><span class="pill">Networking &amp; security</span> CMS for per-flow byte counts and DDoS source detection; Bloom filters in routers for forwarding tables; both in spam/abuse pipelines.</li>
+</ul>
+
+<h2 id="interview">Principal-level interview lens</h2>
+<div class="callout ok"><span class="lbl">What strong candidates do</span>They reach for a sketch only after stating the exact-solution cost and naming the error the use case can absorb &mdash; "a false positive here just causes a redundant DB read, so a 1% Bloom filter is fine; a false negative would corrupt the index, so Bloom's one-sided error is exactly what I want." They quote the ~9.6 bits/element-per-1% rule of thumb and size for real <code>n</code>. They know which structure answers which question (membership vs. cardinality vs. frequency vs. quantile) and never confuse them. Crucially, they exploit <span class="key">mergeability</span> for distributed rollups and call out the traps: you can't intersect HLLs, can't average percentiles, and can't delete from a plain Bloom filter.</div>
+<ul>
+<li>A teammate proposes a Bloom filter to deduplicate financial transactions before writing them. What is wrong with that, and what does the one-sided error mean for correctness here?</li>
+<li>You provisioned a Bloom filter for 100M elements but traffic grew to 500M. What happens to the false-positive rate, will you see an error, and how do you remediate without downtime?</li>
+<li>Derive the optimal number of hash functions for a Bloom filter and explain why more hashes can make accuracy <em>worse</em>.</li>
+<li>A dashboard shows "unique users" by averaging the p99 of per-region HLL counts. Identify both statistical errors in that sentence.</li>
+<li>You need the top-100 search terms per minute over a 2M-QPS stream with bounded memory. Walk through CMS + heap, the error bound, and why you'd pick conservative update or a Count sketch for the tail.</li>
+<li>For an LSM engine, would you put the per-SSTable filter in a Bloom, cuckoo, or quotient filter? Justify in terms of delete support, memory, and access pattern against flash.</li>
+</ul>
+
+<div class="navfoot"><a href="41 Batch and Big Data Processing.htm">&lsaquo; Prev: Batch and Big Data Processing</a><a class="nx" href="43 Microservices and Service Mesh.htm">Next: Microservices and Service Mesh &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>
