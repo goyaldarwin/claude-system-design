@@ -136,17 +136,17 @@
 <p>The next several chapters each take one fundamental building block and treat it in depth. Read in order, they form a toolkit: by the end you should be able to look at any of the classic and advanced design problems later in the course and reach for the right component on instinct, knowing both what it does and what it costs.</p>
 <table>
 <tr><th>Chapter</th><th>Building block</th><th>What problem it solves</th></tr>
-<tr><td>03</td><td>Load balancing</td><td>Spreads traffic across many servers; removes single points of failure at the compute tier.</td></tr>
-<tr><td>04</td><td>Caching</td><td>Keeps hot data close to where it is read to cut latency and offload the datastore.</td></tr>
-<tr><td>05</td><td>Sharding / partitioning</td><td>Splits data across machines when one box can no longer hold or serve it.</td></tr>
-<tr><td>06</td><td>Indexes</td><td>Makes reads fast at the cost of slower writes and extra storage.</td></tr>
-<tr><td>07</td><td>Proxies</td><td>Intermediaries that aggregate, filter, transform, or shield requests.</td></tr>
-<tr><td>08</td><td>Queues</td><td>Decouple producers from consumers and absorb bursts asynchronously.</td></tr>
-<tr><td>09</td><td>Redundancy &amp; replication</td><td>Keeps copies of data and components so failures do not mean downtime or loss.</td></tr>
-<tr><td>10</td><td>SQL vs. NoSQL</td><td>Choosing the data model and consistency story that fit the access pattern.</td></tr>
-<tr><td>11</td><td>CAP theorem</td><td>The fundamental limit on consistency vs. availability under network partitions.</td></tr>
-<tr><td>12</td><td>Consistent hashing</td><td>Distributes keys across nodes so adding or removing a node moves minimal data.</td></tr>
-<tr><td>13</td><td>Long-poll / WebSockets / SSE</td><td>Patterns for pushing data to clients in near real time.</td></tr>
+<tr><td><a href="03 Load Balancing.htm">03</a></td><td><a href="03 Load Balancing.htm">Load balancing</a></td><td>Spreads traffic across many servers; removes single points of failure at the compute tier.</td></tr>
+<tr><td><a href="04 Caching.htm">04</a></td><td><a href="04 Caching.htm">Caching</a></td><td>Keeps hot data close to where it is read to cut latency and offload the datastore.</td></tr>
+<tr><td><a href="05 Sharding or Data Partitioning.htm">05</a></td><td><a href="05 Sharding or Data Partitioning.htm">Sharding / partitioning</a></td><td>Splits data across machines when one box can no longer hold or serve it.</td></tr>
+<tr><td><a href="06 Indexes.htm">06</a></td><td><a href="06 Indexes.htm">Indexes</a></td><td>Makes reads fast at the cost of slower writes and extra storage.</td></tr>
+<tr><td><a href="07 Proxies.htm">07</a></td><td><a href="07 Proxies.htm">Proxies</a></td><td>Intermediaries that aggregate, filter, transform, or shield requests.</td></tr>
+<tr><td><a href="08 Queues.htm">08</a></td><td><a href="08 Queues.htm">Queues</a></td><td>Decouple producers from consumers and absorb bursts asynchronously.</td></tr>
+<tr><td><a href="09 Redundancy and Replication.htm">09</a></td><td><a href="09 Redundancy and Replication.htm">Redundancy &amp; replication</a></td><td>Keeps copies of data and components so failures do not mean downtime or loss.</td></tr>
+<tr><td><a href="10 SQL vs. NoSQL.htm">10</a></td><td><a href="10 SQL vs. NoSQL.htm">SQL vs. NoSQL</a></td><td>Choosing the data model and consistency story that fit the access pattern.</td></tr>
+<tr><td><a href="11 CAP Theorem.htm">11</a></td><td><a href="11 CAP Theorem.htm">CAP theorem</a></td><td>The fundamental limit on consistency vs. availability under network partitions.</td></tr>
+<tr><td><a href="12 Consistent Hashing.htm">12</a></td><td><a href="12 Consistent Hashing.htm">Consistent hashing</a></td><td>Distributes keys across nodes so adding or removing a node moves minimal data.</td></tr>
+<tr><td><a href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm">13</a></td><td><a href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm">Long-poll / WebSockets / SSE</a></td><td>Patterns for pushing data to clients in near real time.</td></tr>
 </table>
 
 <div class="callout note"><span class="lbl">Key insight</span>Notice the recurring shape: nearly every block is a way of trading one resource for another. Caching trades memory and staleness for read latency. Indexes trade write speed and storage for read speed. Replication trades storage and write coordination for availability. Once you see the trade as the unit of thinking, the blocks stop being a list to memorize and become a small set of levers you pull deliberately.</div>
