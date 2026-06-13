@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Foundations: The Two Machines</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -114,6 +114,7 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Indexes</div>
 <h1>Indexes</h1>
 <p class="sub"><em>How indexes trade storage and write cost for fast reads, and why they become essential at scale.</em></p>
+<div class="taxline"><span class="lab">Tax paid</span> <b>Latency.</b> <span>an index makes reads fast by paying in extra storage and slower writes (the index must be maintained).</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
 
 <p>Indexes are well known when it comes to databases; they are used to improve the speed of data retrieval operations on the data store. An index makes the trade-offs of increased storage overhead, and slower writes (since we not only have to write the data but also have to update the index) for the benefit of faster reads. Indexes are used to quickly locate data without having to examine every row in a database table. Indexes can be created using one or more columns of a database table, providing the basis for both rapid random lookups and efficient access of ordered records.</p>
 

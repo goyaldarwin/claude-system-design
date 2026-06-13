@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Foundations: The Two Machines</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -114,6 +114,7 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing a URL Shortening Service like TinyURL</div>
 <h1>Designing a URL Shortening Service like TinyURL</h1>
 <p class="sub"><em>Let's design a URL shortening service like TinyURL: generating short, unique aliases for long URLs, then redirecting users back to the originals at scale.</em></p>
+<div class="taxline"><span class="lab">Tax paid</span> <b>Latency &amp; finite capacity.</b> <span>short keys + fast redirects, paid for with a key-generation scheme and heavy caching.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
 
 <div class="sechead">1. Why do we need URL shortening?</div>
 <p>URL shortening is used to create shorter aliases for long URLs. Users are redirected to the original URL when they hit these aliases. A shorter version of any URL would save a lot of space whenever we use it e.g., when printing or tweeting as tweets have a character limit.</p>

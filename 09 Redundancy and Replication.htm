@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Foundations: The Two Machines</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -114,6 +114,7 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Redundancy and Replication</div>
 <h1>Redundancy and Replication</h1>
 <p class="sub"><em>Duplicating critical data and services to remove single points of failure, and adopting a shared-nothing architecture for reliability and resilience.</em></p>
+<div class="taxline"><span class="lab">Tax paid</span> <b>Partial failure.</b> <span>machines die — surviving it means duplicating, which costs hardware and a consistency problem between copies.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
 
 <div class="sechead">Redundancy</div>
 <p>Redundancy means duplication of critical data or services with the intention of increased reliability of the system. For example, if there is only one copy of a file stored on a single server, then losing that server means losing the file. Since losing data is seldom a good thing, we can create duplicate or redundant copies of the file to solve this problem.</p>

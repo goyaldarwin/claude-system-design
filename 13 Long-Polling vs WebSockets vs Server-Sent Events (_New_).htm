@@ -13,7 +13,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Foundations: The Two Machines</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -112,6 +112,7 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Long-Polling vs WebSockets vs Server-Sent Events</div>
 <h1>Long-Polling vs WebSockets vs Server-Sent Events</h1>
 <p class="sub"><em>How clients and servers exchange real-time data over HTTP — comparing Ajax polling, HTTP long-polling, WebSockets, and Server-Sent Events.</em></p>
+<div class="taxline"><span class="lab">Tax paid</span> <b>Latency.</b> <span>pushing fresh data to clients beats polling, paying in held-open connections and connection state.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
 
 <p>Long-Polling, WebSockets, and Server-Sent Events are popular communication protocols between a client like a web browser and a web server. First, let's start with understanding what a standard HTTP web request looks like. Following are a sequence of events for regular HTTP request:</p>
 <ol>

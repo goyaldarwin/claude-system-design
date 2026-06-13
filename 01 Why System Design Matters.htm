@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Why System Design Matters</title>
+<title>The Computer, the Network, and the Taxes They Impose</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
 <link rel="stylesheet" href="./_principal_files/lesson.css">
 <script src="./_principal_files/nav.js" defer></script>
@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk active" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
+<a class="lk active" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Foundations: The Two Machines</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -111,66 +111,113 @@
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Why System Design Matters</div>
-<h1>Why System Design Matters</h1>
-<p class="sub"><em>What system design skill really is, why it compounds over an engineering career, and how this course is structured to take you from building blocks to confident architectural judgment.</em></p>
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; The Computer, the Network, and the Taxes They Impose</div>
+<h1>The Computer, the Network, and the Taxes They Impose</h1>
+<p class="sub"><em>The first-principles foundation of the entire course: why this whole body of knowledge exists, derived from two physical machines and the unavoidable taxes they impose. Every later lesson is a technique for paying one of these taxes.</em></p>
 
-<div class="sechead">1. What system design skill really is</div>
-<p>System design is the craft of taking a fuzzy, ambitious goal &mdash; &ldquo;build a cloud storage product like Dropbox,&rdquo; &ldquo;serve a global feed,&rdquo; &ldquo;process payments reliably&rdquo; &mdash; and turning it into a concrete architecture that holds up under real traffic, real failures, and real budgets. It is a genuinely broad topic. Even engineers with years of experience at top companies rarely claim to be experts at all of it, because the surface area spans networking, storage, concurrency, consistency, operations, and cost, all interacting at once.</p>
-<p>What separates a strong systems engineer from a strong coder is not raw problem-solving on a self-contained puzzle. It is the ability to reason clearly about an <strong>open-ended, under-specified problem</strong>: to ask what the system actually needs to do, to estimate its scale, to choose components that fit, and to articulate why one approach beats another. Real systems have no single correct answer &mdash; any non-trivial product can be built many ways, and each way trades something off against something else.</p>
-<p>That reasoning is what this course builds. The goal is not to memorize a reference architecture for every product, but to develop the judgment to derive one: to look at a requirement and know which building blocks apply, where the system will strain first, and what it will cost to relieve that strain.</p>
-
-<div class="sechead">2. Why these skills compound over a career</div>
-<p>Most technical skills have a shelf life. A specific framework, a specific cloud API, a specific query syntax &mdash; all of it churns. System design fundamentals do not. A load balancer in front of a fleet, a cache absorbing read traffic, replication for durability, partitioning for scale, a queue to decouple producers from consumers &mdash; these patterns have been stable for decades and will outlast whatever tools you use to implement them this year.</p>
-<p>Because the fundamentals are durable, every system you design teaches you something that transfers to the next. The first time you reason through a write-heavy workload, sharding feels abstract. The fifth time, it is instinct, and you spend your energy on the parts that are genuinely novel. This is why systems judgment compounds: it accumulates into the senior and principal-level intuition that lets you look at a proposed design and immediately sense where it will break.</p>
-<p>The four threads that run through everything in this course are:</p>
+<div class="toc"><h4>In this lesson</h4>
 <ul>
-<li><strong>Scale</strong> &mdash; estimating load, data volume, and growth, and choosing designs that hold at the size you actually expect (and the size you might reach).</li>
-<li><strong>Trade-offs</strong> &mdash; every choice costs something elsewhere. Strong consistency costs latency; caching costs freshness; more replicas cost money and coordination. Naming the trade-off is half the skill.</li>
-<li><strong>Failure</strong> &mdash; at scale, components fail constantly. A good design assumes partial failure as the normal case, not the exception.</li>
-<li><strong>Cost</strong> &mdash; the cheapest design that meets requirements usually wins. Over-engineering is a real failure mode, not a virtue.</li>
+<li><a href="#one">It all reduces to one computer</a></li>
+<li><a href="#wall">The wall: a single computer is finite and mortal</a></li>
+<li><a href="#many">The only escape is many computers &mdash; which creates a deeper problem</a></li>
+<li><a href="#network">The network is the real bottleneck</a></li>
+<li><a href="#truth">The deepest constraint: no shared truth</a></li>
+<li><a href="#numbers">The numbers that dictate every decision</a></li>
+<li><a href="#taxes">The six taxes &mdash; and the map of this course</a></li>
+<li><a href="#nofreelunch">The one principle: there are no free lunches, only tax swaps</a></li>
+<li><a href="#use">How to use this course</a></li>
 </ul>
-
-<div class="sechead">3. How to approach an open-ended design problem</div>
-<p>Because real design problems are intentionally under-specified, jumping straight to a solution is the most common mistake. Before drawing anything, <strong>clarify requirements with your stakeholders</strong> &mdash; product owners, the team that will operate the system, whoever depends on it. Never assume what was not stated.</p>
-<p>Consider a URL-shortening service. It could serve a few thousand users who each share millions of links, or millions of users sharing a few links each. It might need to handle millions of redirects per second, or a few dozen. It might need detailed per-link analytics (which inflates storage substantially), or none at all. Each of these answers leads to a completely different architecture. The questions you ask up front determine whether you build the right system at all.</p>
-<p><strong>Learn from systems that already exist.</strong> Most hard problems have been solved before, often publicly. Read engineering blogs, watch conference talks, study how Dropbox handles sync or how Twitter fans out a timeline. Your instinct for what a reasonable design looks like comes directly from how many real systems you have studied.</p>
-<p><strong>Break the problem down.</strong> Whatever the complexity, a top-down, modular approach helps. Decompose the system into components &mdash; ingestion, storage, serving, background processing &mdash; and reason about each in isolation before connecting them. A clear decomposition makes the design easier to communicate, easier to review, and easier to evolve.</p>
-<p><strong>Find and address the bottlenecks.</strong> As you flesh out a design, constraints emerge: you need a load balancer in front of a fleet to absorb request volume; the dataset grows too large for one machine and must be partitioned across many; a hot read path needs a cache. This is normal and expected. The valuable skill is talking through these bottlenecks explicitly &mdash; what each fix costs, what it makes worse, and whether it is worth it given the constraints and use cases at hand. Resolve the high-level design first, confirm it meets the requirements, then deepen it where scale demands.</p>
-
-<div class="sechead">4. How this course is structured</div>
-<p>The course is layered so each part builds on the last. Treat it as a progression, not a reference to dip into at random &mdash; the later material assumes the vocabulary and intuition from the earlier material.</p>
-<ul>
-<li><strong>Building blocks</strong> &mdash; load balancing, caching, partitioning, indexes, proxies, queues, replication, SQL vs NoSQL, the CAP theorem, consistent hashing, and connection patterns. These are the components every design is assembled from.</li>
-<li><strong>Distributed systems theory</strong> &mdash; consensus, consistency models, distributed transactions, time and ordering, gossip, CRDTs, and coordination. The principles that explain <em>why</em> the building blocks behave as they do under failure.</li>
-<li><strong>Data-intensive systems</strong> &mdash; replication internals, storage engines, log-based messaging, stream and batch processing, probabilistic structures, and search. How data actually moves and persists at scale.</li>
-<li><strong>Modern architecture</strong> &mdash; microservices and service mesh, API styles, event-driven design, containers and serverless, object storage and CDNs.</li>
-<li><strong>Reliability &amp; operations</strong> &mdash; SLIs/SLOs, observability, resilience patterns, deployment strategies, and multi-region disaster recovery. Designing for the system after it ships.</li>
-<li><strong>Security</strong> &mdash; the cross-cutting concerns that belong in the design from the start, not bolted on later.</li>
-<li><strong>Design problems</strong> &mdash; worked end-to-end designs (URL shortener, Instagram, Uber, payment systems, and many more) where the earlier concepts come together on concrete products.</li>
-<li><strong>Architecture &amp; technology choices</strong> &mdash; how to choose an architectural style, a database, or a message broker, and how domain-driven design shapes boundaries. The judgment layer that ties everything together.</li>
-</ul>
-
-<div class="sechead">5. How to use it</div>
-<p>Work through the building blocks first until the vocabulary feels natural, then let your interests pull you toward theory, data systems, or the worked design problems. When you read a design problem, try to sketch your own architecture before reading the walkthrough &mdash; the gap between your version and the one presented is where the real learning happens. Keep the four threads &mdash; scale, trade-offs, failure, cost &mdash; in mind on every page, because mastering them is the whole point.</p>
-<p>Next, head to <a href="02 System Design Basics.htm">System Design Basics</a> to ground the core vocabulary, and when you are ready to put it all together on a real problem, work through the step-by-step design framework in <a href="14 A Framework for Approaching System Design.htm">the Design Framework</a>.</p>
-
-<style>
-.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
-.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
-.mastery ol{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
-</style>
-<div class="mastery">
-<h2>How to use this course</h2>
-<ol>
-<li><strong>Read the fundamentals end to end first.</strong> Lessons 02&ndash;14 (load balancing, caching, partitioning, CAP, consistent hashing) are the vocabulary every later page assumes. Don&rsquo;t skip ahead until these feel natural &mdash; the theory and design lessons will be opaque without them.</li>
-<li><strong>Layer in the theory before the deep dives.</strong> Distributed-systems theory (30&ndash;36) explains <em>why</em> the building blocks behave as they do under failure. Read it before the data-intensive deep dives (37&ndash;42, 64), which lean on consensus, consistency models, and ordering.</li>
-<li><strong>Attempt each design problem before reading the walkthrough.</strong> When you reach a problem (15&ndash;29 or the advanced set 53&ndash;62, 66), spend 20&ndash;30 minutes sketching your own architecture &mdash; estimate scale, pick components, name the bottlenecks &mdash; <em>then</em> compare against the presented design. The gap between your version and theirs is where the real learning happens.</li>
-<li><strong>Use the Mastery checks to self-test.</strong> Most lessons end with a Mastery block of principal-level questions. Answer them out loud as if explaining to a colleague in a design review; if you can&rsquo;t justify a trade-off cold, that&rsquo;s your signal to revisit the page.</li>
-<li><strong>Keep the four threads in mind on every page.</strong> Scale, trade-offs, failure, and cost run through everything. For each design choice, ask what it costs elsewhere &mdash; naming the trade-off is half the skill.</li>
-<li><strong>Revisit, don&rsquo;t cram.</strong> Systems judgment compounds. Come back to the fundamentals after working a few design problems; concepts that felt abstract the first time become instinct, and you&rsquo;ll read the same page with new eyes.</li>
-</ol>
 </div>
+
+<h2 id="one">It all reduces to one computer</h2>
+<p>Strip away every diagram, every brand name, every framework, and a system is a set of <span class="key">physical computers talking to each other over wires</span>. Each box you ever draw &mdash; a web server, a database, a cache, a queue, a load balancer &mdash; is a real computer sitting in a rack somewhere, with a <span class="key">CPU</span> that executes a bounded number of instructions per second, a <span class="key">memory hierarchy</span> (registers &rarr; cache &rarr; RAM &rarr; SSD &rarr; disk, each tier roughly 10&ndash;100&times; slower and cheaper than the one above it), a finite amount of <span class="key">storage</span>, and a <span class="key">network interface</span>. And like any physical object, it can fail &mdash; a disk dies, a power supply pops, a kernel panics &mdash; at any moment, without warning.</p>
+<p>That is the whole substrate. If you understand the limits of <em>one</em> such machine and the wire between two of them, you can derive almost everything else in this course from first principles rather than memorizing it. So let us do exactly that.</p>
+
+<h2 id="wall">The wall: a single computer is finite and mortal</h2>
+<p>For decades the answer to "I need more" was simply "buy a bigger computer" &mdash; <span class="key">vertical scaling</span>. It works until it doesn't, and it always stops working, for two independent reasons:</p>
+<ul>
+<li><span class="key">Finite capacity.</span> There is a biggest CPU, a maximum amount of RAM, a fastest disk that money can buy &mdash; and the cost of getting there grows <em>super-linearly</em>. Meanwhile demand &mdash; data volume, request rate &mdash; can grow without bound. At some scale, no single machine is big enough or fast enough, at any price.</li>
+<li><span class="key">Mortality.</span> A single computer has a non-zero probability of failing. One machine means one point of failure: when it dies, your system is down. No amount of money makes a single component perfectly reliable.</li>
+</ul>
+<div class="callout note"><span class="lbl">The pivot</span>These two facts &mdash; <em>not big enough</em> and <em>not reliable enough</em> &mdash; are the entire reason system design exists. If one computer could be made arbitrarily fast, arbitrarily large, and immortal, this field would evaporate. You would just buy the box. System design is what you are forced to do <em>because that box does not exist.</em></div>
+
+<h2 id="many">The only escape is many computers &mdash; which creates a deeper problem</h2>
+<p>Since you cannot make one machine big enough or reliable enough, you are forced into the only alternative: <span class="key">use many machines</span> &mdash; <span class="key">horizontal scaling</span>. Spread the load across many computers so their capacity adds up; keep copies on several computers so the system survives any one of them dying.</p>
+<p>This solves the wall. But the instant work spans more than one machine, the binding constraint <em>changes</em>. It is no longer the CPU, the RAM, or the disk of any single box. It becomes <span class="key">the network between the boxes</span> &mdash; and the network is a far crueler master than any local resource. This is the hinge of the entire field, so it is worth stating plainly:</p>
+<div class="callout tradeoff"><span class="lbl">The central trade</span>You adopt many computers to escape the limits of one. In doing so you trade a <em>capacity-and-reliability</em> problem you cannot solve for a <em>coordination-over-an-unreliable-network</em> problem you can only manage. Every technique in this course is a tactic in that managed war.</div>
+
+<h2 id="network">The network is the real bottleneck</h2>
+<p>Two facts about the network are not engineering choices you can optimize away &mdash; they are physics:</p>
+<h3>1. The speed of light is a hard latency floor</h3>
+<p>Information cannot travel faster than light: ~300,000 km/s, and slower through fibre. New York to London is ~5,500 km, so a round trip is <em>at minimum</em> ~37&nbsp;ms before a single line of your code runs. No CDN, no clever cache, no faster CPU changes that floor. This is why reading from local RAM (~100&nbsp;ns) and calling a service on another continent (~tens of milliseconds) differ by <span class="key">five to six orders of magnitude</span>. Distance is latency, and latency is physics.</p>
+<h3>2. The network is unreliable and has finite bandwidth</h3>
+<p>Messages are dropped, delayed, duplicated, and reordered. Links saturate. A request you send may never arrive, or its reply may never come back, and <em>you cannot tell which.</em> Bandwidth between machines is finite and often the scarcest resource of all (cross-region data transfer is both slow and, on a cloud bill, expensive).</p>
+<div class="callout warn"><span class="lbl">Consequence</span>Once your system is distributed, "just call the other service" is never free and never guaranteed. Latency and partial failure are not edge cases &mdash; they are the default condition of every line that crosses a machine boundary.</div>
+
+<h2 id="truth">The deepest constraint: no shared truth</h2>
+<p>There is one more constraint, and it is the one engineers most often miss because it is not about hardware at all &mdash; it is almost <em>logical</em>. It is also not a separate root: it <em>falls out</em> of the two above. Because state is physically separated and the network is unreliable:</p>
+<ul>
+<li><span class="key">There is no global clock.</span> Two machines cannot agree on what time "now" is to the precision needed to order events. Each has its own drifting clock.</li>
+<li><span class="key">You cannot distinguish "slow" from "dead."</span> If a machine stops responding, you have no way to know whether it crashed, whether the network ate your message, or whether it is just busy and the reply is still coming. They look identical from the outside.</li>
+</ul>
+<p>From these two innocent-sounding facts flows the hardest part of the entire field: <span class="key">getting independent machines to agree on anything</span> &mdash; who is the leader, what order writes happened in, whether a transaction committed. This is the root beneath consensus (Raft, Paxos), beneath the <a href="11 CAP Theorem.htm">CAP theorem</a> and <a href="31 Consistency Models and PACELC.htm">PACELC</a>, beneath <a href="33 Time Clocks and Ordering.htm">logical and vector clocks</a>, beneath the famous FLP impossibility result. It is not additional to "the computer and the network" &mdash; it is their <em>theorem</em>.</p>
+<div class="callout note"><span class="lbl">So, is anything more fundamental than the Computer and the Network?</span>No. There are three forces: the <b>Computer</b> (finite, mortal), the <b>Network</b> (slow, unreliable), and the <b>Workload</b> (the external, growing, bursty demand that pushes you into both). The Computer and Network are the constraints; the Workload is the force. The famous difficulty of agreement is <em>derived</em> from physically separated state on an unreliable network &mdash; a consequence, not a peer. Everything in this course sits on top of these.</div>
+
+<h2 id="numbers">The numbers that dictate every decision</h2>
+<p>The abstract argument becomes concrete the moment you internalize the relative costs of operations. The <em>ratios</em> here are what force every design decision in the field &mdash; commit them to instinct:</p>
+<table>
+<tr><th>Operation</th><th>Approx. time</th><th>Relative to L1</th></tr>
+<tr><td>L1 cache reference</td><td>~1 ns</td><td>1&times;</td></tr>
+<tr><td>Main memory (RAM) reference</td><td>~100 ns</td><td>~100&times;</td></tr>
+<tr><td>SSD random read</td><td>~16 &micro;s</td><td>~16,000&times;</td></tr>
+<tr><td>Datacenter network round trip</td><td>~500 &micro;s</td><td>~500,000&times;</td></tr>
+<tr><td>Disk (HDD) seek</td><td>~2&ndash;10 ms</td><td>~10,000,000&times;</td></tr>
+<tr><td>Same-region network round trip</td><td>~1&ndash;5 ms</td><td>&mdash;</td></tr>
+<tr><td>Cross-continent network round trip</td><td>~100&ndash;150 ms</td><td>~150,000,000&times;</td></tr>
+</table>
+<p>Read this table as a hierarchy of <em>cost</em>. The entire discipline can be summarized as: <span class="key">keep work as far up this table as possible; when you cannot, hide the cost or tolerate it.</span> That single sentence generates the techniques:</p>
+<ul>
+<li><b>Caching</b> = move data up the hierarchy, closer to the CPU. (<a href="04 Caching.htm">04</a>)</li>
+<li><b>Replication / CDN</b> = put a copy physically closer to the reader, or somewhere that survives a failure. (<a href="09 Redundancy and Replication.htm">09</a>, <a href="65 Object Storage and CDN.htm">65</a>)</li>
+<li><b>Sharding</b> = the data will not fit in fast memory on one box, so split it across many. (<a href="05 Sharding or Data Partitioning.htm">05</a>)</li>
+<li><b>Queues / async</b> = stop <em>waiting</em> on the slow network round trip; do it later. (<a href="08 Queues.htm">08</a>)</li>
+<li><b>Consensus</b> = agree on truth despite no shared clock, paying a majority round trip per decision. (<a href="30 Consensus and Raft.htm">30</a>)</li>
+</ul>
+
+<h2 id="taxes">The six taxes &mdash; and the map of this course</h2>
+<p>Here is the unifying idea. Each of the three forces above imposes one or more <span class="key">taxes</span> &mdash; unavoidable costs you must pay to build something that appears more capable and more reliable than any single computer. Every technique in this course is a method of paying one tax &mdash; and crucially, <em>each payment incurs a cost of its own.</em> Once you see the taxes, the entire field organizes itself:</p>
+<table>
+<tr><th>The tax</th><th>Imposed by</th><th>What it forces</th><th>Techniques that pay it</th></tr>
+<tr><td><b>Latency</b></td><td>Memory hierarchy + speed of light</td><td>get the data closer / stop waiting</td><td>caching, CDN, replicas-near-users, indexes, async/queues, precompute</td></tr>
+<tr><td><b>Finite capacity</b></td><td>One box isn't big/fast enough + workload</td><td>split the work</td><td>sharding, partitioning, load balancing, consistent hashing, microservices</td></tr>
+<tr><td><b>Partial failure</b></td><td>Computers die independently</td><td>duplicate &amp; tolerate</td><td>redundancy, replication, retries, circuit breakers, multi-region, leader election</td></tr>
+<tr><td><b>No shared truth</b></td><td>No global clock; slow vs dead (derived)</td><td>coordinate, slowly</td><td>consensus, quorums, vector clocks, CAP/PACELC choices, distributed transactions, CRDTs, locking</td></tr>
+<tr><td><b>Concurrency</b></td><td>Many things at once, even on one box</td><td>serialize access safely</td><td>locking, MVCC, idempotency, optimistic concurrency, atomic operations</td></tr>
+<tr><td><b>Operability &amp; cost</b></td><td>Humans must run, observe, evolve, afford it</td><td>make it manageable and affordable</td><td>SLOs, observability, deployment strategy, cost-aware design, DDD boundaries</td></tr>
+</table>
+<p>This is not a metaphor imposed on the material &mdash; it is the material's actual structure. <span class="key">Every single lesson in this course pays one of these six taxes.</span> To prove it to yourself, look at the small <span style="background:#f3f6fb;border-left:3px solid var(--accent);padding:1px 6px;border-radius:0 3px 3px 0;">Tax paid</span> line at the top of every other lesson: it names which tax that technique is paying and what the payment costs you in return.</p>
+
+<h2 id="nofreelunch">The one principle: there are no free lunches, only tax swaps</h2>
+<p>If you remember one sentence from this entire course, make it this: <span class="key">you can never avoid a tax &mdash; you can only choose which one to pay.</span> Every technique that relieves one tax incurs another. This is the principal engineer's core instinct, and it is why "it depends" is the honest answer to almost every design question.</p>
+<ul>
+<li>A <b>cache</b> pays down latency &mdash; and bills you in <em>staleness</em> and invalidation complexity.</li>
+<li><b>Replication</b> pays down partial failure &mdash; and bills you in <em>consistency</em> (the copies can disagree) and cost.</li>
+<li><b>Sharding</b> pays down finite capacity &mdash; and bills you in lost <em>joins</em>, harder transactions, and hot-shard skew.</li>
+<li><b>Strong consistency</b> pays down "no shared truth" &mdash; and bills you in <em>latency</em> and reduced availability under partition (this is literally what <a href="31 Consistency Models and PACELC.htm">PACELC</a> formalizes).</li>
+<li>A <b>saga</b> pays down the blocking of distributed transactions &mdash; and bills you in lost <em>atomicity</em>, forcing you to write compensations.</li>
+</ul>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They never present a technique as a win. They name the tax it pays <em>and</em> the cost it incurs, then argue that for <em>this</em> workload the swap is worth it. "We shard by user ID, which costs us cross-user joins &mdash; acceptable here because our access pattern is single-user." That sentence &mdash; technique, tax paid, cost incurred, justified by workload &mdash; is the whole job.</div>
+
+<h2 id="use">How to use this course</h2>
+<ol>
+<li><span class="key">Hold this lesson in your head as you read every other one.</span> When you meet a technique, first ask: <em>which tax is this paying, and what does it cost in return?</em> The <span style="background:#f3f6fb;border-left:3px solid var(--accent);padding:1px 6px;border-radius:0 3px 3px 0;">Tax paid</span> line at the top of each lesson answers it in one line; the lesson body is the detail.</li>
+<li><span class="key">Build from the bottom.</span> Read the fundamentals (<a href="02 System Design Basics.htm">02</a>&ndash;<a href="13 Long-Polling vs WebSockets vs Server-Sent Events (_New_).htm">13</a>) and the framework (<a href="14 A Framework for Approaching System Design.htm">14</a>) first &mdash; they are the building blocks every later design composes.</li>
+<li><span class="key">Attempt before you read.</span> For the design problems (15&ndash;29, 53&ndash;62, 66, 71), sketch your own design first, then read &mdash; especially the "Principal-level deep dive," which surfaces the taxes the naive design ignores.</li>
+<li><span class="key">Go deep where it matters.</span> The distributed-systems theory (30&ndash;36) and data-intensive lessons (37&ndash;42) are where the "no shared truth" tax is paid in full. They are the difference between assembling components and <em>understanding</em> them.</li>
+<li><span class="key">Self-test.</span> Use the <em>Mastery check</em> at the end of each lesson, and the <a href="63 Principal-Level Self-Assessment and Index.htm">Self-Assessment &amp; Index</a>, to confirm you can name the taxes rather than just recognize the technique.</li>
+</ol>
+<p>Master the two machines and the taxes they impose, and the seventy lessons that follow stop being a list to memorize and become a single idea, applied over and over.</p>
+
 <div class="navfoot"><a href="index.html">&lsaquo; Prev: Course index</a><a class="nx" href="02 System Design Basics.htm">Next: System Design Basics &rsaquo;</a></div>
 </div>
 </div>

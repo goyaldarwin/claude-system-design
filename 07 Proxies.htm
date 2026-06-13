@@ -15,7 +15,7 @@
 <nav class="sidebar">
 <div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
 <div class="grp"><h5>Fundamentals &amp; building blocks</h5>
-<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Why System Design Matters</a>
+<a class="lk" data-file="01 Why System Design Matters.htm" href="01 Why System Design Matters.htm"><span class="n">01</span>Foundations: The Two Machines</a>
 <a class="lk" data-file="02 System Design Basics.htm" href="02 System Design Basics.htm"><span class="n">02</span>System Design Basics</a>
 <a class="lk" data-file="03 Load Balancing.htm" href="03 Load Balancing.htm"><span class="n">03</span>Load Balancing</a>
 <a class="lk" data-file="04 Caching.htm" href="04 Caching.htm"><span class="n">04</span>Caching</a>
@@ -114,6 +114,7 @@
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Proxies</div>
 <h1>Proxies</h1>
 <p class="sub"><em>Proxy servers as intermediaries — types, caching, collapsed forwarding, and where they sit in a system.</em></p>
+<div class="taxline"><span class="lab">Tax paid</span> <b>Latency &amp; operability.</b> <span>an intermediary buys caching/filtering/TLS offload at the cost of an extra hop and a thing to operate.</span> <span style="color:#7a8aa0">Why this exists &rarr; <a href="01 Why System Design Matters.htm">lesson 01</a></span></div>
 
 <div class="sechead">1. What is a proxy server?</div>
 <p>A <span class="key">proxy server</span> is an intermediary piece of hardware or software that sits between a client and the back-end (or origin) server. It receives requests from clients and relays them to the origin server. Typically, proxies are used to filter requests, log requests, or sometimes transform requests &mdash; by adding or removing headers, encrypting or decrypting, or compressing a resource. Because the proxy stands in the middle of every request and response, it is a natural place to enforce policy, observe traffic, and reshape payloads without changing either the client or the origin.</p>

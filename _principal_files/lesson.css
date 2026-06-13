@@ -45,7 +45,13 @@ body{
 .crumb a{color:var(--accent); text-decoration:none;}
 .crumb a:hover{text-decoration:underline;}
 h1{font-size:30px; line-height:1.25; font-weight:700; margin:0 0 8px; letter-spacing:-0.01em;}
-.sub{font-size:15px; color:var(--muted); margin:0 0 32px; font-style:italic;}
+.sub{font-size:15px; color:var(--muted); margin:0 0 16px; font-style:italic;}
+.taxline{display:flex; flex-wrap:wrap; gap:8px 18px; margin:0 0 30px; padding:11px 16px;
+  background:#f3f6fb; border:1px solid #dce6f5; border-left:4px solid var(--accent); border-radius:0 6px 6px 0;
+  font-size:13.5px;}
+.taxline .lab{font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:.05em; font-size:11px;}
+.taxline b{color:var(--ink); font-weight:600;}
+.taxline a{color:var(--accent); text-decoration:none;} .taxline a:hover{text-decoration:underline;}
 h2{font-size:23px; font-weight:700; margin:40px 0 12px; padding-bottom:6px; border-bottom:2px solid var(--line); letter-spacing:-0.01em;}
 h3{font-size:19px; font-weight:600; margin:28px 0 8px;}
 h4{font-size:16px; font-weight:600; margin:22px 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em;}
