@@ -111,272 +111,145 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing a URL Shortening Service like TinyURL</div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing a URL Shortening Service</div>
 <h1>Designing a URL Shortening Service like TinyURL</h1>
-<p class="sub"><em>Let's design a URL shortening service like TinyURL: generating short, unique aliases for long URLs, then redirecting users back to the originals at scale.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; finite capacity.</b> <span>short keys + fast redirects, paid for with a key-generation scheme and heavy caching.</span></div>
-<div class="toc"><h4>In this lesson</h4>
-<ul>
-  <li><a href="#1-why-do-we-need-url-shortening">Why do we need URL shortening?</a></li>
-  <li><a href="#2-requirements-and-goals-of-the-system">Requirements and Goals of the System</a></li>
-  <li><a href="#3-capacity-estimation-and-constraints">Capacity Estimation and Constraints</a></li>
-  <li><a href="#4-system-apis">System APIs</a></li>
-  <li><a href="#5-database-design">Database Design</a></li>
-  <li><a href="#6-basic-system-design-and-algorithm">Basic System Design and Algorithm</a></li>
-  <li><a href="#7-data-partitioning-and-replication">Data Partitioning and Replication</a></li>
-  <li><a href="#8-cache">Cache</a></li>
-  <li><a href="#9-load-balancer-lb">Load Balancer (LB)</a></li>
-  <li><a href="#10-purging-or-db-cleanup">Purging or DB cleanup</a></li>
-  <li><a href="#11-telemetry">Telemetry</a></li>
-  <li><a href="#12-security-and-permissions">Security and Permissions</a></li>
-</ul></div>
+<p class="sub"><em>The simplest classic design &mdash; and a perfect lens on read-heavy systems. ~200 writes/sec, ~20,000 reads/sec: a 100:1 ratio. The whole design is about making the redirect a sub-millisecond cache hit, and the one genuinely interesting decision is how you mint short, unique, unguessable keys.</em></p>
 
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Reads outnumber writes ~100:1, so the redirect path must be a cache hit, and key generation must never collide or bottleneck.</b> <span>Generating the short key is the one hard choice; everything else is caching the read path and sharding the store.</span></div>
 
-<h2 id="1-why-do-we-need-url-shortening">Why do we need URL shortening?</h2>
-<p>URL shortening is used to create shorter aliases for long URLs. Users are redirected to the original URL when they hit these aliases. A shorter version of any URL would save a lot of space whenever we use it e.g., when printing or tweeting as tweets have a character limit.</p>
-<p>For example, if we shorten this page through TinyURL:</p>
-<blockquote>
-<p><a href="15.html" target="_blank">https://www.educative.io/collection/page/5668639101419520/5649050225344512/5668600916475904/</a></p>
-</blockquote>
-<p>We would get:</p>
-<blockquote>
-<p><a href="http://tinyurl.com/jlg8zpc" target="_blank">http://tinyurl.com/jlg8zpc</a></p>
-</blockquote>
-<p>The shortened URL is nearly 1/3rd of the size of the actual URL.</p>
-<p>URL shortening is used for optimizing links across devices, tracking individual links to analyze audience and campaign performance, and hiding affiliated original URLs, etc.</p>
-<p>If you haven't used <a href="http://tinyurl.com/" target="_blank">tinyurl.com</a> before, please try creating a new shortened URL and spend some time going through different options their service offers. This will help you a lot in understanding this chapter better.</p>
-
-<h2 id="2-requirements-and-goals-of-the-system">Requirements and Goals of the System</h2>
-<div class="clarify">You should always clarify requirements at the start and ask questions to find the exact scope of the system you are designing.</div>
-<p>Our URL shortener system should meet the following requirements:</p>
-<p><strong>Functional Requirements:</strong></p>
-<ol>
-<li>Given a URL, our service should generate a shorter and unique alias of it.</li>
-<li>When users access a shorter URL, our service should redirect them to the original link.</li>
-<li>Users should optionally be able to pick a custom alias for their URL.</li>
-<li>Links will expire after a specific timespan automatically; users should also be able to specify expiration time.</li>
-</ol>
-<p><strong>Non-Functional Requirements:</strong></p>
-<ol>
-<li>The system should be highly available. This is required because if our service is down, all the URL redirections will start failing.</li>
-<li>URL redirection should happen in real-time with minimum latency.</li>
-<li>Shortened links should not be guessable (not predictable).</li>
-</ol>
-<p><strong>Extended Requirements:</strong></p>
-<ol>
-<li>Analytics, e.g., how many times a redirection happened?</li>
-<li>Our service should also be accessible through REST APIs by other services.</li>
-</ol>
-
-<h2 id="3-capacity-estimation-and-constraints">Capacity Estimation and Constraints</h2>
-<p>Our system would be read-heavy; there would be lots of redirection requests compared to new URL shortenings. Let's assume 100:1 ratio between read and write.</p>
-<p><strong>Traffic estimates:</strong> If we assume that we would have 500M new URLs shortenings per month, we can expect (100 * 500M =&gt; 50B) redirections during the same time. What would be Queries Per Second (QPS) for our system?</p>
-<p>New URLs shortenings per second:</p>
-<blockquote><p>500 million / (30 days * 24 hours * 3600 seconds) ~= 200 URLs/s</p></blockquote>
-<p>URLs redirections per second:</p>
-<blockquote><p>50 billion / (30 days * 24 hours * 3600 sec) ~= 19K/s</p></blockquote>
-<p><strong>Storage estimates:</strong> Since we expect to have 500M new URLs every month and if we would be keeping these objects for five years; total number of objects we will be storing would be 30 billion.</p>
-<blockquote><p>500 million * 5 years * 12 months = 30 billion</p></blockquote>
-<p>Let's assume that each object we are storing can be of 500 bytes (just a ballpark, we will dig into it later); we would need 15TB of total storage:</p>
-<blockquote><p>30 billion * 500 bytes = 15 TB</p></blockquote>
-
-<div class="callout note"><span class="lbl">Interactive Calculator</span> The original lesson embedded an interactive capacity-estimation calculator here, pre-filled with: URL Shortenings per month = 500 million, Total years = 5, and an object size of 500 bytes. Adjusting the inputs recomputed the traffic, storage, bandwidth, and memory numbers shown throughout this section.</div>
-<p class="legacy-note">The original lesson had an interactive widget here; shown above as static content.</p>
-
-<p><strong>Bandwidth estimates:</strong> For write requests, since every second we expect 200 new URLs, total incoming data for our service would be 100KB per second.</p>
-<blockquote><p>200 * 500 bytes = 100 KB/s</p></blockquote>
-<p>For read requests, since every second we expect ~19K URLs redirections, total outgoing data for our service would be 9MB per second.</p>
-<blockquote><p>19K * 500 bytes ~= 9 MB/s</p></blockquote>
-<p><strong>Memory estimates:</strong> If we want to cache some of the hot URLs that are frequently accessed, how much memory would we need to store them? If we follow the 80-20 rule, meaning 20% of URLs generating 80% of traffic, we would like to cache these 20% hot URLs.</p>
-<p>Since we have 19K requests per second, we would be getting 1.7billion requests per day.</p>
-<blockquote><p>19K * 3600 seconds * 24 hours ~= 1.7 billion</p></blockquote>
-<p>To cache 20% of these requests, we would need 170GB of memory.</p>
-<blockquote><p>0.2 * 1.7 billion * 500 bytes ~= 170GB</p></blockquote>
-<p><strong>High level estimates:</strong> Assuming 500 million new URLs per month and 100:1 read:write ratio, following is the summary of the high level estimates for our service:</p>
-<table>
-<tr><td>New URLs</td><td>200/s</td></tr>
-<tr><td>URL redirections</td><td>19K/s</td></tr>
-<tr><td>Incoming data</td><td>100KB/s</td></tr>
-<tr><td>Outgoing data</td><td>9MB/s</td></tr>
-<tr><td>Storage for 5 years</td><td>15TB</td></tr>
-<tr><td>Memory for cache</td><td>170GB</td></tr>
-</table>
-
-<h2 id="4-system-apis">System APIs</h2>
-<div class="clarify">Once we've finalized the requirements, it's always a good idea to define the system APIs. This would explicitly state what is expected from the system.</div>
-<p>We can have SOAP or REST APIs to expose the functionality of our service. Following could be the definitions of the APIs for creating and deleting URLs:</p>
-<pre><code>createURL(api_dev_key, original_url, custom_alias=None, user_name=None, expire_date=None)</code></pre>
-<p><strong>Parameters:</strong><br>
-api_dev_key (string): The API developer key of a registered account. This will be used to, among other things, throttle users based on their allocated quota.<br>
-original_url (string): Original URL to be shortened.<br>
-custom_alias (string): Optional custom key for the URL.<br>
-user_name (string): Optional user name to be used in encoding.<br>
-expire_date (string): Optional expiration date for the shortened URL.</p>
-<p><strong>Returns:</strong> (string)<br>
-A successful insertion returns the shortened URL, otherwise, returns an error code.</p>
-<pre><code>deleteURL(api_dev_key, url_key)</code></pre>
-<p>Where "url_key" is a string representing the shortened URL to be deleted. A successful deletion returns 'URL Removed'.</p>
-<p><strong>How do we detect and prevent abuse?</strong> For instance, any service can put us out of business by consuming all our keys in the current design. To prevent abuse, we can limit users through their api_dev_key, how many URL they can create or access in a certain time.</p>
-
-<h2 id="5-database-design">Database Design</h2>
-<div class="clarify">Defining the DB schema early would help to understand the data flow among various components and later would guide towards the data partitioning.</div>
-<p>A few observations about nature of the data we are going to store:</p>
-<ol>
-<li>We need to store billions of records.</li>
-<li>Each object we are going to store is small (less than 1K).</li>
-<li>There are no relationships between records, except if we want to store which user created what URL.</li>
-<li>Our service is read-heavy.</li>
-</ol>
-<h4>Database Schema:</h4>
-<p>We would need two tables, one for storing information about the URL mappings and the other for users' data.</p>
-<p style="text-align:center;"><img src="./_principal_files/img/5685265389584384.png" alt="diagram"></p>
-<p><strong>What kind of database should we use?</strong> Since we are likely going to store billions of rows and we don't need to use relationships between objects – a NoSQL key-value store like Dynamo or Cassandra is a better choice, which would also be easier to scale. Please see <a href="10.html" target="_blank">SQL vs NoSQL</a> for more details. If we choose NoSQL, we cannot store UserID in the URL table (as there are no foreign keys in NoSQL), for that we would need a third table which will store the mapping between URL and the user.</p>
-
-<h2 id="6-basic-system-design-and-algorithm">Basic System Design and Algorithm</h2>
-<p>The problem we are solving here is to generate a short and unique key for the given URL. In the above-mentioned example, the shortened URL we got was: "<a href="http://tinyurl.com/jlg8zpc%E2%80%9D" target="_blank">http://tinyurl.com/jlg8zpc"</a>, the last six characters of this URL is the short key we want to generate. We'll explore two solutions here:</p>
-<h4>a. Encoding actual URL</h4>
-<p>We can compute a unique hash (e.g., <a href="https://en.wikipedia.org/wiki/MD5" target="_blank">MD5</a> or <a href="https://en.wikipedia.org/wiki/SHA-2" target="_blank">SHA256</a>, etc.) of the given URL. The hash can then be encoded for displaying. This encoding could be base36 ([a-z ,0-9]) or base62 ([A-Z, a-z, 0-9]) and if we add '-' and '.', we can use base64 encoding. A reasonable question would be; what should be the length of the short key? 6, 8 or 10 characters?</p>
-<p>Using base64 encoding, a 6 letter long key would result in 64^6 ~= 68.7 billion possible strings<br>
-Using base64 encoding, an 8 letter long key would result in 64^8 ~= 281 trillion possible strings</p>
-<p>With 68.7B unique strings, let's assume for our system six letters keys would suffice. (The principal-level deep dive below switches to base62, which is more standard for shorteners; the key-space math is analogous, just with 62 symbols instead of 64.)</p>
-<p>If we use the MD5 algorithm as our hash function, it'll produce a 128-bit hash value. After base64 encoding we'll get a string having more than 20 characters, how will we chose our key then? We can take the first 6 (or 8) letters for the key. This could result in key duplication though, upon which we can choose some other characters out of the encoding string or swap some characters.</p>
-<p><strong>What are different issues with our solution?</strong> We have the following couple of problems with our encoding scheme:</p>
-<ol>
-<li>If multiple users enter the same URL, they can get the same shortened URL, which is not acceptable.</li>
-<li>What if parts of the URL are URL-encoded? e.g., <a href="http://www.educative.io/distributed.php?id=design" target="_blank">http://www.educative.io/distributed.php?id=design</a>, and&nbsp;<a href="http://www.educative.io/distributed.php%3Fid%3Ddesign" target="_blank">http://www.educative.io/distributed.php%3Fid%3Ddesign</a> are identical except for the URL encoding.</li>
-</ol>
-<p><strong>Workaround for the issues:</strong> We can append an increasing sequence number to each input URL to make it unique and then generate a hash of it. We don't need to store this sequence number in the databases, though. Possible problems with this approach could be how big this sequence number would be, can it overflow? Appending an increasing sequence number will impact the performance of the service too.</p>
-<p>Another solution could be, to append user id (which should be unique) to the input URL. However, if the user has not signed in, we can ask the user to choose a uniqueness key. Even after this if we have a conflict, we have to keep generating a key until we get a unique one.</p>
-<h4>b. Generating keys offline</h4>
-<p>We can have a standalone Key Generation Service (KGS) that generates random six letter strings beforehand and stores them in a database (let's call it key-DB). Whenever we want to shorten a URL, we will just take one of the already generated keys and use it. This approach will make things quite simple and fast since we will not be encoding the URL or worrying about duplications or collisions. KGS will make sure all the keys inserted in key-DB are unique.</p>
-<p><strong>Can concurrency cause problems?</strong> As soon as a key is used, it should be marked in the database so that it doesn't get used again. If there are multiple servers reading keys concurrently, we might get a scenario where two or more servers try to read the same key from the database. How can we solve this concurrency problem?</p>
-<p>Servers can use KGS to read/mark keys in the database. KGS can use two tables to store keys, one for keys that are not used yet and one for all the used keys. As soon as KGS gives keys to one of the servers, it can move them to the used keys table. KGS can always keep some keys in memory so that whenever a server needs them, it can quickly provide them. For simplicity, as soon as KGS loads some keys in memory, it can move them to used keys table. This way we can make sure each server gets unique keys. If KGS dies before assigning all the loaded keys to some server, we will be wasting those keys, which we can ignore given a huge number of keys we have. KGS also has to make sure not to give the same key to multiple servers. For that, it must synchronize (or get a lock to) the data structure holding the keys before removing keys from it and giving them to a server.</p>
-<p><strong>What would be the key-DB size?</strong> With base64 encoding, we can generate 68.7B unique six letters keys. If we need one byte to store one alpha-numeric character, we can store all these keys in:</p>
-<blockquote><p>6 (characters per key) * 68.7B (unique keys) =&gt; 412 GB.</p></blockquote>
-<p><strong>Isn't KGS the single point of failure?</strong> Yes, it is. To solve this, we can have a standby replica of KGS, and whenever the primary server dies, it can take over to generate and provide keys.</p>
-<p><strong>Can each app server cache some keys from key-DB?</strong> Yes, this can surely speed things up. Although in this case, if the application server dies before consuming all the keys, we will end up losing those keys. This could be acceptable since we have 68B unique six letters keys.</p>
-<p><strong>How would we perform a key lookup?</strong> We can look up the key in our database or key-value store to get the full URL. If it's present, issue a "HTTP 302 Redirect" status back to the browser, passing the stored URL in the "Location" field of the request. If that key is not present in our system, issue a "HTTP 404 Not Found" status, or redirect the user back to the homepage.</p>
-<p><strong>Should we impose size limits on custom aliases?</strong> Since our service supports custom aliases, users can pick any 'key' they like, but providing a custom alias is not mandatory. However, it is reasonable (and often desirable) to impose a size limit on a custom alias, so that we have a consistent URL database. Let's assume users can specify maximum 16 characters long customer key (as reflected in the above database schema).</p>
-
-<h2 id="7-data-partitioning-and-replication">Data Partitioning and Replication</h2>
-<p>To scale out our DB, we need to partition it so that it can store information about billions of URL. We need to come up with a partitioning scheme that would divide and store our data to different DB servers.</p>
-<p><strong>a. Range Based Partitioning:</strong> We can store URLs in separate partitions based on the first letter of the URL or the hash key. Hence we save all the URLs starting with letter 'A' in one partition and those that start with letter 'B' into another partition and so on. This approach is called range based partitioning. We can even combine certain less frequently occurring letters into one database partition. We should come up with this partitioning scheme statically so that we can always store/find a file in a predictable manner.</p>
-<p>The main problem with this approach is that it can lead to unbalanced servers, for instance; if we decide to put all URLs starting with letter 'E' into a DB partition, but later we realize that we have too many URLs that start with letter 'E', which we can't fit into one DB partition.</p>
-<p><strong>b. Hash-Based Partitioning:</strong> In this scheme, we take a hash of the object we are storing, and based on this hash we figure out the DB partition to which this object should go. In our case, we can take the hash of the 'key' or the actual URL to determine the partition to store the file. Our hashing function will randomly distribute URLs into different partitions, e.g., our hashing function can always map any key to a number between [1…256], and this number would represent the partition to store our object.</p>
-<p>This approach can still lead to overloaded partitions, which can be solved by using <a href="12.html" target="_blank">Consistent Hashing</a>.</p>
-
-<h2 id="8-cache">Cache</h2>
-<p>We can cache URLs that are frequently accessed. We can use some off-the-shelf solution like Memcache, that can store full URLs with their respective hashes. The application servers, before hitting backend storage, can quickly check if the cache has desired URL.</p>
-<p><strong>How much cache should we have?</strong> We can start with 20% of daily traffic and based on clients' usage pattern we can adjust how many cache servers we need. As estimated above we need 170GB memory to cache 20% of daily traffic since a modern day server can have 256GB memory, the working set can fit on a single machine, but a small replicated cache fleet is preferred so the cache is not a single point of failure (matching our high-availability requirement).</p>
-<p><strong>Which cache eviction policy would best fit our needs?</strong> When the cache is full, and we want to replace a link with a newer/hotter URL, how would we choose? Least Recently Used (LRU) can be a reasonable policy for our system. Under this policy, we discard the least recently used URL first. We can use a <a href="https://docs.oracle.com/javase/7/docs/api/java/util/LinkedHashMap.html" target="_blank">Linked Hash Map</a> or a similar data structure to store our URLs and Hashes, which will also keep track of which URLs are accessed recently.</p>
-<p>To further increase the efficiency, we can replicate our caching servers to distribute load between them.</p>
-<p><strong>How can each cache replica be updated?</strong> Whenever there is a cache miss, our servers would be hitting backend database. Whenever this happens, we can update the cache and pass the new entry to all the cache replicas. Each replica can update their cache by adding the new entry. If a replica already has that entry, it can simply ignore it.</p>
-
-<h2 id="9-load-balancer-lb">Load Balancer (LB)</h2>
-<p>We can add Load balancing layer at three places in our system:</p>
-<ol>
-<li>Between Clients and Application servers</li>
-<li>Between Application Servers and database servers</li>
-<li>Between Application Servers and Cache servers</li>
-</ol>
-<p>Initially, a simple Round Robin approach can be adopted; that distributes incoming requests equally among backend servers. This LB is simple to implement and does not introduce any overhead. Another benefit of this approach is if a server is dead, LB will take it out of the rotation and will stop sending any traffic to it. A problem with Round Robin LB is, it won't take server load into consideration. If a server is overloaded or slow, the LB will not stop sending new requests to that server. To handle this, a more intelligent LB solution can be placed that periodically queries backend server about its load and adjusts traffic based on that.</p>
-
-<h2 id="10-purging-or-db-cleanup">Purging or DB cleanup</h2>
-<p>Should entries stick around forever or should they be purged? If a user-specified expiration time is reached, what should happen to the link? If we chose to actively search for expired links to remove them, it would put a lot of pressure on our database. We can slowly remove expired links and do a lazy cleanup too. Our service will make sure that only expired links will be deleted, although some expired links can live longer but will never be returned to users.</p>
-<ul>
-<li>Whenever a user tries to access an expired link, we can delete the link and return an error to the user.</li>
-<li>A separate Cleanup service can run periodically to remove expired links from our storage and cache. This service should be very lightweight and can be scheduled to run only when the user traffic is expected to be low.</li>
-<li>We can have a default expiration time for each link, e.g., two years.</li>
-<li>After removing an expired link, we can put the key back in the key-DB to be reused.</li>
-<li>Should we remove links that haven't been visited in some length of time, say six months? This could be tricky. Since storage is getting cheap, we can decide to keep links forever.</li>
-</ul>
-
-<h2 id="11-telemetry">Telemetry</h2>
-<p>How many times a short URL has been used, what were user locations, etc.? How would we store these statistics? If it is part of a DB row that gets updated on each view, what will happen when a popular URL is slammed with a large number of concurrent requests?</p>
-<p>We can have statistics about the country of the visitor, date and time of access, web page that refers the click, browser or platform from where the page was accessed and more.</p>
-
-<h2 id="12-security-and-permissions">Security and Permissions</h2>
-<p>Can users create private URLs or allow a particular set of users to access a URL?</p>
-<p>We can store permission level (public/private) with each URL in the database. We can also create a separate table to store UserIDs that have permission to see a specific URL. If a user does not have permission and try to access a URL, we can send an error (HTTP 401) back. Given that, we are storing our data in a NoSQL wide-column database like Cassandra, the key for the table storing permissions would be the 'Hash' (or the KGS generated 'key'), and the columns will store the UserIDs of those users that have permissions to see the URL.</p>
-
-<style>
-.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
-.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
-.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
-.pdeep h3{font-size:17px;margin:22px 0 6px;}
-.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
-.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
-.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
-.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
-.pdeep th{background:#f6f8fa;}
-.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
-.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
-.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
-.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
-
-/* dark-mode overrides for inline pdeep/mastery (injected) */
-:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
-:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
-:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
-:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
-:root[data-theme="dark"] .pdeep th{background:#0f1318;}
-:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
-:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
-:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
-</style>
-
-<div class="pdeep">
-<span class="tag">Principal-level deep dive</span>
-<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
-
-<p>The whole design collapses into one decision: <b>how do you mint a short, unique key on the write path without two servers ever handing out the same one?</b> Everything else &mdash; the database, the cache, the redirect &mdash; is downstream of that choice. Three families exist, and they fail in different ways.</p>
-
-<h3>Key-generation approaches</h3>
-<table>
-<tr><th>Approach</th><th>How it works</th><th>Collision risk</th><th>Coordination cost</th><th>Predictability</th></tr>
-<tr><td><b>Hash + truncate</b> (e.g. MD5/SHA &rarr; base62, keep first 6&ndash;8 chars)</td><td>Hash the long URL, encode, slice to length</td><td><b>Real.</b> Truncating destroys the hash's uniqueness guarantee; birthday collisions at ~62<sup>n/2</sup>. Must read-before-write or retry-on-conflict on every insert</td><td>None for the hash itself, but the collision check is an extra DB round-trip per write</td><td>Same URL &rarr; same key (good for idempotency, bad &mdash; leaks that two requests are the same)</td></tr>
-<tr><td><b>Counter + base62</b></td><td>A global monotonic counter; base62-encode the integer</td><td><b>Zero by construction</b></td><td><b>High.</b> A single counter is a global serialization point &mdash; the classic write bottleneck</td><td>Sequential keys are guessable (enumeration attack); also leaks total volume</td></tr>
-<tr><td><b>KGS pre-generation</b> (Key Generation Service)</td><td>Offline job pre-computes all 6-char base62 keys into a "used/unused" store; app servers grab keys in <i>blocks</i></td><td><b>Zero</b> &mdash; keys are unique by enumeration and marked used atomically</td><td><b>Amortized away.</b> Servers fetch e.g. 1,000 keys at a time, so the KGS is hit once per 1,000 writes, not once per write</td><td>Keys come from a shuffled pool, so non-sequential</td></tr>
-</table>
-
-<div class="box"><b>The write-path bottleneck &amp; its fix</b>
-A naive <i>counter</i> or <i>hash-then-check-collision</i> design forces every write to touch a shared, serialized resource (the counter row, or a uniqueness read). At billions of URLs this is the single point that caps throughput and adds latency. The <b>KGS removes it</b>: pre-generation moves the expensive uniqueness work <i>offline</i>, and block allocation means the hot path is a local, in-memory <code>pop()</code> from a server's pre-fetched chunk. Trade-off: keys handed to a server that then crashes are lost &mdash; acceptable, since 56.8B+ keys (62<sup>6</sup> &asymp; 56.8 billion) is a vast space. Run two KGS replicas with separate key ranges so it is not itself a SPOF.</div>
-
-<h3>301 vs 302 &mdash; the analytics decision</h3>
-<div class="box"><b>Why 302, not 301</b>
-A <b>301 (permanent)</b> tells the browser and every intermediary "this short URL <i>is</i> the long URL, forever" &mdash; so the client caches it and <b>future clicks never hit your servers again.</b> Great for redirect latency, fatal for analytics and for ever changing/expiring the target. A <b>302 (temporary)</b> forces the browser back to your service on every click, so you capture click counts, geo, referrer, device. The cost is load: every click is a round-trip you must serve. Many shorteners use 302 (or 301 with a short cache TTL) precisely because the click data is the product. If you don't care about analytics and want max speed, 301 is cheaper.</div>
-
-<h3>Caching &mdash; the 80/20 rule &amp; eviction</h3>
-<p>Reads dominate massively (a write-once, read-many workload; ratios of 100:1 are typical). Per the Pareto observation, <b>~20% of URLs generate ~80% of the traffic</b>, so you cache aggressively. If you serve ~20K redirects/sec and the daily read volume is, say, ~1.7B/day, caching 20% of one day's hot set keeps the working set in memory at a few hundred GB &mdash; spread across a Redis/Memcached fleet. On a cache miss: read from DB, then populate the cache. <b>Eviction: LRU</b> fits naturally because the hot set drifts (a viral link is hot for hours then cold). Replicate cache nodes so a single node loss doesn't stampede the DB.</p>
-
-<h3>Why a NoSQL / key-value store fits</h3>
-<div class="box"><b>No joins, no transactions, pure point lookups</b>
-The access pattern is <code>GET key &rarr; long_url</code> &mdash; a single-key lookup with no relational joins and no multi-row transactions. That is exactly the shape a <b>key-value / wide-column store</b> (DynamoDB, Cassandra) is built for: it gives horizontal scale via consistent hashing, high write throughput, and tunable availability without the overhead of a relational engine you'd never use. A SQL DB works at small scale but the b-tree index and ACID machinery buy you nothing here while limiting horizontal scale. Shard by the hash key itself for even distribution.</div>
-
-<h3>Rate limiting &amp; abuse</h3>
-<p>Shorteners are a phishing and spam magnet &mdash; the short link hides the destination. Defenses: <b>per-IP / per-API-key rate limits</b> (token bucket) on the create endpoint to stop bulk minting; scan target URLs against malware/phishing blocklists (e.g. Google Safe Browsing) at creation and on redirect; and a takedown/blocklist path so a flagged key returns an interstitial warning instead of redirecting. Rate limiting also protects the KGS block allocator from exhaustion attacks.</p>
-
-<h3>Scaling to billions</h3>
-<p>6-char base62 = ~56.8B keys; bump to 7 chars for ~3.5T if you'll exhaust it. Stateless app servers behind a load balancer scale horizontally. The DB shards by key. Old/expired links are reaped by a lazy cleanup (delete on access if expired) plus a periodic sweep, and <b>their keys are returned to the KGS pool</b> for reuse rather than wasted.</p>
-
-<div class="seealso"><b>Go deeper:</b> <a href="58.html">56 ID Generation</a>, <a href="04.html">04 Caching</a>, <a href="57.html">55 Key-Value Store</a></div>
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; walk the design, then the hard parts</div>
+<pre class="tree">
+<b>Designing a URL Shortener</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>  &mdash; the 100:1 read ratio
+├─ <a href="#api"><b>3. System API</b></a>
+├─ <a href="#highlevel"><b>4. High-level architecture</b></a>
+├─ <a href="#datamodel"><b>5. Data model</b></a>
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; the hard parts, as questions
+├─ <a href="#subproblems"><b>6. The hard sub-problems</b></a>
+│   ├─ <a href="#sp1">Key generation</a>      failure → <a href="#collision">collision / counter SPOF</a>
+│   ├─ <a href="#sp2">The redirect read path</a> failure → <a href="#viral">viral-link stampede</a>
+│   └─ <a href="#sp3">Storage &amp; expiry</a>     failure → <a href="#bloat">dead-link bloat</a>
+│
+├─ <a href="#decision-table"><b>The design at a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud services</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
 </div>
 
-<div class="mastery">
-<h2>Principal-level mastery check</h2>
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> shorten a long URL to a unique alias; redirect the alias to the original; optional custom alias; optional expiry.</p>
+<p><b>Non-functional:</b> highly available (downtime breaks every existing link), redirect latency near-zero, and short links <b>not guessable</b> (security). <b>Extended:</b> click analytics, public REST API.</p>
+
+<h2 id="capacity">2. Capacity estimate</h2>
 <ul>
-<li>Can you explain how a KGS hands out unique keys to many app servers <b>without any coordination on the hot path</b> &mdash; and what happens to the block of keys held by a server that crashes?</li>
-<li>Why does <b>302 (temporary)</b> get chosen over <b>301 (permanent)</b> when click analytics matter, and what exactly do you lose with each choice?</li>
-<li>Can you do the cache-sizing math: given a read:write ratio and a daily read volume, why does caching <b>~20% of URLs</b> capture <b>~80% of traffic</b>, and why is <b>LRU</b> the right eviction policy here?</li>
-<li>Why is a <b>single global counter</b> a write-path bottleneck, and how does block-based key allocation from a KGS eliminate it while keeping keys unique?</li>
-<li>Why does a <b>key-value / wide-column store</b> fit this workload better than a relational DB &mdash; which relational features would you literally never use?</li>
-<li>Can you describe two abuse vectors specific to a shortener (phishing, bulk minting) and the concrete defenses (Safe Browsing checks, token-bucket rate limits, takedown interstitials)?</li>
-<li>Why are <b>hash-and-truncate</b> keys collision-prone despite the hash being unique, and what extra cost does the collision check add to every write?</li>
+<li><b>Writes:</b> assume 500M new URLs/month &asymp; <b>~200 writes/sec</b>.</li>
+<li><b>Reads:</b> at a 100:1 read:write ratio &rarr; 50B redirects/month &asymp; <b>~20,000 reads/sec</b>. <b>This ratio is the whole design.</b></li>
+<li><b>Storage:</b> ~500 bytes/record &times; 500M/month &times; 60 months &asymp; ~15 TB over 5 years &mdash; modest; the working set of <i>hot</i> links is far smaller and caches in RAM.</li>
+<li><b>Key space:</b> base62 ([a-z A-Z 0-9]) at 6 chars = 62<sup>6</sup> &asymp; <b>56 billion</b> combinations &mdash; plenty; 7 chars gives 3.5 trillion.</li>
 </ul>
-</div>
+
+<h2 id="api">3. System API</h2>
+<pre><code>shorten(api_key, long_url, custom_alias?, expiry?) &rarr; short_url
+redirect(short_key) &rarr; HTTP 301/302 to long_url</code></pre>
+<p>(301 permanent caches in the browser &mdash; fewer hits but no analytics; 302 temporary always hits your server &mdash; enables analytics. Pick by whether you need click tracking.)</p>
+
+<h2 id="highlevel">4. High-level architecture</h2>
+<ul>
+<li><b>App tier</b> behind a <a href="03.html">load balancer</a> &mdash; stateless, scales with reads.</li>
+<li><b>Key-generation</b> service or strategy (Sub-problem 1).</li>
+<li><b>A cache</b> (Redis) in front of the store &mdash; the redirect path should almost always be a cache hit at 20K reads/sec.</li>
+<li><b>The store</b> (key &rarr; long URL), sharded; read replicas for the long tail.</li>
+</ul>
+
+<h2 id="datamodel">5. Data model</h2>
+<p>Almost trivially simple &mdash; which is the point: <code>short_key (PK) &rarr; long_url, creator_id, created_at, expiry</code>. No joins, no relationships. A key-value store fits perfectly (the access is pure get-by-key), though a relational store is fine at this scale too. (<a href="67.html">Choosing a Database</a>.)</p>
+
+<h2 id="scenarios">Three scenarios &mdash; the hard parts, as questions</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; two users, same instant</span>
+Two requests to shorten different URLs hit two different servers in the same millisecond. <b>How do you guarantee they get different short keys &mdash; and what's wrong with both "hash the URL" and "one global counter"?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the link goes viral</span>
+Someone shortens a link and tweets it to 10 million followers. It gets 50,000 redirect requests/sec &mdash; all for one key. <b>What absorbs that, and what happens the moment that one hot key expires from cache?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the links pile up</span>
+After five years you have billions of records, most for links nobody ever clicks again. <b>How do you keep the store from growing forever, and what do you do when someone hits an expired key?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#sp1">key generation</a>. Scenario 2 is the <a href="#viral">read-path cache</a>. Scenario 3 is <a href="#bloat">expiry/cleanup</a>.</i></p>
+
+<h2 id="subproblems">6. The hard sub-problems</h2>
+
+<h3 id="sp1">Sub-problem 1 &mdash; Key generation</h3>
+<p>The one genuinely interesting decision. Three approaches:</p>
+<table>
+<tr><th>Approach</th><th>How</th><th>Trade-off</th></tr>
+<tr><td><b>Hash the URL</b></td><td>MD5/SHA-256, take first 6&ndash;7 chars, base62</td><td>Stateless, but <b>collisions</b> (two URLs &rarr; same prefix) need detection + retry; same URL maps to same key (no per-user analytics)</td></tr>
+<tr><td><b>Counter + base62</b></td><td>A distributed unique ID, base62-encoded</td><td><b>Zero collisions</b>, but the counter is a dependency; keys are <i>sequential and guessable</i></td></tr>
+<tr><td><b>Random base62</b></td><td>Generate a random 7-char key, check uniqueness</td><td>Unguessable, no counter; collision probability negligible at this scale (one extra read to confirm)</td></tr>
+</table>
+<div class="callout warn"><span class="lbl" id="collision">The failure that happens when you get this wrong &mdash; collision or counter SPOF</span>
+This is <b>Scenario 1</b>. <b>Hashing</b> collides &mdash; two different URLs can share a 6-char prefix &mdash; so you must detect the clash and rehash/append, adding a read on every write. A single <b>global counter</b> never collides but is a <a href="03.html#deploy">SPOF</a> and a write bottleneck &mdash; <i>except</i> the myth here is that the counter is the problem: at ~200 writes/sec a Redis <code>INCR</code> (or a <a href="58.html">Snowflake</a>-style ID, or handing each server a pre-allocated <i>range</i> of counter values) handles it trivially; a counter only bottlenecks at millions of writes/sec, which no URL shortener approaches. Since the requirement is <i>unguessable</i>, <b>random base62 with a uniqueness check</b> is usually the cleanest answer; counter+base62 with per-server ranges is the zero-collision alternative.</div>
+
+<h3 id="sp2">Sub-problem 2 &mdash; The redirect read path</h3>
+<p>20,000 reads/sec (50,000+ for a viral link) means the redirect must not hit the database each time. Put a <a href="04.html">cache</a> (Redis) in front keyed by short_key; the hit rate is enormous because link popularity is heavily skewed (80-20). Cache misses fall through to read replicas.</p>
+<div class="callout warn"><span class="lbl" id="viral">The failure that happens when you get this wrong &mdash; the viral-link stampede</span>
+This is <b>Scenario 2</b>. A single viral key is a <a href="04.html#hot-key">hot key</a>: 50K req/s all for one entry. The cache absorbs it &mdash; until that key <i>expires</i> from cache, when thousands of concurrent misses hit the store at once (a <a href="04.html#stampede">cache stampede</a>). Fixes are the caching lesson's: single-flight on the miss, generous TTL with jitter, and stale-while-revalidate. The hot <i>key</i> itself is harmless to a cache (it's one entry everyone reads) &mdash; the danger is the synchronized miss.</div>
+
+<h3 id="sp3">Sub-problem 3 &mdash; Storage &amp; expiry</h3>
+<p>Shard the store by short_key (hash-based &mdash; even distribution, and lookups are always by exact key so scatter-gather never arises). Expiry keeps it from growing forever: store a TTL, lazily treat expired keys as 404 on read, and run a background cleanup (or DB-native TTL) to reclaim space.</p>
+<div class="callout warn"><span class="lbl" id="bloat">The failure that happens when you get this wrong &mdash; dead-link bloat</span>
+This is <b>Scenario 3</b>. Without expiry, the store grows unbounded with links nobody clicks &mdash; paying storage and slowing everything. Lazy expiry (check on read, treat expired as gone) plus a throttled background sweep reclaims space without a giant scan. On an expired/missing key, return a clean 404 (or a "link expired" page), and serve it from cache too so a flood of hits on a dead viral link doesn't hammer the store.</div>
+
+<h2 id="decision-table">The design at a glance</h2>
+<table>
+<tr><th>Piece</th><th>Choice</th><th>Why</th></tr>
+<tr><td>Key generation</td><td>Random base62 (or counter+ranges)</td><td>Unguessable, no collision/SPOF at this scale</td></tr>
+<tr><td>Redirect path</td><td>Redis cache &rarr; read replicas</td><td>20K&ndash;50K reads/s must be cache hits</td></tr>
+<tr><td>Storage</td><td>Key-value, sharded by key</td><td>Pure get-by-key; even distribution</td></tr>
+<tr><td>Expiry</td><td>TTL + lazy + background sweep</td><td>Bound growth without big scans</td></tr>
+<tr><td>Redirect code</td><td>301 (cacheable) or 302 (trackable)</td><td>Analytics vs fewer hits</td></tr>
+</table>
+
+<h2 id="self-check">Self-check &mdash; can you reconstruct the design?</h2>
+<ul>
+<li><b>The walkthrough:</b> from 500M URLs/month and 100:1, derive writes/sec, reads/sec, and 5-year storage &mdash; and say why the ratio makes this a caching problem.</li>
+<li><b>Scenario 1 (keys):</b> Compare hash / counter / random base62 on collision, guessability, and bottleneck &mdash; and debunk the "counter is a bottleneck" myth.</li>
+<li><b>Scenario 2 (viral):</b> Why is a viral key safe for a cache but dangerous on expiry, and what prevents the stampede?</li>
+<li><b>Scenario 3 (bloat):</b> How do you bound storage growth and handle a hit on an expired key?</li>
+<li>301 vs 302 &mdash; which do you pick if you need click analytics, and why?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> walk it (requirements&rarr;estimate&rarr;API&rarr;high-level&rarr;model), then 3 hard parts &mdash; <a href="#sp1">key generation</a>, <a href="#sp2">cached redirect</a>, <a href="#sp3">storage/expiry</a> &mdash; all driven by the 100:1 read ratio.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="16.html">Pastebin</a> (same shape + blob storage), <a href="58.html">Snowflake IDs</a>, <a href="04.html">Caching</a>, <a href="05.html">Sharding</a>.</p>
+
+<h2 id="cloud">Cloud services &mdash; what you'd build it on</h2>
+<table>
+<tr><th>Piece</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Key-value store</td><td>DynamoDB</td><td>Firestore / Bigtable</td><td>Cosmos DB</td></tr>
+<tr><td>Cache</td><td>ElastiCache</td><td>Memorystore</td><td>Cache for Redis</td></tr>
+<tr><td>Edge redirect</td><td>CloudFront + Lambda@Edge</td><td>Cloud CDN + Functions</td><td>Front Door</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-bitly">Bitly</h3>
+<ul><li><b>What it is.</b> The best-known commercial shortener; billions of links, heavy on click analytics.</li><li><b>Key idea.</b> Unguessable keys + analytics on every resolve (so 302-style tracking), aggressive edge caching for the read path.</li><li><b>The failure to watch.</b> Analytics writes per redirect become their own high-volume pipeline (see <a href="63.html">Ad Click Aggregation</a>).</li></ul>
+<h3 id="impl-snowflake-ks">Snowflake-style ID generation</h3>
+<ul><li><b>What it is.</b> Time-ordered 64-bit IDs minted per-node, base62-encoded into keys.</li><li><b>Key idea.</b> No central counter; IDs are roughly time-sortable and index-friendly. (<a href="58.html">Lesson 58</a>.)</li><li><b>The failure to watch.</b> Sequential-ish keys are guessable &mdash; add randomness if unguessability matters.</li></ul>
+
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-key">Implement collision-free key generation</h3>
+<p>Generate a unique 7-char base62 key per shorten request across many servers, with no central bottleneck and no guessable sequence. What do you choose and why?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Random base62: generate 7 random chars (62<sup>7</sup> &asymp; 3.5T space), attempt an insert with a unique constraint; on the rare collision, regenerate. At ~200 writes/sec the collision rate is negligible and the uniqueness check is one conditional write. If you want zero collisions <i>and</i> no per-write check, hand each app server a pre-allocated <b>range</b> of counter values (e.g. server A owns 1&ndash;1M, B owns 1M&ndash;2M) and base62-encode locally &mdash; no per-request coordination &mdash; but XOR/scramble the counter so keys aren't sequentially guessable. Both avoid the single-counter SPOF.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
+<ul>
+<li><b>Add click analytics.</b> Count redirects per link at 20K/sec without slowing the redirect. &rarr; <a href="63.html">Ad Click Aggregation</a>.</li>
+<li><b>Custom + reserved aliases.</b> Let users pick aliases without clashing with generated keys. How do you partition the namespace?</li>
+</ul>
 
 <div class="navfoot"><a href="14.html">&lsaquo; Prev: A Framework for Approaching System Design</a><a class="nx" href="16.html">Next: Designing Pastebin &rsaquo;</a></div>
 </div>

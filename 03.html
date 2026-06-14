@@ -111,217 +111,224 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Load Balancing</div>
 <h1>Load Balancing</h1>
-<p class="sub"><em>How load balancers distribute traffic across resources, where they sit in the stack, and the smart-client, hardware, and software approaches to implementing them.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Finite capacity.</b> <span>one server can't take all traffic — distributing it adds a routing hop and health-tracking.</span></div>
-<div class="toc"><h4>In this lesson</h4>
+<p class="sub"><em>A load balancer spreads traffic across many servers so no single one is overwhelmed &mdash; and in doing so becomes the one box every request must pass through. Every decision here is about where to balance, how to choose a server, how to spot a dead one, and how to stop the balancer itself from being your single point of failure.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Horizontal scale and resilience in exchange for an extra hop and a new critical component.</b> <span>Distributing load lets you add servers instead of buying bigger ones, and route around failures. In return you accept a <b>routing hop</b> on every request, the work of <b>tracking which servers are healthy</b>, and a <b>new failure</b>: the balancer is now on the path of every request.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Load Balancing</b>
+│
+├─ <a href="#root"><b>What a load balancer is</b></a>  &mdash; spread traffic, track health
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>A load balancer is 4 decisions</b></a>  &mdash; each wrong choice has a named failure
+│   ├─ <a href="#d1">1. Where do you balance? (L4 vs L7)</a>   failure → <a href="#multiplex">connection hot-spot</a>
+│   ├─ <a href="#d2">2. How do you pick a backend?</a>          failure → <a href="#herd">stale-load herd</a>
+│   ├─ <a href="#d3">3. How do you know a backend is healthy?</a> failure → <a href="#cascade">ejection cascade</a>
+│   └─ <a href="#d4">4. How is the balancer not a SPOF?</a>      failure → <a href="#deploy">deploy 502s</a>
+│
+├─ <a href="#decision-table"><b>The decision table</b></a>  &mdash; make all four, per traffic type
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud services</b></a>  &mdash; the same thing, by vendor name
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; same facets, compared
+│   ├─ <a href="#impl-nginx">NGINX</a>     &mdash; the ubiquitous software LB / reverse proxy
+│   ├─ <a href="#impl-haproxy">HAProxy</a>   &mdash; the high-performance L4/L7 workhorse
+│   └─ <a href="#impl-envoy">Envoy</a>     &mdash; the modern mesh data plane
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; implement RR, P2C, health checks; design the rest
+    ├─ <a href="#ex-rr">Round-robin + weighted</a>  &mdash; the rotation pointer
+    ├─ <a href="#ex-p2c">Power-of-two-choices</a>    &mdash; sample 2, pick the lighter
+    ├─ <a href="#ex-health">Health checking</a>        &mdash; active + passive, with hysteresis
+    └─ <a href="#ex-design">Design-it-yourself</a>      &mdash; HA pair, GSLB, sticky sessions
+</pre>
+</div>
+
+<!-- ============ ROOT ============ -->
+<h2 id="root">What a load balancer is</h2>
+<p>A load balancer (LB) sits in front of a pool of identical servers (the <b>backends</b>) and spreads incoming requests across them according to some rule, so that no single backend takes all the traffic. It also continuously <b>tracks which backends are healthy</b> and stops routing to any that are down, slow, or erroring. You can place one at every tier &mdash; between users and the web servers, between web and application servers, between the application and the cache or database.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>The load balancer exists to remove the single point of failure that one server represents &mdash; so the cardinal sin is to build it in a way that makes the <i>balancer itself</i> the new single point of failure. Design <a href="#d4">Decision 4</a> first.</div>
+
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide your answer first &mdash; the rest of the lesson is the answer. If you already know all three cold, skip to the <a href="#decision-table">decision table</a>.</p>
+
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the chatty gRPC client</span>
+You front a fleet of <span class="gl" data-def="gRPC — a high-performance RPC framework that runs over a single long-lived HTTP/2 connection, multiplexing many requests (streams) onto it.">gRPC</span> services with a fast <span class="gl" data-def="Layer 4 — the transport layer; a load balancer here routes by IP and port and forwards packets without reading the request.">L4</span> load balancer. One client opens a single connection and sends 10,000 <span class="gl" data-def="Requests per second.">req/s</span> over it; the other clients are quiet. <b>Across your 8 backends, how is that load distributed &mdash; and why does adding more backends not help?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the stuck backend</span>
+You balance with plain round-robin across 10 backends. One backend's disk is failing: it still accepts connections but every request to it takes 30 seconds instead of 50&nbsp;ms. <b>What fraction of requests does round-robin keep sending to it, and what does that do to your tail latency?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the routine deploy</span>
+You roll out a new version: <span class="gl" data-def="Kubernetes — the dominant container orchestrator; it schedules application instances (pods) across machines and reschedules them on failure.">Kubernetes</span> terminates old <span class="gl" data-def="Pod — the smallest deployable unit in Kubernetes: one or more containers sharing a network identity (an IP).">pods</span> one at a time and starts new ones. During each swap, a burst of requests returns <span class="gl" data-def="HTTP 502 Bad Gateway — the load balancer reached a backend but got no valid response, typically because the backend was shutting down or already gone.">502 Bad Gateway</span>. <b>The pod is being shut down gracefully &mdash; so where are those 502s coming from?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#multiplex">L4 connection hot-spot</a>. Scenario 2 is the <a href="#herd">stuck-backend / wrong-algorithm</a> problem. Scenario 3 is the <a href="#deploy">connection-draining race</a> on deploy. Each is what happens when one of the four decisions below is made wrong &mdash; and each shows up in real production every day.</i></p>
+
+<!-- ============ BRANCH 1: FOUR DECISIONS ============ -->
+<h2 id="decisions">A load balancer is defined by four decisions</h2>
+<p>Every load-balancing setup &mdash; a hardware appliance, NGINX, or an Envoy sidecar &mdash; is just these four choices. Make each well and traffic flows smoothly; make one wrong and you get a <i>named, predictable failure</i>. We take them in order, and each failure lives under the decision that causes it.</p>
+
+<h3 id="d1">Decision 1 &mdash; Where do you balance? (L4 vs L7)</h3>
+<p>The first choice is which layer of the network the balancer operates at &mdash; and it determines everything it can and cannot do.</p>
 <ul>
-  <li><a href="#1-smart-clients">Smart Clients</a></li>
-  <li><a href="#2-hardware-load-balancers">Hardware Load Balancers</a></li>
-  <li><a href="#3-software-load-balancers">Software Load Balancers</a></li>
-</ul></div>
-
-
-<p>Load balancer (LB) is another critical piece of any distributed system. It helps to distribute load across multiple resources according to some metric (random, round-robin, random with weighting for memory or CPU utilization, etc.). LB also keeps track of the status of all the resources while distributing requests. If a server is not available to take new requests or is not responding or has elevated error rate, LB will stop sending traffic to such a server.</p>
-
-<p>To utilize full scalability and redundancy, we can try to balance the load at each layer of the system. We can add LBs at three places:</p>
-
-<ul>
-<li>Between the user and the web server</li>
-<li>Between web servers and an internal platform layer, like application servers or cache servers</li>
-<li>Between internal platform layer and database.</li>
+<li>An <b><span class="gl" data-def="Layer 4 — the transport layer (TCP/UDP).">L4</span> (transport) load balancer</b> decides using only the connection's 5-tuple (source IP and port, destination IP and port, protocol) and then forwards packets &mdash; it never reads the request. It is cheap, extremely fast (line-rate with hardware or <span class="gl" data-def="eBPF — a Linux kernel technology that runs sandboxed programs in the kernel, used to forward/filter packets at very high speed.">eBPF</span>), and protocol-agnostic: raw TCP, <span class="gl" data-def="Transport Layer Security — the encryption layer under HTTPS.">TLS</span> passthrough, gRPC, anything. The catch: it pins a whole connection to one backend.</li>
+<li>An <b><span class="gl" data-def="Layer 7 — the application layer (HTTP, gRPC).">L7</span> (application) load balancer</b> terminates the connection, reads the request, and routes per request. This unlocks routing by URL path or header, retries on safe methods, per-request metrics, and TLS termination. The cost is CPU (it parses and decrypts) and a little latency.</li>
 </ul>
+<div class="callout note"><span class="lbl">The rule of thumb</span>Use <b>L4</b> for raw north-south throughput, TLS passthrough, and non-HTTP protocols. Use <b>L7</b> when you need content-based routing, per-request fairness, or smart retries. Many real stacks layer both: an L4 edge in front of an L7 fleet (e.g. <a href="#impl-envoy">Envoy</a> or <a href="#impl-nginx">NGINX</a>).</div>
 
-<p>There are many ways to implement load balancing.</p>
+<div class="callout warn"><span class="lbl" id="multiplex">The failure that happens when you get this wrong &mdash; the connection hot-spot</span>
+This is <b>Scenario 1</b>. Because an L4 balancer pins an entire connection to one backend, and <span class="gl" data-def="gRPC.">gRPC</span> and <span class="gl" data-def="HTTP/2 — the protocol version that sends many concurrent requests (streams) over one connection.">HTTP/2</span> multiplex <i>thousands of requests over one long-lived connection</i>, all 10,000 req/s from that one chatty client land on the single backend its connection happens to be pinned to. Adding backends does nothing &mdash; the new ones get no share of that connection's traffic. The fix is to balance at <b>L7</b>, where the balancer sees individual requests (streams) and can spread them across the backend pool per request, not per connection.</div>
 
-<h2 id="1-smart-clients">Smart Clients</h2>
-
-<p>A smart client will take a pool of service hosts and balances load across them. It also detects hosts that are not responding to avoid sending requests their way. Smart clients also have to detect recovered hosts, deal with adding new hosts, etc.</p>
-
-<p>Adding load-balancing functionality into the database (cache, service, etc.) client is usually an attractive solution for the developer. It looks easy to implement and manage especially when the system is not large. But as the system grows, LBs need to be evolved into standalone servers.</p>
-
-<h2 id="2-hardware-load-balancers">Hardware Load Balancers</h2>
-
-<p>The most expensive&ndash;but very high performance&ndash;solution to load balancing is to buy a dedicated hardware load balancer (something like a Citrix NetScaler). While they can solve a remarkable range of problems, hardware solutions are very expensive, and they are not trivial to configure.</p>
-
-<p>As such, even large companies with large budgets will often avoid using dedicated hardware for all their load-balancing needs. Instead, they use them only as the first point of contact for user requests to their infrastructure and use other mechanisms (smart clients or the hybrid approach discussed in the next section) for load-balancing for traffic within their network.</p>
-
-<h2 id="3-software-load-balancers">Software Load Balancers</h2>
-
-<p>If we want to avoid the pain of creating a smart client, and since purchasing dedicated hardware is excessive, we can adopt a hybrid approach, called software load-balancers.</p>
-
-<p>HAProxy is one of the popular open source software LB. Load balancer can be placed between client and server or between two server side layers. If we can control the machine where the client is running, HAProxy could be running on the same machine. Each service we want to load balance can have a locally bound port (e.g., localhost:9000) on that machine, and the client will use this port to connect to the server. This port is, actually, managed by HAProxy; every client request on this port will be received by the proxy and then passed to the backend service in an efficient way (distributing load). If we can&rsquo;t manage client&rsquo;s machine, HAProxy can run on an intermediate server. Similarly, we can have proxies running between different server side components. HAProxy manages health checks and will remove or add machines to those pools. It also balances requests across all the machines in those pools.</p>
-
-<p>For most systems, we should start with a software load balancer and move to smart clients or hardware load balancing as need arises.</p>
-
-<style>
-.pdeep{max-width:820px;margin:40px auto;padding:32px 40px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1a1d24;line-height:1.7;font-size:16px;}
-.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
-.pdeep h2{font-size:22px;margin:0 0 8px;border:0;}
-.pdeep h3{font-size:17px;margin:22px 0 6px;}
-.pdeep p{margin:0 0 14px;}
-.pdeep ul{margin:0 0 14px;padding-left:24px;} .pdeep li{margin:0 0 7px;}
-.pdeep code{background:#f5f6f8;color:#b3306b;padding:2px 6px;border-radius:4px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;}
-.pdeep a{color:#2d6cdf;text-decoration:none;} .pdeep a:hover{text-decoration:underline;}
-.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
-.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
-.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;} .pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;vertical-align:top;} .pdeep th{background:#f6f8fa;}
-.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
-</style>
-<div class="pdeep">
-<span class="tag">Principal-level deep dive</span>
-<h2>Load balancing at principal depth</h2>
-
-<p>The original lesson frames load balancing as "spread requests across servers, usually round-robin." At principal level the interesting decisions live elsewhere: <em>where</em> in the stack you balance, <em>which</em> algorithm preserves your invariants (cache locality, session state), how you detect and eject sick backends fast enough to matter, and how you stop the balancer itself from being the thing that takes you down. The round-robin default is almost never the right production choice.</p>
-
-<h3>L4 vs L7: balance on connections or on requests</h3>
-<p>An <strong>L4 (transport) load balancer</strong> makes its decision on the 5-tuple (src IP, src port, dst IP, dst port, protocol) and then forwards packets &mdash; it never parses HTTP. It is cheap, fast (millions of connections, line-rate with hardware/eBPF), and protocol-agnostic, so it handles raw TCP, TLS passthrough, gRPC, MQTT, anything. The cost: it pins an entire TCP connection to one backend, so with HTTP/2 or gRPC multiplexing, <em>all</em> streams on a long-lived connection land on the same server &mdash; a single chatty client can hot-spot one backend.</p>
-<p>An <strong>L7 (application) load balancer</strong> terminates the connection, parses the request, and routes <em>per request</em>. This unlocks path/header routing, retries on idempotent methods, request-level metrics, header rewriting, TLS termination, and per-request rebalancing across an HTTP/2 connection pool. The cost is CPU (TLS + parse) and added latency. The principal heuristic:</p>
-
-<div class="box"><b>Rule of thumb</b>L4 for north-south raw throughput, TLS passthrough, non-HTTP protocols, and when you need the backend to see the original encryption. L7 when you need content-based routing, per-request fairness over multiplexed connections (gRPC/HTTP2), or smart retries. Many real stacks layer both: an L4 edge (anycast + DSR) fronting an L7 fleet (Envoy/NGINX/ALB).</div>
-
-<h3>Algorithms beyond round-robin</h3>
-<p>Round-robin assumes requests are uniform and backends identical &mdash; both false in practice. Better choices:</p>
+<h3 id="d2">Decision 2 &mdash; How do you pick a backend?</h3>
+<p>Once a request arrives, which backend gets it? Round-robin is the default, and it is almost never the best production choice, because it assumes every request is identical and every backend equally loaded &mdash; both false.</p>
 <table>
 <tr><th>Algorithm</th><th>How it picks</th><th>When it wins / fails</th></tr>
-<tr><td>Round-robin / weighted RR</td><td>Next in rotation (weighted by capacity)</td><td>Fine for uniform, short requests; blind to actual load &mdash; a stuck backend keeps getting traffic</td></tr>
-<tr><td>Least-connections</td><td>Backend with fewest active connections</td><td>Good when request durations vary widely; can mis-route if connections aren't a proxy for work (keep-alive idle conns)</td></tr>
-<tr><td>Least-response-time / EWMA</td><td>Lowest in-flight &times; recent latency</td><td>Best signal for heterogeneous backends; needs accurate, low-noise latency telemetry</td></tr>
-<tr><td>Power-of-two-choices (P2C)</td><td>Sample 2 backends at random, pick the less loaded</td><td>Near-optimal load spread with O(1) state and no global coordination; the default in modern meshes (Envoy, Finagle)</td></tr>
-<tr><td>Consistent hashing (Maglev, ring/jump hash)</td><td>Hash a key (client IP, session, cache key) to a backend</td><td>Preserves affinity; minimal reshuffle on membership change &mdash; but can hot-spot on skewed keys</td></tr>
+<tr><td>Round-robin / weighted</td><td>Next in rotation (weighted by capacity)</td><td>Fine for uniform, short requests; <b>blind to actual load</b> &mdash; a stuck backend keeps getting its turn</td></tr>
+<tr><td>Least-connections</td><td>The backend with the fewest active connections</td><td>Good when request durations vary; can mislead if idle keep-alive connections aren't real work</td></tr>
+<tr><td>Least-response-time</td><td>Lowest (in-flight &times; recent latency)</td><td>Best signal for uneven backends; needs accurate, low-noise latency telemetry</td></tr>
+<tr><td><span class="gl" data-def="Power of two choices — sample two backends at random and send to the less-loaded of the two.">Power-of-two-choices</span> (P2C)</td><td>Sample 2 backends at random, send to the less loaded</td><td>Near-optimal spread with almost no state; the modern default in service meshes</td></tr>
+<tr><td><a href="12.html">Consistent hashing</a> (Maglev)</td><td>Hash a key (client IP, session) to a backend</td><td>Preserves affinity; minimal reshuffle when membership changes &mdash; but a skewed key can hot-spot</td></tr>
 </table>
-<p><strong>Why P2C is the modern default:</strong> classic least-connections requires the balancer to track global state across every backend, and with many balancer instances they all pile onto the same "least loaded" server (the herd problem). P2C &mdash; sample two, pick the better &mdash; gives provably exponential improvement in max load over pure random with almost no state, and degrades gracefully under stale information. It is why service meshes ship it as the standard policy.</p>
+<div class="callout note"><span class="lbl">Why power-of-two-choices is the modern default</span>Plain least-connections needs the balancer to track global load across every backend; with many balancer instances they all pile onto the same "least loaded" backend at once (a herd). <span class="gl" data-def="Power of two choices.">P2C</span> &mdash; sample two, pick the better &mdash; needs almost no shared state and gives a provably <b>exponential</b> improvement in worst-case load over pure random. Studies put it at roughly <b>23% lower average queue length and up to 80% lower worst-case hot-spotting</b> versus round-robin. It degrades gracefully under stale information, which is why Envoy and Finagle ship it as standard. (Result from Mitzenmacher's "The Power of Two Choices in Randomized Load Balancing.")</div>
 
-<h3>Consistent hashing and why affinity matters</h3>
-<p>If your backends maintain a local cache, a per-tenant in-memory aggregate, or a stateful session, you want the <em>same</em> key to keep hitting the <em>same</em> backend. Naive <code>hash(key) % N</code> reshuffles almost everything when <code>N</code> changes (one backend added &rarr; ~100% cache miss storm). A consistent-hash ring moves only <code>1/N</code> of keys on a membership change. <strong>Maglev hashing</strong> (Google's L4 LB) goes further: it builds a lookup table that gives near-perfect even distribution <em>and</em> minimal disruption, which matters when thousands of LB nodes must independently agree on the same mapping without coordination. The trade-off is always <em>affinity vs even load</em> &mdash; a single hot key (one whale tenant) can overload its assigned shard, so production systems add bounded-load consistent hashing (cap each backend, overflow to the next).</p>
-<p>"Sticky sessions" are the degenerate, app-layer version of this: a cookie pins a user to one backend. It works but couples availability to a single node and breaks autoscaling/draining. Prefer externalizing session state (Redis) and using stateless backends, reserving stickiness for genuinely sticky workloads (in-progress uploads, WebSocket sessions).</p>
+<div class="callout warn"><span class="lbl" id="herd">The failure that happens when you get this wrong &mdash; the stuck backend</span>
+This is <b>Scenario 2</b>. Round-robin is <i>blind to load</i>: it keeps sending every Nth request to the failing backend regardless of the fact that each one now takes 30 seconds. With 10 backends, ~10% of all requests get stuck behind the slow one, and because clients wait on them, your <b>tail latency</b> (p99) collapses even though 90% of backends are healthy. A load-aware algorithm &mdash; least-response-time or <span class="gl" data-def="Power of two choices.">P2C</span> &mdash; notices the backend's in-flight count and latency climbing and naturally steers away from it. (Passive <a href="#d3">health checking</a> then ejects it entirely.)</div>
 
-<h3>Health checks and outlier ejection</h3>
+<h3 id="d3">Decision 3 &mdash; How do you know a backend is healthy?</h3>
 <p>A balancer is only as good as its picture of backend health. Two complementary mechanisms:</p>
 <ul>
-<li><strong>Active health checks</strong> &mdash; the LB proactively probes (e.g. <code>GET /healthz</code> every few seconds, with healthy/unhealthy thresholds and hysteresis). Catches dead backends but can be fooled by a shallow check that returns 200 while the app's dependency is down. Make the check <em>deep enough to be meaningful but cheap enough to run often</em>; expose separate liveness vs readiness signals.</li>
-<li><strong>Passive health checks / outlier detection</strong> &mdash; the LB watches real traffic and ejects a backend that returns a burst of 5xx, connection failures, or high latency (Envoy's outlier detection ejects on consecutive-5xx or consecutive-gateway-failure, with exponential ejection time and a <code>max_ejection_percent</code> cap). This catches grey failures an active probe misses, and reacts in real time.</li>
+<li><b>Active health checks</b> &mdash; the balancer proactively probes each backend (e.g. <code>GET /healthz</code> every few seconds) with healthy/unhealthy thresholds and hysteresis (require N consecutive results before flipping state, so a single blip doesn't eject a good backend). Catches dead backends, but a shallow check can return 200 while the app's real dependency is down. Expose separate <span class="gl" data-def="Liveness — is the process alive at all? Readiness — is it ready to serve traffic right now (dependencies up, warmed up)?">liveness vs readiness</span> signals.</li>
+<li><b>Passive health checks / outlier ejection</b> &mdash; the balancer watches real traffic and ejects a backend that returns a burst of 5xx, connection failures, or high latency (this is how a stuck backend gets removed). Catches "grey" failures an active probe misses, and reacts in real time.</li>
 </ul>
-<div class="box"><b>Failure mode to design against</b>Never let health checking eject so aggressively that you cascade: if a dependency blip makes every backend return 5xx, ejecting them all routes 100% of traffic to the last node standing, which then dies. The <code>max_ejection_percent</code> cap and a "panic threshold" (when too many hosts are unhealthy, ignore health and spray to everyone) exist precisely to prevent this self-inflicted outage.</div>
 
-<h3>Connection draining on deploy</h3>
-<p>Rolling a deploy or scaling in must not 500 in-flight requests. <strong>Connection draining</strong> (a.k.a. graceful shutdown / lame-duck mode): mark the backend "draining," stop sending it new connections, but let existing requests finish up to a timeout, then close. The sequence that actually works in practice: (1) flip readiness to fail so the LB stops new traffic, (2) keep serving in-flight, (3) wait for the LB's de-registration to propagate <em>before</em> the process exits &mdash; the classic Kubernetes bug is the pod receiving <code>SIGTERM</code> and dying before the endpoint is removed from the LB, causing a few seconds of connection-refused errors. A <code>preStop</code> sleep covering the propagation delay fixes it.</p>
+<div class="callout warn"><span class="lbl" id="cascade">The failure that happens when you get this wrong &mdash; the ejection cascade</span>
+Eject too aggressively and you cause the outage you were trying to prevent. If a shared dependency blips and <i>every</i> backend briefly returns 5xx, naive outlier ejection removes them all &mdash; routing 100% of traffic onto the last backend standing, which instantly collapses under the load, and now you have a total outage from a transient blip.
+<div class="incident"><b>Why this is also a retry-storm problem.</b> The same dynamic plays out with retries: a system handling 300 <span class="gl" data-def="Queries per second.">QPS</span> sees latency cross the timeout threshold, every client retries, and offered load jumps to ~560 QPS &mdash; a documented amplification pattern (1 original + N retries can be a 6&times; multiplier). The infrastructure built for reliability becomes a failure <i>multiplier</i>. The guardrails: an ejection cap (<code>max_ejection_percent</code> &mdash; never eject more than, say, 50% of the pool), a "panic threshold" (when too many backends look unhealthy, assume the health signal is wrong and spray to everyone), retry budgets, and jittered backoff.</div></div>
 
-<h3>Global server load balancing (GSLB)</h3>
-<p>Above a single region you steer users to the right <em>location</em>:</p>
+<h3 id="d4">Decision 4 &mdash; How is the balancer itself not a single point of failure?</h3>
+<p>Drawing one LB box quietly reintroduces the <span class="gl" data-def="Single Point of Failure — one component whose failure takes down the whole system.">SPOF</span> the balancer was meant to remove, and makes it a throughput ceiling too. The mitigations, roughly by scale:</p>
 <ul>
-<li><strong>GeoDNS</strong> &mdash; the authoritative DNS server returns different A/AAAA records based on resolver geography/latency. Simple and works everywhere, but TTL caching and resolver behavior mean failover is slow (clients cling to stale records) and granularity is the resolver, not the user.</li>
-<li><strong>Anycast</strong> &mdash; the same IP is advertised from many sites via BGP; the network routes each client to the topologically nearest PoP. Failover is near-instant (withdraw the route) and there's no DNS-cache lag, which is why CDNs and DNS providers themselves run anycast. The catch: BGP can re-converge mid-connection and break long-lived TCP, so anycast pairs naturally with stateless/short requests at the edge (then hands off to unicast for stateful flows).</li>
+<li><b>Active-active pair with a floating <span class="gl" data-def="Virtual IP — an IP address that can move between machines, so a standby can instantly take over the address when the active one dies.">VIP</span></b> &mdash; a heartbeat protocol (<span class="gl" data-def="Virtual Router Redundancy Protocol — lets a standby node take over a shared virtual IP when the active node fails.">VRRP</span>, via keepalived) lets a standby take the virtual IP if the active one dies. Cheap, but the survivor must absorb full load.</li>
+<li><b><span class="gl" data-def="Equal-Cost Multi-Path — routers spread flows across several equally-good next hops, here a fleet of LB nodes.">ECMP</span> + many LB nodes</b> &mdash; routers spread flows across a fleet of equal-cost balancers; with <span class="gl" data-def="Direct Server Return — backends reply straight to the client, bypassing the load balancer, so the LB isn't a bandwidth bottleneck.">Direct Server Return</span> the responses bypass the LB entirely. This is how hyperscale L4 tiers handle terabits.</li>
+<li><b><span class="gl" data-def="Global Server Load Balancing — steering users to the right region/data center, above any single LB.">GSLB</span></b> &mdash; above one region you steer users by <span class="gl" data-def="GeoDNS — DNS that returns different server addresses based on the resolver's geographic location.">GeoDNS</span> (simple, but slow failover because clients cache DNS records) or <span class="gl" data-def="Anycast — the same IP advertised from many locations via BGP, so the network routes each client to the nearest one; failover is near-instant by withdrawing the route.">Anycast</span> (near-instant failover, but BGP can break long-lived connections mid-flight).</li>
 </ul>
 
-<h3>The LB as SPOF and bottleneck</h3>
-<p>A single load balancer is both a single point of failure and a throughput ceiling. Mitigations, roughly in order of scale:</p>
-<ul>
-<li><strong>Active-active pairs with a floating VIP</strong> (VRRP/keepalived) &mdash; a standby takes the virtual IP on failure. Cheap, but the surviving node must absorb full load.</li>
-<li><strong>ECMP + multiple LB nodes</strong> &mdash; routers spread flows across a fleet of equal-cost LB instances; combined with <strong>Direct Server Return (DSR)</strong>, responses bypass the LB entirely (the LB sees only the inbound packet), so the LB stops being the bandwidth bottleneck. This is how hyperscale L4 tiers (Maglev, Katran/XDP) handle terabits.</li>
-<li><strong>DNS-level distribution</strong> across multiple independent LB clusters for the coarse first hop.</li>
-</ul>
+<div class="callout warn"><span class="lbl" id="deploy">The failure that happens when you get this wrong &mdash; deploy 502s (connection draining)</span>
+This is <b>Scenario 3</b>. Rolling a deploy must not drop in-flight requests, but the naive setup does &mdash; and "graceful shutdown" is not enough on its own.
+<div class="incident"><b>The Kubernetes endpoint-removal race.</b> When a pod is terminated, two things start <i>at the same time with no ordering guarantee</i>: (1) the kubelet sends the pod <span class="gl" data-def="SIGTERM — the signal asking a process to shut down gracefully.">SIGTERM</span> and it begins shutting down, and (2) the endpoint controller starts removing the pod's IP from the load balancer's backend list. Because removal must propagate to every kube-proxy/LB node, the pod often <i>exits before the LB stops sending it traffic</i> &mdash; so requests land on a process that is gone, returning <span class="gl" data-def="HTTP 502 Bad Gateway.">502s</span>. The fix is <b>connection draining</b> done in the right order: (1) flip readiness to fail so the LB stops sending <i>new</i> traffic, (2) keep serving in-flight requests, (3) wait for de-registration to propagate &mdash; a <code>preStop</code> sleep that outlasts the propagation delay &mdash; <i>then</i> let the process exit.</div></div>
 
-<h3>Client-side LB and the service-mesh sidecar</h3>
-<p>The modern internal alternative removes the centralized middlebox entirely. In <strong>client-side load balancing</strong> the caller gets the full backend list (from service discovery) and runs the algorithm itself &mdash; no extra network hop, no shared bottleneck, and per-call decisions with full knowledge. gRPC and Finagle ship this natively. The downside is fat clients: every language needs the logic, and policy changes require redeploying callers.</p>
-<p>A <strong>service mesh</strong> (Istio/Linkerd) resolves that by moving the logic into a per-pod <em>sidecar proxy</em> (Envoy): the application makes a plain localhost call, and the sidecar does discovery, P2C balancing, mTLS, retries, circuit breaking, and outlier ejection &mdash; driven by a central control plane, so policy changes without app redeploys. You pay a per-hop latency and resource cost (a proxy beside every pod) for uniform, language-agnostic, observable L7 traffic management. This is the dominant pattern for east-west traffic in <a href="47.html">Kubernetes</a> today.</p>
-
-<div class="seealso"><b>See also:</b> <a href="51.html">Resilience Patterns</a>, <a href="44.html">Service Mesh</a>, <a href="53.html">Multi-Region &amp; DR</a>, <a href="47.html">Kubernetes</a></div>
-</div>
-
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (34).png" alt="Load balancing algorithms" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A &#x27;Load Balancing Algorithms&#x27; diagram showing round robin, sticky session, weighted round robin, IP/URL hash, least connections, and least time. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
-<style>
-.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
-.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
-.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
-
-/* dark-mode overrides for inline pdeep/mastery (injected) */
-:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
-:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
-:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
-:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
-:root[data-theme="dark"] .pdeep th{background:#0f1318;}
-:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
-:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
-:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
-</style>
-<div class="pdeep">
-<span class="tag">What the diagram hides</span>
-<h2>From a box-and-arrow to a system that actually runs</h2>
-<p>It takes one second to draw a load-balancer box with arrows to three server boxes. It takes a team to make that drawing real, because every arrow is a protocol and every box hides software the diagram never shows. Walk the questions the drawing silently skips &mdash; this is the leap from <em>sketching</em> systems to <em>operating</em> them.</p>
-
-<h3>1. How does the LB even know the servers' IP addresses?</h3>
-<p>The naive assumption is a hardcoded list of backend IPs in the LB's config. Real systems never do this, because servers are created and destroyed constantly. Instead they use <span class="key">service discovery</span>:</p>
-<ul>
-<li>A <span class="key">service registry</span> &mdash; etcd, Consul, ZooKeeper, or your cloud's internal one &mdash; holds the live set of healthy backend IPs.</li>
-<li>When a server boots it <span class="key">registers itself</span> ("I am <code>10.0.3.7:8080</code>, healthy"). The LB <span class="key">watches</span> the registry and updates its backend pool automatically &mdash; within seconds, no human edits a file.</li>
-</ul>
-<div class="box"><b>Why the registry is hard</b> The registry is the source of truth for "who is alive," so it must stay correct and available even when the network is misbehaving &mdash; which is exactly the <a href="01.html">"no shared truth" bottleneck</a>. That is why registries run on <a href="30.html">consensus (Raft/ZAB)</a>: a majority must agree on membership. See also <a href="36.html">Leader Election &amp; Coordination</a>.</div>
-
-<h3>2. A server's hardware dies. What happens?</h3>
-<p>You are right that you cannot simply re-host the app on dead hardware &mdash; the box is gone. The sequence that makes this a <em>non-event</em> is automated:</p>
-<ul>
-<li>The dead server stops answering <span class="key">health checks</span> (the LB periodically opens a TCP connection or sends <code>GET /health</code>; no / 404 response &rarr; mark it <em>down</em> and stop routing to it &mdash; "outlier ejection").</li>
-<li>It also stops sending <span class="key">heartbeats</span> to the registry, whose lease/TTL <span class="key">expires</span> the entry &mdash; so the registry, and therefore the LB, forget it.</li>
-<li>An <span class="key">orchestrator</span> (e.g. Kubernetes) notices the node is gone and <span class="key">reschedules</span> the application onto a healthy node. The replacement comes up with a <em>new IP</em>, registers itself, and the LB picks it up &mdash; automatically.</li>
-</ul>
-<div class="box"><b>The key shift</b> You never "tell the LB the new IP" by hand. Servers tell a registry; the LB watches the registry; an orchestrator replaces dead nodes. The manual chore you imagined is exactly what all the extra software exists to eliminate.</div>
-
-<h3>3. What if the load balancer itself fails?</h3>
-<p>Drawing one LB box quietly reintroduces the single point of failure the LB was meant to remove. Real designs make the LB itself redundant, and the technique depends on the layer:</p>
+<!-- ============ BRANCH 2: DECISION TABLE ============ -->
+<h2 id="decision-table">The decision table &mdash; make all four, per traffic type</h2>
+<p>As with caching, the mistake is one global config. <b>You make all four decisions together, per kind of traffic.</b> Here's how the scenarios resolve:</p>
 <table>
-<tr><th>Layer</th><th>How the LB is made highly available</th></tr>
-<tr><td>Within a datacenter</td><td>Run two or more LB instances sharing a <span class="key">floating / virtual IP (VIP)</span>. A heartbeat protocol &mdash; <span class="key">VRRP</span> (often via <code>keepalived</code>) &mdash; lets a standby instantly take over the VIP if the active one dies.</td></tr>
-<tr><td>At the edge / globally</td><td><span class="key">DNS</span> with health checks (e.g. Route&nbsp;53) hands out healthy LB addresses; <span class="key">anycast</span> announces one IP from many locations via <span class="key">BGP</span>, so the network itself routes around a dead site.</td></tr>
-<tr><td>Managed cloud LB</td><td>AWS ALB/NLB, Google GLB are themselves horizontally-scaled redundant fleets &mdash; "one box" is an illusion the cloud maintains for you.</td></tr>
+<tr><th>Traffic type</th><th>Layer</th><th>Algorithm</th><th>Health</th><th>HA / draining</th></tr>
+<tr><td>Public HTTP / REST API</td><td><span class="gl" data-def="Layer 7.">L7</span></td><td>P2C or least-request</td><td>Active <code>/healthz</code> + passive 5xx ejection</td><td>Active-active + readiness-gated draining</td></tr>
+<tr><td>gRPC / HTTP-2 east-west</td><td><span class="gl" data-def="Layer 7.">L7</span> (per-request)</td><td>P2C</td><td>Outlier ejection w/ cap</td><td>Mesh sidecar (<a href="#impl-envoy">Envoy</a>)</td></tr>
+<tr><td>Raw TCP / TLS passthrough</td><td><span class="gl" data-def="Layer 4.">L4</span></td><td>Consistent hash / least-conn</td><td>TCP-connect probe</td><td>ECMP + DSR</td></tr>
+<tr><td>Stateful (uploads, WebSocket)</td><td><span class="gl" data-def="Layer 7.">L7</span></td><td>Consistent hash / sticky</td><td>Active + long drain timeout</td><td>Long connection-drain window</td></tr>
 </table>
-<div class="box"><b>The principle (from lesson 01)</b> Redundancy never <em>removes</em> the single point of failure &mdash; it <em>moves</em> it. You push it from the LB to the VIP-failover mechanism, then to DNS, then to anycast/BGP. There is no bottom; you stop when the remaining failure probability is acceptable. Every "highly available" component is this trick applied recursively.</div>
 
-<h3>4. Which protocols are actually on the wire?</h3>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and see if you can rebuild them &mdash; that is the test, not recognition.</p>
 <ul>
-<li><span class="key">Client &harr; LB &harr; server:</span> TCP for an L4 LB (forwards packets by IP/port); HTTP/HTTPS for an L7 LB (understands requests, routes by URL/header, terminates TLS). This is the L4-vs-L7 split above.</li>
-<li><span class="key">Health checks:</span> periodic TCP connect or HTTP <code>GET /health</code>.</li>
-<li><span class="key">LB failover:</span> VRRP / keepalived for the VIP.</li>
-<li><span class="key">Service registry:</span> servers register over HTTP/gRPC; the registry replicates internally via <a href="30.html">Raft/ZAB</a>; membership and failure detection often use a <a href="34.html">gossip protocol (SWIM)</a>.</li>
-<li><span class="key">The plumbing you never think about:</span> <span class="key">DNS</span> (name &rarr; IP), <span class="key">ARP</span> (IP &rarr; MAC on the local network), <span class="key">BGP/OSPF</span> (routing between networks), and <span class="key">NTP</span> (clock sync &mdash; quietly critical, because so much breaks when clocks drift &mdash; see <a href="33.html">Time, Clocks &amp; Ordering</a>).</li>
+<li><b>Scenario 1 (chatty gRPC client):</b> Why does an L4 balancer concentrate one multiplexed connection's traffic on a single backend, why does adding backends not help, and what does moving to L7 change?</li>
+<li><b>Scenario 2 (stuck backend):</b> Why does round-robin keep feeding a slow-but-accepting backend, what does that do to p99, and which load-aware algorithm steers around it &mdash; and how does P2C beat plain least-connections?</li>
+<li><b>Scenario 3 (deploy 502s):</b> What are the two parallel, unordered tracks during pod termination, why does that produce 502s despite graceful shutdown, and what is the correct draining sequence?</li>
+<li>When do you choose <b>L4</b> over <b>L7</b>, and why do hyperscale stacks layer both?</li>
+<li>Why can aggressive <b>outlier ejection</b> cause the outage it was meant to prevent, and what caps prevent it?</li>
+<li>How do you stop the balancer from being a <b>SPOF</b> &mdash; and at what scale do you move from a VIP pair to ECMP+DSR to GSLB?</li>
 </ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> a load balancer is <b>4 decisions</b> &mdash; <a href="#d1">where you balance (L4/L7)</a>, <a href="#d2">how you pick a backend</a>, <a href="#d3">how you detect health</a>, <a href="#d4">how it avoids being a SPOF</a> &mdash; and each wrong choice has a named failure: connection hot-spot, stale-load herd, ejection cascade, deploy 502s.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="51.html">Resilience Patterns</a>, <a href="44.html">Microservices &amp; Service Mesh</a>, <a href="53.html">Multi-Region &amp; DR</a>, <a href="12.html">Consistent Hashing</a>.</p>
 
-<h3>5. Who writes the load-balancing software, and what else runs on every node?</h3>
-<p>The LB is a real program someone built and operates: <span class="key">HAProxy</span>, <span class="key">NGINX</span>, or <span class="key">Envoy</span> (the modern data plane behind most service meshes); hardware appliances like <span class="key">F5 BIG-IP</span>; or a managed cloud LB. In a <a href="44.html">service mesh</a> there is no central LB box at all &mdash; an <span class="key">Envoy sidecar</span> runs next to every service and does client-side load balancing.</p>
-<p>And the box labelled "server" is not just running your application. In production it also runs a quiet stack of supporting software &mdash; this is what the diagram hides most of all:</p>
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud services &mdash; the same thing, by vendor name</h2>
+<p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p>
 <table>
-<tr><th>Software on a typical node</th><th>Why it's there</th></tr>
-<tr><td>Service-registry agent (e.g. Consul agent)</td><td>registers the node, runs local health checks</td></tr>
-<tr><td>Gossip / membership daemon (SWIM)</td><td>so nodes know who else is alive without a central poller</td></tr>
-<tr><td>Service-mesh sidecar (Envoy/Linkerd)</td><td>mTLS, retries, timeouts, client-side LB for all its traffic</td></tr>
-<tr><td>Observability agents</td><td>metrics exporter, log shipper, tracing agent (see <a href="50.html">Observability</a>)</td></tr>
-<tr><td>Orchestrator agent (kubelet)</td><td>places/restarts containers, reports node health, drives the "node died &rarr; reschedule" loop</td></tr>
-<tr><td>NTP, config/secrets agents, CNI networking</td><td>clock sync, configuration, and giving each container its IP in the first place</td></tr>
+<tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td><span class="gl" data-def="Layer 4.">L4</span> / network LB</td><td>Network Load Balancer (NLB)</td><td>Passthrough Network LB</td><td>Azure Load Balancer</td></tr>
+<tr><td><span class="gl" data-def="Layer 7.">L7</span> / application LB</td><td>Application Load Balancer (ALB)</td><td>Cloud Load Balancing (HTTPS)</td><td>Application Gateway</td></tr>
+<tr><td>Global / <span class="gl" data-def="Global Server Load Balancing.">GSLB</span></td><td>Route&nbsp;53</td><td>Cloud Load Balancing (global)</td><td>Traffic Manager / Front Door</td></tr>
 </table>
-<div class="box"><b>The takeaway</b> Every box in a system diagram is a computer running far more than your app, and every arrow is a protocol with a failure mode. The drawing is a <em>summary</em>, not the system. The skill that separates building from sketching is being able to expand any box and any arrow into the operational reality underneath &mdash; service discovery, health checking, failover, and the agents that make "replace the dead node" automatic.</div>
-<div class="seealso"><b>Go deeper:</b> <a href="36.html">36 Leader Election &amp; Coordination</a>, <a href="44.html">43 Microservices &amp; Service Mesh</a>, <a href="47.html">46 Containers &amp; Kubernetes</a>, <a href="51.html">49 Resilience Patterns</a></div>
-</div>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify the current name before relying on it in production.</p>
 
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Layer-4 / network LB</td><td>Network Load Balancer (NLB)</td><td>Network/Passthrough LB</td><td>Azure Load Balancer</td></tr><tr><td>Layer-7 / application LB</td><td>Application Load Balancer (ALB)</td><td>Cloud Load Balancing (HTTPS)</td><td>Application Gateway</td></tr><tr><td>Global / DNS load balancing</td><td>Route 53</td><td>Cloud Load Balancing (global) / Cloud DNS</td><td>Traffic Manager / Front Door</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="mastery">
-<h2>Principal-level mastery check</h2>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>Three pieces of software cover most of what you'll meet. Each entry below breaks down the same facets so you can compare them directly &mdash; what it is, the layer it works at, configuration model, key strength, the failure to watch, and when to reach for it.</p>
+
+<h3 id="impl-nginx">NGINX &mdash; the ubiquitous software LB / reverse proxy</h3>
+<p>Originally a web server, now the most widely deployed software reverse proxy and L7 load balancer.</p>
 <ul>
-<li>Can you explain the difference between an L4 and an L7 load balancer in terms of <em>what decision is made on what data</em>, and give one concrete case where each is the right choice (e.g. TLS passthrough / non-HTTP vs. content-based routing or per-request fairness over an HTTP/2 connection)?</li>
-<li>Why does pinning a long-lived HTTP/2 or gRPC connection at L4 risk hot-spotting a single backend, and how does L7 (or per-request rebalancing) fix it?</li>
-<li>Why should you avoid sticky sessions as a default &mdash; what does cookie-pinning couple availability to, and how does externalizing session state (e.g. Redis) restore stateless autoscaling and draining?</li>
-<li>How do active health checks and passive outlier ejection complement each other, and why can aggressive ejection <em>cause</em> a cascading failure? What two safeguards (<code>max_ejection_percent</code>, panic threshold) prevent the self-inflicted outage?</li>
-<li>Why does <code>hash(key) % N</code> trigger a cache-miss storm when <code>N</code> changes, and how does consistent hashing (or Maglev) limit reshuffle to ~<code>1/N</code> of keys while preserving cache affinity? What breaks this, and how does bounded-load consistent hashing patch it?</li>
-<li>Why is power-of-two-choices the modern mesh default over global least-connections &mdash; what herd problem does it avoid with O(1) state?</li>
-<li>In what ways is a single LB both a SPOF and a throughput ceiling, and how do a floating VIP (VRRP), ECMP + Direct Server Return, and client-side / sidecar balancing each remove it?</li>
-<li>Go deeper: <a href="51.html">49 Resilience</a></li>
+<li><b>Layer.</b> Primarily <span class="gl" data-def="Layer 7.">L7</span> (HTTP/HTTPS/gRPC), with an <span class="gl" data-def="Layer 4.">L4</span> stream module for raw TCP/UDP.</li>
+<li><b>Configuration model.</b> Static config files, reloaded on change &mdash; simple and battle-tested, but dynamic backend changes traditionally need a reload (the commercial NGINX Plus and the Ingress controllers add dynamic upstreams).</li>
+<li><b>Key strength.</b> Extremely efficient event-driven core; doubles as web server, cache, and TLS terminator. The default front door for a huge share of the web and the most common Kubernetes Ingress.</li>
+<li><b>Algorithms.</b> Round-robin, weighted, least-connections, IP-hash.</li>
+<li><b>The failure to watch.</b> The classic config-reload model means service discovery has to be wired in separately; a stale upstream list keeps sending traffic to dead backends until reloaded.</li>
 </ul>
-</div>
+<div class="callout note"><span class="lbl">Reach for NGINX when&hellip;</span>you want a proven, low-overhead L7 front door, reverse proxy, or Kubernetes Ingress, and your backend set is relatively stable or managed by an Ingress controller.</div>
+
+<h3 id="impl-haproxy">HAProxy &mdash; the high-performance L4/L7 workhorse</h3>
+<p>A dedicated load balancer (not a web server) known for raw performance and reliability.</p>
+<ul>
+<li><b>Layer.</b> Both <span class="gl" data-def="Layer 4.">L4</span> (TCP) and <span class="gl" data-def="Layer 7.">L7</span> (HTTP) in one binary.</li>
+<li><b>Configuration model.</b> A single, expressive config file; a runtime API lets you change server state and weights without a full reload.</li>
+<li><b>Key strength.</b> Mature, rich health-checking and observability, very high throughput per core. A long-standing default where a pure, fast LB is wanted rather than a web server.</li>
+<li><b>Algorithms.</b> Round-robin, least-connections, source-hash, URI-hash, and more, with per-server weights.</li>
+<li><b>The failure to watch.</b> Like NGINX, it is a centralized middlebox &mdash; you still must make <i>it</i> highly available (a <a href="#d4">VIP pair</a>) so it isn't the SPOF.</li>
+</ul>
+<div class="callout note"><span class="lbl">Reach for HAProxy when&hellip;</span>you want a dedicated, high-throughput L4 or L7 balancer with deep health-check and stats tooling, and you don't need it to also serve content.</div>
+
+<h3 id="impl-envoy">Envoy &mdash; the modern mesh data plane</h3>
+<p>A modern L7 proxy designed for cloud-native, east-west microservice traffic; the data plane behind most service meshes (Istio, Linkerd's earlier versions, Consul).</p>
+<ul>
+<li><b>Layer.</b> <span class="gl" data-def="Layer 7.">L7</span>-first (HTTP/1.1, HTTP/2, gRPC), with L4 support.</li>
+<li><b>Configuration model.</b> <b>Dynamic</b> &mdash; driven by a control plane over APIs (the xDS protocol), so backends, routes, and policy update live with no restart. This is the key difference from the file-reload model.</li>
+<li><b>Key strength.</b> Ships <span class="gl" data-def="Power of two choices.">P2C</span> load balancing, outlier ejection, retries, circuit breaking, and mTLS out of the box, with first-class observability. Runs as a per-pod <span class="gl" data-def="Sidecar — a proxy container deployed alongside each application instance; the app talks to localhost and the sidecar handles networking, balancing, retries, security.">sidecar</span> so the application just calls localhost.</li>
+<li><b>Algorithms.</b> P2C (default), round-robin, least-request, ring-hash / Maglev consistent hashing.</li>
+<li><b>The failure to watch.</b> Operational complexity and per-hop cost &mdash; a proxy beside every pod adds latency and resource overhead, and the control plane becomes critical infrastructure.</li>
+</ul>
+<div class="callout note"><span class="lbl">Reach for Envoy when&hellip;</span>you're balancing east-west microservice traffic (especially gRPC), want dynamic config without restarts, and need built-in retries / circuit-breaking / mTLS &mdash; typically via a <a href="44.html">service mesh</a>.</div>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Reading how a load balancer works is not the same as being able to build one. These are the implementation questions an interviewer (or a real design doc) will push on. <b>Work each one out before you open the approach.</b> The point is to discover <i>why</i> the well-known designs are shaped the way they are.</p>
+
+<h3 id="ex-rr">Implement round-robin, then weighted round-robin</h3>
+<p>Spread requests evenly across N backends, then handle the case where backends have different capacities (one is twice as powerful). What's the data you keep, and how do you make weighted distribution smooth rather than bursty (not "3 in a row to the big one, then 1 to the small one")?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Plain round-robin is a single index incremented mod N &mdash; O(1), no per-backend state. For <b>weighted</b>, the naive approach (repeat each backend weight-times in a list) is bursty. The standard smooth algorithm is <b>smooth weighted round-robin</b> (used by NGINX): each backend has a <code>current_weight</code> that you increase by its configured weight every step, pick the backend with the highest current weight, then subtract the total weight from the chosen one. This interleaves picks proportionally (for weights 5/1/1 you get a balanced spread, not five-in-a-row). Key insight: balance isn't just the right <i>ratio</i>, it's the right <i>ordering</i>.</p>
+</div></details>
+
+<h3 id="ex-p2c">Implement power-of-two-choices</h3>
+<p>You have N backends and want near-optimal load spread without tracking global state. Implement <span class="gl" data-def="Power of two choices.">P2C</span> &mdash; and explain why sampling <i>two</i> and picking the lighter is so much better than picking one at random, but sampling three is barely better than two.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Pick two backends uniformly at random, compare a cheap local load metric (active connections or in-flight requests), send to the lighter one. O(1), no global coordination, no herd effect. The why: with one random choice the busiest backend's load grows like log&nbsp;n / log&nbsp;log&nbsp;n; with two choices it drops to <b>log&nbsp;log&nbsp;n</b> &mdash; an exponential improvement &mdash; because the second sample lets you avoid the unlucky-busy backend. Going from two to three samples only shaves a constant factor, so the extra sampling cost isn't worth it. This is exactly the result behind Envoy's default policy.</p>
+</div></details>
+
+<h3 id="ex-health">Implement health checking with hysteresis</h3>
+<p>Mark a backend down when it's failing, back up when it recovers &mdash; without flapping in and out on a single blip. How do you avoid both (a) ejecting a backend over one transient error and (b) the <a href="#cascade">ejection cascade</a> that takes down the whole pool?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Use <b>hysteresis</b>: require N consecutive failures before marking a backend unhealthy and M consecutive successes before marking it healthy again &mdash; so one blip doesn't flip state. Combine active probes (periodic <code>/healthz</code>) with passive outlier detection (eject on a burst of real-traffic 5xx). Critically, cap the damage: a <code>max_ejection_percent</code> so you never remove more than (say) half the pool, and a <b>panic threshold</b> &mdash; if more than that fraction looks unhealthy, assume the health signal itself is wrong and route to everyone rather than hammering the survivors. That cap is the difference between shedding one bad backend and causing a total outage.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; these are the system-design prompts. Sketch a design, then follow the link to the lesson that goes deep.</p>
+<ul>
+<li><b>Make the balancer highly available.</b> Design an active-active LB pair that survives one node dying with no dropped traffic. What moves the traffic, and how fast? &rarr; <a href="51.html">Resilience Patterns</a>.</li>
+<li><b>Global load balancing.</b> Steer users across three regions and fail a whole region out. Why might you pick Anycast over GeoDNS, and what does Anycast break? &rarr; <a href="53.html">Multi-Region &amp; DR</a>.</li>
+<li><b>Sticky sessions vs stateless.</b> A WebSocket app needs a client to keep hitting the same backend. Implement stickiness &mdash; then argue why externalizing session state (to <a href="04.html">a cache</a>) and staying stateless is usually better. &rarr; <a href="44.html">Service Mesh</a>.</li>
+</ul>
+
 <div class="navfoot"><a href="02.html">&lsaquo; Prev: System Design Basics</a><a class="nx" href="04.html">Next: Caching &rsaquo;</a></div>
 </div>
 </div>

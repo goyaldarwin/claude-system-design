@@ -58,5 +58,84 @@
       try{ localStorage.setItem('sd-theme', next); }catch(e){}
       applyTheme(next);
     });
+
+    // ---- collapsible content tree ----
+    // Opt-in per page: add class "tree-doc" to the .wrap. The walker turns every
+    // h2/h3 into a collapsible node. Collapsing an h2 folds it AND every h3 under it;
+    // collapsing an h3 folds only its own content. Convention-free: works on any
+    // lesson that uses semantic <h2>/<h3> for its sections.
+    buildContentTree();
   });
+
+  function buildContentTree(){
+    var wrap = document.querySelector('.wrap.tree-doc');
+    if(!wrap) return;
+    var level = function(el){ return el.tagName==='H2' ? 2 : (el.tagName==='H3' ? 3 : 0); };
+    var kids = [].slice.call(wrap.children);   // static snapshot taken before any DOM mutation
+
+    // For each heading, wrap the following siblings (up to the next heading of
+    // equal-or-higher level) in a .node-body, and prepend a caret to the heading.
+    for(var i=0;i<kids.length;i++){
+      var h = kids[i], lv = level(h);
+      if(!lv) continue;
+      var body = document.createElement('div');
+      body.className = 'node-body';
+      // Determine the body range from the static snapshot first…
+      var j = i+1, range = [];
+      while(j < kids.length){
+        var lj = level(kids[j]);
+        if(lj && lj <= lv) break;            // next heading at this level-or-higher ends the body
+        range.push(kids[j]);
+        j++;
+      }
+      // …then insert the (empty) body right after the heading, and move the range into it.
+      h.parentNode.insertBefore(body, h.nextSibling);
+      range.forEach(function(n){ body.appendChild(n); });
+
+      h.classList.add('node-head');
+      h.setAttribute('tabindex','0');
+      h.setAttribute('role','button');
+      var caret = document.createElement('span');
+      caret.className = 'caret';
+      caret.setAttribute('aria-hidden','true');
+      h.insertBefore(caret, h.firstChild);
+
+      (function(head, bodyEl){
+        function toggle(){
+          var collapsed = head.classList.toggle('collapsed');
+          bodyEl.classList.toggle('hidden', collapsed);
+          head.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        }
+        head.addEventListener('click', function(e){
+          // don't hijack clicks on links inside the heading
+          if(e.target.closest('a')) return;
+          toggle();
+        });
+        head.addEventListener('keydown', function(e){
+          if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); }
+        });
+        head.setAttribute('aria-expanded','true');
+      })(h, body);
+    }
+
+    // "Collapse all / Expand all" control, injected just under H1.
+    var h1 = wrap.querySelector('h1');
+    if(h1){
+      var bar = document.createElement('div');
+      bar.className = 'tree-controls';
+      bar.innerHTML = '<button type="button" data-act="collapse">&minus; Collapse all</button>'
+                    + '<button type="button" data-act="expand">+ Expand all</button>';
+      h1.parentNode.insertBefore(bar, h1.nextSibling);
+      bar.addEventListener('click', function(e){
+        var act = e.target.getAttribute && e.target.getAttribute('data-act');
+        if(!act) return;
+        var collapse = act==='collapse';
+        wrap.querySelectorAll('.node-head').forEach(function(head){
+          head.classList.toggle('collapsed', collapse);
+          head.setAttribute('aria-expanded', collapse ? 'false':'true');
+        });
+        wrap.querySelectorAll('.node-body').forEach(function(b){ b.classList.toggle('hidden', collapse); });
+      });
+    }
+  }
 })();

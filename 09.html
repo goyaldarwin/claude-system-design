@@ -111,113 +111,148 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Redundancy and Replication</div>
 <h1>Redundancy and Replication</h1>
-<p class="sub"><em>Duplicating critical data and services to remove single points of failure, and adopting a shared-nothing architecture for reliability and resilience.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Partial failure.</b> <span>machines die — surviving it means duplicating, which costs hardware and a consistency problem between copies.</span></div>
-<div class="toc"><h4>In this lesson</h4>
-<ul>
-  <li><a href="#redundancy">Redundancy</a></li>
-</ul></div>
+<p class="sub"><em>Replication keeps copies of your data on multiple machines &mdash; for availability, read scaling, and durability. The price is that copies drift apart, and the moment a leader dies you face the hardest question in the field: who is allowed to accept writes? Get it wrong and a network blip silently corrupts your data.</em></p>
 
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Availability, read scale, and durability in exchange for staleness, conflicts, and the risk of split-brain.</b> <span>Extra copies let you survive node loss, serve reads from many machines, and avoid data loss. In return copies lag, concurrent writes conflict, and a partition during failover can leave two leaders corrupting the dataset.</span></div>
 
-<h2 id="redundancy">Redundancy</h2>
-<p>Redundancy means duplication of critical data or services with the intention of increased reliability of the system. For example, if there is only one copy of a file stored on a single server, then losing that server means losing the file. Since losing data is seldom a good thing, we can create duplicate or redundant copies of the file to solve this problem.</p>
-<p>This same principle applies to services too. If we have a critical service in our system, ensuring that multiple copies or versions of it are running simultaneously can secure against the failure of a single node.</p>
-<p>Creating redundancy in a system can remove single points of failure and provide backups if needed in a crisis. For example, if we have two instances of a service running in production, and if one fails or degrades, the system can failover to the other one. These failovers can happen automatically or can be done manually.</p>
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Redundancy and Replication</b>
+│
+├─ <a href="#root"><b>What replication is</b></a>  &mdash; copies for availability
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+├─ <a href="#decisions"><b>Replication is 4 decisions</b></a>  &mdash; each wrong choice has a failure
+│   ├─ <a href="#d1">1. Who accepts writes? (topology)</a>   failure → <a href="#conflict">write conflicts</a>
+│   ├─ <a href="#d2">2. Sync or async? (durability dial)</a> failure → <a href="#dataloss">async data-loss window</a>
+│   ├─ <a href="#d3">3. How do reads handle lag?</a>         failure → <a href="#stale">stale reads</a>
+│   └─ <a href="#d4">4. What happens when the leader dies?</a> failure → <a href="#splitbrain">split-brain</a>
+├─ <a href="#decision-table"><b>The decision table</b></a>  &mdash; pick by need
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; reconstruct the scenarios
+├─ <a href="#cloud"><b>Cloud services</b></a>  &mdash; managed replication
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; Postgres, MySQL, Cassandra
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; failover, read-your-writes, design the rest
+</pre>
+</div>
 
-<p class="legacy-note">The original lesson showed a diagram here illustrating redundant primary and secondary servers with failover between them; it is described by the surrounding text.</p>
+<h2 id="root">What replication is</h2>
+<p><b>Redundancy</b> is keeping spare copies of a component so a failure isn't fatal; <b>replication</b> is keeping copies of the <i>data</i> on multiple machines, kept in sync. It buys three things: <b>availability</b> (a replica takes over when one dies), <b>read scaling</b> (fan reads across replicas), and <b>durability</b> (the data survives a single machine's loss).</p>
+<p>The hard part is that the copies don't stay identical. Three questions decide everything: <b>who can accept writes</b>, <b>how conflicting writes reconcile</b>, and <b>what happens the instant a leader dies</b> &mdash; and those determine your durability, consistency model, and whether a partition corrupts your data.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Redundancy never removes the single point of failure &mdash; it <i>moves</i> it (from the node, to the failover mechanism, to the quorum). The whole game is pushing that point until the remaining failure probability is acceptable &mdash; and never letting two nodes think they're both the leader.</div>
 
-<p>Another important part of service redundancy is to create a shared-nothing architecture, where each node can operate independently of one another. There should not be any central service managing state or orchestrating activities for the other nodes. This helps a lot with scalability since new servers can be added without special conditions or knowledge and most importantly, such systems are more resilient to failure as there is no single point of failure.</p>
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the leader crashes with writes in flight</span>
+Your leader acknowledges writes to clients immediately and ships them to a follower asynchronously. It's lagging the follower by 800&nbsp;ms of writes when it suddenly dies. <b>What happens to those 800&nbsp;ms of "successful" writes, and what's your real data-loss window?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the user can't see their own post</span>
+A user updates their profile (write goes to the leader), then immediately reloads (read goes to a lagging replica). The page shows the <i>old</i> profile. <b>Why, and how do you guarantee they see their own writes without making every read hit the leader?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the partition heals into chaos</span>
+A 43-second network blip makes your failover system think the leader died, so it promotes a follower. But the old leader was only partitioned, not dead &mdash; and kept taking writes. The network heals. <b>What state is your data in now, and what should have prevented it?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#dataloss">async data-loss window</a>. Scenario 2 is <a href="#stale">replication lag / read-your-writes</a>. Scenario 3 is <a href="#splitbrain">split-brain</a> &mdash; the lethal one.</i></p>
 
-<div class="pdeep">
-<span class="tag">Principal-level deep dive</span>
-<h2>Replication topologies, failover, and split-brain</h2>
-<p>The original lesson frames replication as "keep extra copies for availability." At principal level the real questions are: <em>who is allowed to accept writes</em>, <em>how do conflicting writes get reconciled</em>, and <em>what exactly happens at the moment a leader dies</em>. Those three questions determine your durability, your consistency model, and whether a network partition silently corrupts your data.</p>
+<h2 id="decisions">Replication is defined by four decisions</h2>
 
-<h3>Three topologies, three conflict stories</h3>
-<p>Replication architectures differ primarily in where writes are accepted, and that single choice dictates the conflict-resolution burden you inherit.</p>
+<h3 id="d1">Decision 1 &mdash; Who is allowed to accept writes? (topology)</h3>
+<p>Where writes are accepted dictates the conflict-resolution burden you inherit:</p>
 <table>
-<tr><th>Topology</th><th>Write path</th><th>Conflict handling</th><th>Representative systems</th></tr>
-<tr><td><b>Single-leader</b></td><td>All writes to one leader; replicated to followers</td><td>No write conflicts by construction &mdash; total order at the leader</td><td>PostgreSQL/MySQL primary-replica, MongoDB replica set, Kafka partition leader</td></tr>
-<tr><td><b>Multi-leader</b></td><td>Writes accepted at 2+ leaders (often per-region)</td><td>Concurrent writes to the same key <em>must</em> be merged: LWW, version vectors, or CRDTs</td><td>Active-active MySQL, CouchDB; many multi-region setups</td></tr>
-<tr><td><b>Leaderless</b></td><td>Client writes to many replicas directly; quorum reads/writes</td><td>Conflicts surfaced via vector clocks / read-repair; app or DB resolves. Read-after-write needs <code>W + R &gt; N</code> so read and write quorums overlap</td><td>Dynamo, Cassandra, Riak, ScyllaDB</td></tr>
+<tr><th>Topology</th><th>Write path</th><th>Conflicts</th><th>Examples</th></tr>
+<tr><td><b>Single-leader</b></td><td>All writes to one leader &rarr; followers</td><td>None by construction (total order at the leader)</td><td>Postgres/MySQL primary-replica, MongoDB replica set, Kafka partition</td></tr>
+<tr><td><b>Multi-leader</b></td><td>Writes at 2+ leaders (often per-region)</td><td>Concurrent writes to one key must be merged</td><td>Active-active MySQL, CouchDB</td></tr>
+<tr><td><b>Leaderless</b></td><td>Client writes to many replicas; quorum</td><td>Surfaced via version vectors / read-repair</td><td>Dynamo, Cassandra, Riak</td></tr>
 </table>
-<p>Single-leader is the default for a reason: a single ordering point makes <code>read-after-write</code> reasoning tractable. The moment you accept writes in more than one place &mdash; multi-leader or leaderless &mdash; you have <em>concurrent writes</em>, and concurrency is undefined order. You then must pick a deterministic merge rule. Last-write-wins (LWW) is seductive but lossy: it silently discards one of two genuinely concurrent updates, and it depends on clock skew you do not control. Version vectors detect concurrency precisely; CRDTs (e.g. an OR-Set or a PN-Counter) make merges associative/commutative/idempotent so that <em>order no longer matters</em> &mdash; the principled answer when you truly need multi-master writes.</p>
+<p>Single-leader is the default for a reason: one ordering point makes read-after-write tractable. The moment you accept writes in more than one place, you have concurrency &mdash; which is <i>undefined order</i> &mdash; and must pick a deterministic merge rule.</p>
+<div class="callout warn"><span class="lbl" id="conflict">The failure that happens when you get this wrong &mdash; write conflicts</span>
+Adopt multi-leader or leaderless without a real merge strategy and two concurrent writes to the same key collide. <b>Last-write-wins (LWW)</b> is the seductive default and it's <i>lossy</i> &mdash; it silently discards one of two genuine updates and depends on clock skew you don't control. The principled fixes: <b>version vectors</b> to detect concurrency precisely, or <a href="35.html">CRDTs</a> (OR-Set, PN-Counter) whose merges are commutative/associative/idempotent so order stops mattering. Only take on multi-master when you truly need it &mdash; the conflict tax is real.</div>
 
-<h3>Synchronous, asynchronous, semi-synchronous</h3>
-<p>This is the durability-versus-latency dial, and it is the single most consequential replication setting in production.</p>
+<h3 id="d2">Decision 2 &mdash; Synchronous or asynchronous? (the durability dial)</h3>
+<p>The single most consequential replication setting &mdash; durability vs latency:</p>
 <ul>
-<li><b>Synchronous</b>: the leader does not ack the client until a replica has durably persisted the write. Zero data loss on leader failure, but every write pays a cross-node (often cross-AZ, ~1&ndash;2&nbsp;ms; cross-region, tens of ms) round trip, and a single slow replica stalls all writes.</li>
-<li><b>Asynchronous</b>: the leader acks immediately and ships changes in the background. Lowest latency and best availability, but a leader crash loses every write still in flight &mdash; the <em>data-loss window</em>.</li>
-<li><b>Semi-synchronous</b>: ack after <em>at least one</em> replica confirms (the rest async). This is the pragmatic middle ground &mdash; MySQL <code>rpl_semi_sync</code>, PostgreSQL <code>synchronous_standby_names</code> with <code>ANY 1 (...)</code>. You bound data loss to "a replica that also has to fail" without paying for all-replica acks.</li>
+<li><b>Synchronous</b> &mdash; don't ack the client until a replica has durably persisted the write. Zero data loss on leader failure, but every write pays a cross-node round trip (cross-AZ ~1&ndash;2&nbsp;ms, cross-region tens of ms), and one slow replica stalls all writes.</li>
+<li><b>Asynchronous</b> &mdash; ack immediately, ship changes in the background. Lowest latency, best availability &mdash; but a leader crash loses every in-flight write.</li>
+<li><b>Semi-synchronous</b> &mdash; ack after <i>at least one</i> replica confirms (rest async). The pragmatic middle (MySQL <code>rpl_semi_sync</code>, Postgres <code>ANY 1 (...)</code>): bound loss to "a replica that <i>also</i> fails" without paying for all-replica acks.</li>
 </ul>
-<div class="box"><b>The async data-loss window</b>Under async replication, replication lag <em>is</em> your RPO. If a leader is lagging followers by 800&nbsp;ms of write volume and it dies, those 800&nbsp;ms of acknowledged-to-the-client writes are gone &mdash; the client believes they committed. This is precisely how many MySQL async failovers lose data. Always state your RPO in terms of <em>worst-case observed lag</em>, not average.</div>
+<div class="callout warn"><span class="lbl" id="dataloss">The failure that happens when you get this wrong &mdash; the async data-loss window</span>
+This is <b>Scenario 1</b>. Under async replication, <b>replication lag is your <span class="gl" data-def="Recovery Point Objective — the maximum amount of data (measured in time) you can afford to lose in a failure.">RPO</span></b>. If the leader is 800&nbsp;ms of writes ahead of followers and dies, those 800&nbsp;ms of <i>client-acknowledged</i> writes are gone &mdash; the client believes they committed. This is exactly how many MySQL async failovers lose data. State your RPO in terms of <i>worst-case observed lag</i>, not average &mdash; and use semi-sync (or sync for ledgers) when the data can't be lost.</div>
 
-<h3>Replication lag and client-centric guarantees</h3>
-<p>Async followers are always somewhere in the past. Rather than forcing global linearizability (expensive), mature systems paper over lag with weaker, <em>per-client</em> guarantees:</p>
+<h3 id="d3">Decision 3 &mdash; How do reads cope with replication lag?</h3>
+<p>Async followers are always somewhere in the past. Rather than force expensive global linearizability, mature systems use cheaper per-client guarantees:</p>
 <ul>
-<li><b>Read-your-writes (read-after-write)</b>: a user who just posted must see their own post. Achieve it by routing that user's reads to the leader for a short window, by tracking the write's log position (<code>LSN</code>/GTID) and reading only from a replica that has caught up to it, or by sticky-session pinning.</li>
-<li><b>Monotonic reads</b>: a user must never see time go backwards (read v5, then v3 from a more-lagged replica). Achieve it by pinning each user to a single replica via consistent hashing on user id.</li>
-<li><b>Consistent prefix reads</b>: causally related writes are seen in order &mdash; critical when a partitioned/sharded system could otherwise show an answer before its question.</li>
+<li><b>Read-your-writes</b> &mdash; a user sees their own write. Route their reads to the leader briefly, or read only from a replica caught up past the write's log position (LSN/GTID), or pin by sticky session.</li>
+<li><b>Monotonic reads</b> &mdash; never see time go backwards (read v5, then v3 from a more-lagged replica). Pin each user to one replica via consistent hashing.</li>
+<li><b>Consistent-prefix reads</b> &mdash; causally related writes seen in order (never the answer before the question).</li>
 </ul>
-<p>These are far cheaper than strong consistency and cover the vast majority of user-facing correctness needs. See <a href="31.html">Consistency Models</a> for how PACELC frames the latency cost you are trading away here even when there is no partition.</p>
+<div class="callout warn"><span class="lbl" id="stale">The failure that happens when you get this wrong &mdash; stale reads</span>
+This is <b>Scenario 2</b>. Send a just-written user's next read to a lagging replica and they see the <i>old</i> value &mdash; "I posted but it's not there." Forcing all reads to the leader fixes it but throws away read scaling. The discipline: <b>classify reads by staleness tolerance</b> &mdash; route "did my write land" reads to the leader or a caught-up replica (by LSN), and route feeds/analytics/search to replicas. (PACELC frames the latency you trade even with no partition &mdash; see <a href="11.html">CAP</a>.)</div>
 
-<h3>Automatic failover and the split-brain trap</h3>
-<p>Failover sounds simple &mdash; promote a follower when the leader dies &mdash; but every step hides a failure mode. You must (1) <em>detect</em> the leader is dead (usually a timeout, which cannot distinguish "crashed" from "slow/partitioned"), (2) <em>choose</em> a new leader (ideally the most up-to-date follower, by log position), and (3) <em>reconfigure</em> clients and the old leader to follow the new one.</p>
-<p>The lethal case: the old leader was only <em>partitioned</em>, not dead. Now you have two nodes both accepting writes &mdash; <b>split-brain</b> &mdash; diverging the dataset, and on reunion you face unmergeable conflicts. Defenses are non-optional:</p>
+<h3 id="d4">Decision 4 &mdash; What happens when the leader dies? (failover)</h3>
+<p>Failover sounds simple &mdash; promote a follower &mdash; but each step hides a failure mode: (1) <i>detect</i> the leader is dead (a timeout, which can't tell "crashed" from "slow/partitioned"), (2) <i>choose</i> the most up-to-date follower, (3) <i>reconfigure</i> clients and the old leader.</p>
+<div class="callout warn"><span class="lbl" id="splitbrain">The failure that happens when you get this wrong &mdash; split-brain</span>
+This is <b>Scenario 3</b>, and it's the lethal one. If the old leader was only <i>partitioned</i>, not dead, you now have <b>two nodes both accepting writes</b> &mdash; the dataset diverges, and on reunion you have unmergeable conflicting histories.
+<div class="incident"><b>Real incident &mdash; GitHub, 21&ndash;22 October 2018.</b> A routine network maintenance caused a <b>43-second</b> connectivity loss between US East Coast and West Coast data centers. The automation (Orchestrator) failed over the database to the West Coast &mdash; but the East Coast cluster had also taken writes during the blip. The two sides had diverged, and re-establishing a single consistent history (without losing customer data) took <b>over 24 hours</b> of degraded service. A 43-second blip became a day-long incident &mdash; the textbook cost of split-brain.</div>
+Defenses are non-optional:
+<ul style="margin-top:8px">
+<li><b>Quorum / majority</b> &mdash; a node may lead only if it sees a majority; a minority partition can't elect itself. (Why Raft/Paxos use odd counts &mdash; see <a href="36.html">Leader Election</a>.)</li>
+<li><b>Witness / tiebreaker</b> &mdash; a voting-only node in a third AZ so two-DC setups keep an odd vote count.</li>
+<li><b>Fencing (STONITH / fencing tokens)</b> &mdash; forcibly stop the old leader, or issue a monotonically increasing token that storage rejects if stale, so a zombie leader's writes are refused.</li>
+</ul>
+Timeout tuning is a genuine trade-off: too short flaps on GC pauses (needless failovers, each risking lost async writes); too long extends downtime.</div>
+
+<h2 id="decision-table">The decision table &mdash; pick by need</h2>
+<table>
+<tr><th>Need</th><th>Topology</th><th>Sync mode</th><th>Failover guard</th></tr>
+<tr><td>OLTP, strong-ish, simple</td><td>Single-leader</td><td>Semi-sync</td><td>Quorum + witness, fencing</td></tr>
+<tr><td>Financial ledger (no loss)</td><td>Single-leader</td><td>Synchronous</td><td>Quorum, fencing tokens</td></tr>
+<tr><td>Multi-region writes</td><td>Multi-leader / leaderless</td><td>Async + merge (CRDT)</td><td>Per-key conflict resolution</td></tr>
+<tr><td>Read-heavy scaling</td><td>Single-leader + read replicas</td><td>Async</td><td>Route by staleness tolerance</td></tr>
+</table>
+<div class="callout note"><span class="lbl">How the bytes move, and the read-scaling ceiling</span><b>Physical/WAL shipping</b> replicates the storage log byte-for-byte (cheap/exact, but identical engine version only); <b>logical/row-based</b> replicates decoded change events (enables cross-version upgrades, partial replication, <a href="40.html">CDC</a> to Kafka). Avoid statement-based (non-deterministic <code>NOW()</code>/<code>RAND()</code> diverge replicas). And note the ceiling: every read replica still applies <b>100% of the write volume</b>, so replicas relieve read load but never write load &mdash; past that point you must <a href="05.html">shard</a>, not just replicate.</div>
+
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
 <ul>
-<li><b>Quorum / majority</b>: a node may only act as leader if it can see a majority of the cluster. A minority partition cannot form a quorum and so cannot elect itself &mdash; this is why Raft/Paxos clusters use odd counts (3, 5). See <a href="36.html">Leader Election &amp; Coordination</a>.</li>
-<li><b>Witness / tiebreaker node</b>: a lightweight voting-only member (no data) in a third AZ so a two-DC deployment still has an odd vote count.</li>
-<li><b>Fencing (STONITH / fencing tokens)</b>: when a new leader is promoted, the old one must be forcibly prevented from doing damage &mdash; either shot in the head (power-fenced) or issued a monotonically increasing fencing token that storage/clients check, rejecting any write carrying a stale token. Fencing tokens are the software answer when you cannot physically kill the node.</li>
+<li><b>Scenario 1 (data loss):</b> Why is async replication lag your RPO, and how do sync/semi-sync change the data-loss window?</li>
+<li><b>Scenario 2 (stale read):</b> Why does a just-written user see old data on a replica, and how do read-your-writes / monotonic reads fix it cheaply?</li>
+<li><b>Scenario 3 (split-brain):</b> How does a brief partition during failover create two leaders, what did GitHub's 43-second blip cost, and which three defenses prevent it?</li>
+<li>Single-leader vs multi-leader vs leaderless &mdash; who handles write conflicts, and why is LWW dangerous?</li>
+<li>Physical vs logical replication &mdash; when do you need logical?</li>
+<li>Why do read replicas never reduce write load, and what do you do at that ceiling?</li>
 </ul>
-<div class="box"><b>Timeout tuning is a real trade-off</b>A short failure-detection timeout fails over fast but flaps on transient GC pauses or network blips, causing needless promotions (each of which risks losing in-flight async writes). A long timeout is stable but extends downtime. There is no universally correct value &mdash; it is a function of your network's tail latency and your RTO target.</div>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> replication is <b>4 decisions</b> &mdash; <a href="#d1">who writes (topology)</a>, <a href="#d2">sync vs async</a>, <a href="#d3">reads under lag</a>, <a href="#d4">failover</a> &mdash; with failures: conflicts, async data loss, stale reads, split-brain.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="37.html">Replication Deep Dive</a>, <a href="36.html">Leader Election &amp; Coordination</a>, <a href="11.html">CAP / PACELC</a>, <a href="35.html">CRDTs</a>, <a href="05.html">Sharding</a>.</p>
 
-<h3>How the bytes actually move: WAL shipping vs logical replication</h3>
-<p>Two fundamentally different replication mechanisms, with different coupling and flexibility:</p>
+<h2 id="cloud">Cloud services &mdash; managed replication</h2>
+<table>
+<tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Managed relational + replicas</td><td>RDS / Aurora (multi-AZ, read replicas)</td><td>Cloud SQL / AlloyDB</td><td>Azure SQL (geo-replication)</td></tr>
+<tr><td>Multi-region strong</td><td>Aurora Global, DynamoDB Global Tables</td><td>Spanner</td><td>Cosmos DB</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-pg">PostgreSQL / MySQL (single-leader)</h3>
+<ul><li><b>Topology.</b> Primary takes writes; replicas stream the WAL/binlog. Sync, async, or semi-sync configurable.</li><li><b>Key idea.</b> One ordering point = simple consistency; read replicas scale reads.</li><li><b>The failure to watch.</b> Async failover loses in-flight writes; needs an external orchestrator + fencing to avoid split-brain (see GitHub 2018).</li></ul>
+<h3 id="impl-cass">Cassandra (leaderless)</h3>
+<ul><li><b>Topology.</b> Every replica accepts reads/writes; quorum (<code>R + W &gt; N</code>) for consistency.</li><li><b>Key idea.</b> No leader = no single point to fail and no failover step; tunable per-query consistency.</li><li><b>The failure to watch.</b> Concurrent writes conflict; LWW can lose data, so model for it or use it only where loss is OK.</li></ul>
+<h3 id="impl-spanner">Spanner (synchronous, global)</h3>
+<ul><li><b>Topology.</b> Paxos groups per shard; synchronous quorum commit across regions.</li><li><b>Key idea.</b> Strong consistency everywhere via TrueTime commit-wait &mdash; the rare system that's PC/EC.</li><li><b>The failure to watch.</b> You pay cross-region commit latency on every write &mdash; don't buy it unless you need global strong consistency.</li></ul>
+
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-failover">Design a safe failover</h3>
+<p>Your leader stops responding. Walk the sequence that promotes a new leader without losing data or creating two leaders. What prevents split-brain?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Detect via timeout, but require a <b>majority quorum</b> to act &mdash; a node promotes itself only if it can see &gt;half the cluster, so a minority partition (including a partitioned old leader) can't elect anyone. Choose the most up-to-date follower (highest log position) to minimize loss. <b>Fence</b> the old leader before the new one serves writes: power-fence it, or hand the new leader a higher fencing token that storage checks &mdash; any write from the old leader carrying a stale token is rejected. Reconfigure clients to the new leader. The two non-negotiables: quorum (no minority leader) and fencing (no zombie leader).</p>
+</div></details>
+<h3 id="ex-ryw">Implement read-your-writes</h3>
+<p>A user posts, then reads. Guarantee they see their own post without sending every read to the leader.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>On write, capture the leader's log position (LSN/GTID) and hand it back to the client (cookie/session). On the next read, either route to the leader for a short window after a write, or pick a replica and check it has applied up to that LSN &mdash; if not, wait briefly or fall back to the leader. Alternatively pin the user to one replica via consistent hashing (also gives monotonic reads). The cheap version &mdash; "read from leader for N seconds after a write" &mdash; covers most user-facing cases without sacrificing replica read-scaling for everyone else.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
 <ul>
-<li><b>Physical / WAL (log) shipping</b>: ship the storage engine's write-ahead log byte-for-byte. Cheap and exact, but the replica must run an identical engine version and on-disk format &mdash; no cross-version upgrades, no cross-engine replication, no selective tables. (PostgreSQL streaming replication; MySQL binlog applied at the storage layer.) The WAL also underpins crash recovery and ties directly into storage-engine design &mdash; see <a href="37.html">Replication Deep Dive</a>.</li>
-<li><b>Logical / row-based</b>: replicate decoded logical change events (insert/update/delete of row X with these values). Decoupled from physical format, so it enables zero-downtime major-version upgrades, replicating a subset of tables, fan-out to heterogeneous sinks, and Change-Data-Capture pipelines (Debezium &rarr; Kafka). The cost is more CPU to encode/decode and the need to handle schema evolution.</li>
+<li><b>Multi-region active-active.</b> Accept writes in two regions and reconcile. Which data can use CRDTs, which must stay single-leader? &rarr; <a href="35.html">CRDTs</a>, <a href="53.html">Multi-Region &amp; DR</a>.</li>
+<li><b>Classify every read in an app.</b> Take a product; route each read to leader vs replica by staleness tolerance. &rarr; <a href="11.html">CAP</a>.</li>
 </ul>
-<p>Statement-based replication (ship the SQL) is the legacy third option and is dangerous: non-deterministic functions (<code>NOW()</code>, <code>RAND()</code>, auto-increment races) diverge replicas. Modern systems default to row-based for exactly this reason.</p>
-
-<h3>Read replicas: scaling reads and the staleness cost</h3>
-<p>Adding async read replicas is the standard lever to scale a read-heavy workload &mdash; fan reads across N replicas while writes stay funneled to the leader. The catch is that <em>every</em> replica is stale by its replication lag, so this only works for read-tolerant paths. The principal-level discipline is to <b>classify reads by staleness tolerance</b>: route account-balance-after-transfer or "did my comment post" reads to the leader (or a caught-up replica via LSN), and route analytics, feeds, and search to replicas. Beware the read-scaling ceiling: every replica still applies <em>100%</em> of the write volume, so replicas relieve read CPU/IO but never reduce write load &mdash; past that point you must shard, not just replicate.</p>
-
-<div class="seealso"><b>See also:</b> <a href="37.html">Replication Deep Dive</a>, <a href="36.html">Leader Election &amp; Coordination</a>, <a href="31.html">Consistency Models</a></div>
-</div>
-
-<style>
-.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
-.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
-.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
-
-/* dark-mode overrides for inline pdeep/mastery (injected) */
-:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
-:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
-:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
-:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
-:root[data-theme="dark"] .pdeep th{background:#0f1318;}
-:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
-:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
-:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
-</style>
-<div class="mastery">
-<h2>Principal-level mastery check</h2>
-<ul>
-<li>Can you state the precise data-loss window for <b>async</b> replication after a leader crash, and explain why <b>sync</b> replication trades that window for write latency and availability (one slow/dead follower stalls every commit)? When does semi-sync (ack from <em>one</em> of N) become the right middle ground?</li>
-<li>Why does <b>single-leader</b> give you a clean ordering and no write conflicts, while <b>multi-leader</b> and <b>leaderless</b> push the conflict-resolution problem onto you (LWW, version vectors, CRDTs)? For each, when is it the correct choice?</li>
-<li>Can you explain why <b>replication lag</b> breaks read-your-writes consistency, and name three fixes &mdash; route post-write reads to the leader, track the client's last-seen LSN/position and only read from a caught-up replica, or pin a session to one replica?</li>
-<li>Why does monotonic-reads violation (a user sees data, refreshes, and it "disappears") happen when reads bounce across replicas at different lag, and how does session stickiness solve it?</li>
-<li>Can you describe how <b>split-brain</b> arises (a network partition leaves two nodes each believing they're leader) and why <b>fencing</b> &mdash; a monotonically increasing fencing token rejected by storage if stale, or STONITH &mdash; is required because a lease/heartbeat timeout alone cannot prevent a paused-then-resumed old leader from issuing a write?</li>
-<li>Can you reason about the read-scaling ceiling &mdash; why adding async read replicas relieves read load but never write load (every replica applies 100% of writes), and at what point you must shard instead of replicate?</li>
-<li>Why does a quorum system need <b>W + R &gt; N</b> for read-after-write consistency, and what goes wrong (stale reads, lost updates) when you weaken it to W + R &le; N for latency?</li>
-</ul>
-<p style="margin:14px 0 0;font-size:14px;color:#5b6472;">Go deeper: <a href="37.html">37 Replication Deep Dive</a></p>
-</div>
 
 <div class="navfoot"><a href="08.html">&lsaquo; Prev: Queues</a><a class="nx" href="10.html">Next: SQL vs. NoSQL &rsaquo;</a></div>
 </div>

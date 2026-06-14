@@ -111,158 +111,217 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Architecture &amp; Technology Choices &nbsp;&rsaquo;&nbsp; Choosing a Database</div>
-
 <h1>Choosing a Database</h1>
-<p class="sub"><em>A decision framework for picking a datastore by access pattern, consistency, scale, and operational fit &mdash; not by familiarity.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Method.</b> <span>choosing a store by which bottleneck dominates your access pattern — not by familiarity.</span></div>
+<p class="sub"><em>The single most expensive-to-reverse decision in most systems. Data has gravity: once terabytes and a hundred services depend on a store's query semantics, migrating off it is a multi-quarter project. So you choose by walking a fixed checklist of dimensions &mdash; never by preference.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#dimensions">The decision dimensions</a></li>
-<li><a href="#modelfit">Data model fit</a></li>
-<li><a href="#families">Family-by-family guide</a></li>
-<li><a href="#polyglot">Polyglot persistence &amp; choosing per service</a></li>
-<li><a href="#trap">The familiarity trap</a></li>
-<li><a href="#worked">A worked decision example</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Which store's trade-offs fit this workload &mdash; decided by dimensions, in order, not by familiarity.</b> <span>Every store wins its niche by giving up something (usually query generality). The job is to name what you're willing to sacrifice for this workload, and defend it by walking the dimensions &mdash; not "we already run Postgres."</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Choosing a Database</b>
+│
+├─ <a href="#root"><b>Why this choice is hard to reverse</b></a>  &mdash; data has gravity; choose by checklist
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#dimensions"><b>The decision dimensions</b></a>  &mdash; the checklist, resolved in order
+│   ├─ <a href="#dim-eliminate">Model fit + access pattern</a>  eliminate most engines
+│   ├─ <a href="#dim-narrow">Consistency + scale</a>          narrow the survivors
+│   ├─ <a href="#dim-tiebreak">Latency, durability, txns</a>    break ties
+│   └─ <a href="#dim-veto">Operational fit</a>              the final veto, never the first filter
+│
+├─ <a href="#families"><b>Famous implementations</b></a>  &mdash; the family-by-family guide
+│
+├─ <a href="#cloud"><b>Cloud services</b></a>  &mdash; the managed offering per family
+│
+├─ <a href="#trap"><b>The failure: the familiarity trap</b></a>  &mdash; naming the DB before the access pattern
+│
+├─ <a href="#decision-table"><b>A worked example</b></a>  &mdash; e-commerce, decomposed by workload
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; defend a choice, design the rest
+    ├─ <a href="#ex-defend">Defend a choice</a>     &mdash; walk the dimensions
+    ├─ <a href="#ex-partition">Find the bad query</a>  &mdash; the partition-key test
+    └─ <a href="#ex-design">Design-it-yourself</a>  &mdash; pick stores for a product
+</pre>
 </div>
 
+<!-- ============ ROOT ============ -->
+<h2 id="root">Why this choice is hard to reverse</h2>
+<p>Choosing a database is the most expensive-to-reverse decision in most systems, because <b>data has gravity</b>: once a few terabytes and a hundred services depend on a store's query semantics, migrating off it is a multi-quarter project. A principal engineer treats the choice as a <b>structured trade-off across a fixed set of dimensions</b>, not a preference &mdash; and walks every candidate store through the same checklist.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Every store wins its niche by <i>giving up</i> something &mdash; almost always query generality. Relational and NewSQL keep generality but pay in write-scaling effort or latency. There is no free lunch: you are choosing <i>which</i> flexibility to sacrifice, not whether to sacrifice any. Default to relational and justify every move away from it.</div>
+
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide your answer first &mdash; the rest of the lesson is the answer. If you already know all three cold, skip to the <a href="#decision-table">worked example</a>.</p>
+
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; "I'll use MongoDB, I know it"</span>
+In an architecture review, an engineer proposes a datastore by naming it first: "let's use MongoDB &mdash; I know it well." <b>What's the one question that exposes whether this is a real decision or a comfort choice &mdash; and what order should the reasoning have gone in?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the query you didn't plan for</span>
+You chose <span class="gl" data-def="A wide-column store optimized for huge write volume and linear horizontal scale; you model one table per query and choose a partition key up front.">Cassandra</span> "for scale" and modeled your tables around today's queries. Six months in, product asks for a new query that doesn't include the <span class="gl" data-def="Partition key — the field Cassandra hashes to decide which node stores a row. Queries that don't include it can't be routed to a single node.">partition key</span>. <b>What happens to that query, and why was this decided the day you picked the store?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the fourth datastore</span>
+Your system already runs Postgres, Redis, and Elasticsearch. A team wants to add a graph database for one feature. <b>What's the real cost of saying yes, and what's the bar that addition must clear?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#trap">familiarity trap</a>. Scenario 2 is why <a href="#dim-eliminate">access pattern</a> is decided up front (and the partition-key test). Scenario 3 is the cost of <a href="#trap">polyglot sprawl</a>. Each maps below.</i></p>
+
+<!-- ============ BRANCH 1: DIMENSIONS ============ -->
 <h2 id="dimensions">The decision dimensions</h2>
-<p>Choosing a database is the single most expensive-to-reverse decision in most systems. Data has gravity: once a few terabytes and a hundred services depend on a store's query semantics, migrating off it is a multi-quarter project. A principal engineer treats the choice as a structured trade-off across a fixed set of dimensions, not as a preference. Walk every candidate store through the same checklist.</p>
+<p>Walk every candidate through the same checklist. The dimensions resolve in a rough order &mdash; and the order matters as much as the list, because it's what stops you starting from "what we already run."</p>
 <table>
-<tr><th>Dimension</th><th>What to ask</th><th>Why it dominates the choice</th></tr>
-<tr><td><span class="key">Data model fit</span></td><td>Is the data relational, a blob keyed by id, a nested document, a wide sparse row, a graph, free text, or a time series?</td><td>A mismatch here forces you to fight the engine forever &mdash; joins emulated in app code, or denormalized copies you must keep in sync.</td></tr>
-<tr><td><span class="key">Access pattern</span></td><td>Read- vs write-heavy? Point lookup, range scan, full-text, or analytical aggregation?</td><td>Storage engines are optimized for one shape. See <a href="38.html">Storage Engines: LSM vs B-Tree</a>.</td></tr>
-<tr><td><span class="key">Consistency</span></td><td>Do you need read-your-writes, linearizability, or is eventual fine?</td><td>Strong consistency costs latency and availability under partition. See <a href="31.html">Consistency &amp; PACELC</a>.</td></tr>
-<tr><td><span class="key">Scale</span></td><td>How big does data and throughput get? Read-scale via replicas, or write-scale via sharding?</td><td>Read replicas are cheap; horizontal write scaling means a partition key on day one. See <a href="05.html">Sharding</a>.</td></tr>
-<tr><td><span class="key">Latency</span></td><td>p99 target &mdash; sub-ms, single-digit ms, or seconds-OK analytics?</td><td>In-memory beats on-disk beats cross-region quorum by orders of magnitude.</td></tr>
-<tr><td><span class="key">Durability</span></td><td>Can you lose the last second of writes? Sync vs async replication, fsync policy.</td><td>Durability and write latency trade directly against each other.</td></tr>
-<tr><td><span class="key">Transactions / isolation</span></td><td>Do you need multi-row ACID, snapshot isolation, serializability?</td><td>Multi-key transactions across shards are expensive and not all stores offer them.</td></tr>
-<tr><td><span class="key">Operational maturity</span></td><td>Does your team know how to run it? Managed offering? Backup, upgrade, observability story?</td><td>The best-fit engine you cannot operate at 3 a.m. is the wrong choice.</td></tr>
+<tr><th>Dimension</th><th>What to ask</th><th>Why it dominates</th></tr>
+<tr><td><b>Data model fit</b></td><td>Relational, blob-by-id, nested document, wide sparse row, graph, free text, or time series?</td><td>A mismatch makes you fight the engine forever &mdash; joins emulated in app code, or denormalized copies to keep in sync</td></tr>
+<tr><td><b>Access pattern</b></td><td>Read- or write-heavy? Point lookup, range scan, full-text, or analytical aggregation?</td><td>Storage engines are optimized for one shape (<a href="38.html">LSM vs B-Tree</a>)</td></tr>
+<tr><td><b>Consistency</b></td><td>Read-your-writes, linearizable, or eventual?</td><td>Strong consistency costs latency and availability under partition (<a href="11.html">CAP / PACELC</a>)</td></tr>
+<tr><td><b>Scale</b></td><td>Read-scale via replicas, or write-scale via sharding?</td><td>Read replicas are cheap; write scaling means a <a href="05.html">partition key</a> on day one</td></tr>
+<tr><td><b>Latency</b></td><td>p99 sub-ms, single-digit ms, or seconds-OK analytics?</td><td>In-memory beats on-disk beats cross-region quorum by orders of magnitude</td></tr>
+<tr><td><b>Durability</b></td><td>Can you lose the last second of writes? Sync vs async, fsync policy?</td><td>Durability and write latency trade directly</td></tr>
+<tr><td><b>Transactions</b></td><td>Multi-row ACID, snapshot isolation, serializability?</td><td>Multi-key transactions across shards are expensive and not universal</td></tr>
+<tr><td><b>Operational maturity</b></td><td>Can your team run it? Managed offering? Backup, upgrade, observability?</td><td>The best-fit engine you can't operate at 3 a.m. is the wrong choice</td></tr>
 </table>
-<div class="callout note"><span class="lbl">Sequence matters</span>Resolve the dimensions in roughly this order: model fit and access pattern eliminate most engines; consistency and scale narrow the survivors; latency, durability, and transactions break ties; operational fit is the final veto. Never start from operational fit (&ldquo;we already run Postgres&rdquo;) &mdash; that is the familiarity trap dressed up as pragmatism.</div>
 
-<h2 id="modelfit">Data model fit</h2>
-<p>The data model is the first filter because it is the hardest to work around. Map your dominant entity and its access shape to a model family:</p>
+<h3 id="dim-eliminate">First: model fit + access pattern (eliminate most engines)</h3>
+<p>Data model is the first filter because it's the hardest to work around. Map your dominant entity and its access shape to a family &mdash; relational for entities-with-relationships and ad-hoc queries, key-value for O(1) get-by-key, document for self-contained aggregates, wide-column for write-heavy keyed-by-partition, graph for multi-hop traversals, search for free text, time-series for append-only metrics. These two dimensions alone usually eliminate all but a couple of candidates.</p>
+
+<h3 id="dim-narrow">Then: consistency + scale (narrow the survivors)</h3>
+<p>Among the survivors, do you need read-your-writes or linearizability, and how big does throughput get? Strong consistency narrows you toward CP/relational/NewSQL stores; write-scale needs sharding and a partition key chosen up front.</p>
+<div class="callout warn"><span class="lbl">Real migration &mdash; Uber, Postgres &rarr; MySQL (2016)</span>
+A famous example of the scale dimension forcing a move &mdash; and notably <i>not</i> "Postgres is bad." Uber hit a wall on <b>write amplification</b>: in Postgres's <span class="gl" data-def="Multi-Version Concurrency Control — each update writes a new physical row version rather than overwriting in place, so readers never block writers.">MVCC</span> model, every row update writes a <i>new</i> physical tuple, and <b>every secondary index must be updated to point at it</b> &mdash; even for indexes whose columns didn't change. Worse, Postgres replication is <i>physical</i>: it ships every on-disk change, so a small logical update became a large, bandwidth-heavy replication stream across datacenters.
+<div class="incident"><b>The lesson, in framework terms.</b> At Uber's write volume and multi-datacenter scale, that amplification didn't scale &mdash; so they moved to MySQL/InnoDB, which updates rows in place where possible and replicates <i>logically</i> (the compact statement of the change), and built a sharding layer ("Schemaless") on top. The point for <i>you</i>: the move was driven by a specific <b>dimension</b> (write pattern &times; scale &times; cross-DC replication), defensible in one sentence &mdash; exactly the framework, not a preference. Most systems never hit this wall; a single Postgres primary plus replicas is the right default until a dimension like this proves otherwise. (Source: Uber Engineering blog, 2016.)</div></div>
+
+<h3 id="dim-tiebreak">Then: latency, durability, transactions (break ties)</h3>
+<p>p99 target, acceptable data-loss window, and multi-row transaction needs separate the remaining candidates.</p>
+
+<h3 id="dim-veto">Last: operational fit (the final veto &mdash; never the first filter)</h3>
+<p>Can your team actually run it? This is a legitimate <i>veto</i> at the end &mdash; but starting here ("we already run Postgres") is the <a href="#trap">familiarity trap</a> dressed up as pragmatism.</p>
+<div class="callout note"><span class="lbl">Sequence matters</span>Model fit + access pattern <b>eliminate</b>; consistency + scale <b>narrow</b>; latency, durability, transactions <b>break ties</b>; operational fit is the <b>final veto</b>. Resolve them in that order, every time.</div>
+
+<!-- ============ BRANCH 2: FAMILY GUIDE ============ -->
+<h2 id="families">Famous implementations &mdash; the family-by-family guide</h2>
+<p>For this lesson the "famous implementations" branch <i>is</i> the family guide: the real stores grouped by data-model family, with what each <i>nails</i>, when to <i>use</i> it, and &mdash; most importantly &mdash; when to <i>avoid</i> it. The "avoid" line is where the real judgment lives.</p>
+
+<h3 id="fam-relational">Relational &mdash; PostgreSQL, MySQL</h3>
+<ul><li><b>Nails:</b> ad-hoc queries, joins across normalized entities, multi-row ACID, invariants via constraints.</li>
+<li><b>Use when</b> data is relational and you don't yet know every query &mdash; the default for most <span class="gl" data-def="Online Transaction Processing — interactive, row-level read/write workloads (the typical app database), as opposed to analytical/batch.">OLTP</span> systems until a dimension proves otherwise. Postgres (JSONB, full-text, PostGIS, partitioning) often postpones needing a second engine.</li>
+<li><b>Avoid when</b> one table's write throughput exceeds a single primary + read replicas and the working set no longer fits one node &mdash; then you need sharding or NewSQL.</li></ul>
+
+<h3 id="fam-kv">Key-value &mdash; Redis, DynamoDB</h3>
+<ul><li><b>Nails:</b> sub-millisecond point reads/writes by a known key; predictable horizontal scale.</li>
+<li><b>Use when</b> access is purely "value for this key" &mdash; sessions, caches, feature flags, rate-limit counters (Redis), or high-scale partition-keyed workloads (DynamoDB).</li>
+<li><b>Avoid when</b> you must query by non-key attributes or join. DynamoDB punishes unplanned access patterns; Redis is memory-bound (not a system of record unless persistence and cost are acceptable).</li></ul>
+
+<h3 id="fam-doc">Document &mdash; MongoDB</h3>
+<ul><li><b>Nails:</b> aggregates read/written as a whole (a product with variants, an order with line items) with a flexible evolving schema.</li>
+<li><b>Use when</b> the unit of access is one self-contained document and patterns rarely cross document boundaries &mdash; content, catalogs, profiles.</li>
+<li><b>Avoid when</b> data is highly relational and you emulate joins in app code. "Schemaless" doesn't mean no schema &mdash; it pushes enforcement into your application.</li></ul>
+
+<h3 id="fam-wide">Wide-column &mdash; Cassandra, HBase</h3>
+<ul><li><b>Nails:</b> enormous write volume, linear horizontal scale, multi-region availability with tunable consistency.</li>
+<li><b>Use when</b> write-heavy append-style at scale &mdash; event logs, sensor data, feeds &mdash; and you model the table around the exact query (partition + clustering key). Cassandra is <a href="11.html">AP-leaning</a> with tunable quorums.</li>
+<li><b>Avoid when</b> you need ad-hoc queries, joins, or strong multi-row transactions. One table per query pattern; an unplanned query may need a full scan.</li></ul>
+
+<h3 id="fam-graph">Graph &mdash; Neo4j</h3>
+<ul><li><b>Nails:</b> deep multi-hop traversals over densely connected data, relationships first-class.</li>
+<li><b>Use when</b> the questions are about connections &mdash; fraud rings, social graphs, recommendations &mdash; where SQL would mean many self-joins of unknown depth.</li>
+<li><b>Avoid when</b> connections are shallow (1&ndash;2 hops); a relational join table is simpler, cheaper, and easier to operate. Graphs are also harder to shard.</li></ul>
+
+<h3 id="fam-search">Search &mdash; Elasticsearch</h3>
+<ul><li><b>Nails:</b> full-text relevance ranking, faceting, fuzzy matching, flexible aggregation over an inverted index.</li>
+<li><b>Use when</b> users type queries expecting ranked, typo-tolerant results &mdash; almost always a <i>secondary</i> index fed via <a href="40.html">CDC</a>, not the source of truth.</li>
+<li><b>Avoid when</b> you need it as a primary transactional store &mdash; near-real-time refresh delay, weak multi-document transactions, not built for system-of-record duty.</li></ul>
+
+<h3 id="fam-ts">Time-series &mdash; InfluxDB, Prometheus</h3>
+<ul><li><b>Nails:</b> high-volume append-only timestamped measurements, time-window scans, downsampling, retention.</li>
+<li><b>Use when</b> data is metrics/events indexed by time &mdash; monitoring, IoT, financial ticks &mdash; with cheap rollups and TTL expiry.</li>
+<li><b>Avoid when</b> the pattern isn't time-centric, or you mutate historical rows. Watch <b>cardinality</b>: high-cardinality labels (per-user/per-request IDs) blow up the in-memory index &mdash; their classic failure mode (see <a href="65.html">Metrics &amp; Monitoring</a>).</li></ul>
+
+<h3 id="fam-newsql">NewSQL &mdash; Spanner, CockroachDB</h3>
+<ul><li><b>Nails:</b> relational model + SQL <i>plus</i> horizontal write scaling and strong (often serializable) consistency across shards.</li>
+<li><b>Use when</b> you genuinely need transactional integrity at relational richness <i>and</i> scale beyond one primary, often multi-region &mdash; financial ledgers, global inventory.</li>
+<li><b>Avoid when</b> a single Postgres primary + replicas would do. NewSQL adds cost and cross-region commit latency (a <a href="30.html">consensus</a> round-trip per write, plus 2PC for multi-shard txns). Don't pay for distributed transactions you don't need.</li></ul>
+
+<!-- ============ BRANCH 2b: CLOUD ============ -->
+<h2 id="cloud">Cloud services &mdash; the managed offering per family</h2>
+<p>In practice you rarely self-host. Each family maps to managed services on the big three clouds &mdash; reach for the right name in a design discussion, and remember the managed version shifts the <a href="#dim-veto">operational-fit</a> dimension (backups, upgrades, failover handled for you) at the cost of price and lock-in:</p>
 <table>
-<tr><th>Model</th><th>Shape it nails</th><th>Canonical access pattern</th></tr>
-<tr><td><span class="key">Relational</span></td><td>Entities with relationships, ad-hoc queries, strong invariants</td><td>Joins, transactions, secondary indexes, aggregation</td></tr>
-<tr><td><span class="key">Key-value</span></td><td>Opaque value addressed by a known key</td><td>O(1) point get/put by primary key</td></tr>
-<tr><td><span class="key">Document</span></td><td>Self-contained nested aggregates read as a unit</td><td>Fetch/update one document by id; some secondary indexing</td></tr>
-<tr><td><span class="key">Wide-column</span></td><td>Massive write volume keyed by a partition + clustering key</td><td>Range scan within a partition; write-optimized</td></tr>
-<tr><td><span class="key">Graph</span></td><td>Densely connected data, multi-hop relationships</td><td>Traversals: &ldquo;friends of friends who like X&rdquo;</td></tr>
-<tr><td><span class="key">Search</span></td><td>Free text, relevance ranking, faceting</td><td>Inverted-index full-text and aggregation queries</td></tr>
-<tr><td><span class="key">Time-series</span></td><td>Append-only timestamped metrics</td><td>Range scans by time window, downsampling, rollups</td></tr>
+<tr><th>Family</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Relational</td><td>RDS / Aurora (Postgres, MySQL)</td><td>Cloud SQL / AlloyDB</td><td>Azure Database for PostgreSQL/MySQL</td></tr>
+<tr><td>Key-value</td><td>DynamoDB, ElastiCache (Redis)</td><td>Memorystore, Firestore (KV mode)</td><td>Cosmos DB, Cache for Redis</td></tr>
+<tr><td>Document</td><td>DocumentDB</td><td>Firestore</td><td>Cosmos DB (Mongo API)</td></tr>
+<tr><td>Wide-column</td><td>Keyspaces (Cassandra)</td><td>Bigtable</td><td>Cosmos DB (Cassandra API)</td></tr>
+<tr><td>Graph</td><td>Neptune</td><td>(Spanner Graph / partner)</td><td>Cosmos DB (Gremlin API)</td></tr>
+<tr><td>Search</td><td>OpenSearch Service</td><td>(Elastic on GCP)</td><td>Azure AI Search</td></tr>
+<tr><td>Time-series</td><td>Timestream</td><td>Bigtable / partner</td><td>Data Explorer</td></tr>
+<tr><td>NewSQL</td><td>Aurora DSQL</td><td>Cloud Spanner</td><td>Cosmos DB (relational tiers)</td></tr>
 </table>
-<p>The deeper SQL-vs-NoSQL trade-offs (schema flexibility, join cost, consistency defaults) are covered in <a href="10.html">SQL vs. NoSQL</a>. The short version: relational gives you query flexibility and integrity at the price of harder horizontal write scaling; the NoSQL families each trade query generality for one access pattern done extremely well.</p>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names and feature parity change &mdash; verify the current offering before relying on it in production.</p>
 
-<h2 id="families">Family-by-family guide</h2>
+<!-- ============ BRANCH 3: THE FAILURE ============ -->
+<h2 id="trap">The failure: the familiarity trap</h2>
+<p>The most common failure mode in real architecture reviews is choosing by familiarity &mdash; "I'll use MongoDB because I know it," or reaching for Cassandra because it sounds web-scale. This is <b>Scenario 1</b>.</p>
+<div class="callout warn"><span class="lbl">The tell, and the cure</span>
+<b>The tell:</b> an engineer who <i>names the database before describing the access pattern</i>. The inverse failure is <b>resume-driven design</b> &mdash; picking the trendiest store to learn it on the company's dime. Both skip the framework.
+<br><br><b>The cure</b> is the same for both: state the access pattern, consistency need, and scale <i>first</i>; let those eliminate engines; <i>then</i> let familiarity and managed-service availability break the remaining tie. Familiarity is a legitimate tiebreaker under <a href="#dim-veto">operational fit</a> &mdash; it must never be the first filter. A principal can defend the choice by walking the dimensions, not by citing comfort.</div>
+<div class="callout note"><span class="lbl">Polyglot sprawl &mdash; Scenario 3's cost</span><b>Polyglot persistence</b> (each service owns the store that fits it) aligns with <a href="44.html">microservice</a> boundaries, but isn't free: every engine is a new thing to operate, monitor, back up, patch, and staff; derived stores (search, caches) need <a href="40.html">CDC</a> pipelines with their own lag; cross-store transactions don't exist (you fall back to sagas). <b>The bar for adding a store:</b> an existing one cannot meet a dimension that actually matters for that service. Three well-run engines beat seven half-understood ones.</div>
 
-<h3>Relational &mdash; PostgreSQL, MySQL</h3>
-<p><span class="key">Nails:</span> ad-hoc queries, joins across normalized entities, multi-row ACID transactions, strong invariants enforced by constraints.</p>
-<ul>
-<li><span class="key">Use when</span> the data is relational and you do not yet know every query &mdash; the relational model preserves flexibility. This should be the <em>default</em> for most OLTP systems until a dimension proves otherwise.</li>
-<li><span class="key">Avoid when</span> a single table&rsquo;s write throughput exceeds what one primary plus read replicas can absorb and the working set no longer fits on one node &mdash; you then need application-level sharding or a NewSQL store. Postgres in particular is rich (JSONB, full-text, PostGIS, partitioning) and frequently postpones the need to add another engine.</li>
-</ul>
-
-<h3>Key-value &mdash; Redis, DynamoDB</h3>
-<p><span class="key">Nails:</span> sub-millisecond point reads/writes by a known key, predictable horizontal scale.</p>
-<ul>
-<li><span class="key">Use when</span> access is purely &ldquo;give me the value for this key&rdquo; &mdash; sessions, caches, feature flags, rate-limit counters (Redis), or a high-scale partition-keyed workload with bounded query shapes (DynamoDB).</li>
-<li><span class="key">Avoid when</span> you need to query <em>by</em> attributes other than the key or do ad-hoc joins. DynamoDB punishes unplanned access patterns; you must design the keys and GSIs around queries up front. Redis is also memory-bound &mdash; not your system of record unless persistence and cost are acceptable.</li>
-</ul>
-
-<h3>Document &mdash; MongoDB</h3>
-<p><span class="key">Nails:</span> aggregates that are read and written as a whole (a product with its variants, an order with line items), with a flexible evolving schema.</p>
-<ul>
-<li><span class="key">Use when</span> the natural unit of access is one self-contained document and write/read patterns rarely cross document boundaries. Good for content, catalogs, user profiles.</li>
-<li><span class="key">Avoid when</span> your data is highly relational and you find yourself emulating joins in app code or duplicating data across documents you then struggle to keep consistent. &ldquo;Schemaless&rdquo; does not mean &ldquo;no schema&rdquo; &mdash; it pushes schema enforcement into your application.</li>
-</ul>
-
-<h3>Wide-column &mdash; Cassandra, HBase</h3>
-<p><span class="key">Nails:</span> enormous write volume, linear horizontal scale, multi-region availability with tunable consistency.</p>
-<ul>
-<li><span class="key">Use when</span> you have write-heavy, append-style workloads at scale &mdash; event logs, sensor data, messaging, time-ordered feeds &mdash; and you can model the table around the exact query (partition key + clustering columns). Cassandra is AP-leaning with tunable quorums; it survives node and region loss gracefully.</li>
-<li><span class="key">Avoid when</span> you need ad-hoc queries, joins, or strong multi-row transactions. You must design one table per query pattern and accept denormalization; an unplanned query may be impossible without a full scan.</li>
-</ul>
-
-<h3>Graph &mdash; Neo4j</h3>
-<p><span class="key">Nails:</span> deep multi-hop traversals over densely connected data, where relationships are first-class.</p>
-<ul>
-<li><span class="key">Use when</span> the questions are inherently about connections &mdash; fraud rings, social graphs, recommendations, dependency/lineage analysis &mdash; and the same query in SQL would mean many self-joins of unknown depth.</li>
-<li><span class="key">Avoid when</span> connections are shallow (one or two hops) or relationships are incidental; a relational store with a join table is simpler, cheaper, and easier to operate. Graph databases are also harder to shard.</li>
-</ul>
-
-<h3>Search &mdash; Elasticsearch</h3>
-<p><span class="key">Nails:</span> full-text relevance ranking, faceting, fuzzy matching, and flexible aggregation over an inverted index.</p>
-<ul>
-<li><span class="key">Use when</span> users type queries and expect ranked, typo-tolerant results, or you need analytics dashboards over semi-structured logs. Almost always a <em>secondary</em> index fed via change data capture, not the source of truth. See <a href="43.html">Search &amp; Elasticsearch</a>.</li>
-<li><span class="key">Avoid when</span> you need it as a primary transactional store &mdash; it is near-real-time (refresh delay), lacks robust multi-document transactions, and its consistency model is not built for system-of-record duty.</li>
-</ul>
-
-<h3>Time-series &mdash; InfluxDB, Prometheus</h3>
-<p><span class="key">Nails:</span> high-volume append-only timestamped measurements, time-window range scans, downsampling and retention.</p>
-<ul>
-<li><span class="key">Use when</span> data is metrics or events indexed primarily by time &mdash; monitoring, IoT telemetry, financial ticks. These engines give you cheap rollups and TTL-based expiry for free. See <a href="65.html">Designing a Metrics &amp; Monitoring System</a>.</li>
-<li><span class="key">Avoid when</span> the access pattern is not time-centric, or you need to mutate historical rows &mdash; time-series engines assume an immutable append workload. Watch the <em>cardinality</em>: high-cardinality label sets (per-user or per-request IDs) blow up the in-memory index of engines like Prometheus and InfluxDB &mdash; it is their classic failure mode, not a strength (see <a href="65.html">Metrics &amp; Monitoring</a>).</li>
-</ul>
-
-<h3>NewSQL &mdash; Spanner, CockroachDB</h3>
-<p><span class="key">Nails:</span> the relational model and SQL plus horizontal write scaling and strong (often serializable) consistency across shards.</p>
-<ul>
-<li><span class="key">Use when</span> you genuinely need both transactional integrity at relational-query richness <em>and</em> scale beyond a single primary, often with multi-region strong consistency &mdash; financial ledgers, global inventory.</li>
-<li><span class="key">Avoid when</span> a single Postgres primary with read replicas would do. NewSQL adds cost, operational complexity, and cross-region commit latency (a consensus round-trip per write, plus two-phase commit on top of consensus for multi-shard transactions &mdash; see <a href="30.html">Consensus &amp; Raft</a>). Do not pay for distributed transactions you do not need.</li>
-</ul>
-
-<div class="callout tradeoff"><span class="lbl">The recurring trade-off</span>Every NoSQL family wins its niche by giving up query generality. Relational and NewSQL keep generality but pay in write-scaling effort (relational) or latency and cost (NewSQL). There is no free lunch: you are choosing <em>which</em> flexibility to sacrifice, not whether to sacrifice any.</div>
-
-<h2 id="polyglot">Polyglot persistence &amp; choosing per service</h2>
-<p><span class="key">Polyglot persistence</span> is the practice of letting each service own the datastore that fits its access pattern, rather than forcing one database to serve the whole company. A product-catalog service might use Postgres; the session store, Redis; the activity feed, Cassandra; the search box, Elasticsearch fed by CDC; the dashboards, a time-series store.</p>
-<p>This aligns naturally with microservice boundaries &mdash; each service owns its data and exposes it only through its API, so the store is an implementation detail. But polyglot is not free:</p>
-<ul>
-<li>Every additional engine is a new thing to operate, monitor, back up, patch, and staff expertise for.</li>
-<li>Keeping derived stores (search indexes, caches, read models) in sync with the source of truth requires CDC or event pipelines, with their own consistency lag.</li>
-<li>Cross-store transactions do not exist &mdash; you fall back to sagas and eventual consistency.</li>
-</ul>
-<div class="callout warn"><span class="lbl">Discipline over enthusiasm</span>Adopt a new datastore only when an existing one cannot meet a dimension that actually matters for that service. Three well-run engines beat seven half-understood ones. The cost of polyglot is operational sprawl; pay it only where the access-pattern win is real.</div>
-
-<h2 id="trap">The familiarity trap</h2>
-<p>The most common failure mode &mdash; in real architecture reviews &mdash; is choosing by familiarity: &ldquo;I&rsquo;ll use MongoDB because I know it,&rdquo; or reaching for Cassandra because it sounds web-scale. Familiarity is a legitimate <em>tiebreaker</em> under operational fit, but it must never be the <em>first</em> filter. The tell is an engineer who names the database before describing the access pattern.</p>
-<p>The inverse failure is resume-driven design: picking the trendiest store to learn it on the company&rsquo;s dime. Both errors skip the framework. The cure is the same: state the access pattern, consistency need, and scale first; let those eliminate engines; then let familiarity and managed-service availability break the remaining tie. A principal engineer can defend the choice by walking the dimensions, not by citing comfort.</p>
-
-<h2 id="worked">A worked decision example</h2>
-<p>Suppose you are designing storage for an e-commerce platform. Rather than picking one database, decompose by workload and run each through the framework:</p>
+<!-- ============ BRANCH 4: WORKED EXAMPLE ============ -->
+<h2 id="decision-table">A worked example &mdash; e-commerce, decomposed by workload</h2>
+<p>You don't pick "one database" for a platform &mdash; you decompose by workload and run <i>each</i> through the dimensions:</p>
 <table>
 <tr><th>Workload</th><th>Access pattern</th><th>Consistency</th><th>Choice</th><th>Why</th></tr>
-<tr><td>Orders &amp; payments</td><td>Multi-row transactions, ad-hoc queries</td><td>Strong / serializable</td><td>PostgreSQL (or CockroachDB if global)</td><td>ACID, integrity, joins; default until scale forces NewSQL</td></tr>
-<tr><td>Product catalog</td><td>Read whole product aggregate by id</td><td>Read-your-writes OK</td><td>Document store / Postgres JSONB</td><td>Self-contained nested aggregate; JSONB keeps it inside the relational default</td></tr>
-<tr><td>Sessions &amp; cart</td><td>Point get/put by user key, sub-ms</td><td>Eventual fine</td><td>Redis</td><td>In-memory KV, TTL expiry</td></tr>
-<tr><td>Search box</td><td>Full-text, faceted, ranked</td><td>NRT lag acceptable</td><td>Elasticsearch (CDC-fed)</td><td>Inverted index, relevance</td></tr>
-<tr><td>Clickstream / activity</td><td>Huge write volume, time-ordered</td><td>Eventual</td><td>Cassandra</td><td>Write-optimized, linear scale</td></tr>
+<tr><td>Orders &amp; payments</td><td>Multi-row txns, ad-hoc queries</td><td>Strong / serializable</td><td>PostgreSQL (CockroachDB if global)</td><td>ACID, integrity, joins; default until scale forces NewSQL</td></tr>
+<tr><td>Product catalog</td><td>Read whole product by id</td><td>Read-your-writes OK</td><td>Document / Postgres JSONB</td><td>Self-contained aggregate; JSONB keeps it in the relational default</td></tr>
+<tr><td>Sessions &amp; cart</td><td>Point get/put by key, sub-ms</td><td>Eventual fine</td><td>Redis</td><td>In-memory KV, TTL expiry</td></tr>
+<tr><td>Search box</td><td>Full-text, faceted, ranked</td><td>NRT lag OK</td><td>Elasticsearch (CDC-fed)</td><td>Inverted index, relevance</td></tr>
+<tr><td>Clickstream</td><td>Huge write volume, time-ordered</td><td>Eventual</td><td>Cassandra</td><td>Write-optimized, linear scale</td></tr>
 <tr><td>Ops metrics</td><td>Time-window scans, rollups</td><td>Eventual</td><td>Prometheus / InfluxDB</td><td>Time-series engine</td></tr>
 </table>
-<p>Notice the source of truth (orders) is relational and strongly consistent; everything else is either a derived store (search) or a workload-specific optimization (sessions, clickstream, metrics). The decision was driven dimension-by-dimension, and each choice is defensible in one sentence. That is the standard.</p>
+<p>The source of truth (orders) is relational and strongly consistent; everything else is either a derived store (search) or a workload-specific optimization. Each choice is defensible in one sentence &mdash; <b>that is the standard</b>.</p>
 
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They state the access pattern, consistency need, and scale <em>before</em> naming any database, then let those constraints eliminate engines. They default to relational and justify every move away from it. They reach for polyglot only when a dimension demands it, and they can name the operational cost they are taking on.</div>
-<p>Probing questions to ask engineers:</p>
+<!-- ============ BRANCH 5: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and see if you can rebuild them.</p>
 <ul>
-<li>&ldquo;You picked MongoDB &mdash; what about this access pattern makes a document store better than Postgres with JSONB here?&rdquo;</li>
-<li>&ldquo;What query would be slow or impossible on the store you chose, and how would you handle it when product asks for it?&rdquo;</li>
-<li>&ldquo;You said Cassandra for scale &mdash; what&rsquo;s your partition key, and what happens to a query that doesn&rsquo;t include it?&rdquo;</li>
-<li>&ldquo;This is your system of record. Walk me through the consistency and durability guarantees on a write. Can you lose the last second of data?&rdquo;</li>
-<li>&ldquo;You introduced a fourth datastore. What&rsquo;s the operational cost, and who keeps the derived store in sync with the source of truth?&rdquo;</li>
-<li>&ldquo;If you had to ship with only one database, which would you drop first and why?&rdquo;</li>
+<li><b>Scenario 1 (familiarity):</b> What's the tell of a comfort-driven choice, and what's the correct order of reasoning that ends &mdash; not starts &mdash; with familiarity?</li>
+<li><b>Scenario 2 (unplanned query):</b> Why does a query without the partition key fail or full-scan on Cassandra, and why was that fate sealed when you chose the store?</li>
+<li><b>Scenario 3 (fourth datastore):</b> What's the operational cost of polyglot, and what bar must a new store clear before you add it?</li>
+<li>Recite the dimension order and what each phase does (eliminate / narrow / tie-break / veto).</li>
+<li>Why is relational the right <i>default</i>, and what specific dimension justifies moving off it?</li>
+<li>Pick any NoSQL family and name exactly what query generality it sacrifices for its niche.</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> choosing a DB is <b>dimensions resolved in order</b> &mdash; <a href="#dim-eliminate">model+access eliminate</a>, <a href="#dim-narrow">consistency+scale narrow</a>, <a href="#dim-tiebreak">latency/durability/txns tie-break</a>, <a href="#dim-veto">operational fit vetoes</a> &mdash; and the failure is the <a href="#trap">familiarity trap</a>: naming the DB before the access pattern.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="10.html">SQL vs NoSQL</a>, <a href="38.html">Storage Engines</a>, <a href="11.html">CAP / PACELC</a>, <a href="05.html">Sharding</a>, <a href="68.html">Choosing a Message Broker</a>.</p>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>This skill is judgment under questioning. Work each one before opening the approach.</p>
+
+<h3 id="ex-defend">Defend a choice by walking the dimensions</h3>
+<p>Someone proposes MongoDB for a feature. Without saying "I prefer X," argue for or against it purely by the dimensions. What's the single question that settles whether a document store beats Postgres+JSONB here?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>The settling question: <b>"What is the unit of access &mdash; do reads and writes stay within one self-contained document, or do they cross document boundaries?"</b> If the natural access is "fetch/update one aggregate by id" and the schema evolves freely, a document store fits. If you find yourself emulating joins across documents or duplicating data you then struggle to keep consistent, the data is relational and Postgres (with JSONB for the nested parts) is the better default. Notice you never mention preference &mdash; you name the access pattern, and it picks the engine. That's a defensible choice.</p>
+</div></details>
+
+<h3 id="ex-partition">Find the query that breaks the store (the partition-key test)</h3>
+<p>You're reviewing a Cassandra design. In one question, expose whether a future product ask could become an impossible query. What do you ask?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Ask: <b>"What's your partition key, and what happens to a query that doesn't include it?"</b> Cassandra routes a query to a node by hashing the partition key; a query without it can't be routed and degrades to a cluster-wide scan (or is simply disallowed). Because you model one table per query pattern, any access pattern not designed up front is expensive or impossible &mdash; that's <b>Scenario 2</b>. The same test generalizes: for any store, ask "what query would be slow or impossible here, and what will you do when product asks for it?"</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Pick stores for a product.</b> Take a ride-hailing app: choose stores for the trip ledger, driver location, surge pricing, and trip history &mdash; each justified in one sentence by its dominant dimension. &rarr; <a href="28.html">Uber Backend</a>.</li>
+<li><b>Justify (or kill) a NewSQL choice.</b> A team wants Spanner/CockroachDB. Argue when that's right vs when a single Postgres primary + replicas wins, naming the exact dimension that flips it. &rarr; <a href="30.html">Consensus &amp; Raft</a>.</li>
+<li><b>Design the CDC pipeline for a derived store.</b> You add Elasticsearch as a search index over Postgres. Keep it in sync without dual writes. What feeds it, and what's the consistency lag? &rarr; <a href="40.html">Stream Processing &amp; CDC</a>.</li>
 </ul>
 
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (8).png" alt="Database selection decision process" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Decision flowchart for selecting a database based on structure, scale, latency, read/write, security, and tooling. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (41).png" alt="Database types comparison" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Tree comparing Relational/SQL, Time-series, and NoSQL databases with their characteristics. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
 <div class="navfoot"><a href="66.html">&lsaquo; Prev: Architectural Styles and How to Choose</a><a class="nx" href="68.html">Next: Choosing a Message Broker &rsaquo;</a></div>
 </div>
 </div>

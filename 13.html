@@ -111,169 +111,114 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Long-Polling vs WebSockets vs Server-Sent Events</div>
-<h1>Long-Polling vs WebSockets vs Server-Sent Events</h1>
-<p class="sub"><em>How clients and servers exchange real-time data over HTTP — comparing Ajax polling, HTTP long-polling, WebSockets, and Server-Sent Events.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency.</b> <span>pushing fresh data to clients beats polling, paying in held-open connections and connection state.</span></div>
-<div class="toc"><h4>In this lesson</h4>
-<ul>
-  <li><a href="#ajax-polling">Ajax Polling</a></li>
-  <li><a href="#http-longpolling">HTTP Long-Polling</a></li>
-  <li><a href="#websockets">WebSockets</a></li>
-  <li><a href="#serversent-events-sses">Server-Sent Events (SSEs)</a></li>
-</ul></div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Long-Polling vs WebSockets vs SSE</div>
+<h1>Long-Polling vs WebSockets vs SSE</h1>
+<p class="sub"><em>HTTP is request-response: the client asks, the server answers. But sometimes the <i>server</i> needs to push &mdash; a new message, a live score, an LLM token. These four techniques are the ways to fake or enable that, each trading latency, direction, and proxy-friendliness differently. Choosing is a how-to-pick problem driven by a few dimensions.</em></p>
 
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Server-push freshness in exchange for connection state, proxy fragility, and scaling cost.</b> <span>Real-time delivery means holding connections open or polling repeatedly &mdash; each costs memory, pins clients to a backend, and (for WebSocket) fights corporate proxies. You pick the lightest technique that meets the freshness and direction your feature actually needs.</span></div>
 
-<p>Long-Polling, WebSockets, and Server-Sent Events are popular real-time communication techniques (and protocols) between a client like a web browser and a web server. First, let's start with understanding what a standard HTTP web request looks like. Following are a sequence of events for regular HTTP request:</p>
-<ol>
-<li>Client opens a connection and requests data from the server.</li>
-<li>The server calculates the response.</li>
-<li>The server sends the response back to the client on the opened request.</li>
-</ol>
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Long-Polling vs WebSockets vs SSE</b>
+│
+├─ <a href="#root"><b>The problem</b></a>  &mdash; HTTP can't push
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+├─ <a href="#dimensions"><b>The 4 dimensions that decide</b></a>  &mdash; pick by these
+│   ├─ <a href="#dim-direction">Direction</a>     one-way or two-way?
+│   ├─ <a href="#dim-frequency">Frequency</a>     rare events or a firehose?
+│   ├─ <a href="#dim-proxy">Proxy-friendliness</a>  must it cross hostile middleboxes?
+│   └─ <a href="#dim-scale">Scale</a>         how many concurrent connections?
+├─ <a href="#options"><b>Famous implementations</b></a>  &mdash; the four techniques compared
+│   ├─ <a href="#opt-poll">Polling</a>       &mdash; simplest, stale
+│   ├─ <a href="#opt-longpoll">Long-polling</a>  &mdash; the universal fallback
+│   ├─ <a href="#opt-sse">SSE</a>           &mdash; one-way push, HTTP-native
+│   └─ <a href="#opt-ws">WebSocket</a>     &mdash; full-duplex, low-latency
+├─ <a href="#trap"><b>The failure: scaling connection state</b></a>  &mdash; C10k &rarr; C10M
+├─ <a href="#decision-table"><b>The decision table</b></a>  &mdash; which transport, by need
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; reconstruct the scenarios
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; fan-out, fallback, design the rest
+</pre>
+</div>
 
-<img src="./_principal_files/img/5748755743637504.png" alt="diagram">
-<p class="sub"><em>HTTP Protocol</em></p>
+<h2 id="root">The problem: HTTP can't push</h2>
+<p>Plain HTTP is <b>pull</b>: the client requests, the server responds, the connection closes. That's perfect for loading a page, useless for "tell me the instant a new message arrives." The four techniques here are the ways to get server&rarr;client freshness over (or alongside) HTTP &mdash; from faking it with repeated requests to upgrading to a true bidirectional socket.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>There's no single "real-time" answer &mdash; there's a ladder. Pick the <i>lightest</i> technique that satisfies your <a href="#dim-direction">direction</a>, <a href="#dim-frequency">frequency</a>, <a href="#dim-proxy">proxy</a>, and <a href="#dim-scale">scale</a> needs. Reaching for WebSocket when SSE would do buys you proxy fragility and connection state you didn't need.</p></div>
 
-<h2 id="ajax-polling">Ajax Polling</h2>
-<p>Polling is a standard technique used by the vast majority of AJAX applications. The basic idea is that the client repeatedly polls (or requests) a server for data. The client makes a request and waits for the server to respond with data. If no data is available, an empty response is returned.</p>
-<ol>
-<li>Client opens a connection and requests data from the server using regular HTTP.</li>
-<li>The requested webpage sends requests to the server at regular intervals (e.g., 0.5 seconds).</li>
-<li>The server calculates the response and sends it back, just like regular HTTP traffic.</li>
-<li>Client repeats the above three steps periodically to get updates from the server.</li>
-</ol>
-<p>Problem with Polling is that the client has to keep asking the server for any new data. As a result, a lot of responses are empty creating HTTP overhead.</p>
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the LLM token stream</span>
+You're streaming an AI assistant's response token-by-token to the browser as it's generated. The flow is purely server&rarr;client. <b>WebSocket or something simpler &mdash; and why is the "obvious" bidirectional choice the wrong one here?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; chat behind a corporate firewall</span>
+You need push notifications to users on locked-down corporate networks where proxies strip the WebSocket <code>Upgrade</code> header. <b>What's the universal fallback that works anywhere HTTP works?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; one million idle connections</span>
+Your chat server holds 1,000,000 mostly-idle WebSocket connections. CPU is near zero, but the box is in trouble. <b>What resource is actually the bottleneck, and what breaks when you deploy a new version?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#opt-sse">SSE</a> (one-way, HTTP-native). Scenario 2 is <a href="#opt-longpoll">long-polling</a> (the fallback). Scenario 3 is the <a href="#trap">connection-state scaling</a> failure.</i></p>
 
-<img src="./_principal_files/img/5694639155707904.png" alt="diagram">
-<p class="sub"><em>Ajax Polling Protocol</em></p>
+<h2 id="dimensions">The four dimensions that decide</h2>
+<p>Run any feature through these four and the right transport falls out.</p>
+<h3 id="dim-direction">Direction &mdash; one-way or two-way?</h3>
+<p>If only the server pushes (tickers, notifications, log tails, LLM tokens), you want <b>SSE</b> &mdash; simpler than WebSocket and HTTP-native. If the client also sends frequently (chat, games, collaborative editing), you need <b>WebSocket</b>'s full duplex.</p>
+<h3 id="dim-frequency">Frequency &mdash; rare events or a firehose?</h3>
+<p>Rare events tolerate <b>long-polling</b> or even <b>polling</b>; a high-frequency, low-latency stream needs a held connection (SSE/WebSocket) so you're not paying HTTP headers per message.</p>
+<h3 id="dim-proxy">Proxy-friendliness &mdash; must it cross hostile middleboxes?</h3>
+<p>Polling, long-polling, and SSE are plain HTTP and traverse almost anything. <b>WebSocket is the weakest</b> &mdash; it needs the <code>Upgrade</code>/<code>Connection</code> handshake to survive every hop, and corporate proxies and old L7 LBs often strip it (WSS/TLS tunnels through far better).</p>
+<h3 id="dim-scale">Scale &mdash; how many concurrent connections?</h3>
+<p>Every held connection costs memory and a slot regardless of activity &mdash; the binding constraint for any push technique (see the failure below).</p>
 
-<h2 id="http-longpolling">HTTP Long-Polling</h2>
-<p>A variation of the traditional polling technique that allows the server to push information to a client, whenever the data is available. With Long-Polling, the client requests information from the server exactly as in normal polling, but with the expectation that the server may not respond immediately. That's why this technique is sometimes referred to as a "Hanging GET".</p>
-<ul>
-<li>If the server does not have any data available for the client, instead of sending an empty response, the server holds the request and waits until some data becomes available.</li>
-<li>Once the data becomes available, a full response is sent to the client. The client then immediately re-request information from the server so that the server will almost always have an available waiting request that it can use to deliver data in response to an event.</li>
+<h2 id="options">Famous implementations &mdash; the four techniques</h2>
+<p>Same facets each &mdash; what it is, when it wins, the catch.</p>
+<h3 id="opt-poll">Polling (Ajax)</h3>
+<ul><li><b>What.</b> Client re-requests on a timer; every request is a fresh HTTP call.</li><li><b>Wins when.</b> Staleness &gt; ~10s is fine and you want zero server connection state (a CDN can even cache the response) &mdash; e.g. an unread-count badge.</li><li><b>Catch.</b> Wasted requests and up-to-one-interval staleness; tune the interval to the freshness SLA.</li></ul>
+<h3 id="opt-longpoll">Long-polling</h3>
+<ul><li><b>What.</b> Client sends a request the server <i>holds open</i> until an event fires (or it times out), then the client immediately re-issues.</li><li><b>Wins when.</b> You need push but must traverse hostile proxies &mdash; the <b>universal fallback</b>, works anywhere HTTP works, no upgrade.</li><li><b>Catch.</b> A held request pins a server worker unless you use async I/O; near-push latency but more overhead than a true stream.</li></ul>
+<h3 id="opt-sse">SSE (Server-Sent Events)</h3>
+<ul><li><b>What.</b> One long-lived HTTP stream (<code>text/event-stream</code>), server&rarr;client only, via the browser's <code>EventSource</code>.</li><li><b>Wins when.</b> One-directional server push: live scores, tickers, log tailing, progress bars, <b>LLM token streaming</b>. Built-in auto-reconnect + <code>Last-Event-ID</code> replay; rides HTTP/2 multiplexing. Criminally underused.</li><li><b>Catch.</b> Text only (base64 for binary); some proxies buffer the stream (disable with <code>X-Accel-Buffering: no</code>).</li></ul>
+<h3 id="opt-ws">WebSocket</h3>
+<ul><li><b>What.</b> A TCP connection upgraded from HTTP (101 Switching Protocols); full-duplex, tiny per-frame overhead, native binary.</li><li><b>Wins when.</b> Both sides talk often and latency matters: chat, multiplayer games, collaborative editing, trading dashboards.</li><li><b>Catch.</b> Stateful connections, manual reconnect/resync, and the worst proxy-friendliness.</li></ul>
+
+<h2 id="trap">The failure: scaling connection state</h2>
+<p>The hard part of every push technique isn't CPU &mdash; it's that an <i>idle</i> connection still costs memory and a slot.</p>
+<div class="callout warn"><span class="lbl" id="conn-state">Why a million idle sockets is hard &mdash; the C10k &rarr; C10M problem</span>
+This is <b>Scenario 3</b>. The classic <span class="gl" data-def="C10k — the problem of handling 10,000 concurrent connections on one machine; solved by moving from thread-per-connection to event loops (epoll/kqueue).">C10k</span> problem was solved by event loops (epoll/kqueue/IOCP &mdash; nginx, Node, Netty, Go). The frontier is <b>C10M</b> (10M/box), bounded by memory: at ~10&ndash;50&nbsp;KB of buffers per socket, 1M connections is 10&ndash;50&nbsp;GB of RAM <i>before</i> any app state. <b>Connection state is the bottleneck, not CPU.</b> Two more consequences:
+<ul style="margin-top:8px">
+<li><b>LB stickiness</b> &mdash; long-lived connections pin to one backend; you can't rebalance like stateless HTTP. A deploy that rolls a backend <b>drops every socket on it</b>, and clients reconnect at once (a thundering herd) &mdash; mitigate with jittered backoff and <a href="03.html#deploy">connection draining</a>.</li>
+<li><b>Fan-out backplane</b> &mdash; a publisher and a subscriber may be on different boxes, so you need a Pub/Sub layer (Redis, Kafka, NATS) to route a message to whichever node holds the target connection. This is the connection-registry + delivery split you design in <a href="19.html">Messenger</a>.</li>
 </ul>
-<p>The basic life cycle of an application using HTTP Long-Polling is as follows:</p>
-<ol>
-<li>The client makes an initial request using regular HTTP and then waits for a response.</li>
-<li>The server delays its response until an update is available, or until a timeout has occurred.</li>
-<li>When an update is available, the server sends a full response to the client.</li>
-<li>The client typically sends a new long-poll request, either immediately upon receiving a response or after a pause to allow an acceptable latency period.</li>
-<li>Each Long-Poll request has a timeout. The client has to reconnect periodically after the connection is closed, due to timeouts.</li>
-</ol>
+Large systems terminate millions of sockets on a thin gateway tier (Go/Rust/Erlang &mdash; WhatsApp famously ran ~2M connections per Erlang box) and keep business logic on stateless services behind it.</div>
 
-<img src="./_principal_files/img/5767494685949952.png" alt="diagram">
-<p class="sub"><em>Long Polling Protocol</em></p>
-
-<h2 id="websockets">WebSockets</h2>
-<p>WebSocket provides <a href="https://en.wikipedia.org/wiki/Duplex_(telecommunications)#Full_duplex" target="_blank">Full duplex</a> communication channels over a single TCP connection. It provides a persistent connection between a client and a server that both parties can use to start sending data at any time. The client establishes a WebSocket connection through a process known as the WebSocket handshake. If the process succeeds, then the server and client can exchange data in both directions at any time.</p>
-<p>The WebSocket protocol enables communication between a client and a server with lower overheads, facilitating real-time data transfer from and to the server. This is made possible by providing a standardized way for the server to send content to the browser without being asked by the client, and allowing for messages to be passed back and forth while keeping the connection open. In this way, a two-way (bi-directional) ongoing conversation can take place between a client and a server.</p>
-
-<img src="./_principal_files/img/5701867585667072.png" alt="diagram">
-<p class="sub"><em>WebSockets Protocol</em></p>
-
-<h2 id="serversent-events-sses">Server-Sent Events (SSEs)</h2>
-<p>Under SSEs the client establishes a persistent and long-term connection with the server. The server uses this connection to send data to a client. If the client wants to send data to the server, it would require the use of another technology/protocol to do so.</p>
-<ol>
-<li>Client requests data from a server using regular HTTP.</li>
-<li>The requested webpage opens a connection to the server.</li>
-<li>The server sends the data to the client whenever there's new information available.</li>
-</ol>
-<p>SSEs are best when we need real-time traffic from the server to the client or if the server is generating data in a loop and will be sending multiple events to the client.</p>
-
-<img src="./_principal_files/img/5737979670691840.png" alt="diagram">
-<p class="sub"><em>Server Sent Events Protocol</em></p>
-
-<style>
-.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
-.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
-.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
-.pdeep h3{font-size:17px;margin:22px 0 6px;}
-.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
-.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
-.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
-.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
-.pdeep th{background:#f6f8fa;}
-.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
-.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
-.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
-.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
-
-/* dark-mode overrides for inline pdeep/mastery (injected) */
-:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
-:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
-:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
-:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
-:root[data-theme="dark"] .pdeep th{background:#0f1318;}
-:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
-:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
-:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
-</style>
-
-<div class="pdeep">
-<span class="tag">Deeper analysis</span>
-<h2>Deeper analysis</h2>
-
-<p>The four techniques form a spectrum from "fake push over stateless request/response" (polling) to "true full-duplex socket" (WebSocket). The skill that matters is not naming them but reasoning about <em>direction of flow, connection state cost, and how each survives the messy reality of proxies, load balancers, and mobile networks</em>.</p>
-
-<h3>Side-by-side comparison</h3>
+<h2 id="decision-table">The decision table &mdash; which transport, by need</h2>
 <table>
-<thead><tr><th>Property</th><th>Ajax Polling</th><th>HTTP Long-Polling</th><th>SSE (EventSource)</th><th>WebSocket</th></tr></thead>
-<tbody>
-<tr><td>Direction</td><td>Client→Server (pull)</td><td>Client→Server, server holds reply</td><td>Server→Client only (one-way / simplex)</td><td>Full-duplex, both ways anytime</td></tr>
-<tr><td>Transport</td><td>Repeated HTTP requests</td><td>Repeated HTTP requests (hanging)</td><td>One long-lived HTTP/1.1 or HTTP/2 stream, <code>text/event-stream</code></td><td>TCP upgraded via HTTP <code>101 Switching Protocols</code></td></tr>
-<tr><td>Per-message overhead</td><td>Full HTTP headers each poll (often 500B–1KB of headers for an empty body)</td><td>Full headers per cycle, but only when data exists</td><td>Tiny framing (<code>data:</code> lines); no per-message headers after open</td><td>2–14 byte frame header; minimal</td></tr>
-<tr><td>Latency to deliver</td><td>Up to one poll interval (e.g. 500ms–2s stale)</td><td>~Immediate once event fires</td><td>~Immediate</td><td>~Immediate, sub-ms framing</td></tr>
-<tr><td>Reconnection</td><td>N/A (every request is new)</td><td>Client re-issues after each response/timeout (manual)</td><td>Built-in auto-reconnect + <code>Last-Event-ID</code> replay</td><td>Manual; you write reconnect + resync logic</td></tr>
-<tr><td>Proxy / firewall friendliness</td><td>Excellent (plain HTTP)</td><td>Excellent (plain HTTP)</td><td>Good (plain HTTP; some proxies buffer the stream — disable with <code>X-Accel-Buffering: no</code>)</td><td>Weakest — needs <code>Upgrade</code>/<code>Connection</code> headers to survive every hop; corporate proxies and old L7 LBs often strip them. WSS (TLS) tunnels through far better.</td></tr>
-<tr><td>Binary support</td><td>Yes (any payload)</td><td>Yes</td><td>No — UTF-8 text only (base64 binary if you must)</td><td>Yes — native binary frames</td></tr>
-<tr><td>Browser API</td><td><code>fetch</code>/<code>XHR</code></td><td><code>fetch</code>/<code>XHR</code></td><td><code>EventSource</code> (auto-reconnect; no custom request headers natively)</td><td><code>WebSocket</code></td></tr>
-<tr><td>Best fit</td><td>Low-frequency, non-critical freshness (e.g. unread-count badge every 30s)</td><td>Infrequent events where push matters but volume is low (legacy chat, notifications)</td><td>One-way server streams: live scores, stock tickers, log tailing, LLM token streaming, progress bars</td><td>Bi-directional, high-frequency, low-latency: chat, multiplayer games, collaborative editing, trading</td></tr>
-</tbody>
+<tr><th>Need</th><th>Transport</th><th>Why</th></tr>
+<tr><td>Client pushes frequently</td><td>WebSocket</td><td>Full-duplex, low latency</td></tr>
+<tr><td>Server&rarr;client stream only</td><td>SSE</td><td>Simpler, free reconnection, HTTP/2-friendly</td></tr>
+<tr><td>Rare events through hostile proxies</td><td>Long-polling</td><td>Works anywhere HTTP works</td></tr>
+<tr><td>Freshness tolerance &gt; 10s</td><td>Polling</td><td>Zero connection state, cacheable</td></tr>
 </table>
+<div class="callout note"><span class="lbl">Always design the degradation ladder</span>Libraries like Socket.IO/SignalR negotiate the best available transport and silently fall back: WebSocket &rarr; SSE/long-poll &rarr; polling. Design the ladder, not a single transport &mdash; corporate proxies and ancient middleboxes still break WebSocket in the wild.</div>
 
-<h3>When each wins</h3>
-<div class="box"><b>Decision heuristic</b>Do you need the <em>client</em> to push frequently? → WebSocket. Only server→client streaming? → SSE (simpler, free reconnection, works over HTTP/2 multiplexing). Rare events and you must traverse hostile proxies? → Long-poll. Freshness tolerance &gt; 10s and simplicity matters most? → plain polling.</div>
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
 <ul>
-<li><strong>Polling wins</strong> when staleness is acceptable and you want zero server-side connection state — a CDN can even cache the response. Cost is wasted requests; tune the interval to the freshness SLA.</li>
-<li><strong>Long-polling wins</strong> as the "universal fallback": it works anywhere HTTP works, needs no protocol upgrade, and approximates push. It's how Comet-era chat and many SDKs degrade gracefully. Cost: a held request consumes a server worker/thread unless you use async I/O.</li>
-<li><strong>SSE wins</strong> for server-push-only feeds. It is criminally underused: built-in reconnection with <code>Last-Event-ID</code> gives the server the hook to replay missed events on reconnect (you still buffer them server-side), and it rides HTTP/2 so a single connection multiplexes with your other requests. This is why <strong>LLM token streaming (including the responses you're reading) is almost always SSE, not WebSocket</strong> — the flow is one-directional and HTTP-native.</li>
-<li><strong>WebSocket wins</strong> when both sides talk often and latency matters: Slack/Messenger chat, Figma multiplayer cursors, trading dashboards, game state. You pay with stateful connections, manual reconnect/resync, and proxy fragility.</li>
+<li><b>Scenario 1 (LLM stream):</b> Why is SSE the right call for one-directional token streaming, and what does it give you for free that raw WebSocket doesn't?</li>
+<li><b>Scenario 2 (corporate firewall):</b> Why is long-polling the universal fallback, and what does WebSocket need that proxies strip?</li>
+<li><b>Scenario 3 (1M sockets):</b> Why is memory (not CPU) the bottleneck, what does a deploy do to held connections, and what's a backplane for?</li>
+<li>Name the four deciding dimensions and which transport each points to.</li>
+<li>Why design a fallback ladder rather than commit to one transport?</li>
 </ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> pick by <b>4 dimensions</b> &mdash; <a href="#dim-direction">direction</a>, <a href="#dim-frequency">frequency</a>, <a href="#dim-proxy">proxy-friendliness</a>, <a href="#dim-scale">scale</a> &mdash; among 4 transports, and the universal failure is <a href="#trap">connection-state scaling</a> (C10k&rarr;C10M).</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="19.html">Facebook Messenger</a> (connection registry + fan-out), <a href="46.html">Event-Driven Architecture</a>, <a href="03.html">Load Balancing</a> (stickiness/draining), <a href="45.html">API Design</a>.</p>
 
-<h3>Scaling: connection state &amp; the C10k → C10M problem</h3>
-<p>The hard part of all push techniques is that <em>an idle connection still costs memory and a slot</em>. The classic <a href="http://www.kegel.com/c10k.html" target="_blank">C10k problem</a> (10k concurrent connections per box) was solved by moving off thread-per-connection to event loops — <code>epoll</code> (Linux), <code>kqueue</code> (BSD), <code>IOCP</code> (Windows) — used by nginx, Node, Netty, and Go's runtime. The modern frontier is <strong>C10M</strong> (10 million connections/box), which needs kernel-bypass and careful memory budgeting: at ~10–50KB of kernel + app buffers per socket, 1M connections alone is 10–50GB of RAM before any application state.</p>
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-fanout">Design fan-out across a fleet</h3>
+<p>User A (connected to box 1) sends a message to user B (connected to box 3). Neither box knows about the other's connections. How does B get the message?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>You need a <b>connection registry</b> (which user is on which box) and a <b>backplane</b>. Box 1 receives A's message, looks up that B is on box 3 (via the registry, e.g. Redis), and publishes the message to a Pub/Sub channel for box 3 (or for B's user ID). Box 3, subscribed, receives it and pushes it down B's socket. At larger scale you skip the per-box routing and just publish to a topic keyed by recipient; every gateway subscribed to its users' topics delivers locally. This registry + delivery split is exactly the <a href="19.html">Messenger</a> design.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
 <ul>
-<li><strong>Connection state is the bottleneck, not CPU.</strong> A chat server holding 1M idle WebSockets does almost no work but pins enormous memory and ephemeral-port/file-descriptor tables (raise <code>ulimit -n</code>, tune <code>net.ipv4.ip_local_port_range</code>, <code>somaxconn</code>).</li>
-<li><strong>Load-balancer stickiness.</strong> WebSocket and SSE connections are long-lived and pinned to one backend, so you cannot freely rebalance like stateless HTTP. L7 LBs must support the <code>Upgrade</code> handshake (AWS ALB and nginx do; older ELB classic did not). A deploy that rolls a backend drops every socket on it — clients must reconnect, causing a <em>thundering herd</em>; mitigate with jittered exponential backoff and connection draining.</li>
-<li><strong>Fan-out across the fleet.</strong> Because a publisher and a subscriber may land on different boxes, you need a backplane: a Pub/Sub layer (Redis Pub/Sub, Kafka, NATS) routes a message to whichever node holds the target connection. This is exactly the "session/connection registry + delivery service" split you design in <a href="19.html">19 Messenger</a>, and the event backbone in <a href="46.html">45 EDA</a>.</li>
-<li><strong>Dedicated edge tier.</strong> Large systems terminate millions of sockets on a thin "gateway" tier (often Go/Rust/Erlang — WhatsApp famously ran ~2M connections per Erlang box) that holds the connection state, and keep business logic on stateless services behind it.</li>
+<li><b>Graceful deploys for sockets.</b> Roll a new version without a reconnect storm. &rarr; <a href="03.html">connection draining</a> + jittered backoff.</li>
+<li><b>Pick transport per feature.</b> For a product, choose a transport for: typing indicators, an unread badge, a live dashboard, an LLM chat. Defend each by the four dimensions.</li>
 </ul>
-
-<h3>Fallback strategies</h3>
-<ul>
-<li><strong>Layered degradation.</strong> Libraries like Socket.IO and SignalR negotiate the best available transport and silently fall back: WebSocket → SSE/long-poll → polling. Always design the <em>graceful-degradation ladder</em>, not a single transport, because corporate proxies, captive portals, and ancient middleboxes still break WebSocket in the wild.</li>
-<li><strong>Heartbeats &amp; dead-connection detection.</strong> NAT/firewalls silently drop idle TCP after ~30–120s. Send application-level pings (WebSocket ping/pong frames, SSE comment lines <code>:keepalive</code>) so you detect half-open connections instead of waiting for a TCP timeout.</li>
-<li><strong>Resume / replay.</strong> SSE's <code>Last-Event-ID</code> lets a reconnecting client ask for everything since its last seen event. For WebSocket you build the equivalent yourself with a per-client cursor/sequence number so a reconnect doesn't lose or duplicate messages.</li>
-<li><strong>Backpressure.</strong> A slow client cannot drain the stream as fast as you push; bound the per-connection send buffer and either drop, coalesce, or disconnect rather than letting memory grow unbounded across millions of sockets.</li>
-</ul>
-
-<div class="seealso"><b>Go deeper:</b> <a href="19.html">19 Messenger</a>, <a href="46.html">45 EDA</a></div>
-</div>
-
-<div class="mastery">
-<h2>Principal-level mastery check</h2>
-<ul>
-<li>Your product needs to stream LLM tokens from server to browser as they're generated. Why is SSE usually the right choice over WebSocket here, and what two built-in SSE features make reconnection cheap?</li>
-<li>You're holding 2 million concurrent WebSocket connections. Explain why memory — not CPU — is the dominant constraint, and name two OS-level limits you'd have to raise before you got there.</li>
-<li>A publisher on backend node A needs to deliver a message to a user whose WebSocket is pinned to node B. Sketch the backplane that makes this work and explain why simple round-robin load balancing breaks long-lived connections.</li>
-<li>Compare HTTP long-polling and Ajax polling in terms of latency and wasted requests. In what proxy/firewall scenario would you deliberately fall back from WebSocket all the way to long-polling?</li>
-<li>During a rolling deploy you drop every socket on a draining node and all clients reconnect at once. What failure mode does this create, and what client-side strategy mitigates it?</li>
-</ul>
-</div>
 
 <div class="navfoot"><a href="12.html">&lsaquo; Prev: Consistent Hashing</a><a class="nx" href="14.html">Next: A Framework for Approaching System Design &rsaquo;</a></div>
 </div>

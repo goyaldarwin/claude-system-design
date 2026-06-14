@@ -111,61 +111,119 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Proxies</div>
 <h1>Proxies</h1>
-<p class="sub"><em>Proxy servers as intermediaries — types, caching, collapsed forwarding, and where they sit in a system.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; operability.</b> <span>an intermediary buys caching/filtering/TLS offload at the cost of an extra hop and a thing to operate.</span></div>
-<div class="toc"><h4>In this lesson</h4>
+<p class="sub"><em>A proxy is an intermediary you insert between client and origin to get one controllable choke point &mdash; for caching, filtering, TLS, and observability &mdash; without changing either endpoint. You pay for it with an extra hop and one more thing to operate. The decisions are about which direction it faces and what work it does there.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>A single point of control in exchange for an extra hop and a component to run.</b> <span>Inserting an intermediary gives you one place to cache, filter, transform, terminate TLS, and observe traffic &mdash; without touching client or origin. In return every request takes one more hop, and the proxy is now infrastructure you must keep alive.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Proxies</b>
+│
+├─ <a href="#root"><b>What a proxy is</b></a>  &mdash; an intermediary, a choke point
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+├─ <a href="#decisions"><b>A proxy is 3 decisions</b></a>  &mdash; each wrong choice has a failure
+│   ├─ <a href="#d1">1. Which direction does it face?</a>  failure → <a href="#wrongdir">wrong-direction proxy</a>
+│   ├─ <a href="#d2">2. What work does it do?</a>          failure → <a href="#bottleneck">choke-point overload</a>
+│   └─ <a href="#d3">3. How does it protect the origin?</a> failure → <a href="#stampede">cache stampede</a>
+├─ <a href="#decision-table"><b>The decision table</b></a>  &mdash; forward vs reverse, by goal
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; reconstruct the scenarios
+├─ <a href="#cloud"><b>Cloud services</b></a>  &mdash; managed proxies
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; NGINX, Envoy, Squid
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; coalesce, design the rest
+</pre>
+</div>
+
+<h2 id="root">What a proxy is</h2>
+<p>A proxy server is an intermediary &mdash; hardware or software &mdash; that sits between a client and the origin (back-end) server. It receives requests and relays them, and because it stands in the middle of every request and response, it's a natural place to <b>cache, filter, log, transform, encrypt/decrypt, and compress</b> &mdash; all without modifying either endpoint.</p>
+<p>The core idea is <b>indirection</b>: insert one controllable hop and you gain a single point where policy, observation, and reshaping all apply. That same hop is also the cost &mdash; latency and a component to operate.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>A proxy gives you a choke point. Everything good about it (shared cache, central policy, TLS offload, origin hiding) and everything risky about it (an extra hop, a thing that can overload or fail) follow from that one fact.</div>
+
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Decide your answer first &mdash; the rest is the answer.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; whom does it protect?</span>
+One team wants to hide clients' identities as they browse the internet; another wants to hide the back-end servers from clients and balance load across them. <b>Both say "put a proxy in front" &mdash; but these need opposite kinds of proxy. Which is which, and what does each hide?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the hot resource goes cold</span>
+A popular cached resource expires. In the next 50&nbsp;ms, 10,000 clients request it simultaneously &mdash; all misses. <b>What does a naive proxy do, and what happens to the origin?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the choke point chokes</span>
+You route 100% of traffic through one proxy for TLS termination and caching. <b>What have you just (re)introduced, and how do you keep the proxy from becoming the thing that takes you down?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#wrongdir">forward vs reverse</a>. Scenario 2 is the <a href="#stampede">cache stampede</a> (and collapsed forwarding). Scenario 3 is the <a href="#bottleneck">choke-point</a> risk.</i></p>
+
+<h2 id="decisions">A proxy is defined by three decisions</h2>
+<p>Fewer than a database, but each matters.</p>
+
+<h3 id="d1">Decision 1 &mdash; Which direction does it face? (forward vs reverse)</h3>
+<p>The whole taxonomy reduces to <i>whom the proxy represents</i>:</p>
 <ul>
-  <li><a href="#1-what-is-a-proxy-server">What is a proxy server?</a></li>
-  <li><a href="#2-proxy-server-types">Proxy server types</a></li>
-  <li><a href="#3-caching-and-collapsed-forwarding">Caching and collapsed forwarding</a></li>
-  <li><a href="#4-principallevel-mastery-check">Principal-level mastery check</a></li>
-</ul></div>
-
-
-<h2 id="1-what-is-a-proxy-server">What is a proxy server?</h2>
-<p>A <span class="key">proxy server</span> is an intermediary piece of hardware or software that sits between a client and the back-end (or origin) server. It receives requests from clients and relays them to the origin server. Typically, proxies are used to filter requests, log requests, or sometimes transform requests &mdash; by adding or removing headers, encrypting or decrypting, or compressing a resource. Because the proxy stands in the middle of every request and response, it is a natural place to enforce policy, observe traffic, and reshape payloads without changing either the client or the origin.</p>
-
-<p>Another advantage of a proxy server is that its cache can serve a lot of requests. If multiple clients access a particular resource, the proxy server can cache it and serve all subsequent clients from that local copy without having to reach out to the remote server every time. This both speeds up the response for the client and reduces load on the origin.</p>
-
-<div class="callout note"><span class="lbl">Key insight</span> A proxy is fundamentally about <strong>indirection</strong>: by inserting a hop between client and origin you gain a single, controllable choke point where caching, filtering, transformation, logging, and security can all be applied &mdash; without modifying the endpoints themselves.</div>
-
-<h2 id="2-proxy-server-types">Proxy server types</h2>
-<p>Proxies come in several flavours depending on where they sit and whose interests they serve. The two top-level categories are the <span class="key">open (forward) proxy</span> and the <span class="key">reverse proxy</span>.</p>
-
-<p><strong>Open proxy.</strong> An open proxy is a proxy server that is accessible by any user on the internet. In general, a proxy server only allows users within a network group to store and forward internet services such as DNS or web pages, in order to reduce and control the bandwidth used by the group. An open proxy, however, lets any user on the internet use this forwarding service. There are two well-known kinds of open proxies:</p>
-<ul>
-<li><strong>Anonymous proxy</strong> &mdash; This proxy reveals its identity as a server but does <em>not</em> disclose the initial IP address of the client. Although such a proxy server can be discovered fairly easily, it is beneficial for users who want to hide their IP address from the origin.</li>
-<li><strong>Transparent proxy</strong> &mdash; This proxy server identifies itself, and with the support of HTTP headers the initial IP address of the client can still be seen. The main benefit of using this kind of server is its ability to cache websites. A transparent proxy attaches the client&rsquo;s real address in a header such as <code>X-Forwarded-For</code>, so the origin can still see who the original requester was &mdash; which is precisely what makes transparent proxies useful for caching with no client-side configuration.</li>
+<li><b>Forward proxy</b> acts on behalf of the <i>client</i> &mdash; sits at the edge of the client's network, forwards their requests outward, and hides the client from the origin. Used for egress control, content filtering, anonymity, and client-side caching. (An <b>open proxy</b> is a forward proxy any internet user can use; <b>anonymous</b> hides the client IP, <b>transparent</b> passes it in <code>X-Forwarded-For</code> and is great for caching with no client config.)</li>
+<li><b>Reverse proxy</b> acts on behalf of the <i>server</i> &mdash; sits in front of one or more origins, accepts requests inward, and hides the origin from clients. Used to cache responses, <a href="03.html">load balance</a>, hide internal topology, and terminate <span class="gl" data-def="Transport Layer Security — the encryption under HTTPS; terminating it at the proxy lets origin servers handle plaintext and offload the crypto cost.">TLS</span>.</li>
 </ul>
+<div class="callout warn"><span class="lbl" id="wrongdir">The failure that happens when you get this wrong &mdash; the wrong-direction proxy</span>
+This is <b>Scenario 1</b>. "Put a proxy in front" is ambiguous until you say <i>which party it protects</i>. Hiding browsing clients needs a <b>forward</b> proxy (client-side, outward). Hiding and balancing back-ends needs a <b>reverse</b> proxy (server-side, inward). Same machinery, opposite direction, opposite party protected &mdash; pick the wrong one and you solve the wrong problem (e.g. exposing your origin while trying to anonymize clients).</div>
 
-<p><strong>Reverse proxy.</strong> A reverse proxy retrieves resources on behalf of a client from one or more servers. These resources are then returned to the client, appearing as if they had originated from the proxy server itself. In contrast to a forward proxy &mdash; which sits in front of clients and is an intermediary for their requests to <em>any</em> server &mdash; a reverse proxy sits in front of one or more origin servers and is an intermediary for requests coming <em>into</em> those servers. Reverse proxies are commonly used to:</p>
+<h3 id="d2">Decision 2 &mdash; What work does it do at the choke point?</h3>
+<p>Two cleanly separable reasons to insert a proxy &mdash; name which you're after:</p>
 <ul>
-<li><strong>Cache</strong> responses, so repeated requests for the same resource are served from the proxy rather than the origin.</li>
-<li><strong>Load balance</strong> incoming requests across a pool of origin servers (see <a href="03.html">Load Balancing</a>).</li>
-<li><strong>Hide the origin</strong> &mdash; clients never address the back-end servers directly, which shields internal topology and IP addresses.</li>
-<li><strong>Terminate SSL/TLS</strong> &mdash; decrypting HTTPS at the edge so origin servers can deal in plaintext and offload the cryptographic cost.</li>
+<li><b>Performance:</b> caching (serve repeated reads from the proxy), request coalescing, compression.</li>
+<li><b>Control:</b> TLS termination, header rewriting, authentication, rate limiting, logging.</li>
 </ul>
+<div class="callout warn"><span class="lbl" id="bottleneck">The failure that happens when you get this wrong &mdash; the choke point overloads (or fails)</span>
+This is <b>Scenario 3</b>. The proxy sees every request, so it's both a throughput ceiling and a single point of failure &mdash; the very SPOF you may have added it to remove. Defenses are the same as for a <a href="03.html#deploy">load balancer</a>: run it as a redundant pool (active-active behind a VIP, or many nodes via ECMP), size it for peak, and keep TLS/crypto cost in mind since termination is CPU-heavy. A proxy you can't lose isn't an optimization &mdash; it's a liability.</div>
 
-<div class="callout tradeoff"><span class="lbl">Forward vs reverse proxy</span> The distinction is <em>whom the proxy represents</em>. A <strong>forward proxy</strong> acts on behalf of the <em>client</em> — it sits at the edge of the client&rsquo;s network, forwards their requests outward, and hides the client from the origin. A <strong>reverse proxy</strong> acts on behalf of the <em>server</em> — it sits at the edge of the server&rsquo;s network, accepts requests inward, and hides the origin from the client. Same machinery, opposite direction, opposite party protected.</div>
+<h3 id="d3">Decision 3 &mdash; How does it protect the origin from spikes?</h3>
+<p>Because a proxy is a shared choke point, it's the ideal place to absorb read traffic &mdash; the first client pays the origin fetch, everyone after is served the cached copy. The key behavior is <b>collapsed forwarding</b> (request coalescing).</p>
+<div class="callout warn"><span class="lbl" id="stampede">The failure that happens when you get this wrong &mdash; the cache stampede</span>
+This is <b>Scenario 2</b>. When a hot resource expires and thousands of identical requests miss at once, a naive proxy forwards <i>every</i> one to the origin &mdash; a thundering herd that can flatten the back-end exactly when an item goes hot. <b>Collapsed forwarding</b> fixes it: the proxy detects an identical request already in flight, sends only <i>one</i> to the origin, and fans the single response back to all waiters &mdash; collapsing N requests into 1. Pair it with sensible TTLs and stale-while-revalidate. (Same problem and family of fixes as the <a href="04.html#stampede">caching lesson's stampede</a>.)</div>
 
-<h2 id="3-caching-and-collapsed-forwarding">Caching and collapsed forwarding</h2>
-<p>Because a proxy is a shared choke point, it is an ideal place to cache. A proxy cache can absorb a large fraction of read traffic: the first client that requests a resource pays the cost of fetching it from the origin, and every subsequent client is served the cached copy until it expires. This is closely related to the broader caching strategies discussed in <a href="04.html">Caching</a> &mdash; the proxy simply moves the cache to a network hop that is shared by many clients.</p>
+<h2 id="decision-table">The decision table &mdash; forward vs reverse, by goal</h2>
+<table>
+<tr><th>Goal</th><th>Proxy type</th><th>Key features</th></tr>
+<tr><td>Hide / filter outbound client traffic</td><td>Forward</td><td>Egress control, content filtering, anonymity</td></tr>
+<tr><td>Cache &amp; balance for back-ends</td><td>Reverse</td><td>Caching, <a href="03.html">load balancing</a>, origin hiding</td></tr>
+<tr><td>Offload HTTPS</td><td>Reverse</td><td>TLS termination at the edge</td></tr>
+<tr><td>Protect origin from spikes</td><td>Reverse</td><td>Collapsed forwarding, TTL, stale-while-revalidate</td></tr>
+</table>
 
-<p>A particularly important proxy behaviour is <span class="key">collapsed forwarding</span> (also called request coalescing). When many clients request the same uncached resource at nearly the same moment, a naive proxy would forward every one of those requests to the origin &mdash; a stampede that can overwhelm the back-end exactly when a popular item goes cold (the &ldquo;thundering herd&rdquo; or cache-stampede problem). With collapsed forwarding, the proxy detects that an identical request is already in flight, issues only a <em>single</em> request to the origin, and fans the one response back out to all the waiting clients. This collapses N concurrent identical requests into one origin fetch, protecting the origin from sudden spikes on hot keys.</p>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span> Strong engineers name <strong>collapsed forwarding / request coalescing</strong> explicitly when discussing how an edge layer protects the origin from a cache stampede, and they connect it to TTL choices and stale-while-revalidate. They also cleanly separate the two reasons to put a proxy in front of an origin: <em>performance</em> (caching, coalescing, compression) and <em>control</em> (SSL termination, header rewriting, auth, rate limiting).</div>
-
-<h2 id="4-principallevel-mastery-check">Principal-level mastery check</h2>
-<p>At principal level, &ldquo;add a proxy&rdquo; is rarely the answer by itself &mdash; the interesting discussion is <em>which</em> proxy, <em>where</em> it sits, and <em>what it owns</em> versus the adjacent components. Be ready to reason about these probes:</p>
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
 <ul>
-<li><strong>Reverse proxy vs load balancer &mdash; are they the same thing?</strong> They overlap heavily and are often the same box (nginx, Envoy, HAProxy all do both), but conceptually a load balancer&rsquo;s primary job is distributing connections across a healthy pool, while a reverse proxy&rsquo;s primary job is mediating and transforming requests (caching, TLS, header rewriting). Where do you draw the boundary in your design, and why? See <a href="03.html">Load Balancing</a>.</li>
-<li><strong>Where do you terminate TLS, and what are the consequences?</strong> Terminating SSL at the reverse proxy offloads crypto from origins and centralizes certificate management, but it means traffic between the proxy and origin is plaintext unless you re-encrypt (TLS passthrough vs TLS termination vs TLS re-origination). How does this interact with zero-trust and with regulatory requirements for end-to-end encryption?</li>
-<li><strong>How do you prevent a cache stampede on a hot key?</strong> Collapsed forwarding, request coalescing, stale-while-revalidate, and TTL jitter are the tools. Walk through exactly what happens at the proxy the instant a viral item expires &mdash; see <a href="04.html">Caching</a> for the cache-side mechanics.</li>
-<li><strong>What is your cache key, and what makes a response cacheable?</strong> Method, path, query string, <code>Vary</code> headers, cookies, and auth state all affect cacheability. How do you avoid caching per-user responses, and how do you handle <code>Cache-Control</code> and <code>X-Forwarded-For</code> correctly behind multiple proxy hops?</li>
-<li><strong>What happens when the proxy itself fails or becomes the bottleneck?</strong> A reverse proxy is now in the critical path for every request. How do you make it redundant, how do you health-check it, and how do you stop it becoming a single point of failure &mdash; or a place where one slow origin exhausts all proxy connections (connection-pool / head-of-line blocking)?</li>
+<li><b>Scenario 1:</b> Forward vs reverse &mdash; whom does each represent and hide, and which fits "anonymize browsing" vs "balance back-ends"?</li>
+<li><b>Scenario 2:</b> What does a naive proxy do when a hot resource expires under load, and how does collapsed forwarding fix it?</li>
+<li><b>Scenario 3:</b> Why is a proxy a SPOF and throughput ceiling, and how do you keep it from taking you down?</li>
+<li>Name the two distinct reasons to add a proxy (performance vs control) with two examples of each.</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> a proxy is <b>3 decisions</b> &mdash; <a href="#d1">direction</a>, <a href="#d2">work it does</a>, <a href="#d3">origin protection</a> &mdash; with failures: wrong-direction, choke-point overload, cache stampede.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="03.html">Load Balancing</a>, <a href="04.html">Caching</a>, <a href="44.html">Service Mesh</a>, <a href="48.html">CDN</a>.</p>
+
+<h2 id="cloud">Cloud services &mdash; managed proxies</h2>
+<table>
+<tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Reverse proxy / app gateway</td><td>ALB, API Gateway</td><td>Cloud Load Balancing, Apigee</td><td>Application Gateway, API Management</td></tr>
+<tr><td>Edge / CDN proxy</td><td>CloudFront</td><td>Cloud CDN</td><td>Front Door</td></tr>
+<tr><td>Forward / egress proxy</td><td>Network Firewall</td><td>Secure Web Proxy</td><td>Firewall</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-nginx">NGINX</h3>
+<ul><li><b>What it is.</b> The ubiquitous reverse proxy / web server / TLS terminator.</li><li><b>Key idea.</b> Event-driven, extremely efficient; the default edge for a huge share of the web and Kubernetes Ingress.</li><li><b>The failure to watch.</b> Classic config-reload model &mdash; dynamic back-ends need an Ingress controller or NGINX Plus.</li></ul>
+<h3 id="impl-envoy">Envoy</h3>
+<ul><li><b>What it is.</b> Modern L7 proxy, the data plane behind most <a href="44.html">service meshes</a>.</li><li><b>Key idea.</b> Dynamic config via a control plane (xDS); ships retries, circuit breaking, mTLS, and collapsed-forwarding-style protections.</li><li><b>The failure to watch.</b> Per-hop latency + operational complexity of the control plane.</li></ul>
+<h3 id="impl-squid">Squid</h3>
+<ul><li><b>What it is.</b> The classic <i>forward</i>/caching proxy &mdash; the canonical example of client-side caching and egress control.</li><li><b>Key idea.</b> Transparent caching with <code>X-Forwarded-For</code>, collapsed forwarding for hot objects.</li><li><b>The failure to watch.</b> An open forward proxy left unsecured becomes an abuse relay.</li></ul>
+
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-coalesce">Implement collapsed forwarding</h3>
+<p>Many clients request the same uncached key at once. Write the proxy logic that sends only one request to the origin and serves all waiters from it. What's the data structure, and what's the edge case when the in-flight request fails?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Keep a map from key &rarr; an in-flight "promise"/future. On a miss: if the key is already in the map, await that future; otherwise create the future, fire the single origin request, store it, and on completion resolve all waiters and remove the entry. This is exactly <a href="04.html#stampede">single-flight</a>. The edge case: if the origin request fails, you must fail (or retry) all waiters and clear the map entry &mdash; otherwise a poisoned entry blocks the key. Add a short timeout so one slow origin call doesn't stall every waiter forever.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
+<ul>
+<li><b>Edge TLS + origin protection.</b> Design a reverse-proxy edge that terminates TLS, caches, and shields the origin from spikes. &rarr; <a href="48.html">CDN</a>, <a href="04.html">Caching</a>.</li>
+<li><b>Make the proxy HA.</b> One proxy is a SPOF. Design the redundant tier. &rarr; <a href="03.html">Load Balancing</a>.</li>
 </ul>
 
 <div class="navfoot"><a href="06.html">&lsaquo; Prev: Indexes</a><a class="nx" href="08.html">Next: Queues &rsaquo;</a></div>

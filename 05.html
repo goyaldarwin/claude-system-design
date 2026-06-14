@@ -111,157 +111,200 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Sharding / Data Partitioning</div>
 <h1>Sharding / Data Partitioning</h1>
-<p class="sub"><em>Breaking a large database into smaller parts across machines to improve manageability, performance, availability and load balancing &mdash; and the trade-offs that come with it.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Finite capacity.</b> <span>data won't fit/serve from one box — splitting it costs cross-shard joins, hot shards, and rebalancing.</span></div>
-<div class="toc"><h4>In this lesson</h4>
+<p class="sub"><em>One machine eventually can't hold the data or absorb the writes. Sharding splits the data across many machines &mdash; and in exchange you give up cheap joins, easy transactions, and the freedom to query any way you like. Every decision here is about which of those you sacrifice, and how you survive moving the data while traffic is live.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Unlimited horizontal capacity in exchange for cross-shard joins, transactions, and rebalancing pain.</b> <span>Splitting data across nodes lets you scale writes and storage past one machine. In return you accept that operations spanning shards are slow or impossible, and that changing the layout under live traffic is one of the hardest things you'll do.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Sharding / Data Partitioning</b>
+│
+├─ <a href="#root"><b>What sharding is</b></a>  &mdash; split data across machines
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>Sharding is 4 decisions</b></a>  &mdash; each wrong choice has a named failure
+│   ├─ <a href="#d1">1. How do you map a key to a shard?</a>  failure → <a href="#reshuffle">resize reshuffle</a>
+│   ├─ <a href="#d2">2. What do you shard on? (the key)</a>    failure → <a href="#hotshard">hot shard / skew</a>
+│   ├─ <a href="#d3">3. How do non-key queries work?</a>       failure → <a href="#scatter">scatter-gather</a>
+│   └─ <a href="#d4">4. How do you reshard live?</a>           failure → <a href="#downtime">downtime / data loss</a>
+│
+├─ <a href="#decision-table"><b>The decision table</b></a>  &mdash; pick by workload
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+├─ <a href="#cloud"><b>Cloud services</b></a>  &mdash; managed sharded stores
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; Vitess, Cassandra, DynamoDB
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; map a key, reshard, design the rest
+</pre>
+</div>
+
+<h2 id="root">What sharding is</h2>
+<p>Sharding (a.k.a. horizontal partitioning) splits one logical dataset into many smaller pieces &mdash; <b>shards</b> &mdash; each held on a different machine, so that no single machine has to store all the data or serve all the traffic. It's the answer when a single primary plus read replicas can no longer hold the working set or absorb the write rate.</p>
+<p>It's worth separating two axes people conflate:</p>
 <ul>
-  <li><a href="#1-partitioning-methods">Partitioning Methods</a></li>
-  <li><a href="#2-partitioning-criteria">Partitioning Criteria</a></li>
-  <li><a href="#3-common-problems-of-sharding">Common Problems of Sharding</a></li>
-</ul></div>
-
-
-<p>Data partitioning (also known as sharding) is a technique to break up a big database (DB) into many smaller parts. It is the process of splitting up a DB/table across multiple machines to improve the manageability, performance, availability and load balancing of an application. The justification for data sharding is that, after a certain scale point, it is cheaper and more feasible to scale horizontally by adding more machines than to grow it vertically by adding beefier servers.</p>
-
-<h2 id="1-partitioning-methods">Partitioning Methods</h2>
-<p>There are many different schemes one could use to decide how to break up an application database into multiple smaller DBs. Below are three of the most popular schemes used by various large scale applications.</p>
-<p><strong>a. Horizontal partitioning:</strong> In this scheme, we put different rows into different tables. For example, if we are storing different places in a table, we can decide that locations with ZIP codes less than 10000 are stored in one table, and places with ZIP codes greater than 10000 are stored in a separate table. This is also called a range based sharding, as we are storing different ranges of data in separate tables.</p>
-<p>The key problem with this approach is that if the value whose range is used for sharding isn&rsquo;t chosen carefully, then the partitioning scheme will lead to unbalanced servers. In the previous example, splitting location based on their zip codes assumes that places will be evenly distributed across the different zip codes. This assumption is not valid as there will be a lot of places in a thickly populated area like Manhattan compared to its suburb cities.</p>
-<p><strong>b. Vertical Partitioning:</strong> In this scheme, we divide our data to store tables related to a specific feature to their own server. For example, if we are building Instagram like application, where we need to store data related to users, all the photos they upload and people they follow, we can decide to place user profile information on one DB server, friend lists on another and photos on a third server.</p>
-<p>Vertical partitioning is straightforward to implement and has a low impact on the application. The main problem with this approach is that if our application experiences additional growth, then it may be necessary to further partition a feature specific DB across various servers (e.g. it would not be possible for a single server to handle all the metadata queries for 10 billion photos by 140 million users).</p>
-<p><strong>c. Directory Based Partitioning:</strong> A loosely coupled approach to work around issues mentioned in above schemes is to create a lookup service which knows your current partitioning scheme and abstracts it away from the DB access code. So, to find out where does a particular data entity resides, we query our directory server that holds the mapping between each tuple key to its DB server. This loosely coupled approach means we can perform tasks like adding servers to the DB pool or change our partitioning scheme without having to impact your application.</p>
-
-<h2 id="2-partitioning-criteria">Partitioning Criteria</h2>
-<p><strong>a. Key or Hash-based partitioning:</strong> Under this scheme, we apply a hash function to some key attribute of the entity we are storing, that yields the partition number. For example, if we have 100 DB servers and our ID is a numeric value that gets incremented by one, each time a new record is inserted. In this example, the hash function could be &lsquo;ID % 100&rsquo;, which will give us the server number where we can store/read that record. This approach should ensure a uniform allocation of data among servers. The fundamental problem with this approach is that it effectively fixes the total number of DB servers, since adding new servers means changing the hash function which would require redistribution of data and downtime for the service. A workaround for this problem is to use Consistent Hashing.</p>
-<p><strong>b. List partitioning:</strong> In this scheme, each partition is assigned a list of values, so whenever we want to insert a new record, we will see which partition contains our key and then store it there. For example, we can decide all users living in Iceland, Norway, Sweden, Finland or Denmark will be stored in a partition for the Nordic countries.</p>
-<p><strong>c. Round-robin partitioning:</strong> This is a very simple strategy that ensures uniform data distribution. With &lsquo;n&rsquo; partitions, the &lsquo;i&rsquo; tuple is assigned to partition (i mod n).</p>
-<p><strong>d. Composite partitioning:</strong> Under this scheme, we combine any of above partitioning schemes to devise a new scheme. For example, first applying a list partitioning and then a hash based partitioning. Consistent hashing could be considered a composite of hash and list partitioning where the hash reduces the key space to a size that can be listed.</p>
-
-<h2 id="3-common-problems-of-sharding">Common Problems of Sharding</h2>
-<p>On a sharded database, there are certain extra constraints on the different operations that can be performed. Most of these constraints are due to the fact that, operations across multiple tables or multiple rows in the same table, will no longer run on the same server. Below are some of the constraints and additional complexities introduced by sharding:</p>
-<p><strong>a. Joins and Denormalization:</strong> Performing joins on a database which is running on one server is straightforward, but once a database is partitioned and spread across multiple machines it is often not feasible to perform joins that span database shards. Such joins will not be performance efficient since data has to be compiled from multiple servers. A common workaround for this problem is to denormalize the database so that queries that previously required joins can be performed from a single table. Of course, the service now has to deal with all the perils of denormalization such as data inconsistency.</p>
-<p><strong>b. Referential integrity:</strong> As we saw that performing a cross-shard query on a partitioned database is not feasible, similarly trying to enforce data integrity constraints such as foreign keys in a sharded database can be extremely difficult.</p>
-<p>Most of RDBMS do not support foreign keys constraints across databases on different database servers. Which means that applications that require referential integrity on sharded databases often have to enforce it in application code. Often in such cases, applications have to run regular SQL jobs to clean up dangling references.</p>
-<p><strong>c. Rebalancing:</strong> There could be many reasons we have to change our sharding scheme:</p>
-<ol>
-<li>The data distribution is not uniform, e.g., there are a lot of places for a particular ZIP code, that cannot fit into one database partition.</li>
-<li>There are a lot of load on a shard, e.g., there are too many requests being handled by the DB shard dedicated to user photos.</li>
-</ol>
-<p>In such cases, either we have to create more DB shards or have to rebalance existing shards, which means the partitioning scheme changed and all existing data moved to new locations. Doing this without incurring downtime is extremely difficult. Using a scheme like directory based partitioning does make rebalancing a more palatable experience at the cost of increasing the complexity of the system and creating a new single point of failure (i.e. the lookup service/database).</p>
-
-<style>
-.pdeep{max-width:820px;margin:40px auto;padding:32px 40px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1a1d24;line-height:1.7;font-size:16px;}
-.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
-.pdeep h2{font-size:22px;margin:0 0 8px;border:0;}
-.pdeep h3{font-size:17px;margin:22px 0 6px;}
-.pdeep p{margin:0 0 14px;}
-.pdeep ul{margin:0 0 14px;padding-left:24px;} .pdeep li{margin:0 0 7px;}
-.pdeep code{background:#f5f6f8;color:#b3306b;padding:2px 6px;border-radius:4px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;}
-.pdeep a{color:#2d6cdf;text-decoration:none;} .pdeep a:hover{text-decoration:underline;}
-.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
-.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
-.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;} .pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;vertical-align:top;} .pdeep th{background:#f6f8fa;}
-.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
-</style>
-<div class="pdeep">
-<span class="tag">Principal-level deep dive</span>
-<h2>Partitioning at scale: rebalancing and hot shards</h2>
-
-<p>The original lesson covers <em>why</em> we partition; the hard part in production is <em>changing</em> a partitioning scheme while traffic is live, and surviving the inevitable skew. A partition map is not a static decision — it is a control plane that has to move data without violating consistency or blowing through SLOs. This is where most designs that look fine on a whiteboard fall apart.</p>
-
-<h3>Why <code>hash(key) % N</code> is a trap</h3>
-<p>Modulo-by-node-count is the partitioning scheme everyone reaches for first, and it is almost always wrong. The mapping <code>partition = hash(key) % N</code> ties the key's home directly to the cluster size <code>N</code>. The moment you go from 8 nodes to 9, the modulus changes for nearly every key: empirically about <code>(N-1)/N</code> of all keys remap — roughly 89% at N=9. That triggers a near-total reshuffle, saturating the network and cache layer exactly when you were trying to add capacity to relieve pressure. It is a positive-feedback failure mode.</p>
-<p>Two fixes dominate real systems:</p>
-<ul>
-<li><b>Consistent hashing with virtual nodes.</b> Keys and nodes map onto a hash ring; adding a node only steals keys from its ring neighbors, so only <code>~K/N</code> keys move (K = total keys) — note this <code>~1/N</code> fraction is the cost of adding a <em>single</em> node, not directly comparable to the 89% above, which was the one-time reshuffle from resizing the modulus. Plain consistent hashing has its own skew problem — random placement gives ~O(log N) load imbalance — so production systems (Dynamo, Cassandra, Riak) assign each physical node tens to a few hundred <em>vnodes</em> (Cassandra historically defaulted to 256, newer versions to 16; the count is tunable) to smooth the distribution. See <a href="12.html">Consistent Hashing</a>.</li>
-<li><b>Fixed partition count (decoupling).</b> Pick a large fixed number of partitions up front (e.g. 1024 or 4096), far more than nodes, and assign whole partitions to nodes. Rebalancing becomes "move partition P from node A to node B" — an integer reassignment in the partition map, never a rehash of keys. This is how Kafka, Elasticsearch, and Riak's <code>ring_creation_size</code> work. The cost is choosing the count wisely: too few caps your max node count, too many adds metadata and per-partition overhead.</li>
+<li><b>Horizontal partitioning (sharding):</b> different <i>rows</i> on different machines (users A&ndash;M here, N&ndash;Z there). This is what "sharding" almost always means.</li>
+<li><b>Vertical partitioning:</b> different <i>columns/features</i> on different machines (profiles here, photos there). Simple, but each feature can still outgrow one machine.</li>
 </ul>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>A shard map is not a static decision &mdash; it's a <b>control plane</b> that must move data without violating consistency or blowing your latency budget. Most designs that look fine on a whiteboard fall apart at <a href="#d4">"how do you change it while live?"</a> Design that first.</div>
 
-<div class="box"><b>Principal heuristic</b>Never let the number of partitions equal the number of nodes. Decouple them. Partitions are a logical unit you rebalance; nodes are physical capacity you scale. Conflating them is what makes <code>% N</code> toxic.</div>
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide your answer first &mdash; the rest of the lesson is the answer. If you already know all three cold, skip to the <a href="#decision-table">decision table</a>.</p>
 
-<h3>Range vs hash partitioning</h3>
-<p>This is the most consequential trade-off, and it is not symmetric.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the ninth node</span>
+You map keys with <code>shard = hash(key) % 8</code> across 8 nodes. Black Friday is coming, so you add a 9th node to relieve load. <b>What fraction of your keys now live on the wrong node, and what does that do to your database and cache the instant you deploy?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the celebrity shard</span>
+You shard users by hashing the user ID &mdash; a clean, even distribution. Then one user gets 50 million followers and every action they take is read millions of times an hour. <b>Your ring is perfectly balanced, so why is one node on fire while the rest idle &mdash; and can adding nodes fix it?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the query you didn't shard for</span>
+Your data is sharded by user ID. Product asks for "all orders placed in the last hour, across all users." <b>Your shard key is the user, not the time &mdash; so how does this query run, and what does it cost?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#reshuffle">resize reshuffle</a> (the <code>hash%N</code> trap). Scenario 2 is the <a href="#hotshard">hot shard</a>. Scenario 3 is the <a href="#scatter">scatter-gather</a> cost of non-key queries. Each maps to a decision below.</i></p>
+
+<h2 id="decisions">Sharding is defined by four decisions</h2>
+<p>Every sharded system &mdash; Vitess, Cassandra, DynamoDB &mdash; is just these four choices. Make each well and it scales smoothly; make one wrong and you get a named, predictable failure, shown nested beneath it.</p>
+
+<h3 id="d1">Decision 1 &mdash; How do you map a key to a shard?</h3>
+<p>Given a key, which shard owns it? Four schemes:</p>
+<ul>
+<li><b>Hash-based</b> &mdash; <code>shard = hash(key) % N</code>. Even distribution by construction, but (see below) ties the mapping to the node count.</li>
+<li><b>Range-based</b> &mdash; contiguous key ranges per shard (ZIP &lt; 10000 here, &ge; 10000 there). Great for range scans, prone to skew and hot spots.</li>
+<li><b>Directory-based</b> &mdash; an explicit lookup service maps each key (or key range) to a shard. Maximum flexibility (move any partition anywhere), at the cost of a lookup hop and a critical piece of infrastructure.</li>
+<li><b>List / composite</b> &mdash; assign explicit value sets (Nordic countries &rarr; one shard), or combine schemes. Consistent hashing is effectively hash + list.</li>
+</ul>
+<div class="callout warn"><span class="lbl" id="reshuffle">The failure that happens when you get this wrong &mdash; the resize reshuffle</span>
+This is <b>Scenario 1</b>. <code>hash(key) % N</code> ties every key's home to the cluster size <code>N</code>. Go from 8 nodes to 9 and the modulus changes for nearly every key &mdash; empirically about <b>(N&minus;1)/N of all keys remap (~89% at N=9)</b>. A near-total reshuffle saturates the network and cache <i>exactly</i> when you were adding capacity to relieve pressure &mdash; a positive-feedback failure. Two fixes dominate:
+<ul style="margin-top:8px">
+<li><b><a href="12.html">Consistent hashing</a> with virtual nodes</b> &mdash; keys and nodes sit on a ring; adding a node only steals keys from its neighbors, so only ~1/N of keys move. Vnodes (Cassandra historically 256, newer 16) smooth the otherwise ~O(log N) imbalance.</li>
+<li><b>Fixed partition count (decoupling)</b> &mdash; pick a large fixed number of partitions up front (1024, 4096), far more than nodes, and assign whole partitions to nodes. Rebalancing becomes "move partition P from A to B" &mdash; an integer reassignment, never a rehash. This is how Kafka, Elasticsearch, and Instagram (below) do it.</li>
+</ul>
+<b>The heuristic:</b> never let the number of partitions equal the number of nodes. Partitions are a logical unit you rebalance; nodes are physical capacity you scale.</div>
+
+<h3 id="d2">Decision 2 &mdash; What do you shard on? (choosing the key)</h3>
+<p>The shard key is the most consequential choice, and hash-vs-range isn't symmetric:</p>
 <table>
 <tr><th>Dimension</th><th>Hash partitioning</th><th>Range partitioning</th></tr>
-<tr><td>Distribution</td><td>Even, by construction</td><td>Prone to skew; needs split/merge</td></tr>
-<tr><td>Range scans (<code>WHERE ts BETWEEN ...</code>)</td><td>Scatter-gather across all partitions</td><td>Hits one / few contiguous partitions</td></tr>
+<tr><td>Distribution</td><td>Even by construction</td><td>Prone to skew; needs split/merge</td></tr>
+<tr><td>Range scans (<code>WHERE ts BETWEEN…</code>)</td><td>Scatter-gather across all shards</td><td>Hits one / few contiguous shards</td></tr>
 <tr><td>Hot-spot risk</td><td>Low for random keys</td><td>High for monotonic keys (timestamps, autoinc IDs)</td></tr>
-<tr><td>Used by</td><td>Dynamo, Cassandra (Murmur3 token)</td><td>HBase, Bigtable, CockroachDB, Spanner</td></tr>
+<tr><td>Used by</td><td>Dynamo, Cassandra</td><td>HBase, Bigtable, CockroachDB, Spanner</td></tr>
 </table>
-<p>The classic failure: range-partitioning on a timestamp gives you clean range scans but funnels every write into the "latest" partition — a single hot region. Cassandra-style hashing kills the hot spot but makes a recent-events query a scatter-gather over the whole ring. CockroachDB and Bigtable split the difference: range partitions plus automatic split-on-load, so a hot range gets cleaved in two and the halves migrate apart.</p>
+<p>The classic failure: range-partitioning on a timestamp gives clean range scans but funnels every write into the "latest" partition &mdash; one hot region. Hashing kills the hot spot but makes a recent-events query a scatter-gather. CockroachDB and Bigtable split the difference with automatic split-on-load.</p>
+<div class="callout warn"><span class="lbl" id="hotshard">The failure that happens when you get this wrong &mdash; the hot shard</span>
+This is <b>Scenario 2</b>. Hashing distributes <i>keys</i> evenly, but it <b>cannot split a single hot key</b> &mdash; a celebrity user, a viral object, a tenant 100&times; the median. A balanced ring is irrelevant when all the traffic is for one key on one node. Mitigations, in order of escalation:
+<ul style="margin-top:8px">
+<li><b>Key salting</b> &mdash; append a bounded suffix (<code>key#0..key#9</code>) to spread one logical key across 10 shards. Writes fan out; reads must gather all 10 &mdash; so reserve it for <i>known</i> hot keys.</li>
+<li><b>Split the hot partition</b> &mdash; detect a partition over a load threshold and split its range (needs range partitioning or a split-aware directory).</li>
+<li><b>Front cache / request coalescing</b> &mdash; for read-hot keys, a small cache absorbs the storm without touching the layout (often the cheapest fix &mdash; see <a href="04.html#hot-key">Caching</a>).</li>
+<li><b>Tenant isolation</b> &mdash; pin oversized tenants to dedicated shards so they can't starve neighbors.</li>
+</ul></div>
 
-<h3>Hot shards and skew mitigation</h3>
-<p>Even with hashing, individual <em>keys</em> can be hot — a celebrity user, a viral object, a tenant 100x larger than the median. Hashing distributes keys across partitions but cannot split a single hot key. Tactics, in order of escalation:</p>
+<h3 id="d3">Decision 3 &mdash; How do queries that aren't on the shard key work?</h3>
+<p>Once data is sharded by primary key, "find all rows where <code>color = red</code>" becomes a distributed problem with two designs:</p>
 <ul>
-<li><b>Key salting / decomposition.</b> Append a bounded random suffix (<code>key#0</code>..<code>key#9</code>) to spread one logical key across 10 partitions. Writes fan out trivially; the cost is reads must now gather and merge all 10 — so reserve this for known hot keys, not blanket application.</li>
-<li><b>Split the hot partition.</b> Detect a partition exceeding a load threshold and dynamically split its key range, moving one half elsewhere. Requires range partitioning or a split-aware directory.</li>
-<li><b>Request hedging &amp; caching.</b> For read-hot keys, a small front cache (or per-key request coalescing) absorbs the storm without touching the partition layout at all — often the cheapest fix.</li>
-<li><b>Tenant isolation.</b> Pin oversized tenants to dedicated partitions/nodes so their skew can't starve neighbors (noisy-neighbor control).</li>
+<li><b>Local (document-partitioned) secondary index</b> &mdash; each shard indexes only its own rows. Writes are cheap (one local update); reads must <b>fan out to every shard and merge</b> (scatter-gather), because matches can live anywhere. Elasticsearch and Cassandra default to this. Good for write-heavy with a tolerable read tail.</li>
+<li><b>Global (term-partitioned) secondary index</b> &mdash; the index is itself partitioned by the indexed term, so all <code>color = red</code> entries sit together and a read hits one shard. Reads are fast; <b>writes pay</b> (one row update may touch several index partitions), so the global index is usually asynchronous and eventually consistent. DynamoDB's GSIs are exactly this.</li>
+</ul>
+<div class="callout warn"><span class="lbl" id="scatter">The failure that happens when you get this wrong &mdash; scatter-gather</span>
+This is <b>Scenario 3</b>. A query whose filter isn't the shard key can't be routed to one shard, so it fans out to <i>all</i> of them and merges &mdash; latency now tracks your <i>slowest</i> shard, and throughput drops as every query touches every node. The choice is which operation pays the cross-shard cost: <b>local index = cheap writes, expensive scatter-gather reads; global index = fast reads, expensive (eventually-consistent) distributed writes.</b> Also: cross-shard <b>joins</b> and <b>transactions</b> are slow or impossible &mdash; you denormalize (and accept the inconsistency) or enforce integrity in application code.</div>
+
+<h3 id="d4">Decision 4 &mdash; How do you reshard a live system?</h3>
+<p>The endgame: changing the shard map under production traffic, with zero downtime. The proven playbook (Vitess resharding, MySQL-at-scale, DynamoDB adaptive capacity) is a <b>dual-write / backfill / cutover</b> dance:</p>
+<ol>
+<li><b>Double-write</b> &mdash; every write goes to both old and new layouts; the app tolerates either map.</li>
+<li><b>Backfill</b> historical data old&rarr;new in the background, throttled to protect live traffic; track a high-water mark.</li>
+<li><b>Verify</b> by comparing checksums/row counts per key range; reconcile drift from races.</li>
+<li><b>Cutover reads partition-by-partition</b> &mdash; flip the directory one key range at a time so you can roll back a single range.</li>
+<li><b>Stop double-writing</b> and decommission the old shards only after a safe soak.</li>
+</ol>
+<div class="callout warn"><span class="lbl" id="downtime">The failure that happens when you get this wrong &mdash; downtime or data loss</span>
+Naive resharding (stop writes, copy data, switch over) means an outage proportional to your data size &mdash; hours for terabytes. Skip the verify step and races during backfill silently drop or duplicate rows. The dual-write playbook exists precisely so the cutover is incremental and reversible.
+<div class="incident"><b>How Instagram made resharding painless &mdash; logical shards.</b> Instagram put <b>thousands of "logical shards" (4,096), each just a Postgres schema</b>, onto a smaller number of physical servers. Because a logical shard is a schema, moving one to a new server is a standard <code>pg_dump</code> / restore + a config change &mdash; no rehashing, no application change. Their IDs encode the shard: a 64-bit ID = <b>41 bits timestamp + 13 bits shard ID + 10 bits sequence</b> (1,024 IDs per shard per millisecond), so a row's ID tells you its shard directly. This is the "fixed partition count, decoupled from nodes" fix from Decision 1, made concrete. (Source: Instagram Engineering.)</div></div>
+
+<h2 id="decision-table">The decision table &mdash; pick by workload</h2>
+<p>Make all four decisions together, driven by the dominant access pattern:</p>
+<table>
+<tr><th>Workload</th><th>Mapping</th><th>Shard key</th><th>Non-key queries</th><th>Resharding</th></tr>
+<tr><td>Even key/value at scale</td><td>Consistent hash + vnodes</td><td>Hash of entity ID</td><td>Local index, accept scatter</td><td>Ring rebalance (~1/N moves)</td></tr>
+<tr><td>Time-ordered events</td><td>Range, split-on-load</td><td>Time + entity prefix</td><td>Range scan = cheap</td><td>Auto-split hot ranges</td></tr>
+<tr><td>Multi-tenant SaaS</td><td>Directory / fixed partitions</td><td>Tenant ID</td><td>Per-tenant, mostly single-shard</td><td>Move a tenant's partition</td></tr>
+<tr><td>Read-by-attribute heavy</td><td>Hash + global index</td><td>Entity ID</td><td>Global (term) index</td><td>Dual-write + backfill</td></tr>
+</table>
+
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">Close the page and rebuild them &mdash; that's the test, not recognition.</p>
+<ul>
+<li><b>Scenario 1 (ninth node):</b> Why does <code>hash%N</code> remap ~89% of keys when you go 8&rarr;9, and how do consistent hashing and fixed-partition-count each avoid it?</li>
+<li><b>Scenario 2 (celebrity):</b> Why can't hashing split a single hot key, why doesn't adding nodes help, and which mitigation would you try first?</li>
+<li><b>Scenario 3 (non-key query):</b> Why does a query off the shard key become scatter-gather, and what's the local-vs-global secondary-index trade-off?</li>
+<li>Why should the number of partitions never equal the number of nodes?</li>
+<li>Walk the five steps of a zero-downtime reshard, and say what the verify step protects against.</li>
+<li>Why are cross-shard joins and transactions slow or impossible, and what do you do instead?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> sharding is <b>4 decisions</b> &mdash; <a href="#d1">key&rarr;shard mapping</a>, <a href="#d2">the shard key</a>, <a href="#d3">non-key queries</a>, <a href="#d4">live resharding</a> &mdash; with named failures: resize reshuffle, hot shard, scatter-gather, downtime.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="12.html">Consistent Hashing</a>, <a href="04.html">Caching</a> (hot keys), <a href="06.html">Indexes</a>, <a href="10.html">SQL vs NoSQL</a>, <a href="37.html">Replication</a>.</p>
+
+<h2 id="cloud">Cloud services &mdash; managed sharded stores</h2>
+<p>The same concept, by name, across the big three clouds:</p>
+<table>
+<tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Managed sharded / distributed SQL</td><td>Aurora, RDS</td><td>Cloud Spanner, AlloyDB</td><td>Azure SQL (Hyperscale), Cosmos DB</td></tr>
+<tr><td>Managed sharded NoSQL</td><td>DynamoDB</td><td>Bigtable, Firestore</td><td>Cosmos DB</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<p>Same facets each &mdash; what it is, mapping scheme, key strength, the failure to watch.</p>
+
+<h3 id="impl-vitess">Vitess (sharded MySQL)</h3>
+<ul>
+<li><b>What it is.</b> A sharding middleware over MySQL (born at YouTube; runs Slack, GitHub). Presents many MySQL shards as one logical database.</li>
+<li><b>Mapping.</b> Directory-based: a topology service + VSchema map keyspace IDs to shards; the query router (vtgate) fans out and merges.</li>
+<li><b>Key strength.</b> Online resharding is a first-class feature &mdash; the dual-write/backfill/cutover dance is built in and battle-tested.</li>
+<li><b>The failure to watch.</b> The topology service is critical infrastructure; cross-shard queries still scatter-gather and cross-shard transactions are limited.</li>
 </ul>
 
-<h3>Secondary indexes in a partitioned world</h3>
-<p>Once data is partitioned by primary key, "find all rows where <code>color = red</code>" becomes a distributed problem with two distinct designs:</p>
+<h3 id="impl-cassandra">Cassandra</h3>
 <ul>
-<li><b>Local (document-partitioned) secondary index.</b> Each partition indexes only its own documents. Writes are cheap — one local index update, same partition. Reads are expensive: the query must fan out to <em>every</em> partition and merge (<em>scatter-gather</em>), because matching rows can live anywhere. This is Elasticsearch and Cassandra's default. Good for write-heavy workloads where read latency tail is tolerable.</li>
-<li><b>Global (term-partitioned) secondary index.</b> The index itself is partitioned by the indexed term, so all <code>color = red</code> entries sit together and a read hits one partition. Reads are fast and targeted. Writes pay: a single document update may touch multiple index partitions (one per indexed field), so writes become distributed and are usually made asynchronous — meaning the global index is eventually consistent with the base data. DynamoDB's GSIs are exactly this, and Amazon documents their async, eventually-consistent nature.</li>
+<li><b>What it is.</b> A wide-column store that shards by <a href="12.html">consistent hashing</a> with virtual nodes; no central coordinator.</li>
+<li><b>Mapping.</b> Hash (Murmur3 token) of the partition key onto a ring; vnodes smooth distribution.</li>
+<li><b>Key strength.</b> Linear write scale, multi-region, no SPOF; great for even, write-heavy workloads.</li>
+<li><b>The failure to watch.</b> A bad partition-key choice (low cardinality, or a hot key) creates an unfixable hot shard; secondary indexes are local (scatter-gather).</li>
 </ul>
-<div class="box"><b>The real trade-off</b>Local index = cheap writes, expensive scatter-gather reads. Global index = fast reads, expensive distributed writes that are usually eventually consistent. You are choosing which operation pays the cross-partition cost.</div>
 
-<h3>Directory-based / lookup-table partitioning</h3>
-<p>Instead of computing a key's home from a function, store the mapping explicitly in a directory service (the partition map). This is what fixed-partition systems effectively do, and it is the foundation of Bigtable/HBase (the META region maps key ranges to tablet servers) and Vitess (the topology + VSchema). The directory gives you maximum flexibility — arbitrary, non-algorithmic placement, and the ability to move any partition anywhere — at the cost of a lookup hop and a piece of critical, highly-available infrastructure. The directory must not be a single point of failure: it is replicated and aggressively cached on clients, with cache invalidation on map changes. Most production lookup paths are "client cache hit → go straight to the right node; on a stale-shard error, re-fetch the map."</p>
-
-<h3>Resharding a live system with zero downtime</h3>
-<p>The endgame: changing the partition map under production traffic. The proven playbook (used by Vitess resharding, MySQL-at-scale teams, and DynamoDB adaptive capacity) is a dual-write / backfill / cutover dance:</p>
+<h3 id="impl-dynamo">DynamoDB</h3>
 <ul>
-<li><b>1. Prepare</b> the new partitions and start <b>double-writing</b> — every write goes to both the old and new layout. The application now tolerates either map.</li>
-<li><b>2. Backfill</b> historical data from old to new partitions in the background, throttled to protect the live workload. Track a high-water mark.</li>
-<li><b>3. Verify</b> by comparing checksums/row counts between old and new for each key range; reconcile drift caused by races during backfill.</li>
-<li><b>4. Cutover reads</b> partition-by-partition, not all at once — flip the directory to point new reads at the new layout, one key range at a time, so you can roll back a single range if verification fails.</li>
-<li><b>5. Stop double-writing</b> and decommission the old partitions only after reads have been stable on the new map for a safe soak period.</li>
+<li><b>What it is.</b> AWS's managed key-value/wide-column store; sharding and rebalancing are fully hidden.</li>
+<li><b>Mapping.</b> Hash of the partition key to internal partitions; AWS auto-splits and rebalances (adaptive capacity) for you.</li>
+<li><b>Key strength.</b> You never operate the shard map; it absorbs hot partitions automatically up to limits.</li>
+<li><b>The failure to watch.</b> You must design the partition key and <span class="gl" data-def="Global Secondary Index — a DynamoDB index partitioned by a different key than the table; reads are fast but it's updated asynchronously and is eventually consistent.">GSIs</span> around your queries up front; an unplanned access pattern is expensive or impossible, and GSIs are eventually consistent.</li>
 </ul>
-<p>The non-obvious hard parts are <em>ordering and idempotency</em>: during double-write, a backfill read can race a live write and stomp newer data, so backfill must be idempotent and last-writer-wins by version/timestamp, and you should replay the change log (CDC / binlog) over the backfilled snapshot to catch in-flight mutations. Spanner and CockroachDB hide most of this behind transactional range splits, but if you are sharding MySQL or a key-value store yourself, you own this state machine.</p>
 
-<div class="seealso"><b>See also:</b> <a href="12.html">Consistent Hashing</a>, <a href="57.html">Key-Value Store</a>, <a href="37.html">Replication</a></div>
-</div>
+<h2 id="build">Build it yourself</h2>
+<p>Work each before opening the approach.</p>
 
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (31).png" alt="Data partitioning and sharding strategies" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A hand-drawn &#x27;DB Sharding&#x27; sheet showing partition strategies (vertical/horizontal) and sharding types: range-based, directory-based, key/hash-based. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2023-10-01 at 11.44.57 AM.jpg" alt="Database sharding strategies" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Text explaining three database sharding strategies: range-based, key/hash-based, and directory-based. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
-<style>
-.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
-.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
-.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+<h3 id="ex-map">Implement key&rarr;shard mapping three ways</h3>
+<p>Map a key to one of N shards using (a) <code>hash%N</code>, (b) a consistent-hash ring, (c) a fixed-partition table. For each, what happens to the key&rarr;shard mapping when you add one node?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>(a) <code>hash(key) % N</code>: O(1), zero state &mdash; but adding a node changes N, remapping ~(N&minus;1)/N of keys. (b) Consistent hash: place nodes (and vnodes) on a ring by hashing their IDs; a key belongs to the next node clockwise. Adding a node inserts it on the ring and steals only the arc between it and its predecessor &mdash; ~1/N of keys move. (c) Fixed partitions: <code>partition = hash(key) % P</code> with P fixed and large (e.g. 4096), plus a small table mapping partition&rarr;node. Adding a node reassigns some partitions (a table edit); keys never rehash. The lesson: decouple the logical partition (stable) from the physical node (scales).</p>
+</div></details>
 
-/* dark-mode overrides for inline pdeep/mastery (injected) */
-:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
-:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
-:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
-:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
-:root[data-theme="dark"] .pdeep th{background:#0f1318;}
-:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
-:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
-:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
-</style>
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed sharded / distributed SQL</td><td>Aurora, RDS (read replicas)</td><td>Cloud Spanner, AlloyDB</td><td>Azure SQL (Hyperscale), Cosmos DB</td></tr><tr><td>Managed sharded NoSQL</td><td>DynamoDB</td><td>Bigtable, Firestore</td><td>Cosmos DB</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="mastery">
-<h2>Principal-level mastery check</h2>
+<h3 id="ex-reshard">Design a zero-downtime reshard</h3>
+<p>You're moving from 4 shards to 8 under live traffic. Sketch the sequence that never drops a write and lets you roll back if verification fails.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Dual-write to old+new layouts so no write is lost during the move; backfill history old&rarr;new in the background, throttled, tracking a high-water mark; verify by checksumming row ranges and reconciling drift; cut reads over <i>one key range at a time</i> via the directory so a failed range rolls back alone; stop double-writing and retire old shards only after a soak. The two non-negotiables: double-write (no lost writes) and per-range cutover (reversible).</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
 <ul>
-<li>Why is <code>hash(key) % N</code> the classic wrong answer for shard placement? Walk through what happens when N goes from 8 to 9 nodes &mdash; what fraction of keys remap, why does that melt your cache and saturate the network, and how does <a href="12.html">consistent hashing</a> (with virtual nodes) reduce the churn to roughly 1/N?</li>
-<li>When would you pick <b>range partitioning</b> over <b>hash partitioning</b>, and vice versa? Be concrete: range gives you efficient scans (<code>WHERE ts BETWEEN ...</code>) but invites hot shards on monotonic keys; hash spreads load evenly but kills range queries. Which one does a time-series store want, and which one does a user-by-id lookup want?</li>
-<li>What exactly is the <b>hot-shard / celebrity</b> problem, and can you name three mitigations &mdash; salting/key-splitting the hot key into N sub-keys, isolating the hot tenant onto a dedicated shard, and adding a per-key cache or replica fan-out in front of it? What does each one cost you in read/write complexity?</li>
-<li>Contrast <b>local secondary indexes</b> (document-partitioned: index lives with its shard, so writes are cheap but reads scatter-gather across all shards) with <b>global secondary indexes</b> (term-partitioned: reads hit one shard but writes touch multiple). Why does DynamoDB's GSI being eventually consistent fall directly out of this trade-off?</li>
-<li>Can you describe how to <b>reshard a live system with zero downtime</b>? Lay out the dual-write phase, the backfill of historical data, and the cutover &mdash; and explain why the backfill must be idempotent and last-writer-wins by version, and why you replay the CDC/binlog over the snapshot to catch in-flight mutations.</li>
-<li>Why does a shard key, once chosen, become so hard to change &mdash; and how does that pressure your data model toward denormalization and choosing a key that co-locates the rows a single request needs (e.g. all of one customer's orders on one shard)?</li>
-<li>How do you keep <b>cross-shard transactions</b> correct? Why do most systems avoid distributed 2PC by designing the partition key so a logical transaction stays inside one shard, and what do you fall back to (sagas, outbox) when it genuinely cannot?</li>
-<li>Go deeper: <a href="12.html">12 Consistent Hashing</a></li>
+<li><b>Pick a shard key for a chat app.</b> Messages, by conversation or by user? What query gets expensive either way? &rarr; <a href="19.html">Messenger</a>.</li>
+<li><b>Handle a known hot tenant.</b> One enterprise customer is 100&times; the median. Keep them from starving everyone else. &rarr; <a href="04.html">Caching</a>, tenant isolation.</li>
+<li><b>Add search by a non-key attribute.</b> Your store is sharded by ID; product wants filter-by-status. Local or global index &mdash; defend the choice. &rarr; <a href="43.html">Elasticsearch</a>.</li>
 </ul>
-</div>
+
 <div class="navfoot"><a href="04.html">&lsaquo; Prev: Caching</a><a class="nx" href="06.html">Next: Indexes &rsaquo;</a></div>
 </div>
 </div>

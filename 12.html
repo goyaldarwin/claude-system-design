@@ -111,162 +111,125 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Consistent Hashing</div>
 <h1>Consistent Hashing</h1>
-<p class="sub"><em>How to distribute keys across a changing set of nodes so that adding or removing a node remaps only k/n keys instead of breaking every mapping.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Finite capacity.</b> <span>spreading keys across nodes that come and go costs a hashing scheme that limits reshuffling.</span></div>
-<div class="toc"><h4>In this lesson</h4>
+<p class="sub"><em>How do you spread keys across a changing set of nodes so that adding or removing one moves as few keys as possible? Plain <code>hash % N</code> remaps almost everything on a resize. Consistent hashing moves only ~1/N &mdash; at the cost of uneven load that you then have to smooth.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Minimal key movement on membership change in exchange for load imbalance you must engineer away.</b> <span>Mapping keys to a ring means adding/removing a node only disturbs its neighbors (~1/N of keys), not the whole keyspace. In return, random placement gives lumpy load &mdash; so you add virtual nodes and bounded loads to even it out.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Consistent Hashing</b>
+│
+├─ <a href="#root"><b>What consistent hashing is</b></a>  &mdash; keys + nodes on a ring
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+├─ <a href="#decisions"><b>It comes down to 3 refinements</b></a>  &mdash; each fixes a failure of the last
+│   ├─ <a href="#d1">1. The bare ring</a>            failure → <a href="#skew">random skew</a>
+│   ├─ <a href="#d2">2. Virtual nodes</a>            failure → <a href="#hotkey">hot key past vnodes</a>
+│   └─ <a href="#d3">3. Bounded loads / alternatives</a> failure → <a href="#vnode-availability">too many vnodes</a>
+├─ <a href="#decision-table"><b>The decision table</b></a>  &mdash; which variant to use
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; reconstruct the scenarios
+├─ <a href="#cloud"><b>Cloud services</b></a>  &mdash; where it ships
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; Dynamo/Cassandra, Maglev, jump hash
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; the ring, vnodes, design the rest
+</pre>
+</div>
+
+<h2 id="root">What consistent hashing is</h2>
+<p>Consistent hashing maps both <b>keys</b> and <b>nodes</b> onto the same circular hash space (say 0 to 2<sup>32</sup>&minus;1). To find a key's owner, hash the key to a point and walk clockwise to the first node you hit. The payoff is in what happens on a membership change:</p>
 <ul>
-  <li><a href="#what-is-consistent-hashing">What is Consistent Hashing?</a></li>
-  <li><a href="#how-it-works">How it works?</a></li>
-</ul></div>
-
-
-<p>Distributed Hash Table (DHT) is one of the fundamental component used in distributed scalable systems. Hash Tables need key, value and a hash function, where hash function maps the key to a location where the value is stored.</p>
-
-<p>Suppose we are designing a distributed caching system. Given &lsquo;n&rsquo; cache servers, an intuitive hash function would be &lsquo;key % n&rsquo;. It is simple and commonly used. But it has two major drawbacks:</p>
-
-<ol>
-<li>It is NOT horizontally scalable. Whenever a new cache host is added to the system, all existing mappings are broken. It will be a pain point in maintenance if the caching system contains lots of data. Practically it becomes difficult to schedule a downtime to update all caching mappings.</li>
-<li>It may NOT be load balanced, especially for non-uniformly distributed data. In practice, it can be easily assumed that the data will not be distributed uniformly. For the caching system, it translates into some caches becoming hot and saturated while the others idle and almost empty.</li>
-</ol>
-
-<p>In such situations, consistent hashing is a good way to improve the caching system.</p>
-
-<h2 id="what-is-consistent-hashing">What is Consistent Hashing?</h2>
-
-<p>Consistent hashing is a very useful strategy for distributed caching system and DHTs. It allows distributing data across a cluster in such a way that will minimize reorganization when nodes are added or removed. Hence, making the caching system easier to scale up or scale down.</p>
-
-<p>In Consistent Hashing when the hash table is resized (e.g. a new cache host is added to the system), only <strong>k/n</strong> keys need to be remapped, where <strong>k</strong> is the total number of keys and <strong>n</strong> is the total number of servers. Recall that in a caching system using the &lsquo;mod&rsquo; as the hash function, all keys need to be remapped.</p>
-
-<p>In consistent hashing objects are mapped to the same host if possible. When a host is removed from the system, the objects on that host are shared by other hosts; and when a new host is added, it takes its share from a few hosts without touching other&rsquo;s shares.</p>
-
-<h2 id="how-it-works">How it works?</h2>
-
-<p>As a typical hash function, consistent hashing maps a key to an integer. Suppose the output of the hash function is in the range of [0, 256). Imagine that the integers in the range are placed on a ring such that the values are wrapped around.</p>
-
-<p>Here&rsquo;s how consistent hashing works:</p>
-
-<ol>
-<li>Given a list of cache servers, hash them to integers in the range.</li>
-<li>To map a key to a server,
-<ul>
-<li>Hash it to a single integer.</li>
-<li>Move clockwise on the ring until finding the first cache it encounters.</li>
-<li>That cache is the one that contains the key. See animation below as an example: key1 maps to cache A; key2 maps to cache C.</li>
+<li><b>Add a node</b> &mdash; it lands somewhere on the ring and takes over only the arc between it and its predecessor. Just those keys move; everything else is untouched.</li>
+<li><b>Remove a node</b> &mdash; its keys fall to the next node clockwise. Only that node's keys move.</li>
 </ul>
-</li>
-</ol>
+<p>So a resize moves ~<b>k/N keys</b> (k = total keys, N = nodes), versus <code>hash % N</code> which remaps <i>nearly all</i> keys because the modulus changes. That's the whole reason it exists.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>The ring solves <i>key movement</i> but not <i>load balance</i> &mdash; randomly placed nodes own wildly different arc sizes. Everything below (vnodes, bounded loads) is the work of turning "few keys move" into "and the load is actually even."</div>
 
-<p>To add a new server, say D, keys that were originally residing at C will be split. Some of them will be shifted to D, while other keys will not be touched.</p>
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; adding the ninth cache node</span>
+You have 8 cache nodes mapped with <code>hash % 8</code>. You add a 9th. <b>What fraction of keys now resolve to a different node &mdash; and how does consistent hashing change that number?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the lumpy ring</span>
+You place each of 8 nodes at one random point on the ring. <b>Will the 8 arcs be roughly equal? What does that mean for load, and what happens to a departed node's entire arc?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; vnodes aren't enough</span>
+You've added virtual nodes, so arcs are even. But one <i>key</i> is extremely hot, and its node is now over capacity even though the ring is balanced. <b>How do you cap a node's load without re-hashing everything?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is why consistent hashing exists. Scenario 2 is <a href="#skew">random skew</a> (&rarr; vnodes). Scenario 3 is <a href="#hotkey">bounded loads</a>.</i></p>
 
-<p>To remove a cache or if a cache failed, say A, all keys that were originally mapping to A will fall into B, and only those keys need to be moved to B, other keys will not be affected.</p>
+<h2 id="decisions">It comes down to three refinements</h2>
+<p>Each refinement fixes a failure of the previous one &mdash; that's the cleanest way to understand consistent hashing.</p>
 
-<p>For load balancing, as we discussed in the beginning, the real data is essentially randomly distributed and thus may not be uniform. It may make the keys on caches unbalanced.</p>
+<h3 id="d1">Refinement 1 &mdash; The bare ring</h3>
+<p>Hash nodes to points on the ring; a key belongs to the first node clockwise. This already gives the headline property: adding/removing a node moves only ~1/N of keys (Scenario 1: going 8&rarr;9 nodes moves ~1/9 of keys, vs <code>hash%N</code> remapping ~89%).</p>
+<div class="callout warn"><span class="lbl" id="skew">The failure of the bare ring &mdash; random skew</span>
+This is <b>Scenario 2</b>. With N nodes at N random points, the arcs between them are <i>not</i> equal &mdash; the gaps follow an exponential-like distribution. The largest arc averages O(log N / N) of the ring while the mean is 1/N, so the heaviest node owns several times its fair share: empirically <b>&plusmn;30&ndash;40% imbalance</b> with one point per node. Worse, removing a node dumps its <i>entire</i> arc onto a single successor &mdash; a hot-spot, not a smear. The fix is the next refinement.</div>
 
-<p>To handle this issue, we add &ldquo;virtual replicas&rdquo; for caches. Instead of mapping each cache to a single point on the ring, we map it to multiple points on the ring, i.e. replicas. This way, each cache is associated with multiple portions of the ring.</p>
+<h3 id="d2">Refinement 2 &mdash; Virtual nodes (vnodes)</h3>
+<p>Place each physical node at <i>many</i> points (tokens) on the ring. With V tokens per node, each node's load is the sum of V independent arcs, and by concentration the relative imbalance shrinks as ~<b>1/&radic;V</b> &mdash; so V &asymp; 100&ndash;200 brings imbalance down to roughly <b>&plusmn;5%</b>. Two bonuses: <b>heterogeneity for free</b> (a 2&times;-capacity machine gets 2&times; the tokens), and <b>smooth rebalancing</b> (a departing node's V arcs spread across V successors, not one).</p>
+<div class="callout warn"><span class="lbl" id="vnode-availability">The failure of too many vnodes &mdash; availability math</span>
+"More vnodes is always better" is wrong. With more tokens per node, each node shares replica responsibility with more peers &mdash; so past a point, a multi-node failure is likelier to wipe out <i>all</i> replicas of some token range. This is why Cassandra historically defaulted to <code>num_tokens=256</code>, then lowered the recommendation to <b>16</b> (with allocation-aware token selection): high V hurt streaming, repair, and the availability math. Token <i>allocation strategy</i> matters as much as the count.</div>
 
-<p>If the hash function is &ldquo;mixes well,&rdquo; as the number of replicas increases, the keys will be more balanced.</p>
-
-<style>
-.pdeep{max-width:820px;margin:40px auto;padding:32px 40px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1a1d24;line-height:1.7;font-size:16px;}
-.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
-.pdeep h2{font-size:22px;margin:0 0 8px;border:0;}
-.pdeep h3{font-size:17px;margin:22px 0 6px;}
-.pdeep p{margin:0 0 14px;}
-.pdeep ul{margin:0 0 14px;padding-left:24px;} .pdeep li{margin:0 0 7px;}
-.pdeep code{background:#f5f6f8;color:#b3306b;padding:2px 6px;border-radius:4px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;}
-.pdeep a{color:#2d6cdf;text-decoration:none;} .pdeep a:hover{text-decoration:underline;}
-.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
-.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
-.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;} .pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;vertical-align:top;} .pdeep th{background:#f6f8fa;}
-.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
-</style>
-<div class="pdeep">
-<span class="tag">Principal-level deep dive</span>
-<h2>Virtual nodes, bounded loads, and real-world usage</h2>
-
-<p>The classic ring picture — hash each node to one point on a 0..2<sup>32</sup>-1 circle, walk clockwise to find the owner — is the right mental model but a misleading production model. With <code>N</code> physical nodes placed at <code>N</code> random points, the gaps between consecutive points follow an exponential-like distribution. The largest arc is on average <code>O(log N / N)</code> of the ring while the expected arc is <code>1/N</code>, so the heaviest node can own several times the mean. With one point per node you see load imbalance on the order of ±30–40%, and removing a node dumps its <em>entire</em> arc onto a single successor (a hot-spot, not a smear).</p>
-
-<h3>Virtual nodes (vnodes): smoothing by oversampling</h3>
-<p>The fix is to place each physical node at many points. If each of <code>N</code> machines owns <code>V</code> tokens (vnodes), the ring has <code>N·V</code> points and each physical node's total load is the sum of <code>V</code> independent arcs. By concentration, the relative standard deviation of per-node load shrinks as <code>~1/√V</code>. The classic result: with <code>V ≈ 100–200</code> vnodes per node you bound the imbalance to roughly ±5%.</p>
+<h3 id="d3">Refinement 3 &mdash; Bounded loads (and ring-free alternatives)</h3>
+<p>Vnodes even out <i>arcs</i>, but assume keys are uniform. Real workloads have hot keys, so a node can still exceed capacity.</p>
+<div class="callout warn"><span class="lbl" id="hotkey">The failure vnodes don't fix &mdash; the hot key over capacity</span>
+This is <b>Scenario 3</b>. <b>Consistent Hashing with Bounded Loads</b> (Mirrokni, Thorup, Zadimoghaddam &mdash; Google, 2017) adds a hard cap: with total load L over n nodes, set capacity <code>c = &lceil;(1+&epsilon;)&middot;L/n&rceil;</code>. A key hashes to its ideal node as usual; if that node is full, walk forward to the next with room. The theorem guarantees no node exceeds (1+&epsilon;)&times; the average, while only O(1/&epsilon;&sup2;) keys relocate per insert/delete &mdash; so a small &epsilon; (e.g. 0.25) buys a tight cap at modest movement. Vimeo's groupcache balancer and HAProxy's bounded-load mode use exactly this.</div>
+<p>Two ring-free alternatives worth knowing:</p>
 <ul>
-<li><b>Heterogeneity for free:</b> a machine with 2× the capacity simply gets 2× the tokens. Weighting is just token-count assignment.</li>
-<li><b>Smooth rebalancing:</b> removing a node redistributes its <code>V</code> arcs across <code>V</code> different successors instead of one, so no single neighbor inherits the whole load. This is the property that makes online membership changes survivable.</li>
-<li><b>Cost:</b> a larger token map to store and binary-search, and more metadata to gossip. Cassandra historically defaulted to <code>num_tokens=256</code>, then lowered the recommendation to <code>16</code> (with allocation-aware token selection) precisely because high <code>V</code> hurt streaming, repair, and availability math.</li>
+<li><b>Rendezvous (HRW) hashing</b> &mdash; for each key, compute <code>hash(key, node)</code> for every node and pick the highest. No ring to store; naturally weighted; O(N) per lookup (fine for small N).</li>
+<li><b>Jump consistent hash</b> &mdash; a tiny, fast function mapping a key to one of N buckets with minimal movement when N grows &mdash; but only supports adding/removing the <i>last</i> bucket, so it fits sharding where you never remove arbitrary nodes.</li>
 </ul>
 
-<div class="box"><b>Why V trades against availability</b>With more vnodes per node, any given node shares replica responsibility with more peers. Past a point, a multi-node failure is more likely to take out all replicas of <em>some</em> token range. This is why "more vnodes is always better" is wrong — token allocation strategy matters as much as the count.</div>
-
-<h3>Consistent hashing with bounded loads (Google, 2017)</h3>
-<p>Vnodes reduce variance but assume keys are uniform. Real workloads have hot keys and churn, so a node can still exceed capacity. <em>Consistent Hashing with Bounded Loads</em> (Mirrokni, Thorup, Zadimoghaddam) adds a hard cap: given total load <code>L</code> and <code>n</code> bins, set capacity <code>c = ⌈(1+ε)·L/n⌉</code>. A key hashes to its ideal node as usual, but if that node is already at capacity, you walk forward to the next node with spare room. The theorem guarantees no node exceeds <code>(1+ε)</code> times the average while the expected number of keys that need relocation on an insert/delete is <code>O(1/ε²)</code> — so a small <code>ε</code> (say 0.25) buys a tight cap at modest movement cost. Vimeo's <code>groupcache</code>-style balancer and HAProxy's bounded-load mode use exactly this.</p>
-
-<h3>Rendezvous (HRW) hashing — the no-ring alternative</h3>
-<p>Highest Random Weight hashing skips the ring entirely. For key <code>k</code>, compute <code>w(k, s) = hash(k, s)</code> for every server <code>s</code> and pick the <code>argmax</code>. Properties:</p>
-<ul>
-<li>Minimal disruption: adding/removing a server only reassigns the keys for which that server was (or becomes) the max — exactly <code>1/n</code> of keys move, the same guarantee as consistent hashing.</li>
-<li>No vnodes needed for balance; the max-of-uniform distribution is naturally even. Weighting uses the weighted-HRW formula <code>-weight / ln(uniform_hash)</code>.</li>
-<li>Cost is <code>O(n)</code> per lookup vs. <code>O(log n)</code> for a sorted ring — fine for tens/hundreds of backends (CARP, many CDN/cache tiers), worse for thousands. Skeleton/hierarchical HRW restores <code>O(log n)</code>.</li>
-</ul>
-
+<h2 id="decision-table">The decision table &mdash; which variant</h2>
 <table>
-<tr><th>Scheme</th><th>Lookup</th><th>Keys moved on change</th><th>Balance mechanism</th></tr>
-<tr><td>Naive ring</td><td>O(log n)</td><td>1/n (onto one successor)</td><td>poor (±30%+)</td></tr>
-<tr><td>Ring + vnodes</td><td>O(log n)</td><td>1/n (spread over V peers)</td><td>~1/√V std dev</td></tr>
-<tr><td>Bounded loads</td><td>O(log n) + probe</td><td>O(1/ε²) per op</td><td>hard (1+ε) cap</td></tr>
-<tr><td>Rendezvous (HRW)</td><td>O(n)</td><td>1/n</td><td>natural argmax</td></tr>
-<tr><td>Jump hash</td><td>O(log n) compute</td><td>1/n</td><td>natural, no storage</td></tr>
+<tr><th>Situation</th><th>Use</th><th>Why</th></tr>
+<tr><td>Distributed cache / DHT, churn</td><td>Ring + vnodes</td><td>Minimal movement, even load, weighting</td></tr>
+<tr><td>Hot keys exceed node capacity</td><td>Bounded loads</td><td>Hard cap with O(1/&epsilon;&sup2;) movement</td></tr>
+<tr><td>Small N, want no ring state</td><td>Rendezvous (HRW)</td><td>Simple, weighted, no token map</td></tr>
+<tr><td>Shard count only grows</td><td>Jump hash</td><td>Tiny, fast, minimal movement</td></tr>
+<tr><td>L4 load balancing at scale</td><td>Maglev</td><td>Even + minimal disruption, lookup-table fast</td></tr>
 </table>
 
-<h3>Replica placement and the preference list</h3>
-<p>In Dynamo/Cassandra, the coordinator for key <code>k</code> is its ring successor, and the next <code>RF-1</code> distinct <em>physical</em> nodes walking clockwise form the <b>preference list</b>. Two subtleties a principal must get right: (1) skip vnodes that map back to a physical node already in the list, so all <code>RF</code> replicas live on distinct machines; (2) make the preference list <em>rack/AZ-aware</em> (Cassandra's <code>NetworkTopologyStrategy</code>) so replicas don't all land in one failure domain. During a transient failure, writes go to the next healthy node as a <b>hinted handoff</b> and are replayed when the owner returns — this is the availability lever, paired with anti-entropy repair to fix what hints miss.</p>
-
-<h3>Jump consistent hash — when you never delete arbitrary nodes</h3>
-<p>Google's jump hash (Lamping &amp; Veach) maps <code>(key, num_buckets)</code> to a bucket in <code>~ln(num_buckets)</code> arithmetic steps with <strong>zero storage</strong> and near-perfect balance. The catch: it only supports buckets numbered <code>0..n-1</code>, so you can shrink/grow at the <em>tail</em> but cannot remove bucket 17 out of 100 without remapping. That makes it ideal for sharded storage where shard count changes by resizing the whole set (e.g., a fixed shard map, or a stateless cache where you accept reshuffling), and unsuitable for a fluid membership of named, independently-failing servers.</p>
-
-<h3>Where each actually ships</h3>
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
 <ul>
-<li><b>Dynamo / Cassandra / Riak / ScyllaDB:</b> ring + vnodes + preference-list replication, gossip-propagated token map.</li>
-<li><b>Memcached / Redis clients:</b> client-side consistent hashing (ketama uses 160 points per server with MD5) so adding a cache node invalidates only <code>1/n</code> of entries instead of the whole cache. Redis Cluster itself uses 16384 fixed hash slots — explicit slot assignment rather than a hash ring, which is effectively bounded, manually-rebalanced sharding.</li>
-<li><b>Load balancers:</b> HAProxy/Envoy/Maglev. Google's Maglev uses a permutation-based lookup table for even split <em>and</em> connection stickiness; Envoy ships both ring-hash and Maglev plus the bounded-load cap.</li>
-<li><b>CDN request routing:</b> consistent hashing on the cache-key keeps a given object pinned to the same edge cache to maximize hit rate while tolerating PoP changes.</li>
+<li><b>Scenario 1:</b> Why does <code>hash%N</code> remap ~89% of keys on 8&rarr;9, and why does the ring move only ~1/N?</li>
+<li><b>Scenario 2:</b> Why is a one-point-per-node ring skewed by &plusmn;30&ndash;40%, and how do vnodes (and the 1/&radic;V law) fix it?</li>
+<li><b>Scenario 3:</b> Why don't vnodes fix a hot <i>key</i>, and how do bounded loads cap a node with little movement?</li>
+<li>Why is "more vnodes is always better" wrong (the availability trade-off)?</li>
+<li>When would you reach for rendezvous or jump hash instead of a ring?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> consistent hashing is <b>3 refinements</b> &mdash; <a href="#d1">the bare ring</a> (fixes resize movement), <a href="#d2">vnodes</a> (fix random skew), <a href="#d3">bounded loads</a> (fix hot keys) &mdash; each solving the previous one's failure.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="05.html">Sharding</a>, <a href="04.html">Caching</a>, <a href="03.html">Load Balancing</a> (Maglev), <a href="57.html">Key-Value Store</a> (Dynamo ring).</p>
+
+<h2 id="cloud">Cloud services &mdash; where it ships</h2>
+<p>Consistent hashing is usually <i>inside</i> a managed store rather than a standalone service:</p>
+<table>
+<tr><th>Where it's used</th><th>Examples</th></tr>
+<tr><td>Managed wide-column (ring)</td><td>AWS Keyspaces, GCP Bigtable, Azure Cosmos (Cassandra API)</td></tr>
+<tr><td>Managed cache cluster</td><td>ElastiCache, Memorystore, Azure Cache for Redis (client-side hashing)</td></tr>
+<tr><td>L4 load balancing (Maglev-style)</td><td>Google Cloud Load Balancing</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-dynamo">Dynamo / Cassandra / Riak (ring + vnodes)</h3>
+<ul><li><b>What it is.</b> The canonical ring with virtual nodes; the basis of the Dynamo lineage.</li><li><b>Key idea.</b> Vnodes for even load + weighting; the key's ring position also defines its replica set (the next R nodes clockwise &mdash; the "preference list").</li><li><b>The failure to watch.</b> Token count vs availability (Cassandra 256&rarr;16); a hot key still needs bounded loads or caching.</li></ul>
+<h3 id="impl-maglev">Maglev (Google L4 LB)</h3>
+<ul><li><b>What it is.</b> Google's consistent-hashing scheme for load balancers, building a lookup table.</li><li><b>Key idea.</b> Near-perfect even distribution + minimal disruption on membership change, with O(1) table lookups &mdash; built for thousands of LB nodes agreeing without coordination.</li><li><b>The failure to watch.</b> Table rebuild cost on large membership changes; tuned for the LB use case.</li></ul>
+<h3 id="impl-jump">Jump consistent hash</h3>
+<ul><li><b>What it is.</b> A ~5-line function mapping a key to one of N buckets (Google, 2014).</li><li><b>Key idea.</b> No memory, very fast, minimal movement as N grows.</li><li><b>The failure to watch.</b> Can only add/remove the <i>last</i> bucket &mdash; no arbitrary node removal, so it fits fixed/growing shard sets, not churny caches.</li></ul>
+
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-ring">Implement the ring with virtual nodes</h3>
+<p>Build a structure that maps a key to a node, supports add/remove node, and keeps load even. What do you store, how do you look up, and how do vnodes plug in?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Keep a sorted structure (e.g. a tree / sorted array) of ring positions &rarr; node. For each physical node, insert V tokens: <code>hash(node + "#" + i)</code> for i in 0..V. Lookup: hash the key, binary-search for the first token &ge; that position (wrapping to the first if past the end), return its node &mdash; O(log(N&middot;V)). Add a node: insert its V tokens (only keys in those arcs move). Remove: delete its tokens (its keys fall to successors). Tune V ~100&ndash;200 for &plusmn;5% balance; weight a bigger machine by giving it more tokens. That's the whole production data structure.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
+<ul>
+<li><b>Add bounded loads.</b> Extend your ring so no node exceeds (1+&epsilon;)&times; average; what do you check on each placement? &rarr; Refinement 3.</li>
+<li><b>Pick a scheme for a growing shard set.</b> You only ever add shards, never remove. Ring, jump hash, or rendezvous? &rarr; decision table.</li>
 </ul>
 
-<div class="seealso"><b>See also:</b> <a href="57.html">Key-Value Store</a>, <a href="55.html">Distributed Cache</a>, <a href="34.html">Anti-Entropy &amp; Gossip</a></div>
-</div>
-
-<style>
-.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
-.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
-.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
-
-/* dark-mode overrides for inline pdeep/mastery (injected) */
-:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
-:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
-:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
-:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
-:root[data-theme="dark"] .pdeep th{background:#0f1318;}
-:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
-:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
-:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
-</style>
-<div class="mastery">
-<h2>Principal-level mastery check</h2>
-<ul>
-<li>With plain <code>hash(key) % N</code>, why does bumping <em>N</em> from 4 to 5 remap roughly 4/5 of all keys instead of just 1/5 &mdash; and why is that catastrophic for a cache cluster (thundering-herd misses to the origin)?</li>
-<li>Why does the basic hash ring only move <em>K/N</em> keys when a node joins or leaves, and exactly <em>which</em> keys move (those between the new node and its predecessor on the ring)?</li>
-<li>Without virtual nodes, why does a single physical node added to a 3-node ring tend to land badly (one node can own ~50% of the keyspace), and how do 100&ndash;200 vnodes per server drive the variance down toward an even split?</li>
-<li>How does the bounded-load variant (Mirrokni/Thorup/Zadimoghaddam &mdash; used by Google's load balancers) cap any node at <code>(1+&epsilon;)&middot;average</code> by walking forward on the ring to the next under-capacity node, and what does it trade away (some keys no longer land on their "natural" owner)?</li>
-<li>Why does Dynamo/Cassandra layer a replication factor on top of the ring by walking the next <em>RF</em> distinct physical nodes clockwise, rather than just storing one copy at the primary owner?</li>
-<li>Can you explain why Maglev hashing (permutation lookup table) is preferred over a literal ring for L4 load balancers &mdash; constant-time O(1) lookup, near-perfect even split, and minimal disruption when a backend drops?</li>
-<li>When would you reach for rendezvous (HRW) hashing instead of a ring, and why does it avoid storing/maintaining ring state at the cost of O(N) hashing per lookup?</li>
-<li>Go deeper: <a href="57.html">55 Key-Value Store</a></li>
-</ul>
-</div>
-<div class="navfoot"><a href="11.html">&lsaquo; Prev: CAP Theorem</a><a class="nx" href="13.html">Next: Long-Polling vs WebSockets vs Server-Sent Events &rsaquo;</a></div>
+<div class="navfoot"><a href="11.html">&lsaquo; Prev: CAP Theorem</a><a class="nx" href="13.html">Next: Long-Polling vs WebSockets vs SSE &rsaquo;</a></div>
 </div>
 </div>
 </div>

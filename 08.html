@@ -111,141 +111,144 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Queues</div>
 <h1>Queues</h1>
-<p class="sub"><em>Message queues for asynchronous, decoupled communication — plus modern delivery semantics, logs, and backpressure.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency.</b> <span>decoupling work asynchronously hides the slow path, paying in eventual processing and delivery complexity.</span></div>
-<div class="toc"><h4>In this lesson</h4>
+<p class="sub"><em>A queue decouples a producer from a consumer: the producer drops work and moves on, the consumer takes it when ready. You buy elasticity, resilience, and smoothing of spikes &mdash; and you pay in eventual consistency, ordering headaches, and a new failure mode where the queue silently grows until something dies.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Decoupling and spike-absorption in exchange for async complexity and a backlog that can grow unbounded.</b> <span>Putting a buffer between producer and consumer lets each scale and fail independently and absorbs bursts. In return the work is now asynchronous (eventual, out-of-order, maybe-duplicated), and an unbounded backlog is a real way to take the system down.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Queues</b>
+│
+├─ <a href="#root"><b>What a queue is</b></a>  &mdash; a buffer that decouples
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+├─ <a href="#decisions"><b>A queue is 4 decisions</b></a>  &mdash; each wrong choice has a failure
+│   ├─ <a href="#d1">1. Queue or log? (delete vs retain)</a>  failure → <a href="#cantreplay">can't replay</a>
+│   ├─ <a href="#d2">2. Delivery semantics?</a>                failure → <a href="#dupes">duplicate processing</a>
+│   ├─ <a href="#d3">3. Ordering?</a>                          failure → <a href="#disorder">out-of-order effects</a>
+│   └─ <a href="#d4">4. What happens under overload?</a>      failure → <a href="#backlog">unbounded backlog (OOM)</a>
+├─ <a href="#decision-table"><b>The decision table</b></a>  &mdash; queue vs log, by need
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; reconstruct the scenarios
+├─ <a href="#cloud"><b>Cloud services</b></a>  &mdash; managed queues &amp; logs
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; SQS, RabbitMQ, Kafka
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; idempotency, backpressure, design the rest
+</pre>
+</div>
+
+<h2 id="root">What a queue is</h2>
+<p>A queue sits between a <b>producer</b> (who creates work) and a <b>consumer</b> (who does it). The producer appends a message and returns immediately; the consumer pulls messages and processes them at its own pace. That single buffer buys a lot:</p>
 <ul>
-  <li><a href="#1-why-queues-exist">Why queues exist</a></li>
-  <li><a href="#2-the-mechanics-producers-consumers-and-ordering">The mechanics: producers, consumers, and ordering</a></li>
-  <li><a href="#3-what-queues-buy-you">What queues buy you</a></li>
-  <li><a href="#4-common-systems">Common systems</a></li>
-  <li><a href="#5-delivery-guarantees-at-a-high-level">Delivery guarantees, at a high level</a></li>
+<li><b>Decoupling</b> &mdash; producer and consumer scale, deploy, and fail independently.</li>
+<li><b>Spike absorption</b> &mdash; a burst of work queues up instead of overwhelming the consumer.</li>
+<li><b>Resilience</b> &mdash; if the consumer is down, work waits rather than being lost.</li>
+<li><b>Load leveling</b> &mdash; consumers process at a steady rate regardless of bursty input.</li>
+</ul>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>A queue doesn't make work disappear &mdash; it <i>delays</i> it. That's its power (smooth the spike) and its danger: if consumers can't keep up <i>on average</i>, the backlog grows without bound. A queue absorbs bursts, not sustained overload.</div>
+
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the consumer falls behind forever</span>
+Your service runs 200 workers pulling from an in-memory queue, writing to a database. The database slows down. Producers keep sending at the same rate. <b>What happens to the queue over the next ten minutes, and how does this end?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the payment processed twice</span>
+A consumer pulls a "charge card" message, charges the card, then crashes <i>before</i> acknowledging it. The queue redelivers the message to another worker. <b>What just happened to the customer, and how do you prevent it without a perfect "exactly-once" guarantee that doesn't really exist?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the events arrive out of order</span>
+You emit "account created" then "account deleted." With multiple consumers/partitions, the delete is processed before the create. <b>Why did ordering break, and what does guaranteeing order cost you?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#backlog">unbounded backlog</a>. Scenario 2 is <a href="#dupes">delivery semantics</a> (and idempotency). Scenario 3 is <a href="#disorder">ordering</a>.</i></p>
+
+<h2 id="decisions">A queue is defined by four decisions</h2>
+
+<h3 id="d1">Decision 1 &mdash; Queue or log? (delete-on-ack vs retain-and-replay)</h3>
+<p>Two fundamentally different models share the word "queue":</p>
+<ul>
+<li><b>Broker / queue (delete-on-ack)</b> &mdash; a message is delivered to one consumer and <i>deleted</i> once acknowledged. Work-distribution semantics; once consumed, it's gone. (SQS, RabbitMQ.)</li>
+<li><b>Commit log (retain &amp; replay)</b> &mdash; messages are appended to an ordered, durable log and <i>retained</i>; consumers track their own offset and can replay from any point. Many independent consumers can read the same stream. (Kafka, Kinesis &mdash; see <a href="39.html">Kafka &amp; Log Messaging</a>.)</li>
+</ul>
+<div class="callout warn"><span class="lbl" id="cantreplay">The failure that happens when you get this wrong &mdash; you can't replay</span>
+Pick a delete-on-ack broker for an event stream that a <i>new</i> consumer (a fresh analytics job, a rebuilt cache) needs to read from the beginning, and you're stuck &mdash; the data is gone the moment the first consumer acked it. If you need multiple independent readers, replay after a bug, or to re-derive state, you need a <b>log</b>, not a queue. Conversely, using a log for simple work-distribution adds offset-management overhead you didn't need.</div>
+
+<h3 id="d2">Decision 2 &mdash; Delivery semantics</h3>
+<p>Three guarantees, and one of them is mostly a myth:</p>
+<ul>
+<li><b>At-most-once</b> &mdash; deliver and don't retry; messages can be lost. Rarely what you want.</li>
+<li><b>At-least-once</b> &mdash; retry until acked; messages are never lost but <i>can be duplicated</i> (the default for most queues).</li>
+<li><b>Exactly-once</b> &mdash; the holy grail, and largely a misnomer: true end-to-end exactly-once <i>delivery</i> is impossible across a network. What systems actually provide is exactly-once <i>processing</i> via at-least-once delivery + <b>idempotent</b> consumers (or transactional offset commits, as Kafka does within its boundary).</li>
+</ul>
+<div class="callout warn"><span class="lbl" id="dupes">The failure that happens when you get this wrong &mdash; duplicate processing</span>
+This is <b>Scenario 2</b>. Under at-least-once (the norm), a consumer that does work then crashes before acking will see the message <i>redelivered</i> &mdash; so the card gets charged twice. You can't wish this away with an "exactly-once" checkbox. The real fix is <b>idempotency</b>: give each message a unique ID and make processing safe to repeat (record "charge 12345 done"; on redelivery, see it's done and skip). Design every at-least-once consumer to tolerate duplicates.</div>
+
+<h3 id="d3">Decision 3 &mdash; Ordering</h3>
+<p>Strict global ordering and high throughput are in tension. A single consumer preserves order but can't scale; multiple consumers (or partitions) scale but interleave. The usual compromise is <b>per-key ordering</b>: messages with the same key (e.g. same account) go to the same partition and stay ordered, while different keys process in parallel.</p>
+<div class="callout warn"><span class="lbl" id="disorder">The failure that happens when you get this wrong &mdash; out-of-order effects</span>
+This is <b>Scenario 3</b>. Spread related events across partitions/consumers and "delete" can be processed before "create" &mdash; corrupting state. Global ordering would fix it but forces a single consumer (no parallelism). The pragmatic answer: <b>partition by the entity key</b> so all events for one account are ordered, and let unrelated accounts run concurrently. Guaranteeing order always costs throughput &mdash; buy only as much ordering as the domain needs.</div>
+
+<h3 id="d4">Decision 4 &mdash; What happens under sustained overload?</h3>
+<p>A queue smooths bursts, but if consumers can't keep up <i>on average</i>, the backlog grows. You must decide what happens then &mdash; before it happens.</p>
+<div class="callout warn"><span class="lbl" id="backlog">The failure that happens when you get this wrong &mdash; the unbounded backlog (OOM)</span>
+This is <b>Scenario 1</b>. An unbounded queue <i>absorbs</i> backpressure instead of <i>enforcing</i> it: producers keep sending, the queue grows, and either memory exhausts (an in-memory queue or a RabbitMQ with no <code>x-max-length</code> will accept messages until the broker OOMs and crashes) or latency balloons past usefulness. A documented pattern: 200 workers on an unbounded queue, the database slows, tasks pile up, retries amplify the load, and 503s hit the gateway within ~12 minutes. The fixes:
+<ul style="margin-top:8px">
+<li><b>Bound the queue</b> and apply <b>backpressure</b> &mdash; reject or slow producers when full (a full queue should push back, not swallow).</li>
+<li><b>Consumer-lag-driven autoscaling</b> &mdash; scale consumers on queue depth / message age; if lag crosses a threshold, shed or throttle ingress.</li>
+<li><b>Dead-letter queue (DLQ)</b> &mdash; route messages that repeatedly fail (poison messages) aside so one bad message doesn't block the line.</li>
+<li><b>Retry with backoff + jitter</b> &mdash; so retries don't synchronize into a storm.</li>
 </ul></div>
 
-
-<h2 id="1-why-queues-exist">Why queues exist</h2>
-<p>Most large systems contain work that does <span class="key">not</span> need to happen synchronously within the user's request. When a user uploads a photo, they want an immediate "upload complete" response — they do not want to wait while the server generates thumbnails, runs content moderation, extracts EXIF data, and updates ten denormalized feeds. A <span class="key">message queue</span> lets the request handler do the minimum needed to respond, then hand off the heavy work to be processed later by separate workers.</p>
-<p>A queue is fundamentally a buffer that sits between a <span class="key">producer</span> (the sender that creates work) and a <span class="key">consumer</span> (the receiver that processes it). The defining property is that the two sides do <em>not</em> have to be online or available at the same time. The producer appends a message and moves on; the message is held durably until a consumer is ready to read and process it. This <span class="key">temporal decoupling</span> is what makes queues so powerful in distributed systems.</p>
-<div class="callout note"><span class="lbl">Key insight</span> A queue converts a <em>synchronous, tightly-coupled</em> interaction into an <em>asynchronous, loosely-coupled</em> one. The producer's latency and availability are no longer bound to the consumer's. That single property is the source of nearly every benefit below.</div>
-
-<h2 id="2-the-mechanics-producers-consumers-and-ordering">The mechanics: producers, consumers, and ordering</h2>
-<p>The classic mental model is a FIFO line: producers add messages to the <span class="key">tail</span> of the queue, and consumers read from the <span class="key">head</span>. Each message typically carries a payload plus metadata (an ID, timestamp, retry count, and routing info). The broker — the server process that owns the queue — is responsible for storing messages durably and handing them out to consumers.</p>
-<p>A typical lifecycle looks like this:</p>
-<ol>
-<li>Producer publishes a message to the broker. The broker persists it (often to disk) and acknowledges receipt to the producer.</li>
-<li>A consumer requests (or is pushed) the next available message.</li>
-<li>The consumer processes the message — resize the image, send the email, update the index.</li>
-<li>The consumer sends an <span class="key">acknowledgement (ack)</span> back to the broker, signalling success. The broker then removes the message.</li>
-<li>If the consumer crashes before acking (or sends a negative ack), the broker makes the message available again so another consumer can retry it.</li>
-</ol>
-<p>To prevent two consumers from grabbing the same message, traditional brokers use a <span class="key">visibility timeout</span> (or an exclusive in-flight lock): once a message is handed to a consumer, it is hidden from others for a window. If the consumer acks within that window, the message is deleted; if it does not, the message reappears for redelivery.</p>
-
-<h2 id="3-what-queues-buy-you">What queues buy you</h2>
-<ul>
-<li><span class="key">Decoupling services.</span> The producer only needs to know the queue exists, not who consumes from it or how many consumers there are. You can add, remove, or rewrite consumers without touching the producer.</li>
-<li><span class="key">Load leveling / buffering.</span> If traffic spikes to 10,000 requests/second but your workers can only process 2,000/second, a synchronous system would topple over. A queue absorbs the spike — it fills up, and workers drain it at their own sustainable pace. The queue acts as a shock absorber.</li>
-<li><span class="key">Asynchronous work.</span> Long-running or non-urgent tasks (image processing after upload, sending notification emails, generating reports) are pushed to the queue so the user-facing path stays fast.</li>
-<li><span class="key">Batching.</span> Consumers can pull many messages at once and process them together — e.g., one bulk database write instead of a thousand individual ones.</li>
-<li><span class="key">Reliable delivery.</span> Because messages are persisted and only deleted after a successful ack, a consumer crash does not lose work. The message is simply retried.</li>
-<li><span class="key">Independent scaling.</span> Producers and consumers scale separately. Add more consumer workers to drain a growing backlog without changing the producing side at all.</li>
-</ul>
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They reach for a queue when they spot a step that is <em>slow, spiky, or not needed for the response</em> — and they explicitly call out that the queue trades immediate consistency for throughput and resilience. They also name the failure mode they are protecting against (worker crash, downstream outage, traffic burst), not just "we'll use a queue."</div>
-
-<h2 id="4-common-systems">Common systems</h2>
-<p>You should be able to name and roughly differentiate the major options:</p>
-<ul>
-<li><span class="key">RabbitMQ</span> — a mature, feature-rich broker built on the AMQP protocol. Strong routing (exchanges, bindings), flexible delivery, delete-on-ack semantics.</li>
-<li><span class="key">ActiveMQ</span> — a JMS-based broker, common in Java/enterprise environments.</li>
-<li><span class="key">AWS SQS</span> — a fully managed, serverless queue. Standard queues (high throughput, at-least-once, best-effort ordering) and FIFO queues (strict ordering, exactly-once <em>processing</em> within a dedup window).</li>
-<li><span class="key">Apache Kafka</span> — technically a distributed <em>commit log</em>, not a traditional queue. Messages are retained and can be replayed by many independent consumer groups. Excellent for streaming, event sourcing, and high-throughput pipelines. (Covered in depth in lesson 39.)</li>
-</ul>
-
-<h2 id="5-delivery-guarantees-at-a-high-level">Delivery guarantees, at a high level</h2>
-<p>No distributed messaging system can simultaneously guarantee that every message is delivered <em>exactly once</em> with zero overhead — the network can drop acks, consumers can crash mid-process, and brokers can fail over. So systems offer a spectrum of guarantees:</p>
-<ul>
-<li><span class="key">At-most-once.</span> A message is delivered zero or one times. The broker does not retry, so a lost message stays lost — but you never see duplicates. Acceptable for low-value, high-volume data like metrics samples where a dropped point is harmless.</li>
-<li><span class="key">At-least-once.</span> A message is delivered one <em>or more</em> times. The broker retries until it gets an ack, so nothing is lost — but a slow ack or a crash after processing but before acking causes <em>duplicates</em>. This is the most common default. The consumer must be prepared to handle the same message twice.</li>
-</ul>
-<div class="callout warn"><span class="lbl">The duplicate trap</span> With at-least-once delivery (the realistic default), your consumers <em>will</em> occasionally see the same message twice. If processing is not idempotent — say, "charge the customer $50" or "increment a counter" — duplicates corrupt your data. Always assume redelivery is possible and design the consumer to tolerate it.</div>
-
-<div class="clarify">In practice, when you introduce a queue, pre-empt the obvious follow-up: "I'll assume at-least-once delivery, so the consumer must be idempotent — I'll key writes on a request ID so a redelivered message is a no-op." Saying this unprompted signals seniority.</div>
-
-<div class="pdeep">
-<style>.pdeep{max-width:820px;margin:40px auto;padding:32px 40px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}.pdeep h2{font-size:22px;margin:0 0 8px;border:0;}.pdeep h3{font-size:17px;margin:22px 0 6px;}.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}.pdeep th{background:#f6f8fa;}.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
-/* dark-mode overrides for inline pdeep/mastery (injected) */
-:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
-:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
-:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
-:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
-:root[data-theme="dark"] .pdeep th{background:#0f1318;}
-:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
-:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
-:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
-</style>
-<span class="tag">Principal-level deep dive</span>
-<h2>Queues vs logs, delivery semantics, and backpressure</h2>
-
-<p>The word "queue" hides two very different architectures. Knowing which one you mean — and why — is a fast way to demonstrate depth.</p>
-
-<h3>Brokers (delete-on-ack) vs commit logs (retain &amp; replay)</h3>
-<p>A <b>traditional broker</b> (RabbitMQ, ActiveMQ, AWS SQS) treats a message as a unit of work to be <i>consumed and destroyed</i>. Once a consumer acks, the message is gone. The broker tracks per-message state (in-flight, acked, redelivered). This model excels at <i>task queues</i>: each message represents a job that exactly one worker should perform.</p>
-<p>A <b>distributed commit log</b> (Kafka, Pulsar, Kinesis) treats messages as an <i>immutable, ordered, append-only sequence</i> retained for a configured window (hours, days, or forever). Consumers track their own <b>offset</b> — the position they've read up to. The log doesn't delete on read, so many independent consumer groups can read the same stream at different speeds, and you can <b>replay</b> from any offset to reprocess history (e.g., to rebuild a downstream store or fix a bug). This model excels at <i>event streaming</i> and fan-out to multiple subscribers.</p>
-
+<h2 id="decision-table">The decision table &mdash; queue vs log, by need</h2>
 <table>
-<tr><th>Dimension</th><th>Broker (RabbitMQ / SQS)</th><th>Log (Kafka)</th></tr>
-<tr><td>Message lifetime</td><td>Deleted on ack</td><td>Retained for a window; replayable</td></tr>
-<tr><td>Consumer model</td><td>Compete for messages (work sharing)</td><td>Each group reads independently via offsets</td></tr>
-<tr><td>Ordering</td><td>Per-queue, weakened by concurrency</td><td>Strict within a partition</td></tr>
-<tr><td>Best for</td><td>Task/job queues, RPC-style work</td><td>Event streams, fan-out, audit, sourcing</td></tr>
-<tr><td>Replay</td><td>No (message is gone)</td><td>Yes — reset the offset</td></tr>
-<tr><td>Routing</td><td>Rich (exchanges, bindings, priorities)</td><td>Minimal (partition by key)</td></tr>
+<tr><th>Need</th><th>Model</th><th>Delivery</th><th>Ordering</th></tr>
+<tr><td>Distribute background jobs</td><td>Broker (SQS/RabbitMQ)</td><td>At-least-once + idempotent</td><td>Best-effort or per-queue</td></tr>
+<tr><td>Event stream, multiple readers, replay</td><td>Log (Kafka)</td><td>At-least-once, offset commits</td><td>Per-partition (key)</td></tr>
+<tr><td>Strict per-entity order at scale</td><td>Log, partitioned by key</td><td>At-least-once + idempotent</td><td>Per-key ordered</td></tr>
+<tr><td>Decouple a write from side-effects</td><td>Outbox + log</td><td>At-least-once</td><td>Per-aggregate</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The dual-write trap</span>Writing to your database <i>and</i> publishing to a queue in one operation isn't atomic &mdash; a crash between them loses the event or emits a phantom. The fix is the <b>outbox pattern</b>: write the event to an outbox table in the <i>same DB transaction</i> as the data, then a separate process (often <a href="40.html">CDC</a>) ships outbox rows to the queue. (More in <a href="46.html">Event-Driven Architecture</a>.)</div>
 
-<div class="box"><b>Rule of thumb</b> If the question is "do this job once," reach for a broker. If it's "let many systems react to this event, and let me re-derive state later," reach for a log. Choosing a log purely for a single-consumer task queue adds operational weight you don't need; choosing a broker for a multi-consumer event stream forces you to fan out and re-queue manually.</div>
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<ul>
+<li><b>Scenario 1 (backlog):</b> Why does an unbounded queue end in OOM or runaway latency, and what are the four guardrails (bound+backpressure, lag autoscale, DLQ, backoff+jitter)?</li>
+<li><b>Scenario 2 (duplicates):</b> Why does at-least-once cause double-processing, why isn't "exactly-once delivery" real, and how does idempotency give you exactly-once <i>processing</i>?</li>
+<li><b>Scenario 3 (ordering):</b> Why do multiple consumers break ordering, and why does partition-by-key beat global ordering?</li>
+<li>Queue vs log &mdash; when do you specifically need retain-and-replay?</li>
+<li>What is the dual-write problem and how does the outbox pattern solve it?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> a queue is <b>4 decisions</b> &mdash; <a href="#d1">queue vs log</a>, <a href="#d2">delivery semantics</a>, <a href="#d3">ordering</a>, <a href="#d4">overload behavior</a> &mdash; with failures: can't-replay, duplicates, disorder, unbounded backlog.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="39.html">Kafka &amp; Log Messaging</a>, <a href="46.html">Event-Driven Architecture</a>, <a href="40.html">Stream Processing &amp; CDC</a>, <a href="56.html">Distributed Message Queue</a>, <a href="68.html">Choosing a Message Broker</a>.</p>
 
-<h3>Delivery semantics — and what exactly-once really means</h3>
-<p>The three levels — <b>at-most-once</b>, <b>at-least-once</b>, <b>exactly-once</b> — describe the contract between broker and consumer. At-least-once is the pragmatic default everywhere, because the alternative (at-most-once) loses data on any failure. The catch is duplicates.</p>
-<p><b>"Exactly-once" is the most misunderstood term in distributed systems.</b> True end-to-end exactly-once <i>delivery</i> over a lossy network is impossible. What real systems provide is exactly-once <i>processing</i>, achieved one of two ways:</p>
-<ol>
-<li><b>Idempotency + deduplication.</b> Keep at-least-once delivery, but make the effect of processing a message idempotent. Tag each message with a stable business key (e.g., <code>payment_id</code>) and have the consumer record processed keys so a redelivery is a no-op. The duplicate still <i>arrives</i>; it just doesn't <i>do</i> anything twice.</li>
-<li><b>Transactional / atomic commit.</b> Bind "consume the message, do the work, commit the offset" into a single atomic transaction so a partial failure rolls everything back. Kafka's transactional producer + read-process-write with offset commits inside the transaction is the canonical example. This is powerful but adds latency and coordination cost.</li>
-</ol>
-<div class="box"><b>Key line</b> "I'll rely on at-least-once delivery plus an idempotency key, because exactly-once delivery isn't achievable — what I actually need is exactly-once <i>effect</i>, and a dedup table or idempotent upsert gives me that far more cheaply than distributed transactions."</div>
+<h2 id="cloud">Cloud services &mdash; managed queues &amp; logs</h2>
+<table>
+<tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Managed queue (at-least-once)</td><td>SQS</td><td>Pub/Sub</td><td>Queue Storage / Service Bus</td></tr>
+<tr><td>Pub/sub topic (fan-out)</td><td>SNS</td><td>Pub/Sub</td><td>Service Bus Topics / Event Grid</td></tr>
+<tr><td>Commit log / stream</td><td>Kinesis / MSK</td><td>Pub/Sub, Managed Kafka</td><td>Event Hubs</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
 
-<h3>Ordering guarantees and their cost</h3>
-<p>Strict global ordering and high throughput are in tension. A single FIFO consumer preserves order but caps throughput at one worker. To scale, you parallelize — and the moment two workers process concurrently, global order is gone. The standard compromise is <b>partitioned ordering</b>: order is guaranteed only within a partition keyed by some attribute (e.g., <code>user_id</code> or <code>account_id</code>). All events for one key land in one partition and are processed in order, while different keys process in parallel. You get ordering <i>where it matters</i> without serializing everything. SQS FIFO does this with a <code>MessageGroupId</code>; Kafka does it via partition key.</p>
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-sqs">Amazon SQS</h3>
+<ul><li><b>Model.</b> Managed broker (delete-on-ack); standard (at-least-once, best-effort order) or FIFO (ordered, dedup window).</li><li><b>Key idea.</b> Fully managed, infinite scale, zero ops; visibility timeout redelivers if not acked.</li><li><b>The failure to watch.</b> At-least-once means design idempotent consumers; no replay after delete (use a DLQ for failures).</li></ul>
+<h3 id="impl-rabbit">RabbitMQ</h3>
+<ul><li><b>Model.</b> Broker with rich routing (exchanges, bindings); delete-on-ack.</li><li><b>Key idea.</b> Flexible routing topologies and per-message control; great for complex job distribution.</li><li><b>The failure to watch.</b> No <code>x-max-length</code> = the broker accepts until it OOMs &mdash; always bound queues and apply backpressure.</li></ul>
+<h3 id="impl-kafka">Kafka</h3>
+<ul><li><b>Model.</b> Commit log (retain &amp; replay); partitioned, consumers track offsets.</li><li><b>Key idea.</b> Many independent consumers, replay from any offset, per-partition ordering, huge throughput &mdash; the backbone of event-driven systems.</li><li><b>The failure to watch.</b> Ordering is only per-partition; a hot/badly-chosen partition key skews load. (Deep dive: <a href="39.html">Lesson 39</a>.)</li></ul>
 
-<h3>Dead-letter queues and poison messages</h3>
-<p>A <b>poison message</b> is one that can never be processed successfully — malformed payload, a bug in the consumer, a permanently-missing dependency. Under at-least-once retry, a poison message is redelivered forever, blocking the queue and burning CPU. The fix is a <b>dead-letter queue (DLQ)</b>: after N failed attempts, the broker moves the message to a separate queue for inspection instead of retrying endlessly. The main queue keeps flowing; the DLQ becomes your alerting and forensic surface. Always wire a DLQ <i>and</i> an alarm on its depth — a growing DLQ is a silent bug indicator.</p>
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-idem">Make a consumer idempotent</h3>
+<p>Your queue is at-least-once, so any message may arrive twice. Make "charge this card" safe to process repeatedly. What do you store, and where's the race?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Give each message a unique idempotency key (the message ID, or a business key like <code>order_id+attempt</code>). Before doing the side-effect, atomically record "processing key K" &mdash; e.g. an <code>INSERT</code> into a processed-keys table with a unique constraint, in the <i>same transaction</i> as the effect (or a conditional write). If the key already exists, skip. The race: checking "have I seen K?" and doing the work must be atomic, or two concurrent redeliveries both pass the check &mdash; so rely on a unique constraint / conditional write, not a read-then-write. This turns at-least-once delivery into exactly-once <i>processing</i>.</p>
+</div></details>
+<h3 id="ex-backpressure">Design backpressure for a slow consumer</h3>
+<p>The database behind your consumers slows down. Design the system so the queue doesn't grow without bound and the whole thing doesn't fall over.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Bound the queue (max length). When it fills, producers get a clear signal &mdash; reject with a retryable error, or block/slow them &mdash; so pressure propagates back to the source instead of accumulating. Export per-partition lag and message age as metrics; autoscale consumers on lag, and when lag crosses a ceiling, shed or throttle ingress at the gateway (e.g. reduce accept rate by 30%). Add a DLQ for poison messages and backoff+jitter on retries so they don't synchronize. The principle: a queue must enforce backpressure, not silently absorb it.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
+<ul>
+<li><b>Outbox pattern.</b> Emit an event exactly when (and only when) a DB write commits, with no dual-write hole. &rarr; <a href="46.html">Event-Driven Architecture</a>, <a href="40.html">CDC</a>.</li>
+<li><b>Build a distributed queue.</b> Design SQS from scratch &mdash; visibility timeout, at-least-once, DLQ. &rarr; <a href="56.html">Distributed Message Queue</a>.</li>
+</ul>
 
-<h3>Retry with backoff and jitter</h3>
-<p>Naive immediate retries cause <b>retry storms</b>: if a downstream service hiccups, thousands of consumers retry in lockstep, hammering it the instant it recovers and knocking it over again. The remedy is <b>exponential backoff with jitter</b> — wait <code>base * 2^attempt</code> but add a random component so retries spread out instead of synchronizing.</p>
-<pre><code>delay = min(cap, base * 2 ** attempt)
-sleep = random_between(0, delay)   # "full jitter"</code></pre>
-<div class="box"><b>Why jitter matters</b> Backoff alone still synchronizes — every client that failed at the same instant retries at the same computed time. Jitter de-correlates them, smoothing the load on the recovering dependency. Pair backoff with a max-attempts cap that routes to the DLQ.</div>
-
-<h3>The dual-write problem and the outbox pattern</h3>
-<p>A subtle, very common bug: a service needs to both update its database <i>and</i> publish a message ("order saved" then emit <code>OrderPlaced</code>). Doing these as two separate operations is a <b>dual write</b> — if the DB commit succeeds but the publish fails (or vice versa), your database and your event stream diverge, with no transaction spanning both. There is no atomic two-system write over a network.</p>
-<p>The <b>transactional outbox pattern</b> solves it: in the <i>same</i> local DB transaction that saves the business data, also insert the event into an <code>outbox</code> table. The transaction is atomic, so the event is persisted iff the data is. A separate relay process (often via change-data-capture tailing the DB log) then reads the outbox and publishes to the broker, marking rows as sent. If the relay crashes, it resumes — giving at-least-once publish, which your idempotent consumers already tolerate.</p>
-<div class="box"><b>Key insight</b> The outbox turns an impossible cross-system atomic write into a single-system atomic write plus a reliable, retriable relay. It's the standard answer to "how do you keep your database and your event stream consistent?"</div>
-
-<h3>Backpressure and consumer-lag-driven autoscaling</h3>
-<p>A queue absorbs spikes, but it is not infinite. If producers persistently outrun consumers, the backlog grows without bound — memory/disk fills, end-to-end latency balloons, and eventually messages are dropped or the broker fails. <b>Backpressure</b> is the mechanism by which a slow consumer signals upstream to slow down: bounded queues that reject or block producers when full, credit-based flow control, or simply rejecting new work with a 429 when the backlog crosses a threshold.</p>
-<p>The key operational signal is <b>consumer lag</b> — the gap between the newest produced message and the position consumers have reached (in Kafka, the offset delta per partition). Lag is the truest measure of system health: low and stable means consumers keep up; steadily rising means you're falling behind. The modern pattern is <b>lag-driven autoscaling</b>: scale the consumer worker count up when lag exceeds a target and down when it drains, so capacity tracks the actual backlog rather than CPU alone.</p>
-<div class="box"><b>What strong engineers do</b> They never treat the queue as a bottomless buffer. They name a concrete signal (consumer lag / queue depth), an action (autoscale workers, shed load, apply backpressure), and a ceiling (max workers, DLQ, 429s) — closing the loop on what happens when the system simply can't keep up.</div>
-
-<div class="seealso"><b>See also:</b> <a href="39.html">Kafka &amp; Log-based Messaging</a>, <a href="46.html">Event-Driven Architecture</a>, <a href="56.html">Designing a Message Queue</a>, <a href="32.html">Distributed Transactions</a></div>
-</div>
-
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1681141505007.jpeg" alt="Message queues for decoupling and async communication" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A side-by-side comparison of direct synchronous communication (blocking API call that fails) versus using a message queue (asynchronous ACK, decoupling, fault tolerance, scalability to multiple receivers). <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed queue (at-least-once)</td><td>SQS</td><td>Pub/Sub</td><td>Azure Queue Storage / Service Bus</td></tr><tr><td>Managed pub/sub topic</td><td>SNS</td><td>Pub/Sub</td><td>Service Bus Topics / Event Grid</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
 <div class="navfoot"><a href="07.html">&lsaquo; Prev: Proxies</a><a class="nx" href="09.html">Next: Redundancy and Replication &rsaquo;</a></div>
 </div>
 </div>

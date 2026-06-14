@@ -111,115 +111,121 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; The Computer, the Network, and the Bottlenecks They Impose</div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Foundations</div>
 <h1>The Computer, the Network, and the Bottlenecks They Impose</h1>
-<p class="sub"><em>The first-principles foundation of the entire course: why this whole body of knowledge exists, derived from two physical machines and the unavoidable bottlenecks they impose. Every later lesson is a technique for relieving one of these bottlenecks.</em></p>
+<p class="sub"><em>Strip away every diagram and brand name and a system is just finite, mortal computers talking over a slow, unreliable network, under a growing workload. From those three forces, six bottlenecks follow &mdash; and every technique in this course relieves one of them, at a cost. Learn this lesson and the other 71 stop being a list to memorize.</em></p>
 
-<div class="toc"><h4>In this lesson</h4>
-<ul>
-<li><a href="#one">It all reduces to one computer</a></li>
-<li><a href="#wall">The wall: a single computer is finite and mortal</a></li>
-<li><a href="#many">The only escape is many computers &mdash; which creates a deeper problem</a></li>
-<li><a href="#network">The network is the real bottleneck</a></li>
-<li><a href="#truth">The deepest constraint: no shared truth</a></li>
-<li><a href="#numbers">The numbers that dictate every decision</a></li>
-<li><a href="#bottlenecks">The six bottlenecks &mdash; and the map of this course</a></li>
-<li><a href="#nofreelunch">The one principle: there are no free lunches, only trade-offs</a></li>
-<li><a href="#use">How to use this course</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="#principle">The one principle</a> <b>There are no free lunches &mdash; only trade-offs.</b> <span>You can never escape a bottleneck for free; you can only choose which cost to pay to relieve it. That single instinct is why "it depends" is the honest answer to almost every design question.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; the whole course derived from first principles</div>
+<pre class="tree">
+<b>Foundations</b>
+│
+├─ <a href="#onecomputer"><b>It reduces to one computer</b></a>  &mdash; the whole substrate
+├─ <a href="#wall"><b>The wall</b></a>  &mdash; one computer is finite and mortal
+├─ <a href="#manycomputers"><b>The escape, and its cost</b></a>  &mdash; many computers &rarr; the network
+├─ <a href="#network"><b>The network is the real bottleneck</b></a>  &mdash; physics, not engineering
+├─ <a href="#noshared"><b>No shared truth</b></a>  &mdash; the deepest constraint
+├─ <a href="#numbers"><b>The numbers</b></a>  &mdash; the latency ratios that dictate everything
+├─ <a href="#bottlenecks"><b>The six bottlenecks</b></a>  &mdash; the map of the whole course
+├─ <a href="#principle"><b>The one principle</b></a>  &mdash; no free lunches
+└─ <a href="#howtouse"><b>How to use this course</b></a>
+</pre>
 </div>
 
-<h2 id="one">It all reduces to one computer</h2>
-<p>Strip away every diagram, every brand name, every framework, and a system is a set of <span class="key">physical computers talking to each other over wires</span>. Each box you ever draw &mdash; a web server, a database, a cache, a queue, a load balancer &mdash; is a real computer sitting in a rack somewhere, with a <span class="key">CPU</span> that executes a bounded number of instructions per second, a <span class="key">memory hierarchy</span> (registers &rarr; cache &rarr; RAM &rarr; SSD &rarr; disk, each tier roughly 10&ndash;100&times; slower and cheaper than the one above it), a finite amount of <span class="key">storage</span>, and a <span class="key">network interface</span>. And like any physical object, it can fail &mdash; a disk dies, a power supply pops, a kernel panics &mdash; at any moment, without warning.</p>
-<p>That is the whole substrate. If you understand the limits of <em>one</em> such machine and the wire between two of them, you can derive almost everything else in this course from first principles rather than memorizing it. So let us do exactly that.</p>
+<h2 id="onecomputer">It all reduces to one computer</h2>
+<p>Every box you ever draw &mdash; web server, database, cache, queue, load balancer &mdash; is a real computer in a rack: a CPU that runs a bounded number of instructions per second, a memory hierarchy (registers &rarr; cache &rarr; RAM &rarr; SSD &rarr; disk, each tier ~10&ndash;100&times; slower and cheaper than the one above), finite storage, and a network interface. And like any physical object it can fail &mdash; a disk dies, a PSU pops, a kernel panics &mdash; at any moment, without warning. That's the whole substrate. Understand the limits of one machine and the wire between two, and you can derive almost everything else here from first principles.</p>
 
 <h2 id="wall">The wall: a single computer is finite and mortal</h2>
-<p>For decades the answer to "I need more" was simply "buy a bigger computer" &mdash; <span class="key">vertical scaling</span>. It works until it doesn't, and it always stops working, for two independent reasons:</p>
+<p>For decades the answer to "I need more" was "buy a bigger computer" &mdash; vertical scaling. It always eventually fails, for two independent reasons:</p>
 <ul>
-<li><span class="key">Finite capacity.</span> There is a biggest CPU, a maximum amount of RAM, a fastest disk that money can buy &mdash; and the cost of getting there grows <em>super-linearly</em>. Meanwhile demand &mdash; data volume, request rate &mdash; can grow without bound. At some scale, no single machine is big enough or fast enough, at any price.</li>
-<li><span class="key">Mortality.</span> A single computer has a non-zero probability of failing. One machine means one point of failure: when it dies, your system is down. No amount of money makes a single component perfectly reliable.</li>
+<li><b>Finite capacity.</b> There's a biggest CPU, most RAM, fastest disk money can buy &mdash; and cost grows super-linearly &mdash; while demand can grow without bound. At some scale, no single machine is enough at any price.</li>
+<li><b>Mortality.</b> One machine has a non-zero failure probability. One machine = one point of failure. No amount of money makes a single component perfectly reliable.</li>
 </ul>
-<div class="callout note"><span class="lbl">The pivot</span>These two facts &mdash; <em>not big enough</em> and <em>not reliable enough</em> &mdash; are the entire reason system design exists. If one computer could be made arbitrarily fast, arbitrarily large, and immortal, this field would evaporate. You would just buy the box. System design is what you are forced to do <em>because that box does not exist.</em></div>
+<div class="callout tradeoff"><span class="lbl">The pivot</span>Not-big-enough and not-reliable-enough are the entire reason system design exists. If one computer could be made arbitrarily fast, large, and immortal, the field would evaporate &mdash; you'd just buy the box. System design is what you're forced to do because that box doesn't exist.</div>
 
-<h2 id="many">The only escape is many computers &mdash; which creates a deeper problem</h2>
-<p>Since you cannot make one machine big enough or reliable enough, you are forced into the only alternative: <span class="key">use many machines</span> &mdash; <span class="key">horizontal scaling</span>. Spread the load across many computers so their capacity adds up; keep copies on several computers so the system survives any one of them dying.</p>
-<p>This solves the wall. But the instant work spans more than one machine, the binding constraint <em>changes</em>. It is no longer the CPU, the RAM, or the disk of any single box. It becomes <span class="key">the network between the boxes</span> &mdash; and the network is a far crueler master than any local resource. This is the hinge of the entire field, so it is worth stating plainly:</p>
-<div class="callout tradeoff"><span class="lbl">The central trade</span>You adopt many computers to escape the limits of one. In doing so you trade a <em>capacity-and-reliability</em> problem you cannot solve for a <em>coordination-over-an-unreliable-network</em> problem you can only manage. Every technique in this course is a tactic in that managed war.</div>
+<h2 id="manycomputers">The only escape is many computers &mdash; which creates a deeper problem</h2>
+<p>Since you can't make one machine big or reliable enough, you're forced into the alternative: <b>many machines</b> (horizontal scaling) &mdash; spread load so capacity adds up, keep copies so the system survives any one dying. This solves the wall, but the binding constraint changes: it's no longer any single box's CPU/RAM/disk &mdash; it's the <b>network between them</b>, a far crueler master.</p>
+<div class="callout tradeoff"><span class="lbl">The central trade</span>You adopt many computers to escape the limits of one &mdash; trading a capacity-and-reliability problem you <i>cannot</i> solve for a coordination-over-an-unreliable-network problem you can only <i>manage</i>. Every technique in this course is a tactic in that managed war.</div>
 
 <h2 id="network">The network is the real bottleneck</h2>
-<p>Two facts about the network are not engineering choices you can optimize away &mdash; they are physics:</p>
-<h3>1. The speed of light is a hard latency floor</h3>
-<p>Information cannot travel faster than light: ~300,000 km/s, and slower through fibre. New York to London is ~5,500 km, so a round trip is <em>at minimum</em> ~37&nbsp;ms before a single line of your code runs. No CDN, no clever cache, no faster CPU changes that floor. This is why reading from local RAM (~100&nbsp;ns) and calling a service on another continent (~tens of milliseconds) differ by <span class="key">five to six orders of magnitude</span>. Distance is latency, and latency is physics.</p>
-<h3>2. The network is unreliable and has finite bandwidth</h3>
-<p>Messages are dropped, delayed, duplicated, and reordered. Links saturate. A request you send may never arrive, or its reply may never come back, and <em>you cannot tell which.</em> Bandwidth between machines is finite and often the scarcest resource of all (cross-region data transfer is both slow and, on a cloud bill, expensive).</p>
-<div class="callout warn"><span class="lbl">Consequence</span>Once your system is distributed, "just call the other service" is never free and never guaranteed. Latency and partial failure are not edge cases &mdash; they are the default condition of every line that crosses a machine boundary.</div>
-
-<h2 id="truth">The deepest constraint: no shared truth</h2>
-<p>There is one more constraint, and it is the one engineers most often miss because it is not about hardware at all &mdash; it is almost <em>logical</em>. It is also not a separate root: it <em>falls out</em> of the two above. Because state is physically separated and the network is unreliable:</p>
+<p>Two facts about the network are physics, not engineering choices:</p>
 <ul>
-<li><span class="key">There is no global clock.</span> Two machines cannot agree on what time "now" is to the precision needed to order events. Each has its own drifting clock.</li>
-<li><span class="key">You cannot distinguish "slow" from "dead."</span> If a machine stops responding, you have no way to know whether it crashed, whether the network ate your message, or whether it is just busy and the reply is still coming. They look identical from the outside.</li>
+<li><b>The speed of light is a hard latency floor.</b> ~300,000 km/s (slower in fibre). New York&harr;London round trip is ~37&nbsp;ms minimum before a line of your code runs. Local RAM (~100&nbsp;ns) vs a call across a continent (~tens of ms) differ by five to six orders of magnitude. Distance is latency, and latency is physics.</li>
+<li><b>The network is unreliable and bandwidth is finite.</b> Messages drop, delay, duplicate, reorder; links saturate. A request may never arrive, or its reply never return &mdash; and you can't tell which.</li>
 </ul>
-<p>From these two innocent-sounding facts flows the hardest part of the entire field: <span class="key">getting independent machines to agree on anything</span> &mdash; who is the leader, what order writes happened in, whether a transaction committed. This is the root beneath consensus (Raft, Paxos), beneath the <a href="11.html">CAP theorem</a> and <a href="31.html">PACELC</a>, beneath <a href="33.html">logical and vector clocks</a>, beneath the famous FLP impossibility result. It is not additional to "the computer and the network" &mdash; it is their <em>theorem</em>.</p>
-<div class="callout note"><span class="lbl">So, is anything more fundamental than the Computer and the Network?</span>No. There are three forces: the <b>Computer</b> (finite, mortal), the <b>Network</b> (slow, unreliable), and the <b>Workload</b> (the external, growing, bursty demand that pushes you into both). The Computer and Network are the constraints; the Workload is the force. The famous difficulty of agreement is <em>derived</em> from physically separated state on an unreliable network &mdash; a consequence, not a peer. Everything in this course sits on top of these.</div>
+<div class="callout note"><span class="lbl">Consequence</span>Once distributed, "just call the other service" is never free and never guaranteed. Latency and partial failure aren't edge cases &mdash; they're the default condition of every line that crosses a machine boundary.</div>
+
+<h2 id="noshared">The deepest constraint: no shared truth</h2>
+<p>One more constraint, the one engineers miss because it isn't about hardware &mdash; it's almost logical, and it falls out of the two above. Because state is physically separated and the network is unreliable:</p>
+<ul>
+<li><b>There is no global clock.</b> Two machines can't agree on what "now" is to the precision needed to order events; each has its own drifting clock.</li>
+<li><b>You can't distinguish "slow" from "dead."</b> A silent machine might have crashed, or the network ate your message, or it's just busy &mdash; identical from outside.</li>
+</ul>
+<p>From these flows the hardest part of the field: getting independent machines to <b>agree</b> on anything &mdash; who's leader, what order writes happened, whether a transaction committed. This is the root beneath <a href="30.html">consensus (Raft, Paxos)</a>, beneath <a href="11.html">CAP/PACELC</a>, beneath logical and vector clocks, beneath FLP impossibility.</p>
+<div class="callout note"><span class="lbl">So is anything more fundamental?</span>No. Three forces: the <b>Computer</b> (finite, mortal), the <b>Network</b> (slow, unreliable), and the <b>Workload</b> (external, growing, bursty demand). The Computer and Network are the constraints; the Workload is the force that pushes you into both. The famous difficulty of agreement is <i>derived</i> from separated state on an unreliable network &mdash; a consequence, not a peer.</div>
 
 <h2 id="numbers">The numbers that dictate every decision</h2>
-<p>The abstract argument becomes concrete the moment you internalize the relative costs of operations. The <em>ratios</em> here are what force every design decision in the field &mdash; commit them to instinct:</p>
+<p>The argument becomes concrete the moment you internalize the relative costs &mdash; commit these ratios to instinct:</p>
 <table>
 <tr><th>Operation</th><th>Approx. time</th><th>Relative to L1</th></tr>
 <tr><td>L1 cache reference</td><td>~1 ns</td><td>1&times;</td></tr>
-<tr><td>Main memory (RAM) reference</td><td>~100 ns</td><td>~100&times;</td></tr>
+<tr><td>Main memory (RAM)</td><td>~100 ns</td><td>~100&times;</td></tr>
 <tr><td>SSD random read</td><td>~16 &micro;s</td><td>~16,000&times;</td></tr>
-<tr><td>Datacenter network round trip</td><td>~500 &micro;s</td><td>~500,000&times;</td></tr>
+<tr><td>Datacenter round trip</td><td>~500 &micro;s</td><td>~500,000&times;</td></tr>
 <tr><td>Disk (HDD) seek</td><td>~2&ndash;10 ms</td><td>~10,000,000&times;</td></tr>
-<tr><td>Same-region network round trip</td><td>~1&ndash;5 ms</td><td>&mdash;</td></tr>
-<tr><td>Cross-continent network round trip</td><td>~100&ndash;150 ms</td><td>~150,000,000&times;</td></tr>
+<tr><td>Cross-continent round trip</td><td>~100&ndash;150 ms</td><td>~150,000,000&times;</td></tr>
 </table>
-<p>Read this table as a hierarchy of <em>cost</em>. The entire discipline can be summarized as: <span class="key">keep work as far up this table as possible; when you cannot, hide the cost or tolerate it.</span> That single sentence generates the techniques:</p>
-<ul>
-<li><b>Caching</b> = move data up the hierarchy, closer to the CPU. (<a href="04.html">04</a>)</li>
-<li><b>Replication / CDN</b> = put a copy physically closer to the reader, or somewhere that survives a failure. (<a href="09.html">09</a>, <a href="48.html">65</a>)</li>
-<li><b>Sharding</b> = the data will not fit in fast memory on one box, so split it across many. (<a href="05.html">05</a>)</li>
-<li><b>Queues / async</b> = stop <em>waiting</em> on the slow network round trip; do it later. (<a href="08.html">08</a>)</li>
-<li><b>Consensus</b> = agree on truth despite no shared clock, paying a majority round trip per decision. (<a href="30.html">30</a>)</li>
-</ul>
+<p>These ratios are why caching, locality, and avoiding network hops dominate design. (The framework lesson, <a href="14.html">14</a>, turns them into estimation drills.)</p>
 
 <h2 id="bottlenecks">The six bottlenecks &mdash; and the map of this course</h2>
-<p>Here is the unifying idea. Each of the three forces above imposes one or more <span class="key">bottlenecks</span> &mdash; unavoidable costs you must pay to build something that appears more capable and more reliable than any single computer. Every technique in this course is a method of relieving one bottleneck &mdash; and crucially, <em>each technique incurs a cost of its own.</em> Once you see the bottlenecks, the entire field organizes itself:</p>
+<p>Each of the three forces imposes bottlenecks &mdash; unavoidable costs of appearing more capable and reliable than one computer. <b>Every technique in this course relieves one bottleneck, and incurs a cost of its own.</b> Once you see them, the field organizes itself:</p>
 <table>
-<tr><th>The bottleneck</th><th>Imposed by</th><th>What it forces</th><th>Techniques that pay it down</th></tr>
-<tr><td><b>Latency</b></td><td>Memory hierarchy + speed of light</td><td>get the data closer / stop waiting</td><td>caching, CDN, replicas-near-users, indexes, async/queues, precompute</td></tr>
-<tr><td><b>Finite capacity</b></td><td>One box isn't big/fast enough + workload</td><td>split the work</td><td>sharding, partitioning, load balancing, consistent hashing, microservices</td></tr>
+<tr><th>Bottleneck</th><th>Imposed by</th><th>It forces you to&hellip;</th><th>Techniques that pay it down</th></tr>
+<tr><td><b>Latency</b></td><td>Memory hierarchy + speed of light</td><td>get data closer / stop waiting</td><td>caching, CDN, replicas-near-users, indexes, async/queues, precompute</td></tr>
+<tr><td><b>Finite capacity</b></td><td>One box isn't big enough + workload</td><td>split the work</td><td>sharding, partitioning, load balancing, consistent hashing, microservices</td></tr>
 <tr><td><b>Partial failure</b></td><td>Computers die independently</td><td>duplicate &amp; tolerate</td><td>redundancy, replication, retries, circuit breakers, multi-region, leader election</td></tr>
-<tr><td><b>No shared truth</b></td><td>No global clock; slow vs dead (derived)</td><td>coordinate, slowly</td><td>consensus, quorums, vector clocks, CAP/PACELC choices, distributed transactions, CRDTs, locking</td></tr>
-<tr><td><b>Concurrency</b></td><td>Many things at once, even on one box</td><td>serialize access safely</td><td>locking, MVCC, idempotency, optimistic concurrency, atomic operations</td></tr>
-<tr><td><b>Operability &amp; cost</b></td><td>Humans must run, observe, evolve, afford it</td><td>make it manageable and affordable</td><td>SLOs, observability, deployment strategy, cost-aware design, DDD boundaries</td></tr>
+<tr><td><b>No shared truth</b></td><td>No global clock; slow vs dead</td><td>coordinate, slowly</td><td>consensus, quorums, vector clocks, CAP/PACELC, distributed transactions, CRDTs, locking</td></tr>
+<tr><td><b>Concurrency</b></td><td>Many things at once</td><td>serialize access safely</td><td>locking, MVCC, idempotency, optimistic concurrency, atomic ops</td></tr>
+<tr><td><b>Operability &amp; cost</b></td><td>Humans must run &amp; afford it</td><td>make it manageable &amp; affordable</td><td>SLOs, observability, deployment strategy, cost-aware design, DDD boundaries</td></tr>
 </table>
-<p>This is not a metaphor imposed on the material &mdash; it is the material's actual structure. <span class="key">Every single lesson in this course addresses one of these six bottlenecks.</span> To prove it to yourself, look at the small <span style="background:var(--taxline-bg);border-left:3px solid var(--accent);padding:1px 6px;border-radius:0 3px 3px 0;">The bottleneck</span> line at the top of every other lesson: it names which bottleneck that technique addresses and what relieving it costs you in return.</p>
+<p>This isn't a metaphor imposed on the material &mdash; it's the material's structure. Every lesson's <i>trade-off</i> line at the top names which bottleneck it addresses and what relieving it costs.</p>
 
-<h2 id="nofreelunch">The one principle: there are no free lunches, only trade-offs</h2>
-<p>If you remember one sentence from this entire course, make it this: <span class="key">you can never escape a bottleneck for free &mdash; you can only choose which cost to pay to relieve it.</span> Every technique that relieves one bottleneck incurs a cost somewhere else. This is the principal engineer's core instinct, and it is why "it depends" is the honest answer to almost every design question.</p>
+<h2 id="principle">The one principle: there are no free lunches</h2>
+<p>If you remember one sentence: <b>you can never escape a bottleneck for free &mdash; you can only choose which cost to pay.</b> Every technique that relieves one bottleneck bills you somewhere else:</p>
 <ul>
-<li>A <b>cache</b> pays down latency &mdash; and bills you in <em>staleness</em> and invalidation complexity.</li>
-<li><b>Replication</b> pays down partial failure &mdash; and bills you in <em>consistency</em> (the copies can disagree) and cost.</li>
-<li><b>Sharding</b> pays down finite capacity &mdash; and bills you in lost <em>joins</em>, harder transactions, and hot-shard skew.</li>
-<li><b>Strong consistency</b> pays down "no shared truth" &mdash; and bills you in <em>latency</em> and reduced availability under partition (this is literally what <a href="31.html">PACELC</a> formalizes).</li>
-<li>A <b>saga</b> pays down the blocking of distributed transactions &mdash; and bills you in lost <em>atomicity</em>, forcing you to write compensations.</li>
+<li>A <a href="04.html">cache</a> pays down latency &mdash; billed in staleness and invalidation complexity.</li>
+<li><a href="09.html">Replication</a> pays down partial failure &mdash; billed in consistency and cost.</li>
+<li><a href="05.html">Sharding</a> pays down finite capacity &mdash; billed in lost joins, harder transactions, hot-shard skew.</li>
+<li>Strong consistency pays down "no shared truth" &mdash; billed in latency and availability under partition (what <a href="11.html">PACELC</a> formalizes).</li>
+<li>A <a href="32.html">saga</a> pays down the blocking of distributed transactions &mdash; billed in lost atomicity (you write compensations).</li>
 </ul>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They never present a technique as a win. They name the bottleneck it relieves <em>and</em> the cost it incurs, then argue that for <em>this</em> workload the swap is worth it. "We shard by user ID, which costs us cross-user joins &mdash; acceptable here because our access pattern is single-user." That sentence &mdash; technique, bottleneck relieved, cost incurred, justified by workload &mdash; is the whole job.</div>
+<div class="callout warn"><span class="lbl">What strong engineers do</span>They never present a technique as a win. They name the bottleneck it relieves and the cost it incurs, then argue that for <i>this</i> workload the swap is worth it: <i>"We shard by user ID, which costs us cross-user joins &mdash; acceptable because our access pattern is single-user."</i> Technique, bottleneck relieved, cost incurred, justified by workload &mdash; that sentence is the whole job.</div>
 
-<h2 id="use">How to use this course</h2>
-<ol>
-<li><span class="key">Hold this lesson in your head as you read every other one.</span> When you meet a technique, first ask: <em>which bottleneck is this relieving, and what does it cost in return?</em> The <span style="background:var(--taxline-bg);border-left:3px solid var(--accent);padding:1px 6px;border-radius:0 3px 3px 0;">The bottleneck</span> line at the top of each lesson answers it in one line; the lesson body is the detail.</li>
-<li><span class="key">Build from the bottom.</span> Read the fundamentals (<a href="02.html">02</a>&ndash;<a href="13.html">13</a>) and the framework (<a href="14.html">14</a>) first &mdash; they are the building blocks every later design composes.</li>
-<li><span class="key">Attempt before you read.</span> For the design problems (15&ndash;29, 53&ndash;62, 66, 71), sketch your own design first, then read &mdash; especially the "Principal-level deep dive," which surfaces the bottlenecks the naive design ignores.</li>
-<li><span class="key">Go deep where it matters.</span> The distributed-systems theory (30&ndash;36) and data-intensive lessons (37&ndash;42) are where the "no shared truth" bottleneck is confronted in full. They are the difference between assembling components and <em>understanding</em> them.</li>
-<li><span class="key">Self-test.</span> Use the <em>Principal-level mastery check</em> at the end of each lesson, and the <a href="72.html">Self-Assessment</a>, to confirm you can name the bottlenecks rather than just recognize the technique.</li>
-</ol>
-<p>Master the two machines and the bottlenecks they impose, and the seventy lessons that follow stop being a list to memorize and become a single idea, applied over and over.</p>
+<h2 id="howtouse">How to use this course</h2>
+<ul>
+<li><b>Hold this lesson in your head.</b> For every technique, ask: which bottleneck does it relieve, and what does it cost? The <i>trade-off</i> line atop each lesson answers in one line.</li>
+<li><b>Build from the bottom.</b> Read the fundamentals (02&ndash;13) and the <a href="14.html">framework (14)</a> first &mdash; every later design composes them.</li>
+<li><b>Attempt before you read.</b> For design problems, sketch your own first, then read &mdash; the <i>scenarios</i> at the top of each surface the bottlenecks a naive design ignores.</li>
+<li><b>Go deep where it matters.</b> The <a href="30.html">distributed-systems theory (30&ndash;36)</a> and data-intensive lessons are where "no shared truth" is confronted in full.</li>
+<li><b>Self-test.</b> Use each lesson's self-check and the <a href="72.html">Self-Assessment</a> to confirm you can <i>name the bottlenecks</i>, not just recognize the technique.</li>
+</ul>
+<div class="callout tradeoff"><span class="lbl">The payoff</span>Master the two machines and the bottlenecks they impose, and the seventy-one lessons that follow stop being a list to memorize &mdash; they become a single idea, applied over and over.</div>
 
-<div class="navfoot"><a href="index.html">&lsaquo; Prev: Course index</a><a class="nx" href="02.html">Next: System Design Basics &rsaquo;</a></div>
+<h2 id="self-check">Self-check</h2>
+<ul>
+<li>Name the three forces and which are constraints vs the force. Why is "no shared truth" a consequence, not a fourth root?</li>
+<li>Why does vertical scaling always eventually fail &mdash; the two independent reasons?</li>
+<li>Recite the six bottlenecks and one technique that pays each down.</li>
+<li>State the one principle in a sentence, and apply it to caching, sharding, and strong consistency.</li>
+<li>Roughly, how many times slower is a cross-continent round trip than an L1 cache reference &mdash; and why does that ratio drive locality?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> three forces (Computer, Network, Workload) &rarr; six bottlenecks &rarr; one principle (no free lunches). Every other lesson relieves one bottleneck at a cost.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Next: <a href="02.html">System Design Basics</a>, then the building blocks (03&ndash;13) and the <a href="14.html">framework (14)</a>.</p>
+
+<div class="navfoot"><a href="index.html">&lsaquo; Course index</a><a class="nx" href="02.html">Next: System Design Basics &rsaquo;</a></div>
 </div>
 </div>
 </div>

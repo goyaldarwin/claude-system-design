@@ -111,141 +111,183 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; CAP Theorem</div>
 <h1>CAP Theorem</h1>
-<p class="sub"><em>The classic Consistency/Availability/Partition-tolerance trade-off &mdash; and why modern practice extends it to PACELC.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth.</b> <span>when the network partitions you must give up consistency or availability — you cannot keep both.</span></div>
-<div class="toc"><h4>In this lesson</h4>
+<p class="sub"><em>A distributed system, when the network splits, can keep answering or stay correct &mdash; not both. CAP names that forced choice. The catch every junior misses: it only bites <i>during</i> a partition, and partitions are rare &mdash; so CAP is necessary but not sufficient.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The theorem</a> <b>Under a network partition, you must choose Consistency or Availability &mdash; you cannot have both.</b> <span>Conjectured by Eric Brewer (PODC 2000), proved by Gilbert &amp; Lynch (MIT, 2002). It describes <b>degradation under failure</b>, not steady-state capability &mdash; which is exactly why you also need PACELC.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>CAP Theorem</b>
+│
+├─ <a href="#root"><b>What CAP says</b></a>  &mdash; the three guarantees
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#ideas"><b>The 4 ideas to understand</b></a>  &mdash; each has a misconception to avoid
+│   ├─ <a href="#i1">1. The forced choice (C or A)</a>   trap → <a href="#nopartition">"pick 2 at design time"</a>
+│   ├─ <a href="#i2">2. CP systems</a>                   trap → <a href="#ca-trap">"CA is an option"</a>
+│   ├─ <a href="#i3">3. AP systems</a>                   trap → <a href="#consistency-binary">"consistency is on/off"</a>
+│   └─ <a href="#i4">4. PACELC (the else-branch)</a>    trap → <a href="#cap-enough">"CAP is enough"</a>
+│
+├─ <a href="#decision-table"><b>Classifying real systems</b></a>  &mdash; PACELC class of the big stores
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; CP and AP stores, by example
+│   ├─ <a href="#impl-cp">CP: ZooKeeper / etcd / Spanner</a>  &mdash; correct or unavailable
+│   ├─ <a href="#impl-ap">AP: Cassandra / DynamoDB</a>        &mdash; always up, eventually right
+│   └─ <a href="#impl-tunable">Tunable: Cassandra quorums</a>      &mdash; PACELC as a per-request dial
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; classify, reason, design the rest
+    ├─ <a href="#ex-classify">Classify a system</a>   &mdash; name op, failure, consequence
+    ├─ <a href="#ex-quorum">Quorum math</a>         &mdash; R + W > N
+    └─ <a href="#ex-design">Design-it-yourself</a>  &mdash; pick C or A per feature
+</pre>
+</div>
+
+<!-- ============ ROOT ============ -->
+<h2 id="root">What CAP says</h2>
+<p>CAP is about three properties a distributed data store might offer:</p>
 <ul>
-  <li><a href="#1-the-three-guarantees">The three guarantees</a></li>
-  <li><a href="#2-why-you-can-only-pick-two-during-a-partition">Why you can only pick two &mdash; during a partition</a></li>
-  <li><a href="#3-why-ca-is-not-a-real-choice">Why &ldquo;CA&rdquo; is not a real choice</a></li>
-  <li><a href="#4-cp-systems-consistency-over-availability">CP systems &mdash; consistency over availability</a></li>
-  <li><a href="#5-ap-systems-availability-over-consistency">AP systems &mdash; availability over consistency</a></li>
-</ul></div>
-
-
-<p>CAP theorem states that it is impossible for a distributed software system to simultaneously provide more than two out of three of the following guarantees. When we design a distributed system, trading off among these three guarantees is almost the first thing we want to consider. The theorem &mdash; originally conjectured by Eric Brewer in 2000 and later formally proven by Gilbert and Lynch &mdash; gives us the vocabulary to talk precisely about what a system gives up when something goes wrong.</p>
-
-<h2 id="1-the-three-guarantees">The three guarantees</h2>
-
-<p>The three properties at the heart of the theorem are:</p>
-
-<ul>
-<li><span class="key">Consistency (C):</span> All nodes see the same data at the same time. Concretely, a read is guaranteed to return the most recent write for a given piece of data (or an error). Consistency is achieved by updating several nodes before allowing further reads.</li>
-<li><span class="key">Availability (A):</span> Every request received by a non-failing node in the system must result in a non-error response. Availability is achieved by replicating the data across different servers &mdash; but note that an available response carries no guarantee that it reflects the most recent write.</li>
-<li><span class="key">Partition tolerance (P):</span> The system continues to function in spite of network partitions. A partition is any communication breakdown &mdash; arbitrary message loss, delay, or failure &mdash; between nodes in the system. Distributed systems guaranteeing partition tolerance can gracefully recover from partitions once the partition heals.</li>
+<li><b>Consistency (C)</b> &mdash; every read returns the most recent write (or an error). All nodes agree on the data at the same instant. (In the formal proof this means <a href="31.html">linearizability</a>.)</li>
+<li><b>Availability (A)</b> &mdash; every request to a non-failing node gets a non-error response. But an available answer carries <i>no</i> guarantee it reflects the latest write.</li>
+<li><b>Partition tolerance (P)</b> &mdash; the system keeps working despite a <span class="gl" data-def="A network partition — any communication breakdown between nodes: dropped or delayed messages, a cut cable, a node frozen in garbage collection. Some nodes can no longer talk to others.">network partition</span>.</li>
 </ul>
+<p>The theorem (Brewer's 2000 conjecture, proved by Gilbert &amp; Lynch in 2002 via an asynchronous-network adversary argument): <b>you cannot have all three at once.</b></p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>CAP is not a menu you order from once at design time. The trade-off only forces itself on you <i>when a partition actually occurs</i>. When the network is healthy, a good system offers both strong consistency and high availability. <b>CAP describes how a system degrades under failure, not what it can do normally.</b></div>
 
-<p style="text-align:center"><img src="./_principal_files/img/11_cap_diagram.png" alt="CAP theorem Venn diagram"></p>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide your answer first &mdash; the rest of the lesson is the answer. If you already know all three cold, skip to <a href="#decision-table">classifying real systems</a>.</p>
 
-<h2 id="2-why-you-can-only-pick-two-during-a-partition">Why you can only pick two &mdash; during a partition</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the cable is cut</span>
+A switch fails. Two halves of your cluster can no longer talk. A write request arrives at a node on one half. <b>It has exactly two options &mdash; what are they, and what does each one sacrifice?</b></div>
 
-<p>The crux of CAP is that you cannot have all three at once. More precisely: <span class="key">in the presence of a network partition, you must choose between consistency and availability.</span> When the network splits and two nodes can no longer talk to each other, a node that receives a request faces a binary decision with no third option:</p>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; "we're a CA system"</span>
+A teammate says your distributed database is "CA &mdash; consistent and available, we don't need partition tolerance." <b>Why is that statement meaningless for any system that talks over a network?</b></div>
 
-<ol>
-<li><b>Reject the request (or block) to preserve consistency.</b> If a node cannot confirm with its peers that it holds the latest data, it refuses to serve a possibly-stale read or accept a write that it cannot replicate. It sacrifices <i>availability</i> to keep <i>consistency</i> &mdash; this is a <b>CP</b> system.</li>
-<li><b>Serve the request anyway to preserve availability.</b> The node responds with whatever data it has, accepting that it may be stale, and accepts writes locally to reconcile later. It sacrifices <i>consistency</i> to keep <i>availability</i> &mdash; this is an <b>AP</b> system.</li>
-</ol>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the 99.9% you forgot</span>
+Your network is healthy &mdash; no partition &mdash; which is true the vast majority of the time. A strongly consistent read still costs more than an eventually consistent one. <b>CAP says nothing about this case. What decision are you still making on every single request?</b></div>
 
-<div class="callout note"><span class="lbl">Key insight</span>CAP is not a menu you order from once at design time. The trade-off only forces itself on you <i>when a partition actually occurs</i>. When the network is healthy, a well-built system can offer both strong consistency and high availability. CAP describes degradation behavior under failure, not steady-state capability.</div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#i1">the forced choice</a>. Scenario 2 is the <a href="#ca-trap">"CA" trap</a>. Scenario 3 is why you need <a href="#i4">PACELC</a> &mdash; the latency-vs-consistency choice CAP is silent about. Each maps to an idea below.</i></p>
 
-<h2 id="3-why-ca-is-not-a-real-choice">Why &ldquo;CA&rdquo; is not a real choice</h2>
+<!-- ============ BRANCH 1: THE IDEAS ============ -->
+<h2 id="ideas">The four ideas to understand</h2>
+<p>A theory lesson isn't decisions to configure or sub-problems to build &mdash; it's a small set of ideas you must hold correctly, each guarded by a common misconception. Get the idea, avoid the trap.</p>
 
-<p>The Venn diagram suggests three pairs &mdash; CP, AP, and CA &mdash; but the CA corner is a trap. In any real distributed system that communicates over a network, partitions <i>will</i> happen: switches fail, cables get cut, garbage-collection pauses freeze a node, packets are dropped under load. Network partitions are a fact of life, not an optional condition you can design away.</p>
-
-<p>Because a partition is inevitable, <span class="key">partition tolerance is not negotiable</span> for a distributed system &mdash; you must tolerate partitions, which means the real choice is always between C and A. A system that claims to be &ldquo;CA&rdquo; is really just a CP or AP system that has not yet decided how it behaves under a partition, or a single-node system where the question does not arise. So in distributed systems, partition tolerance is a given, and we are left choosing between consistency and availability when (not if) the network fails.</p>
-
-<h2 id="4-cp-systems-consistency-over-availability">CP systems &mdash; consistency over availability</h2>
-
-<p>A <b>CP</b> system chooses consistency over availability when a partition occurs. If the system cannot guarantee that a read reflects the most recent write &mdash; because the nodes it needs to confirm with are unreachable &mdash; it will return an error or time out rather than serve potentially stale data. The minority side of a partition effectively stops serving.</p>
-
+<h3 id="i1">Idea 1 &mdash; The forced choice: C or A, but only during a partition</h3>
+<p>This is <b>Scenario 1</b>. When the network splits and a node can't reach its peers, a request lands and the node faces a binary decision with no third option:</p>
 <ul>
-<li><b>Banking and financial ledgers</b> are the canonical example: you would rather a transfer fail and ask the user to retry than allow two partitions to independently spend the same balance.</li>
-<li><b>Coordination and metadata stores</b> such as ZooKeeper, etcd, and Consul are deliberately CP &mdash; they back a consensus protocol and would rather become unavailable than hand out conflicting answers about who holds a lock or which node is the leader.</li>
-<li><b>HBase</b> and <b>MongoDB</b> (in their default configurations) lean CP: a region/primary that cannot reach the rest of the cluster stops accepting writes.</li>
+<li><b>Reject or block &rarr; preserve consistency (CP).</b> If the node can't confirm it holds the latest data, it refuses the (possibly stale) read or the (un-replicable) write. It sacrifices availability.</li>
+<li><b>Answer anyway &rarr; preserve availability (AP).</b> The node responds with whatever it has and accepts the write locally to reconcile later. It sacrifices consistency.</li>
 </ul>
+<div class="callout warn"><span class="lbl" id="nopartition">The misconception to avoid &mdash; "you pick two at design time"</span>
+The Venn-diagram teaching makes CAP sound like a one-time menu choice. It isn't. When the network is <i>healthy</i>, you get both C and A. The choice is forced <i>only</i> at the moment of partition &mdash; CAP is a statement about behavior under a specific failure, not a permanent property of your system.</div>
 
-<h2 id="5-ap-systems-availability-over-consistency">AP systems &mdash; availability over consistency</h2>
-
-<p>An <b>AP</b> system chooses availability over consistency. Every node keeps answering requests even when partitioned, returning the best data it has locally and accepting writes that it will reconcile later (often via versioning, vector clocks, or last-write-wins). The system stays up everywhere, but two clients on opposite sides of a partition may briefly see different values. Once the partition heals, the replicas converge &mdash; this is <span class="key">eventual consistency</span>.</p>
-
+<h3 id="i2">Idea 2 &mdash; CP systems: correct, or unavailable</h3>
+<p>A CP system chooses consistency when partitioned: if it can't guarantee a read reflects the latest write, it returns an error or times out rather than serve stale data. The minority side of a partition effectively stops serving.</p>
 <ul>
-<li><b>Amazon DynamoDB</b> and <b>Apache Cassandra</b> are the textbook AP stores, built on the Dynamo lineage where staying available for shopping carts mattered more than perfectly current reads.</li>
-<li><b>DNS</b> and <b>web caches / CDNs</b> are everyday AP systems: they serve possibly-stale answers globally rather than refusing to resolve a name.</li>
-<li><b>Couchbase</b> and <b>Riak</b> similarly favor availability and resolve conflicts after the fact.</li>
+<li><b>Banking / ledgers</b> &mdash; you'd rather a transfer fail and be retried than let two partitions independently spend the same balance.</li>
+<li><b>Coordination stores</b> (<a href="36.html">ZooKeeper, etcd, Consul</a>) &mdash; deliberately CP: they'd rather go unavailable than hand out conflicting answers about who holds a lock.</li>
 </ul>
+<div class="callout warn"><span class="lbl" id="ca-trap">The misconception to avoid &mdash; "CA is a real option"</span>
+This is <b>Scenario 2</b>. The diagram shows three pairs (CP, AP, CA), but <b>CA is a trap</b>. In any system that talks over a network, partitions <i>will</i> happen &mdash; switches fail, cables cut, GC pauses freeze nodes. Partition tolerance isn't optional, so the real choice is always C vs A. A "CA" system is either a single-node system (where the question doesn't arise) or a CP/AP system <i>in denial</i> &mdash; one whose partition behavior is whatever the code accidentally does, which is strictly worse than a deliberate choice.</div>
 
-<div class="tradeoff"><b>The trade-off in one line:</b> CP sacrifices uptime to never lie about data; AP sacrifices freshness to never go down. The right answer depends entirely on whether a stale answer or no answer is worse for your domain &mdash; a stale &ldquo;likes&rdquo; count is harmless, a stale account balance is not.</div>
+<h3 id="i3">Idea 3 &mdash; AP systems: always up, eventually right</h3>
+<p>An AP system chooses availability: every node keeps answering even when partitioned, returning its best local data and accepting writes to reconcile later (via versioning, vector clocks, or last-write-wins). Two clients on opposite sides may briefly see different values; once the partition heals, replicas converge &mdash; <span class="gl" data-def="Eventual consistency — if writes stop, all replicas eventually converge to the same value; no guarantee about intermediate reads or ordering.">eventual consistency</span>.</p>
+<ul>
+<li><b>Cassandra, DynamoDB</b> &mdash; the textbook AP stores (the Dynamo lineage, where staying available for shopping carts beat perfectly-current reads).</li>
+<li><b>DNS, CDNs</b> &mdash; everyday AP: serve a possibly-stale answer globally rather than refuse to resolve.</li>
+</ul>
+<p>The trade-off in one line: <b>CP sacrifices uptime to never lie about data; AP sacrifices freshness to never go down.</b> A stale "likes" count is harmless; a stale account balance is not.</p>
+<div class="callout warn"><span class="lbl" id="consistency-binary">The misconception to avoid &mdash; "consistency is on or off"</span>
+"Strong vs eventual" hides a whole ladder: <b>linearizable</b> (one copy, real-time order) &rarr; <b>sequential</b> (same order everywhere, not necessarily real-time) &rarr; <b>causal</b> (related ops ordered; concurrent ops may differ &mdash; often the sweet spot) &rarr; <b>eventual</b> (converges if writes stop). Choosing a rung on this ladder is the real decision; CAP's binary collapses it. Full ladder in <a href="31.html">Consistency Models</a>.</div>
 
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They never just say &ldquo;it&rsquo;s a CP system.&rdquo; They name the operation, the failure, and the user-visible consequence: &ldquo;During a partition, writes to the minority side are rejected with a 503, so the client must retry; reads on the majority side stay strongly consistent. We accept a few seconds of write unavailability per region failover because double-spending is unacceptable here.&rdquo; They also point out that CAP only bites <i>during</i> a partition and immediately reach for PACELC to describe the normal-case latency cost.</div>
+<h3 id="i4">Idea 4 &mdash; PACELC: the else-branch CAP forgets</h3>
+<p>This is <b>Scenario 3</b>, and it's what separates a junior answer from a principal one. CAP only describes the rare partition. Daniel Abadi's <b>PACELC</b> (2010) spells out both regimes:</p>
+<blockquote><b>P</b>artition &rarr; choose <b>A</b>vailability or <b>C</b>onsistency (the CAP question); <b>E</b>lse (normal operation) &rarr; choose <b>L</b>atency or <b>C</b>onsistency.</blockquote>
+<p>The <b>ELC</b> leg is the common case CAP ignores. Even on a perfectly healthy network, a strongly consistent system must coordinate before acknowledging &mdash; a quorum write, a leader round-trip, a consensus append &mdash; and that costs latency. To go faster you relax consistency. So <i>every</i> read and write carries a latency-vs-consistency decision, partition or not.</p>
+<div class="callout warn"><span class="lbl" id="cap-enough">The misconception to avoid &mdash; "CAP is enough"</span>
+Over-reliance on CAP is the tell-tale junior answer. It's silent about the trade-off you make on 99.9% of requests &mdash; the latency cost that actually dominates your budget and user experience. <b>Strong engineers reach for PACELC</b> to state behavior in <i>both</i> regimes, and they never just say "it's CP" &mdash; they name the operation, the failure, and the user-visible consequence: <i>"During a partition, writes to the minority side are rejected with a 503 so the client retries; majority-side reads stay consistent. We accept a few seconds of write unavailability per failover because double-spending is unacceptable."</i></div>
 
-<div class="pdeep">
-<span class="tag">Principal-level deep dive</span>
-<style>
-.pdeep{max-width:820px;margin:40px auto;padding:32px 40px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1a1d24;line-height:1.7;font-size:16px;}
-.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
-.pdeep h2{font-size:22px;margin:0 0 8px;border:0;}
-.pdeep h3{font-size:17px;margin:22px 0 6px;}
-.pdeep p{margin:0 0 14px;}
-.pdeep ul{margin:0 0 14px;padding-left:24px;} .pdeep li{margin:0 0 7px;}
-.pdeep code{background:#f5f6f8;color:#b3306b;padding:2px 6px;border-radius:4px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;}
-.pdeep a{color:#2d6cdf;text-decoration:none;} .pdeep a:hover{text-decoration:underline;}
-.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
-.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
-.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;} .pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;vertical-align:top;} .pdeep th{background:#f6f8fa;}
-.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
-
-/* dark-mode overrides for inline pdeep/mastery (injected) */
-:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
-:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
-:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
-:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
-:root[data-theme="dark"] .pdeep th{background:#0f1318;}
-:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
-:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
-:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
-</style>
-<h2>From CAP to PACELC and the consistency spectrum</h2>
-
-<p>CAP is necessary vocabulary but insufficient as a design tool, and over-reliance on it is a tell-tale sign of a junior answer. Its two weaknesses are well known. First, it treats consistency and availability as binary, when both are spectrums. Second, and more importantly, <b>it only says anything about the system during a partition</b> &mdash; and partitions are rare. A datacenter network is healthy the overwhelming majority of the time. CAP is silent about the trade-off you make on every single request the other 99.9% of the time, which is precisely the trade-off that dominates your latency budget and your user experience.</p>
-
-<h3>PACELC: the else-branch CAP forgets</h3>
-<p>Daniel Abadi's <b>PACELC</b> (2010) fixes this by spelling out both regimes. Read it as two conditional clauses:</p>
-<div class="box"><b>PACELC</b>If there is a <b>P</b>artition, choose between <b>A</b>vailability and <b>C</b>onsistency (the CAP question); <b>E</b>lse &mdash; in normal operation &mdash; choose between <b>L</b>atency and <b>C</b>onsistency.</div>
-<p>The <code>ELC</code> leg is the common case CAP ignores. Even with a perfectly healthy network, a strongly consistent system must coordinate across replicas before acknowledging &mdash; a quorum write, a leader round-trip, a consensus log append &mdash; and that coordination costs latency. To go faster you must relax consistency (read from a follower, accept eventual convergence). So <i>every</i> read and write carries a latency-vs-consistency decision, partition or not. This is why a principal engineer reaches for PACELC: it forces you to state behavior in <i>both</i> regimes instead of only the rare one.</p>
-
-<h3>Classifying real systems</h3>
-<p>PACELC gives a two-letter classification, one letter per leg:</p>
+<!-- ============ BRANCH 2: CLASSIFY ============ -->
+<h2 id="decision-table">Classifying real systems (PACELC)</h2>
+<p>PACELC gives a two-letter class, one letter per leg &mdash; this is how you actually talk about a store:</p>
 <table>
 <tr><th>System</th><th>PACELC class</th><th>Reading</th></tr>
-<tr><td>Google Spanner</td><td><b>PC/EC</b></td><td>Consistent under partition <i>and</i> in normal operation; it pays the latency (TrueTime commit-wait) to stay externally consistent everywhere.</td></tr>
-<tr><td>DynamoDB / Cassandra</td><td><b>PA/EL</b> (tunable)</td><td>Available under partition, low-latency in normal operation by default &mdash; but per-request quorum knobs let you dial toward consistency when you need it.</td></tr>
-<tr><td>MongoDB</td><td><b>PC/EC</b></td><td>Under partition the minority primary steps down and stops accepting writes to preserve consistency (matching its CP behavior above); in normal operation it favors consistency by routing reads to the primary.</td></tr>
+<tr><td>Google Spanner</td><td><b>PC/EC</b></td><td>Consistent under partition <i>and</i> in normal operation; pays the latency (TrueTime commit-wait) to stay consistent everywhere.</td></tr>
+<tr><td>DynamoDB / Cassandra</td><td><b>PA/EL</b> (tunable)</td><td>Available under partition, low-latency normally &mdash; but per-request quorum knobs dial toward consistency when needed.</td></tr>
+<tr><td>MongoDB</td><td><b>PC/EC</b></td><td>Under partition the minority primary steps down; normally routes reads to the primary for consistency.</td></tr>
 </table>
-<p>The tunable cases matter most in practice. Cassandra's <code>R + W &gt; N</code> quorum math is literally the <code>ELC</code> leg exposed as a per-statement dial: <code>QUORUM</code>/<code>QUORUM</code> buys consistency at higher latency, <code>ONE</code>/<code>ONE</code> buys latency at the cost of staleness. There is no single answer for the whole datastore &mdash; you choose per operation.</p>
+<div class="callout note"><span class="lbl">There is no "CA" class</span>PACELC has no notation for "ignores partitions," because a distributed system can't. Every system has a P-clause answer even if its designers never chose one &mdash; in which case the behavior is whatever the implementation accidentally does.</div>
 
-<h3>Consistency is a spectrum, not a switch</h3>
-<p>&ldquo;Consistent vs eventually consistent&rdquo; hides a whole ladder of models, ordered from strongest (and most expensive) to weakest (and cheapest):</p>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and see if you can rebuild them.</p>
 <ul>
-<li><b>Linearizable</b> &mdash; the system behaves as if there is a single copy of the data and every operation takes effect at one instant between its call and return. The gold standard; requires consensus or synchronous quorums.</li>
-<li><b>Sequential</b> &mdash; all nodes see operations in the same total order, but that order need not match real (wall-clock) time. Weaker than linearizable, which adds the real-time constraint.</li>
-<li><b>Causal</b> &mdash; operations that are causally related (a reply after a comment) are seen in order everywhere; concurrent, unrelated operations may be ordered differently on different nodes. Often the sweet spot: it preserves the orderings users actually notice without paying for global agreement.</li>
-<li><b>Eventual</b> &mdash; if writes stop, all replicas <i>eventually</i> converge to the same value, with no guarantee about intermediate reads or ordering. Cheapest and most available.</li>
+<li><b>Scenario 1 (cable cut):</b> What are a partitioned node's exactly-two options, and what does each (CP vs AP) sacrifice? Why is there no third choice?</li>
+<li><b>Scenario 2 ("we're CA"):</b> Why is "CA" meaningless for any networked system, and what is a claimed-CA system really?</li>
+<li><b>Scenario 3 (the 99.9%):</b> What does PACELC's ELC leg add that CAP omits, and why does that leg dominate your latency budget?</li>
+<li>Why does CAP describe <i>degradation under failure</i> rather than steady-state capability?</li>
+<li>Name the consistency ladder from strongest to weakest, and which rung is often the practical sweet spot.</li>
+<li>How would you state a system's behavior the way a principal does &mdash; naming op, failure, and consequence?</li>
 </ul>
-<p>Choosing a point on this ladder is the real design decision; CAP's binary collapses it into a single yes/no. See <a href="31.html">Consistency Models &amp; PACELC</a> for the full ladder and how each level is enforced.</p>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> CAP is <b>4 ideas</b> &mdash; <a href="#i1">the forced C-or-A choice (only during a partition)</a>, <a href="#i2">CP</a>, <a href="#i3">AP</a>, <a href="#i4">PACELC (the normal-case else-branch)</a> &mdash; each guarded by a misconception: design-time menu, CA-is-real, consistency-is-binary, CAP-is-enough.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="31.html">Consistency Models &amp; PACELC</a>, <a href="30.html">Consensus &amp; Raft</a>, <a href="37.html">Replication</a>, <a href="10.html">SQL vs NoSQL</a>.</p>
 
-<h3>Why CA isn't a real choice, restated</h3>
-<p>Worth saying once more in PACELC terms: there is no <code>CA</code> class. PACELC has no notation for &ldquo;ignores partitions&rdquo; because a distributed system cannot. Every system must have a <code>P</code>-clause answer, even if its designers never consciously chose one &mdash; in which case the partition behavior is whatever the implementation accidentally does, which is far worse than a deliberate choice. A claimed CA system is a single-node system, or a CP/AP system in denial.</p>
+<!-- ============ BRANCH 4: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The theory made concrete in real stores. Same facets &mdash; what it is, its CAP/PACELC stance, the mechanism, and the failure to watch.</p>
 
-<h3>How consensus systems land on CP</h3>
-<p>Systems built on consensus &mdash; Raft and Paxos backing ZooKeeper, etcd, Consul, and the metadata layers of Spanner, CockroachDB, and Kafka's controller &mdash; deliberately choose <b>CP</b>. A consensus protocol requires a <i>majority quorum</i> to commit any entry. When a partition splits the cluster, at most one side can hold a majority. The majority side keeps making progress and stays consistent; the minority side <b>cannot commit</b> and therefore <b>stalls</b> &mdash; it refuses writes and (for linearizable reads) refuses reads rather than serve stale state. This is the CP choice made concrete: the system sacrifices availability on the minority partition to guarantee that it never commits two conflicting histories. When the partition heals, the minority catches up by replaying the leader's log. This is exactly why you put a coordination service on the critical path only where you can tolerate that stall, and keep high-availability data paths on AP stores. See <a href="30.html">Consensus &amp; Raft</a> for the quorum mechanics and <a href="37.html">Replication</a> for how leader/follower topologies turn these choices into routing decisions.</p>
+<h3 id="impl-cp">CP &mdash; ZooKeeper / etcd / Spanner</h3>
+<ul>
+<li><b>Stance.</b> Consistency over availability under partition; pay latency for consistency normally (PC/EC).</li>
+<li><b>Mechanism.</b> Built on <a href="30.html">consensus</a> (Raft/Paxos): any commit needs a majority <span class="gl" data-def="Quorum — a majority of nodes that must agree before an operation is committed; guarantees at most one side of a partition can make progress.">quorum</span>. When a partition splits the cluster, at most one side holds a majority &mdash; that side progresses, the minority stalls (refuses writes, and linearizable reads) rather than serve stale state. On heal, the minority replays the leader's log.</li>
+<li><b>The failure to watch.</b> The minority partition is <i>unavailable by design</i> &mdash; put a coordination store on the critical path only where you can tolerate that stall.</li>
+</ul>
 
-<div class="seealso"><b>See also:</b> <a href="31.html">Consistency Models &amp; PACELC</a>, <a href="30.html">Consensus &amp; Raft</a>, <a href="37.html">Replication</a></div>
-</div>
+<h3 id="impl-ap">AP &mdash; Cassandra / DynamoDB</h3>
+<ul>
+<li><b>Stance.</b> Availability over consistency under partition; low latency normally (PA/EL).</li>
+<li><b>Mechanism.</b> No single leader required; every replica accepts reads/writes and reconciles later via versioning / last-write-wins. Stays up on every partition; converges after heal.</li>
+<li><b>The failure to watch.</b> Concurrent writes on opposite sides of a partition create conflicts you must resolve &mdash; silently picking last-write-wins can lose data.</li>
+</ul>
+
+<h3 id="impl-tunable">Tunable &mdash; Cassandra quorums (PACELC as a dial)</h3>
+<ul>
+<li><b>Stance.</b> The ELC leg exposed as a <i>per-statement</i> knob &mdash; you choose consistency vs latency per query.</li>
+<li><b>Mechanism.</b> The quorum rule <code>R + W &gt; N</code> (read replicas + write replicas &gt; total): <code>QUORUM/QUORUM</code> buys consistency at higher latency; <code>ONE/ONE</code> buys latency at the cost of staleness.</li>
+<li><b>The failure to watch.</b> There's no single right setting for the whole datastore &mdash; choose per operation, and a wrong knob silently gives you staleness or latency you didn't intend.</li>
+</ul>
+
+<!-- ============ BRANCH 5: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Theory sticks when you apply it. Work each one before opening the approach.</p>
+
+<h3 id="ex-classify">Classify a system the way a principal does</h3>
+<p>Take a system you know (say, a URL shortener's redirect path, or a payment ledger). State its behavior under partition <i>and</i> in normal operation &mdash; naming the operation, the failure, and the user-visible consequence. Don't just say "it's CP."</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Pick the operation, then both regimes. Example (payment ledger): <i>"Writes (transfers) are CP &mdash; during a partition the minority side rejects them with a 503 and the client retries; we accept seconds of write unavailability per region failover because double-spending is unacceptable. Reads of balance are also consistent (PC/EC). In normal operation we pay a quorum round-trip of latency on every write."</i> Contrast with a likes-counter: AP/EL &mdash; always accept the increment, reconcile later, never block, because a briefly-stale count is harmless. The skill is naming op + failure + consequence in <i>both</i> the P and E regimes.</p>
+</div></details>
+
+<h3 id="ex-quorum">Work the quorum math</h3>
+<p>For a store with N=3 replicas, which (R, W) settings give you strong consistency, and which give you low latency? Why does <code>R + W &gt; N</code> guarantee a read sees the latest write?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>With N=3: <code>W=2, R=2</code> gives <code>R+W=4 &gt; 3</code> &mdash; any read quorum and any write quorum overlap in at least one replica, so a read is guaranteed to touch a node that saw the latest write: strong consistency, but every op waits for 2 nodes. <code>W=1, R=1</code> (<code>R+W=2 &le; 3</code>) is fastest but the read and write sets may not overlap, so you can read stale data. The overlap is the whole trick: <code>R + W &gt; N</code> forces a shared replica between any reader and the last writer. This is the ELC leg as arithmetic.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Pick C or A per feature.</b> For one product (e.g. a social app), classify three features &mdash; the feed, the follower count, the DM read-receipt &mdash; as CP or AP and justify each by "stale vs no answer, which is worse?" &rarr; <a href="31.html">Consistency Models</a>.</li>
+<li><b>Make a CP store's stall tolerable.</b> Your metadata store (etcd) goes unavailable on the minority side during a partition. Design the system around that stall so a partition doesn't take the whole product down. &rarr; <a href="30.html">Consensus &amp; Raft</a>, <a href="51.html">Resilience Patterns</a>.</li>
+<li><b>Resolve AP conflicts.</b> Two clients write the same key on opposite sides of a partition. Design conflict resolution that doesn't silently lose a write (vs naive last-write-wins). &rarr; <a href="35.html">CRDTs</a>, <a href="37.html">Replication</a>.</li>
+</ul>
 
 <div class="navfoot"><a href="10.html">&lsaquo; Prev: SQL vs. NoSQL</a><a class="nx" href="12.html">Next: Consistent Hashing &rsaquo;</a></div>
 </div>

@@ -111,69 +111,67 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; System Design Basics</div>
 <h1>System Design Basics</h1>
-<p class="sub"><em>A short orientation to the core building blocks of scalable systems and how the upcoming chapters fit together.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Orientation.</b> <span>this lesson maps the building blocks; each one pays a specific cost introduced in lesson 01.</span></div>
-<div class="toc"><h4>In this lesson</h4>
-<ul>
-  <li><a href="#1-the-three-questions-behind-every-design">The three questions behind every design</a></li>
-  <li><a href="#2-scale-only-when-you-need-to-but-plan-for-it">Scale only when you need to &mdash; but plan for it</a></li>
-  <li><a href="#3-the-building-blocks-ahead">The building blocks ahead</a></li>
-  <li><a href="#4-how-this-fits-the-bigger-picture">How this fits the bigger picture</a></li>
-</ul></div>
+<p class="sub"><em>Before the building blocks, three orienting truths: every design reduces to three questions, there is no single "correct" architecture (only one that fits the requirements), and you scale when you need to &mdash; not before, but not blind to where it'll bend.</em></p>
 
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Headroom vs. simplicity &mdash; under-engineering means re-architecting under fire; over-engineering means paying for capacity you never use.</b> <span>The craft is finding the point where a small, reversible investment in headroom is worth it, and stopping there.</span></div>
 
-<h2 id="1-the-three-questions-behind-every-design">The three questions behind every design</h2>
-<p>Whenever we set out to design a large system, the work reduces to three recurring questions. They are simple to state and surprisingly hard to answer well, and the rest of this course exists to give you a vocabulary and a set of reusable answers for each.</p>
-<ul>
-<li><span class="key">What pieces are available?</span> What is the menu of building blocks &mdash; load balancers, caches, databases, queues, proxies, indexes &mdash; that we can assemble into a system?</li>
-<li><span class="key">How do these pieces interact?</span> How does a request flow from a client through the edge, into the application tier, across the data tier, and back? Where does state live, and who talks to whom?</li>
-<li><span class="key">What are the right trade-offs?</span> Every block buys you something (throughput, latency, availability) at a cost (complexity, consistency, money). Choosing well &mdash; and being able to defend the choice &mdash; is the entire game.</li>
-</ul>
-
-<div class="callout note"><span class="lbl">Key insight</span>There is no single "correct" architecture. A design is good only relative to a set of requirements and constraints. The same problem can have a perfectly reasonable single-server answer and a perfectly reasonable globally-distributed answer &mdash; the difference is the scale, the SLAs, and the budget you were handed.</div>
-
-<h2 id="2-scale-only-when-you-need-to-but-plan-for-it">Scale only when you need to &mdash; but plan for it</h2>
-<p>Investing heavily in scaling infrastructure before you actually need it is not smart engineering, and it is not smart business. Premature scaling burns money, multiplies operational surface area, and slows you down with complexity you are not yet using. Many products would be better served by a boring, well-understood setup on a single beefy machine for far longer than engineers like to admit.</p>
-<p>That said, a little forethought goes a long way. Knowing <em>where</em> the system will bend as load grows &mdash; which component becomes the bottleneck first, which piece of state is hardest to shard, which call sits on the critical path &mdash; lets you avoid decisions that are cheap to make today and brutally expensive to undo later. The goal is not to build for a billion users on day one; it is to avoid painting yourself into a corner.</p>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Under-engineering means you scramble and re-architect under fire when traffic spikes. Over-engineering means you pay &mdash; in dollars and in velocity &mdash; for capacity and complexity you never use. The craft is finding the point where a small, reversible investment in headroom is worth it, and stopping there.</div>
-
-<div class="clarify">In practice, this is exactly why you ask about scale up front. "How many users? How many requests per second? Read-heavy or write-heavy? What are the latency and availability targets?" The answers tell you whether a single database is fine or whether you genuinely need partitioning, replication, and a CDN. Designing for unstated scale is a common way engineers lose points.</div>
-
-<h2 id="3-the-building-blocks-ahead">The building blocks ahead</h2>
-<p>The next several chapters each take one fundamental building block and treat it in depth. Read in order, they form a toolkit: by the end you should be able to look at any of the classic and advanced design problems later in the course and reach for the right component on instinct, knowing both what it does and what it costs.</p>
-<table>
-<tr><th>Chapter</th><th>Building block</th><th>What problem it solves</th></tr>
-<tr><td><a href="03.html">03</a></td><td><a href="03.html">Load balancing</a></td><td>Spreads traffic across many servers; removes single points of failure at the compute tier.</td></tr>
-<tr><td><a href="04.html">04</a></td><td><a href="04.html">Caching</a></td><td>Keeps hot data close to where it is read to cut latency and offload the datastore.</td></tr>
-<tr><td><a href="05.html">05</a></td><td><a href="05.html">Sharding / partitioning</a></td><td>Splits data across machines when one box can no longer hold or serve it.</td></tr>
-<tr><td><a href="06.html">06</a></td><td><a href="06.html">Indexes</a></td><td>Makes reads fast at the cost of slower writes and extra storage.</td></tr>
-<tr><td><a href="07.html">07</a></td><td><a href="07.html">Proxies</a></td><td>Intermediaries that aggregate, filter, transform, or shield requests.</td></tr>
-<tr><td><a href="08.html">08</a></td><td><a href="08.html">Queues</a></td><td>Decouple producers from consumers and absorb bursts asynchronously.</td></tr>
-<tr><td><a href="09.html">09</a></td><td><a href="09.html">Redundancy &amp; replication</a></td><td>Keeps copies of data and components so failures do not mean downtime or loss.</td></tr>
-<tr><td><a href="10.html">10</a></td><td><a href="10.html">SQL vs. NoSQL</a></td><td>Choosing the data model and consistency story that fit the access pattern.</td></tr>
-<tr><td><a href="11.html">11</a></td><td><a href="11.html">CAP theorem</a></td><td>The fundamental limit on consistency vs. availability under network partitions.</td></tr>
-<tr><td><a href="12.html">12</a></td><td><a href="12.html">Consistent hashing</a></td><td>Distributes keys across nodes so adding or removing a node moves minimal data.</td></tr>
-<tr><td><a href="13.html">13</a></td><td><a href="13.html">Long-poll / WebSockets / SSE</a></td><td>Patterns for pushing data to clients in near real time.</td></tr>
-</table>
-
-<div class="callout note"><span class="lbl">Key insight</span>Notice the recurring shape: nearly every block is a way of trading one resource for another. Caching trades memory and staleness for read latency. Indexes trade write speed and storage for read speed. Replication trades storage and write coordination for availability. Once you see the trade as the unit of thinking, the blocks stop being a list to memorize and become a small set of levers you pull deliberately.</div>
-
-<h2 id="4-how-this-fits-the-bigger-picture">How this fits the bigger picture</h2>
-<p>These fundamentals are not an end in themselves &mdash; they are the foundation for the distributed-system design problems that dominate the second half of the course. When you later design a URL shortener, an Instagram, a Twitter, or an Uber backend, you will not invent new primitives; you will compose the blocks introduced here, justifying each choice against the requirements you clarified up front.</p>
-<p>So the path through the course is deliberate: first the building blocks (chapters 03&ndash;13), then a step-by-step framework (chapter 14) for assembling them into a coherent design, then a long sequence of worked design problems that exercise the toolkit, and finally deeper distributed-systems theory and advanced designs for those targeting senior and principal levels.</p>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat the building blocks as a shared language. Instead of describing a mechanism from scratch &mdash; "we'll keep frequently-read data in fast memory near the servers" &mdash; they name it ("we add a read-through cache") and immediately move to the interesting part: the trade-offs, the failure modes, and the eviction or invalidation policy. Knowing the vocabulary cold frees your time in practice for the judgment that actually distinguishes you.</div>
-
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1694239618199.jpeg" alt="Latency numbers every engineer should know" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">The classic latency-numbers pyramid (L1/L2 cache, RAM, network, SSD, DB, HDD, packet round-trip) mapped to real systems like Redis, RocksDB, Postgres. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1754990591658.jpeg" alt="End-to-end system architecture composition" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A &#x27;System Design Master Template&#x27; showing a generic full architecture with client, load balancer, API gateways, metadata/block servers, caching, queues, CDN, video processing, and data warehouse. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2024-12-04 at 8.57.45 AM.jpg" alt="Core system-design pillars overview" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Infographic of the four pillars of system design — scalability, availability, reliability, performance — each with sub-techniques and small diagrams. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>System Design Basics</b>
+│
+├─ <a href="#questions"><b>The three questions behind every design</b></a>
+├─ <a href="#scale"><b>Scale when you need to &mdash; but plan for it</b></a>
+├─ <a href="#blocks"><b>The building blocks ahead</b></a>  &mdash; the toolkit (03&ndash;13)
+└─ <a href="#self-check"><b>Self-check</b></a>
+</pre>
 </div>
-<div class="navfoot"><a href="01.html">&lsaquo; Prev: Why System Design Matters</a><a class="nx" href="03.html">Next: Load Balancing &rsaquo;</a></div>
+
+<h2 id="questions">The three questions behind every design</h2>
+<p>Designing a large system reduces to three recurring questions &mdash; simple to state, hard to answer well. The rest of the course gives you vocabulary and reusable answers for each:</p>
+<ol>
+<li><b>What pieces are available?</b> The menu of building blocks &mdash; load balancers, caches, databases, queues, proxies, indexes &mdash; you can assemble.</li>
+<li><b>How do these pieces interact?</b> How a request flows from client &rarr; edge &rarr; application tier &rarr; data tier and back. Where state lives, who talks to whom.</li>
+<li><b>What are the right trade-offs?</b> Every block buys something (throughput, latency, availability) at a cost (complexity, consistency, money). Choosing well &mdash; and defending it &mdash; is the whole game.</li>
+</ol>
+<div class="callout note"><span class="lbl">Key insight</span>There is no single "correct" architecture. A design is good only <i>relative to</i> a set of requirements and constraints. The same problem can have a perfectly reasonable single-server answer <i>and</i> a perfectly reasonable globally-distributed one &mdash; the difference is the scale, the SLAs, and the budget you were handed.</div>
+
+<h2 id="scale">Scale only when you need to &mdash; but plan for it</h2>
+<p>Investing heavily in scaling infrastructure before you need it is neither smart engineering nor smart business. Premature scaling burns money, multiplies operational surface, and slows you with unused complexity. Many products would be better served by a boring single beefy machine for far longer than engineers admit.</p>
+<p>That said, a little forethought goes a long way: knowing <i>where the system will bend</i> as load grows &mdash; which component becomes the bottleneck first, which state is hardest to <a href="05.html">shard</a>, which call sits on the critical path &mdash; lets you avoid decisions that are cheap today and brutal to undo later.</p>
+<div class="callout tradeoff"><span class="lbl">The trade-off</span>Under-engineering &rarr; you scramble and re-architect under fire when traffic spikes. Over-engineering &rarr; you pay, in dollars and velocity, for capacity and complexity you never use. The craft is finding the point where a small, <i>reversible</i> investment in headroom is worth it, and stopping there.</div>
+<p>This is exactly why you ask about scale up front: <i>"How many users? Requests per second? Read- or write-heavy? Latency and availability targets?"</i> The answers decide whether a single database is fine or you genuinely need partitioning, replication, and a CDN. Designing for unstated scale is a common way to lose points &mdash; the <a href="14.html">framework lesson</a> makes this a disciplined first step.</p>
+
+<h2 id="blocks">The building blocks ahead</h2>
+<p>The next chapters each take one fundamental building block in depth. Read in order they form a toolkit &mdash; so that for any later design problem you reach for the right component on instinct, knowing both what it does and what it costs:</p>
+<table>
+<tr><th>Ch.</th><th>Building block</th><th>What problem it solves</th></tr>
+<tr><td><a href="03.html">03</a></td><td>Load balancing</td><td>Spreads traffic across servers; removes SPOFs at the compute tier</td></tr>
+<tr><td><a href="04.html">04</a></td><td>Caching</td><td>Keeps hot data close to reads to cut latency and offload the datastore</td></tr>
+<tr><td><a href="05.html">05</a></td><td>Sharding / partitioning</td><td>Splits data across machines when one box can't hold or serve it</td></tr>
+<tr><td><a href="06.html">06</a></td><td>Indexes</td><td>Makes reads fast at the cost of slower writes and storage</td></tr>
+<tr><td><a href="07.html">07</a></td><td>Proxies</td><td>Intermediaries that aggregate, filter, transform, or shield requests</td></tr>
+<tr><td><a href="08.html">08</a></td><td>Queues</td><td>Decouple producers from consumers; absorb bursts asynchronously</td></tr>
+<tr><td><a href="09.html">09</a></td><td>Redundancy &amp; replication</td><td>Keep copies so failures don't mean downtime or loss</td></tr>
+<tr><td><a href="10.html">10</a></td><td>SQL vs NoSQL</td><td>Choosing the data model and consistency story for the access pattern</td></tr>
+<tr><td><a href="11.html">11</a>&ndash;<a href="13.html">13</a></td><td>CAP, consistent hashing, realtime transports</td><td>The correctness and connection primitives designs lean on</td></tr>
+</table>
+<div class="callout note"><span class="lbl">Then: the framework</span>Once you have the blocks, <a href="14.html">Lesson 14</a> gives you the repeatable process for assembling them under interview or design-doc conditions: clarify &rarr; estimate &rarr; API &rarr; data model &rarr; high-level &rarr; deep-dive the bottleneck.</div>
+
+<h2 id="self-check">Self-check</h2>
+<ul>
+<li>State the three questions behind every design, in your own words.</li>
+<li>Why is there no single "correct" architecture &mdash; what makes a design "good"?</li>
+<li>Give the failure mode of over-engineering and of under-engineering, and where the sweet spot is.</li>
+<li>What scale questions do you ask up front, and what does each answer change in the design?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> three questions (pieces / interactions / trade-offs); no one right architecture; scale when needed but know where it'll bend.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="01.html">Foundations</a> (the bottlenecks), <a href="14.html">the design framework</a>, and the building blocks <a href="03.html">03</a>&ndash;<a href="13.html">13</a>.</p>
+
+<div class="navfoot"><a href="01.html">&lsaquo; Prev: Foundations</a><a class="nx" href="03.html">Next: Load Balancing &rsaquo;</a></div>
 </div>
 </div>
 </div>

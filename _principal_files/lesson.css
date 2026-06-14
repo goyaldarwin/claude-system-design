@@ -178,6 +178,68 @@ blockquote a{word-break:break-all;}
 
 @media(max-width:680px){.wrap{padding:60px 20px 60px;} h1{font-size:25px;} body{font-size:16px;} .pdeep{padding:20px;}}
 
+/* ===== Glossary abbreviations — instant tooltip (no browser title-delay) ===== */
+/* Use <span class="gl" data-def="full explanation">TERM</span>. The dotted underline
+   signals it's hoverable; the tooltip appears immediately on hover/focus. */
+.gl{border-bottom:1px dotted var(--muted); cursor:help; position:relative; white-space:nowrap;}
+.gl:hover, .gl:focus{border-bottom-color:var(--accent); color:var(--accent); outline:none;}
+.gl::after{content:attr(data-def); position:absolute; left:0; top:calc(100% + 6px); z-index:70;
+  min-width:200px; max-width:340px; white-space:normal; background:var(--ink); color:var(--bg);
+  font-size:13px; font-weight:400; line-height:1.5; letter-spacing:0; text-transform:none;
+  padding:8px 11px; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.25);
+  opacity:0; visibility:hidden; transition:opacity .08s ease, visibility 0s linear .08s;}
+.gl:hover::after, .gl:focus::after{opacity:1; visibility:visible; transition-delay:0s;}
+@media(max-width:680px){ .gl::after{max-width:240px;} }
+
+/* ===== Collapsible content tree (built by nav.js when .wrap has class tree-doc) ===== */
+.tree-controls{display:flex; gap:8px; margin:0 0 22px;}
+.tree-controls button{font-size:12px; font-weight:600; color:var(--accent); background:var(--accent-soft);
+  border:1px solid var(--line); border-radius:6px; padding:5px 11px; cursor:pointer;}
+.tree-controls button:hover{background:var(--accent); color:#fff;}
+
+/* Headings become clickable node rows with a caret. The left rule + indent make the
+   parent/child nesting visible like a file tree. */
+.tree-doc h2.node-head, .tree-doc h3.node-head{cursor:pointer; user-select:none; position:relative;}
+.tree-doc h2.node-head:hover, .tree-doc h3.node-head:hover{color:var(--accent);}
+.tree-doc .caret{display:inline-block; width:1em; margin-left:-1.05em; color:var(--muted);
+  transition:transform .15s ease; font-size:.8em; vertical-align:1px;}
+.tree-doc .caret::before{content:"\25BC";}            /* ▼ open */
+.tree-doc .node-head.collapsed .caret{transform:rotate(-90deg);}
+.tree-doc .node-head:hover .caret{color:var(--accent);}
+
+/* h2 bodies indent their h3 children so the hierarchy reads as a tree. */
+.tree-doc h2.node-head{padding-left:1.05em;}
+.tree-doc h3.node-head{padding-left:1.05em;}
+.tree-doc h2.node-head + .node-body{border-left:2px solid var(--line); margin-left:.35em;
+  padding-left:1.4em; margin-bottom:8px;}
+.tree-doc h3.node-head + .node-body{padding-left:.2em;}
+.tree-doc .node-body.hidden{display:none;}
+/* a collapsed heading shouldn't keep its big bottom margin/border gap */
+.tree-doc .node-head.collapsed{margin-bottom:14px;}
+
+/* ===== Lesson "how this is built" overview box + inline incident card ===== */
+.treebox{background:var(--soft); border:1px solid var(--line); border-left:4px solid var(--accent);
+  border-radius:0 8px 8px 0; padding:16px 20px; margin:0 0 30px;}
+.treetitle{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--accent); margin-bottom:8px;}
+pre.tree{background:none; border:0; padding:0; margin:0; overflow-x:auto; font-size:13.5px;
+  line-height:1.7; color:var(--ink);}
+pre.tree a{color:var(--accent); text-decoration:none;} pre.tree a:hover{text-decoration:underline;}
+.incident{background:var(--bg); border:1px solid var(--warn-line); border-radius:6px;
+  padding:11px 14px; margin:10px 0; font-size:14px; line-height:1.6;}
+
+/* ===== Exercise "reveal the approach" — native <details>, instant, no JS ===== */
+details.reveal{border:1px solid var(--line); border-left:3px solid var(--ok-line);
+  border-radius:0 6px 6px 0; background:var(--ok-bg); margin:8px 0 18px; padding:0;}
+details.reveal>summary{cursor:pointer; user-select:none; list-style:none; padding:9px 14px;
+  font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ok-line);}
+details.reveal>summary::-webkit-details-marker{display:none;}
+details.reveal>summary::before{content:"\25B6\00a0\00a0"; font-size:.8em;}   /* ▶ */
+details.reveal[open]>summary::before{content:"\25BC\00a0\00a0";}            /* ▼ */
+details.reveal>summary:hover{color:var(--accent);}
+details.reveal .reveal-body{padding:0 16px 4px; font-size:15px;}
+details.reveal .reveal-body p:last-child{margin-bottom:14px;}
+
 /* ===== Dark-mode toggle button (injected by nav.js / inline on index) ===== */
 .theme-toggle{position:fixed; right:18px; bottom:18px; z-index:60; width:44px; height:44px;
   border-radius:50%; border:1px solid var(--line); background:var(--bg); color:var(--ink);
