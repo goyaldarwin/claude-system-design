@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Designing Twitter Search</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
-<link rel="stylesheet" href="./_principal_files/lesson.css">
+<link rel="stylesheet" href="./_principal_files/lesson.css?v=20260615a">
 <script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('sd-nav')==='collapsed')document.documentElement.classList.add('nav-collapsed');}catch(e){}})();</script>
-<script src="./_principal_files/nav.js" defer></script>
+<script src="./_principal_files/nav.js?v=20260615a" defer></script>
 </head>
 <body>
 <div class="layout">
@@ -114,6 +114,139 @@
 <div class="wrap">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Twitter Search</div>
 <h1>Designing Twitter Search</h1>
+<div class="lesson-tabs"><button type="button" data-tab="new">New &mdash; redesigned</button><button type="button" data-tab="old">Old &mdash; original</button><span class="tab-note">Old = the original Grokking walkthrough, preserved.</span></div>
+<div class="tab-pane tree-doc" data-tab="new">
+<p class="sub"><em>Search billions of tweets by keyword, in near-real-time, ranked. The engine is the <b>inverted index</b> &mdash; word &rarr; list of tweets containing it &mdash; sharded across machines. The hard parts are keeping the index fresh as 1,000+ tweets/sec pour in, and merging results from every shard without the query melting.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>An inverted index, sharded, kept fresh by a streaming pipeline &mdash; queries scatter to shards and merge ranked results.</b> <span>The index structure, how it's sharded, and how it ingests a firehose of new tweets are the three decisions.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; walk the design, then the hard parts</div>
+<pre class="tree">
+<b>Designing Twitter Search</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>
+├─ <a href="#api"><b>3. System API</b></a>
+├─ <a href="#highlevel"><b>4. High-level architecture</b></a>
+├─ <a href="#datamodel"><b>5. Data model</b></a>  &mdash; the inverted index
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>
+├─ <a href="#subproblems"><b>6. The hard sub-problems</b></a>
+│   ├─ <a href="#sp1">The index structure</a>     failure → <a href="#scan">scan every tweet</a>
+│   ├─ <a href="#sp2">Sharding the index</a>      failure → <a href="#queryall">query-all-shards cost</a>
+│   └─ <a href="#sp3">Keeping it fresh</a>        failure → <a href="#stale">stale / missing tweets</a>
+│
+├─ <a href="#decision-table"><b>The design at a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud services</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
+</div>
+
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> search tweets by keyword(s); results ranked (recency + relevance + popularity); near-real-time (a tweet is findable within seconds). <b>Non-functional:</b> low query latency, high availability, scale to billions of tweets and high query volume. <b>Extended:</b> filters (user, date), trending, typeahead (<a href="22.html">22</a>).</p>
+
+<h2 id="capacity">2. Capacity estimate</h2>
+<ul>
+<li><b>Write firehose:</b> ~1,150 new tweets/sec must be indexed continuously &mdash; index freshness is a streaming problem, not a nightly batch.</li>
+<li><b>Index size:</b> billions of tweets &times; many terms each &rarr; the inverted index is huge and must be sharded across many machines.</li>
+<li><b>Query latency budget:</b> a search must merge results from many shards and rank, fast &mdash; the scatter-gather cost is the read challenge.</li>
+</ul>
+
+<h2 id="api">3. System API</h2>
+<pre><code>search(query, filters?, page) &rarr; ranked [tweet_ids]   // then hydrate tweet bodies from the tweet store
+index(tweet)   // called as tweets are created, via a stream</code></pre>
+
+<h2 id="highlevel">4. High-level architecture</h2>
+<ul>
+<li><b>Ingestion stream:</b> new tweets flow through a <a href="39.html">log/queue</a> to indexers that update the inverted index in near-real-time.</li>
+<li><b>Inverted index</b> sharded across <b>index servers</b>; a query aggregator scatters the query, gathers + merges ranked partial results.</li>
+<li><b>Tweet store</b> (from <a href="20.html">Twitter</a>) holds the bodies; search returns IDs, then hydrates.</li>
+</ul>
+
+<h2 id="datamodel">5. Data model &mdash; the inverted index</h2>
+<p>The core structure: <span class="gl" data-def="Inverted index — a map from each term (word) to the list (postings) of documents/tweets that contain it; the backbone of all full-text search.">inverted index</span> = <code>term &rarr; postings list</code> (the tweet IDs containing that term, often with positions and scoring metadata). To answer "tweets containing X and Y," intersect the postings lists for X and Y. (This is what Lucene/Elasticsearch build under the hood &mdash; <a href="43.html">43</a>.)</p>
+
+<h2 id="scenarios">Three scenarios &mdash; the hard parts, as questions</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; "find tweets containing 'eclipse'"</span>
+A user searches for a word. <b>If tweets are stored as rows, what query finds the matches &mdash; and why is scanning billions of tweet bodies hopeless at search latency?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the index is too big for one machine</span>
+The inverted index for billions of tweets doesn't fit on one server. You shard it. <b>Now a query for "solar eclipse" &mdash; how many shards does it touch, and what does that do to latency?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; a tweet must be findable in seconds</span>
+Someone tweets about breaking news; people search for it 5 seconds later and expect to find it. <b>1,150 tweets/sec are arriving &mdash; how does the index stay current without rebuilding it constantly?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#scan">index structure</a>. Scenario 2 is <a href="#queryall">sharding</a>. Scenario 3 is <a href="#stale">freshness</a>.</i></p>
+
+<h2 id="subproblems">6. The hard sub-problems</h2>
+
+<h3 id="sp1">Sub-problem 1 &mdash; The index structure</h3>
+<p>Full-text search needs an <b>inverted index</b>: instead of scanning documents for a term, look the term up directly and get the list of tweets containing it. Multi-word queries intersect (AND) or union (OR) the postings lists.</p>
+<div class="callout warn"><span class="lbl" id="scan">The failure that happens when you get this wrong &mdash; scanning every tweet</span>
+This is <b>Scenario 1</b>. A <code>WHERE body LIKE '%eclipse%'</code> over billions of rows is a full <a href="06.html#fullscan">scan</a> &mdash; impossible at search latency, and an index on the column doesn't help a substring match. The inverted index flips it: the term <i>is</i> the key, and you get the matching IDs in one lookup. Building it requires tokenizing each tweet (split into terms, normalize case, stem, drop stop-words) at index time &mdash; pay the work on write so the read is a lookup.</div>
+
+<h3 id="sp2">Sub-problem 2 &mdash; Sharding the index</h3>
+<p>The index is too big for one machine, so shard it &mdash; and the choice mirrors the <a href="05.html#d3">secondary-index</a> dilemma:</p>
+<ul>
+<li><b>Shard by document (tweet):</b> each shard indexes its own tweets. A query must hit <i>every</i> shard and merge (scatter-gather), but writes are local and even.</li>
+<li><b>Shard by term:</b> each shard owns certain terms' postings. A single-term query hits one shard, but a tweet's write fans out to many term-shards, and popular terms create hot shards.</li>
+</ul>
+<div class="callout warn"><span class="lbl" id="queryall">The failure that happens when you get this wrong &mdash; the query-all-shards cost</span>
+This is <b>Scenario 2</b>. With document-sharding (the common choice), every query scatters to all N shards and the aggregator waits for the <i>slowest</i> one before merging &mdash; so tail latency tracks your worst shard, and throughput drops as every query touches every machine. Mitigations: cap shard count, replicate shards (query the fastest replica), cache hot queries, and rank/limit early so each shard returns only its top-k. Term-sharding avoids the scatter for single-term queries but trades it for write fan-out and hot terms &mdash; pick which cost you pay.</div>
+
+<h3 id="sp3">Sub-problem 3 &mdash; Keeping the index fresh</h3>
+<p>At 1,150 tweets/sec, the index must update continuously. New tweets flow through a <a href="39.html">stream</a> to indexers that append to the relevant postings lists in near-real-time (the <a href="06.html#wrongengine">LSM</a> append pattern suits this).</p>
+<div class="callout warn"><span class="lbl" id="stale">The failure that happens when you get this wrong &mdash; stale or missing tweets</span>
+This is <b>Scenario 3</b>. A batch index rebuilt nightly would make breaking news unsearchable for hours. Instead, drive indexing off the <i>tweet-creation stream</i>: each new tweet is tokenized and its terms' postings updated within seconds (Elasticsearch's near-real-time refresh works exactly this way &mdash; new docs become searchable after a short refresh interval, not instantly, trading a tiny delay for write throughput). The index is append-friendly; periodic background compaction/merge keeps segments tidy without blocking reads.</div>
+
+<h2 id="decision-table">The design at a glance</h2>
+<table>
+<tr><th>Piece</th><th>Choice</th><th>Why</th></tr>
+<tr><td>Index</td><td>Inverted index (term &rarr; postings)</td><td>Term lookup, not document scan</td></tr>
+<tr><td>Sharding</td><td>By document + replication</td><td>Even writes; scatter-gather reads, mitigated</td></tr>
+<tr><td>Ingestion</td><td>Stream-driven near-real-time indexing</td><td>Findable in seconds, not a nightly batch</td></tr>
+<tr><td>Ranking</td><td>Recency + relevance + popularity, top-k per shard</td><td>Limit early to cut merge cost</td></tr>
+<tr><td>Bodies</td><td>Hydrate IDs from the tweet store</td><td>Index stays small (IDs + scoring)</td></tr>
+</table>
+
+<h2 id="self-check">Self-check &mdash; can you reconstruct the design?</h2>
+<ul>
+<li><b>Scenario 1 (structure):</b> Why is <code>LIKE '%term%'</code> hopeless, and what does an inverted index do instead? What happens at index time?</li>
+<li><b>Scenario 2 (sharding):</b> Document-sharding vs term-sharding &mdash; what cost does each impose, and why does tail latency track the slowest shard?</li>
+<li><b>Scenario 3 (freshness):</b> Why stream-driven indexing over batch, and what's "near-real-time" refresh?</li>
+<li>Why does search return IDs and hydrate bodies separately?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> an <a href="#sp1">inverted index</a>, <a href="#sp2">document-sharded</a> with scatter-gather, kept fresh by a <a href="#sp3">stream</a> &mdash; the heart of all search.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="43.html">Search &amp; Elasticsearch</a>, <a href="05.html">Sharding</a> (secondary indexes), <a href="39.html">Kafka</a>, <a href="20.html">Twitter</a>, <a href="22.html">Typeahead</a>.</p>
+
+<h2 id="cloud">Cloud services &mdash; what you'd build it on</h2>
+<table>
+<tr><th>Piece</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Search engine</td><td>OpenSearch</td><td>(Elastic on GCP) / Vertex Search</td><td>Azure AI Search</td></tr>
+<tr><td>Ingestion stream</td><td>Kinesis / MSK</td><td>Pub/Sub / Dataflow</td><td>Event Hubs</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-lucene">Lucene / Elasticsearch</h3>
+<ul><li><b>What it is.</b> The de-facto inverted-index engine; ES distributes Lucene shards and adds near-real-time refresh.</li><li><b>Key idea.</b> Immutable index segments + periodic refresh/merge; document-sharded with replicas. (<a href="43.html">43</a>.)</li><li><b>The failure to watch.</b> Refresh interval = search lag; deep pagination and scatter-gather are the scaling pains.</li></ul>
+<h3 id="impl-earlybird">Twitter Earlybird</h3>
+<ul><li><b>What it is.</b> Twitter's real-time search engine (a modified Lucene) built for the tweet firehose.</li><li><b>Key idea.</b> Optimized for extremely high write throughput + low-latency recency-ranked queries &mdash; real-time indexing was the explicit goal.</li><li><b>The failure to watch.</b> Real-time + ranked + at scale is genuinely hard; ranking and freshness fight throughput.</li></ul>
+
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-index">Build an inverted index with AND queries</h3>
+<p>Index a stream of short documents and answer "documents containing both X and Y." What's the structure, and how do you intersect efficiently?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Maintain a map <code>term &rarr; sorted postings list (doc IDs)</code>. To index a doc: tokenize (lowercase, stem, drop stop-words), and append its ID to each term's list. To answer "X AND Y": fetch both postings lists and <b>intersect</b> them &mdash; because both are sorted by doc ID, you walk them with two pointers in O(len(X)+len(Y)), advancing the smaller. Start the intersection from the <i>shortest</i> list to prune fast. For ranking, store a score with each posting and keep only the top-k. Sharded by document, each shard does this locally and returns its top-k; the aggregator merges. That two-pointer intersection on sorted postings is the core trick all search engines use.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
+<ul>
+<li><b>Add relevance ranking.</b> Beyond recency, score by term frequency / popularity (TF-IDF-ish). Where does scoring live?</li>
+<li><b>Trending terms.</b> Surface spiking terms over a window. &rarr; <a href="42.html">Probabilistic Data Structures</a>, <a href="63.html">Ad Click Aggregation</a>.</li>
+</ul>
+
+</div>
+<div class="tab-pane hidden" data-tab="old">
 <p class="sub"><em>Design a service that stores all user tweets and lets us search over them efficiently using a distributed inverted index.</em></p>
 <div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; finite capacity.</b> <span>fast full-text via an inverted index, paid in real-time indexing and index sharding.</span></div>
 <div class="toc"><h4>In this lesson</h4>
@@ -304,6 +437,7 @@ A JSON containing information about a list of status messages matching the searc
 </ul>
 </div>
 
+</div>
 <div class="navfoot"><a href="23.html">&lsaquo; Prev: Designing an API Rate Limiter</a><a class="nx" href="25.html">Next: Designing a Web Crawler &rsaquo;</a></div>
 </div>
 </div>

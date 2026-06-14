@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Designing Yelp or Nearby Friends</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
-<link rel="stylesheet" href="./_principal_files/lesson.css">
+<link rel="stylesheet" href="./_principal_files/lesson.css?v=20260615a">
 <script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('sd-nav')==='collapsed')document.documentElement.classList.add('nav-collapsed');}catch(e){}})();</script>
-<script src="./_principal_files/nav.js" defer></script>
+<script src="./_principal_files/nav.js?v=20260615a" defer></script>
 </head>
 <body>
 <div class="layout">
@@ -112,8 +112,149 @@
 </nav>
 <div class="main">
 <div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Yelp or Nearby Friends</div>
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Yelp / Nearby Friends</div>
 <h1>Designing Yelp or Nearby Friends</h1>
+<div class="lesson-tabs"><button type="button" data-tab="new">New &mdash; redesigned</button><button type="button" data-tab="old">Old &mdash; original</button><span class="tab-note">Old = the original Grokking walkthrough, preserved.</span></div>
+<div class="tab-pane tree-doc" data-tab="new">
+<p class="sub"><em>"What's near me?" Answering it fast over millions of places (or moving users) is a <b>geospatial indexing</b> problem: a plain database can't efficiently answer "within X km of this lat/long." The trick is to divide the map into cells and index by cell &mdash; geohash, quadtree, or S2 &mdash; so a proximity query becomes a cell lookup.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Turn a 2-D "within radius" query into a 1-D cell lookup by gridding the map &mdash; then handle dense regions and (for live users) constant location updates.</b> <span>The geospatial index is the core decision; density skew and write volume (for moving objects) are the failure modes.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; walk the design, then the hard parts</div>
+<pre class="tree">
+<b>Designing Yelp / Nearby Friends</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>
+├─ <a href="#api"><b>3. System API</b></a>
+├─ <a href="#highlevel"><b>4. High-level architecture</b></a>
+├─ <a href="#datamodel"><b>5. Data model</b></a>
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>
+├─ <a href="#subproblems"><b>6. The hard sub-problems</b></a>
+│   ├─ <a href="#sp1">The geospatial index</a>     failure → <a href="#tablescan">full geo scan</a>
+│   ├─ <a href="#sp2">Uneven density</a>           failure → <a href="#geohot">geographic hot shard</a>
+│   └─ <a href="#sp3">Moving objects (friends)</a> failure → <a href="#writestorm">location-update storm</a>
+│
+├─ <a href="#decision-table"><b>The design at a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud services</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
+</div>
+
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> given a location + radius (or "top N nearest"), return matching places/friends, optionally filtered (cuisine, rating, open-now). For Nearby Friends: track moving users and answer "who's near me now?" <b>Non-functional:</b> low latency, scale to 100M+ places or millions of live users, highly available. <b>Extended:</b> ranking by rating/distance, real-time updates, geofencing.</p>
+
+<h2 id="capacity">2. Capacity estimate</h2>
+<ul>
+<li><b>Static (Yelp):</b> ~100M places, read-heavy (lots of "near me" queries, infrequent place updates) &mdash; index once, query fast.</li>
+<li><b>Dynamic (Nearby Friends):</b> millions of users sending <b>frequent location updates</b> (every few seconds) &mdash; now it's <i>write</i>-heavy, and the index must update constantly.</li>
+<li><b>Density is wildly uneven:</b> Manhattan has orders of magnitude more places/people than rural areas &mdash; a uniform grid creates hot cells.</li>
+</ul>
+
+<h2 id="api">3. System API</h2>
+<pre><code>nearby(lat, lng, radius, filters?, limit) &rarr; [places/friends sorted by distance]
+updateLocation(user_id, lat, lng)   // Nearby Friends only, high frequency</code></pre>
+
+<h2 id="highlevel">4. High-level architecture</h2>
+<ul>
+<li><b>Geospatial index</b> mapping cells &rarr; objects in them; sharded by region.</li>
+<li><b>Query service:</b> convert the user's location to a cell, fetch objects in that + neighboring cells, filter, sort by exact distance, return top-N.</li>
+<li>For Nearby Friends: a <b>location-ingest path</b> (high write volume) updating each user's cell, plus the query path.</li>
+</ul>
+<div class="callout note"><span class="lbl">The shape in one sentence</span>Grid the world into cells, index objects by cell, and answer "near me" by looking up the user's cell and its neighbors &mdash; turning an expensive 2-D range query into a cheap key lookup.</div>
+
+<h2 id="datamodel">5. Data model</h2>
+<table>
+<tr><th>Entity</th><th>Holds</th></tr>
+<tr><td><b>Place / user</b></td><td>id, lat, lng, cell_id, attributes (rating, cuisine, …)</td></tr>
+<tr><td><b>Geo index</b></td><td>cell_id &rarr; [object ids in that cell]</td></tr>
+</table>
+<p>The key is <code>cell_id</code> &mdash; a geohash string, quadtree node, or S2 cell token derived from (lat, lng). Objects are indexed by it so "in this cell" is a direct lookup.</p>
+
+<h2 id="scenarios">Three scenarios &mdash; the hard parts, as questions</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; "restaurants within 1 km"</span>
+A user wants places within 1 km. Your places have (lat, lng) columns. <b>What query finds them &mdash; and why does <code>WHERE lat BETWEEN … AND lng BETWEEN …</code> over 100M rows fail to be fast?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; Manhattan vs Montana</span>
+You divide the map into equal-size cells. One Manhattan cell holds 50,000 places; a Montana cell holds 3. <b>Which shard is on fire, and why doesn't a uniform grid work?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; friends are moving</span>
+For Nearby Friends, millions of users send a location update every few seconds. <b>What does that do to your write volume and your index, and how is this different from static Yelp?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#tablescan">geo index</a>. Scenario 2 is <a href="#geohot">density skew</a>. Scenario 3 is the <a href="#writestorm">moving-object write load</a>.</i></p>
+
+<h2 id="subproblems">6. The hard sub-problems</h2>
+
+<h3 id="sp1">Sub-problem 1 &mdash; The geospatial index</h3>
+<p>A 2-D "within radius" query is expensive on ordinary indexes (a B-tree on <code>lat</code> and one on <code>lng</code> can't jointly prune a circular region well). The fix: <b>divide the map into cells and index by cell</b>, reducing 2-D proximity to a 1-D key lookup. Three schemes:</p>
+<ul>
+<li><b>Geohash</b> &mdash; encode (lat,lng) as a string; shared prefixes = nearby cells. Simple; a prefix length sets cell size.</li>
+<li><b>Quadtree</b> &mdash; recursively subdivide dense regions into 4 quadrants; an adaptive in-memory tree.</li>
+<li><b>S2 (Google)</b> &mdash; maps the sphere to cells via a Hilbert curve; near-uniform cell area globally.</li>
+</ul>
+<div class="callout warn"><span class="lbl" id="tablescan">The failure that happens when you get this wrong &mdash; the full geo scan</span>
+This is <b>Scenario 1</b>. <code>WHERE lat BETWEEN a AND b AND lng BETWEEN c AND d</code> over 100M rows is effectively a <a href="06.html#fullscan">scan</a> (the two single-column indexes can't be combined efficiently, and you still must distance-filter the bounding box). A geospatial index makes it: convert the user's location to a cell, look up objects in that cell + its neighbors (a handful of key lookups), then compute exact distance only on those few candidates and sort. O(objects-in-nearby-cells), not O(all-objects).</div>
+
+<h3 id="sp2">Sub-problem 2 &mdash; Uneven density</h3>
+<p>Population and places are wildly non-uniform, so fixed-size cells hold wildly different counts.</p>
+<div class="callout warn"><span class="lbl" id="geohot">The failure that happens when you get this wrong &mdash; the geographic hot shard</span>
+This is <b>Scenario 2</b>. A uniform grid puts 50,000 places in one Manhattan cell and 3 in a Montana cell &mdash; the dense cell becomes a <a href="05.html#hotshard">hot shard</a> (most queries and data land there) while sparse cells waste capacity. Fixes: <b>adaptive cells</b> &mdash; a <b>quadtree</b> subdivides dense regions further automatically; or <b>two-level sharding</b> (a coarse cell for routing, a finer cell for internal distribution within dense regions); or pick <b>S2</b>, whose Hilbert-curve cells keep more uniform area than geohash (whose cells shrink badly near the poles). The right cell granularity is the key tuning knob &mdash; too coarse = huge result sets, too fine = many cell lookups per query.</div>
+
+<h3 id="sp3">Sub-problem 3 &mdash; Moving objects (Nearby Friends)</h3>
+<p>Static Yelp indexes places once. Nearby Friends tracks <i>moving</i> users sending frequent location updates &mdash; flipping the workload from read-heavy to write-heavy.</p>
+<div class="callout warn"><span class="lbl" id="writestorm">The failure that happens when you get this wrong &mdash; the location-update storm</span>
+This is <b>Scenario 3</b>. Millions of users &times; an update every few seconds = an enormous write rate, and each update may move a user from one cell to another (an index update). Naively writing every update straight to a strongly-indexed store melts it. Mitigations: accept eventual consistency (a friend's position can be a few seconds stale), <b>batch/throttle updates</b> (don't index sub-meter jitter), keep the live position index in an <b>in-memory store</b> sized for write throughput, and only re-bucket when a user actually crosses a cell boundary. This is why a moving-object proximity service is a fundamentally harder, write-optimized variant of static Yelp &mdash; the index lesson's <a href="06.html#wrongengine">write-heavy = LSM/in-memory</a> guidance applies.</div>
+
+<h2 id="decision-table">The design at a glance</h2>
+<table>
+<tr><th>Piece</th><th>Static (Yelp)</th><th>Dynamic (Nearby Friends)</th></tr>
+<tr><td>Index</td><td>Geohash / S2, sharded by region</td><td>In-memory cell index, re-bucket on cross-boundary</td></tr>
+<tr><td>Workload</td><td>Read-heavy; index once</td><td>Write-heavy; constant updates</td></tr>
+<tr><td>Density</td><td>Quadtree / two-level / S2 for skew</td><td>Same + throttle updates</td></tr>
+<tr><td>Query</td><td>User cell + neighbors &rarr; exact-distance sort</td><td>Same, over live positions</td></tr>
+<tr><td>Consistency</td><td>Strong-ish (places rarely move)</td><td>Eventual (positions are stale-OK)</td></tr>
+</table>
+
+<h2 id="self-check">Self-check &mdash; can you reconstruct the design?</h2>
+<ul>
+<li><b>Scenario 1 (index):</b> Why is a lat/lng <code>BETWEEN</code> query slow, and how does cell-indexing make "near me" a key lookup?</li>
+<li><b>Scenario 2 (density):</b> Why does a uniform grid create hot shards, and what are the three fixes (quadtree / two-level / S2)?</li>
+<li><b>Scenario 3 (moving):</b> How does Nearby Friends differ from Yelp, and what tames the location-update write storm?</li>
+<li>Geohash vs quadtree vs S2 &mdash; one differentiator of each.</li>
+<li>How do you turn cell candidates into an exact "within radius" answer?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> grid the map &rarr; <a href="#sp1">cell-index</a> &rarr; lookup cell + neighbors; handle <a href="#sp2">density skew</a> with adaptive cells, and (for friends) the <a href="#sp3">write storm</a> with in-memory + throttling.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="28.html">Uber</a> (moving drivers/riders &mdash; the same geo problem, matched), <a href="05.html">Sharding</a> (hot shards), <a href="06.html">Indexes</a>, <a href="13.html">realtime transports</a> (live updates).</p>
+
+<h2 id="cloud">Cloud services &mdash; what you'd build it on</h2>
+<table>
+<tr><th>Piece</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Geo-capable store</td><td>DynamoDB (geo libs) / OpenSearch geo</td><td>Bigtable / Firestore geo</td><td>Cosmos DB (geospatial)</td></tr>
+<tr><td>Live position cache</td><td>ElastiCache (Redis geo)</td><td>Memorystore</td><td>Cache for Redis</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-s2">Google S2 / geohash</h3>
+<ul><li><b>What it is.</b> S2 maps the sphere to a 1-D Hilbert curve of cells; geohash encodes lat/lng to a prefixable string. Used across Maps, Uber, Tinder, etc.</li><li><b>Key idea.</b> Reduce 2-D proximity to 1-D cell keys; S2 keeps cell area uniform globally where geohash distorts near the poles.</li><li><b>The failure to watch.</b> Cell-size choice and density skew &mdash; tune granularity, subdivide dense regions.</li></ul>
+<h3 id="impl-redisgeo">Redis GEO commands</h3>
+<ul><li><b>What it is.</b> Redis ships geospatial commands (geohash-based) &mdash; <code>GEOADD</code>, <code>GEOSEARCH</code> &mdash; ideal for the live-position index.</li><li><b>Key idea.</b> In-memory geo index for fast "near me" over moving objects, with simple radius queries.</li><li><b>The failure to watch.</b> Single-instance memory/throughput limits at very large scale &mdash; shard by region.</li></ul>
+
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-nearby">Implement a "find nearby" query</h3>
+<p>Given a user at (lat,lng) and a radius, return nearby places using a cell index. What cells do you check, and how do you get an exact (not just cell-approximate) answer?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Convert (lat,lng) to its cell at a granularity roughly matching the radius. Because a place near a cell edge might be in an <i>adjacent</i> cell, fetch objects from the user's cell <b>plus its 8 neighbors</b> (geohash/S2 give you neighbor cells cheaply). That's your candidate set &mdash; far smaller than all places. Then compute the <i>exact</i> great-circle distance from the user to each candidate, drop those beyond the radius, and sort by distance (or rating) for the top-N. Pick cell granularity so the candidate set is "a few hundred," not "all of Manhattan": the cell index prunes; the exact distance check is the precise filter on the survivors.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
+<ul>
+<li><b>Handle density adaptively.</b> Subdivide dense cells (quadtree) so no cell exceeds a size cap. </li>
+<li><b>Live friends at scale.</b> Track millions of moving users with bounded write load and eventual consistency. &rarr; <a href="28.html">Uber</a>.</li>
+</ul>
+
+</div>
+<div class="tab-pane hidden" data-tab="old">
 <p class="sub"><em>Build a proximity server that indexes 500M places with QuadTrees to answer nearby-search queries in real time at scale.</em></p>
 <div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; finite capacity.</b> <span>proximity queries via geospatial indexing, paid in regional sharding and skew.</span></div>
 <div class="toc"><h4>In this lesson</h4>
@@ -372,7 +513,8 @@ A JSON containing information about a list of businesses matching the search que
 </ul>
 </div>
 
-<div class="navfoot"><a href="26.html">&lsaquo; Prev: Designing Facebook’s Newsfeed</a><a class="nx" href="28.html">Next: Designing Uber backend &rsaquo;</a></div>
+</div>
+<div class="navfoot"><a href="26.html">&lsaquo; Prev: Designing Facebook's Newsfeed</a><a class="nx" href="28.html">Next: Designing Uber Backend &rsaquo;</a></div>
 </div>
 </div>
 </div>

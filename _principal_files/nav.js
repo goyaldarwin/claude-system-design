@@ -64,11 +64,37 @@
     // h2/h3 into a collapsible node. Collapsing an h2 folds it AND every h3 under it;
     // collapsing an h3 folds only its own content. Convention-free: works on any
     // lesson that uses semantic <h2>/<h3> for its sections.
+    setupLessonTabs();
     buildContentTree();
   });
 
+  // ---- Old/New tabs (classic design problems carry both) ----
+  // Markup: <div class="lesson-tabs"><button data-tab="new">…</button>…</div>
+  //         <div class="tab-pane tree-doc" data-tab="new">…</div>
+  //         <div class="tab-pane" data-tab="old">…</div>
+  function setupLessonTabs(){
+    var tabs = document.querySelector('.lesson-tabs');
+    if(!tabs) return;
+    var panes = [].slice.call(document.querySelectorAll('.tab-pane'));
+    function show(which){
+      tabs.querySelectorAll('button').forEach(function(b){
+        b.classList.toggle('active', b.getAttribute('data-tab')===which);
+      });
+      panes.forEach(function(p){
+        p.classList.toggle('hidden', p.getAttribute('data-tab')!==which);
+      });
+    }
+    tabs.addEventListener('click', function(e){
+      var w = e.target.getAttribute && e.target.getAttribute('data-tab');
+      if(w) show(w);
+    });
+    show('new');  // New is the default experience
+  }
+
   function buildContentTree(){
-    var wrap = document.querySelector('.wrap.tree-doc');
+    // Target the tree-doc container — either the .wrap itself (plain lessons)
+    // or a .tab-pane.tree-doc (classic problems with Old/New tabs).
+    var wrap = document.querySelector('.tree-doc');
     if(!wrap) return;
     var level = function(el){ return el.tagName==='H2' ? 2 : (el.tagName==='H3' ? 3 : 0); };
     var kids = [].slice.call(wrap.children);   // static snapshot taken before any DOM mutation
@@ -118,14 +144,17 @@
       })(h, body);
     }
 
-    // "Collapse all / Expand all" control, injected just under H1.
+    // "Collapse all / Expand all" control. On plain lessons it goes just under
+    // the H1; on tabbed lessons (H1 lives outside the pane) it goes at the top
+    // of the tree-doc pane itself.
     var h1 = wrap.querySelector('h1');
-    if(h1){
+    {
       var bar = document.createElement('div');
       bar.className = 'tree-controls';
       bar.innerHTML = '<button type="button" data-act="collapse">&minus; Collapse all</button>'
                     + '<button type="button" data-act="expand">+ Expand all</button>';
-      h1.parentNode.insertBefore(bar, h1.nextSibling);
+      if(h1){ h1.parentNode.insertBefore(bar, h1.nextSibling); }
+      else { wrap.insertBefore(bar, wrap.firstChild); }
       bar.addEventListener('click', function(e){
         var act = e.target.getAttribute && e.target.getAttribute('data-act');
         if(!act) return;

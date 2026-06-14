@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Designing Instagram</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
-<link rel="stylesheet" href="./_principal_files/lesson.css">
+<link rel="stylesheet" href="./_principal_files/lesson.css?v=20260615a">
 <script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('sd-nav')==='collapsed')document.documentElement.classList.add('nav-collapsed');}catch(e){}})();</script>
-<script src="./_principal_files/nav.js" defer></script>
+<script src="./_principal_files/nav.js?v=20260615a" defer></script>
 </head>
 <body>
 <div class="layout">
@@ -114,6 +114,148 @@
 <div class="wrap">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Instagram</div>
 <h1>Designing Instagram</h1>
+<div class="lesson-tabs"><button type="button" data-tab="new">New &mdash; redesigned</button><button type="button" data-tab="old">Old &mdash; original</button><span class="tab-note">Old = the original Grokking walkthrough, preserved.</span></div>
+<div class="tab-pane tree-doc" data-tab="new">
+<p class="sub"><em>A photo-sharing feed: upload images, follow people, see a feed of their posts. It combines two patterns you'll meet again &mdash; a media pipeline (upload, store, serve binaries) and a fan-out feed (the same celebrity problem as Twitter). Overwhelmingly read-heavy: every photo is viewed hundreds to thousands of times.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Reads dwarf writes, and binaries dwarf metadata &mdash; so split media (object store + CDN) from metadata (DB), and pre-compute feeds with a hybrid fan-out.</b> <span>Two separate planes: an upload/media path for the bytes, and a feed path for the read-heavy timeline.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; walk the design, then the hard parts</div>
+<pre class="tree">
+<b>Designing Instagram</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>  &mdash; media dominates
+├─ <a href="#api"><b>3. System API</b></a>
+├─ <a href="#highlevel"><b>4. High-level architecture</b></a>  &mdash; upload plane + read plane
+├─ <a href="#datamodel"><b>5. Data model</b></a>
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>
+├─ <a href="#subproblems"><b>6. The hard sub-problems</b></a>
+│   ├─ <a href="#sp1">The media pipeline</a>   failure → <a href="#appbottleneck">bytes through the app tier</a>
+│   ├─ <a href="#sp2">Feed generation</a>      failure → <a href="#celeb">celebrity fan-out</a>
+│   └─ <a href="#sp3">Serving reads</a>        failure → <a href="#readload">read-load collapse</a>
+│
+├─ <a href="#decision-table"><b>The design at a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud services</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
+</div>
+
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> upload photos/videos; follow users; a home feed of followed users' posts; like/comment; view a user's profile grid. <b>Non-functional:</b> highly available, low feed latency, eventual consistency OK (a slightly late photo is fine), durable media (never lose a user's photos). <b>Extended:</b> search, explore/recommendations, stories, direct messages.</p>
+
+<h2 id="capacity">2. Capacity estimate</h2>
+<ul>
+<li><b>Read-heavy:</b> each photo is viewed <b>hundreds to thousands of times</b> &mdash; the read path is the scale challenge, not the write path.</li>
+<li><b>Media dominates:</b> a photo is ~200&nbsp;KB&ndash;a few MB; metadata is ~hundreds of bytes. At, say, 100M photos/day &times; ~1&nbsp;MB &asymp; <b>~100&nbsp;TB/day of media</b> vs a few tens of GB of metadata. <b>Media is ~1000&times; the metadata</b> &mdash; the reason to store them separately.</li>
+<li><b>Egress &gt;&gt; ingress:</b> each photo uploaded once, served thousands of times &mdash; the system is overwhelmingly about <i>delivering</i> images, which is what pushes media to a <a href="48.html">CDN</a>.</li>
+</ul>
+
+<h2 id="api">3. System API</h2>
+<pre><code>uploadMedia(api_key, image_bytes, caption, ...) &rarr; media_id
+getFeed(api_key, user_id, count, cursor) &rarr; [posts]
+follow(api_key, follower_id, followee_id)</code></pre>
+<p>Critically, <code>uploadMedia</code> doesn't stream bytes through your API servers &mdash; the client uploads directly to object storage via a <b>pre-signed URL</b>, then your API records the metadata. (See Sub-problem 1.)</p>
+
+<h2 id="highlevel">4. High-level architecture &mdash; two planes</h2>
+<ul>
+<li><b>Upload plane:</b> client &rarr; object store (direct, pre-signed) &rarr; async processing pipeline (resize/transcode/thumbnail) &rarr; metadata write.</li>
+<li><b>Read plane:</b> client &rarr; <a href="48.html">CDN</a> &rarr; feed cache &rarr; API servers &rarr; database on miss.</li>
+<li><b>Social-graph plane:</b> follow relationships drive the feed fan-out connecting uploads to reads.</li>
+</ul>
+<div class="callout note"><span class="lbl">The shape in one sentence</span>One path moves the <i>bytes</i> (direct-to-object-store + CDN), a separate path serves the <i>feed</i> (pre-computed, cached) &mdash; kept apart because media and metadata have wildly different size and access profiles.</div>
+
+<h2 id="datamodel">5. Data model</h2>
+<table>
+<tr><th>Entity</th><th>Key fields</th><th>Store</th></tr>
+<tr><td><b>User</b></td><td>userID, name, ...</td><td>Relational / KV</td></tr>
+<tr><td><b>Photo (metadata)</b></td><td>photoID, userID, caption, media_pointer, created_at</td><td>DB; photoID time-encoded (<a href="58.html">Snowflake</a>-style)</td></tr>
+<tr><td><b>Photo (bytes)</b></td><td>the actual image + thumbnails</td><td>Object store (Haystack-style at Meta)</td></tr>
+<tr><td><b>Follow</b></td><td>followerID, followeeID</td><td>Graph/columnar; drives fan-out</td></tr>
+<tr><td><b>Feed</b></td><td>userID &rarr; list of photoIDs</td><td>Cache (Redis), capped per user</td></tr>
+</table>
+<p>(Instagram famously sharded this on Postgres using <a href="05.html">logical shards (schemas)</a> with shard-encoded IDs &mdash; see the Sharding lesson.)</p>
+
+<h2 id="scenarios">Three scenarios &mdash; the hard parts, as questions</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; 100 TB/day of photos through your servers</span>
+Your API servers receive every uploaded photo, process it, and write it to storage. At 100M uploads/day this melts the app tier. <b>How do the bytes get to storage without passing through your application servers at all?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; a celebrity with 400M followers posts</span>
+You pre-compute each user's feed by pushing new posts into followers' feeds. A celebrity posts once. <b>How many feed writes is that, and how do you avoid it &mdash; the same problem as Twitter?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; everyone opens the app at 8pm</span>
+Feed loads, profile grids, and photo fetches spike. The read volume is hundreds of times the write volume. <b>What keeps the database from being crushed by reads?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#appbottleneck">media pipeline</a>. Scenario 2 is the <a href="#celeb">celebrity fan-out</a> (shared with <a href="20.html">Twitter</a>). Scenario 3 is <a href="#readload">serving reads</a>.</i></p>
+
+<h2 id="subproblems">6. The hard sub-problems</h2>
+
+<h3 id="sp1">Sub-problem 1 &mdash; The media pipeline</h3>
+<p>Photos are large, immutable binaries served far more than uploaded. The pipeline: client uploads <b>directly to object storage via a pre-signed URL</b> (bytes never touch the app tier); an <b>async pipeline</b> generates resized variants/thumbnails and transcodes video; metadata (pointer + attributes) is written to the DB; the <a href="48.html">CDN</a> caches and serves variants near users.</p>
+<div class="callout warn"><span class="lbl" id="appbottleneck">The failure that happens when you get this wrong &mdash; bytes through the app tier</span>
+This is <b>Scenario 1</b>. Routing 100&nbsp;TB/day of image data <i>through</i> your application servers makes them a bandwidth bottleneck, wastes compute on byte-shuffling, and couples upload throughput to your stateless tier's size. The fix: <b>pre-signed URLs</b> so clients upload/download straight to/from object storage, app servers handle only metadata, and the CDN serves reads. Meta stores the bytes in a custom system (Haystack) that packs many images per file to cut per-object metadata overhead. (<a href="48.html">Object Storage &amp; CDN</a>.)</div>
+
+<h3 id="sp2">Sub-problem 2 &mdash; Feed generation</h3>
+<p>The home feed is the merged recent posts of everyone you follow &mdash; the same fan-out trade-off as <a href="20.html">Twitter</a>: pull (cheap write, expensive read) vs push (expensive write, cheap read). Because reads dominate, push is the default.</p>
+<div class="callout warn"><span class="lbl" id="celeb">The failure that happens when you get this wrong &mdash; the celebrity fan-out</span>
+This is <b>Scenario 2</b>, and it's identical to Twitter's. Push means one post = one write per follower; a celebrity with hundreds of millions of followers turns one post into hundreds of millions of writes. <b>Instagram uses the same hybrid:</b> for regular users (&lt;~10K followers) fan out on write (push to each follower's feed cache); for celebrities, fan out on read (pull their recent posts when a follower opens the app, merged with the pre-computed feed). The expensive path runs only for the few mega-accounts. (Full treatment: <a href="20.html#celeb">Twitter, Sub-problem 1</a>.)</div>
+
+<h3 id="sp3">Sub-problem 3 &mdash; Serving the read-heavy path</h3>
+<p>With reads hundreds of times writes, the database must be shielded. The feed is served from a <b>feed cache</b> (Redis lists of photoIDs, capped, hydrated from a metadata cache); photos and thumbnails come from the <b>CDN</b>; only cache misses reach the DB / read replicas.</p>
+<div class="callout warn"><span class="lbl" id="readload">The failure that happens when you get this wrong &mdash; read-load collapse</span>
+This is <b>Scenario 3</b>. Serve feeds and photo metadata directly from the primary database and the read spike at peak hours saturates it &mdash; latency climbs, the site stalls. Layered caching (CDN for media, feed cache for timelines, metadata cache, read replicas underneath) keeps the database touching only the cold long tail. The cold-cache stampede risk is the same as <a href="04.html#stampede">caching</a>: warm caches, single-flight, jittered TTLs.</div>
+
+<h2 id="decision-table">The design at a glance</h2>
+<table>
+<tr><th>Piece</th><th>Choice</th><th>Why</th></tr>
+<tr><td>Media upload</td><td>Pre-signed direct-to-object-store</td><td>Keep 100&nbsp;TB/day off the app tier</td></tr>
+<tr><td>Media serving</td><td>CDN + object store (Haystack-style)</td><td>Egress &gt;&gt; ingress; bytes near users</td></tr>
+<tr><td>Feed generation</td><td>Hybrid fan-out (push normal, pull celebrities)</td><td>Reads dominate; push ruinous for celebrities</td></tr>
+<tr><td>Feed serving</td><td>Redis feed cache (capped photoID lists)</td><td>Sub-ms feed reads at peak</td></tr>
+<tr><td>Metadata/IDs</td><td>Sharded DB, time-encoded shard IDs</td><td>Even writes + fast recency</td></tr>
+</table>
+
+<h2 id="self-check">Self-check &mdash; can you reconstruct the design?</h2>
+<ul>
+<li><b>The walkthrough:</b> why is media ~1000&times; the metadata, and what two design decisions does that single fact force?</li>
+<li><b>Scenario 1 (pipeline):</b> Why must bytes bypass the app tier, and how do pre-signed URLs achieve it?</li>
+<li><b>Scenario 2 (celebrity):</b> Why is this Twitter's fan-out problem, and what's the hybrid fix?</li>
+<li><b>Scenario 3 (reads):</b> What layers shield the database from a peak-hour read spike?</li>
+<li>What two "planes" does the architecture split into, and why?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> two planes &mdash; a <a href="#sp1">media pipeline</a> (direct-to-object-store + CDN) and a <a href="#sp2">fan-out feed</a> (hybrid, cached) &mdash; both driven by "reads dwarf writes, binaries dwarf metadata."</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="20.html">Twitter</a> (fan-out), <a href="26.html">Facebook Newsfeed</a> (feed depth), <a href="48.html">Object Storage &amp; CDN</a>, <a href="05.html">Sharding</a> (Instagram's logical shards), <a href="58.html">Snowflake IDs</a>.</p>
+
+<h2 id="cloud">Cloud services &mdash; what you'd build it on</h2>
+<table>
+<tr><th>Piece</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Media store + CDN</td><td>S3 + CloudFront</td><td>GCS + Cloud CDN</td><td>Blob + Front Door</td></tr>
+<tr><td>Transcode/resize pipeline</td><td>Lambda / MediaConvert + SQS</td><td>Cloud Functions + Pub/Sub</td><td>Functions + Service Bus</td></tr>
+<tr><td>Feed cache + metadata</td><td>ElastiCache + DynamoDB/Aurora</td><td>Memorystore + Spanner</td><td>Cache for Redis + Cosmos DB</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-haystack">Meta Haystack (photo storage)</h3>
+<ul><li><b>What it is.</b> Meta's custom store for billions of photos.</li><li><b>Key idea.</b> Packs many photos into large files to slash per-object metadata, so a photo read is one disk seek &mdash; built because generic filesystems/object stores were metadata-bound at that scale.</li><li><b>The failure to watch.</b> The general lesson: at extreme scale, per-object overhead dominates &mdash; you batch.</li></ul>
+<h3 id="impl-instagram-shard">Instagram's Postgres logical shards</h3>
+<ul><li><b>What it is.</b> Thousands of logical shards (schemas) on fewer physical Postgres servers; shard-encoded 64-bit IDs.</li><li><b>Key idea.</b> Move a shard with <code>pg_dump</code>, no rehash; the ID tells you the shard. (<a href="05.html">Sharding</a>.)</li><li><b>The failure to watch.</b> Choosing the shard count up front; a hot user is still a hot shard.</li></ul>
+
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-upload">Design the upload pipeline</h3>
+<p>A user uploads a photo. Walk the path so the bytes never touch your app servers, variants get generated, and the feed updates &mdash; without making the user wait for all of it.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>App server mints a media_id + a pre-signed object-store URL; client uploads bytes directly to the store. On upload completion (event/callback), the app writes metadata and enqueues an async job. A <a href="08.html">queue</a>-driven pipeline generates thumbnails/resized variants and transcodes video, writing variants back to the store (CDN picks them up). Separately, the fan-out job pushes the new photoID into followers' feed caches (push for normal users, skip for celebrities). The user's upload returns as soon as the original is stored + metadata written &mdash; variants and fan-out happen asynchronously, so they don't block the response.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
+<ul>
+<li><b>Explore / recommendations.</b> Surface photos a user might like (not just follows). &rarr; <a href="70.html">Recommendation &amp; ML Systems</a>.</li>
+<li><b>Stories (24-hour expiry).</b> Ephemeral media at scale &mdash; how does expiry + the feed differ? &rarr; <a href="48.html">Object Storage</a>.</li>
+</ul>
+
+</div>
+<div class="tab-pane hidden" data-tab="old">
 <p class="sub"><em>Design a read-heavy photo-sharing service like Instagram — uploads, follows, sharded metadata, and pre-generated, ranked timelines.</em></p>
 <div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency.</b> <span>feed reads made fast by precomputing/fanning out, paid in write amplification and the celebrity problem.</span></div>
 <div class="toc"><h4>In this lesson</h4>
@@ -330,6 +472,7 @@ We can have a large number of logical partitions to accommodate future data grow
 </ul>
 </div>
 
+</div>
 <div class="navfoot"><a href="16.html">&lsaquo; Prev: Designing Pastebin</a><a class="nx" href="18.html">Next: Designing Dropbox &rsaquo;</a></div>
 </div>
 </div>

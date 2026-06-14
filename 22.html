@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Designing Typeahead Suggestion</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
-<link rel="stylesheet" href="./_principal_files/lesson.css">
+<link rel="stylesheet" href="./_principal_files/lesson.css?v=20260615a">
 <script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('sd-nav')==='collapsed')document.documentElement.classList.add('nav-collapsed');}catch(e){}})();</script>
-<script src="./_principal_files/nav.js" defer></script>
+<script src="./_principal_files/nav.js?v=20260615a" defer></script>
 </head>
 <body>
 <div class="layout">
@@ -114,6 +114,137 @@
 <div class="wrap">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Typeahead Suggestion</div>
 <h1>Designing Typeahead Suggestion</h1>
+<div class="lesson-tabs"><button type="button" data-tab="new">New &mdash; redesigned</button><button type="button" data-tab="old">Old &mdash; original</button><span class="tab-note">Old = the original Grokking walkthrough, preserved.</span></div>
+<div class="tab-pane tree-doc" data-tab="new">
+<p class="sub"><em>Autocomplete: as a user types each character, return the top few completions in under ~100&nbsp;ms. The trick is that you cannot rank suggestions at query time at this latency &mdash; you pre-compute the best completions per prefix offline, store them in a structure built for prefix lookup, and serve from memory.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Sub-100ms per keystroke means the ranking must be pre-computed offline; the query is a memory lookup, never a search.</b> <span>A trie (or prefix-keyed cache) holds the top-k completions per prefix; an offline pipeline rebuilds it from query logs. The query path does no ranking.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; walk the design, then the hard parts</div>
+<pre class="tree">
+<b>Designing Typeahead Suggestion</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>  &mdash; a query per keystroke
+├─ <a href="#api"><b>3. System API</b></a>
+├─ <a href="#highlevel"><b>4. High-level architecture</b></a>  &mdash; query path vs build path
+├─ <a href="#datamodel"><b>5. Data model</b></a>  &mdash; the trie
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>
+├─ <a href="#subproblems"><b>6. The hard sub-problems</b></a>
+│   ├─ <a href="#sp1">Prefix lookup structure</a>   failure → <a href="#scanall">scan-everything query</a>
+│   ├─ <a href="#sp2">Ranking the top-k</a>         failure → <a href="#rankatquery">rank-at-query latency</a>
+│   └─ <a href="#sp3">Keeping it fresh at scale</a> failure → <a href="#writehot">write-hot trie</a>
+│
+├─ <a href="#decision-table"><b>The design at a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud services</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
+</div>
+
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> given a prefix, return the top-k most relevant completions; relevance ~ popularity (historical query frequency); update suggestions as trends shift. <b>Non-functional:</b> very low latency (~100&nbsp;ms or less &mdash; it fires on every keystroke), highly available, scale to billions of queries/day. <b>Extended:</b> personalization, typo tolerance, multi-language.</p>
+
+<h2 id="capacity">2. Capacity estimate</h2>
+<ul>
+<li><b>Query volume is huge and amplified:</b> autocomplete fires <i>per keystroke</i>, so typing a 10-char query is ~10 requests. Billions of searches/day &times; several keystrokes each = tens of billions of suggestion requests/day.</li>
+<li><b>Latency budget is tiny:</b> the suggestion must beat the user's next keystroke &mdash; well under 100&nbsp;ms &mdash; which rules out any per-query ranking or DB scan.</li>
+<li><b>The corpus is large but the hot set is small:</b> a relatively small number of prefixes/queries dominate; the structure fits in memory and replicates.</li>
+</ul>
+
+<h2 id="api">3. System API</h2>
+<pre><code>suggest(prefix, k=10, lang?, user?) &rarr; [top-k completions]   // served from an in-memory trie/cache</code></pre>
+<p>Debounced on the client (don't fire on literally every keystroke), and the response is small &mdash; just k strings.</p>
+
+<h2 id="highlevel">4. High-level architecture &mdash; two decoupled paths</h2>
+<ul>
+<li><b>Query path (online, read):</b> request &rarr; in-memory <b>trie</b> (or prefix&rarr;top-k cache) on replicated suggestion servers &rarr; return top-k. No ranking, no DB. Behind a cache/LB.</li>
+<li><b>Build path (offline, write):</b> a batch pipeline reads aggregated query logs, computes popularity, builds the trie with pre-computed top-k at each node, and atomically swaps the new trie in for the old.</li>
+</ul>
+<div class="callout note"><span class="lbl">The shape in one sentence</span>An offline pipeline turns query logs into a prefix structure with the answers pre-baked; the online path just walks to the prefix node and returns its stored top-k &mdash; the read does zero ranking.</div>
+
+<h2 id="datamodel">5. Data model &mdash; the trie</h2>
+<p>A <span class="gl" data-def="Trie (prefix tree) — a tree where each node is one character, so a word is a path from the root; all descendants of a node share that node's prefix.">trie</span>: each node is a character, each path is a query prefix, and &mdash; crucially &mdash; each node caches the <b>pre-computed top-k completions</b> for its prefix. Walking to the node for "be" gives you "best, better, beach…" instantly, no subtree scan. (At scale the trie is sharded by prefix and replicated.)</p>
+
+<h2 id="scenarios">Three scenarios &mdash; the hard parts, as questions</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; finding completions for "be"</span>
+A user types "be". You need all queries starting with "be", ranked. <b>If completions live in a normal database, what query do you run &mdash; and why is it far too slow at 100&nbsp;ms per keystroke?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; ranking by popularity</span>
+"be" has a million matching queries. You can only show 10. <b>Sorting a million matches by popularity on every keystroke is impossible in the budget &mdash; so when does the ranking actually happen?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; trends change</span>
+A breaking-news term suddenly spikes in popularity. The suggestions should reflect it &mdash; but you can't update a million prefix nodes on every single query. <b>How does the trie stay fresh without the write path crushing the read path?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#scanall">prefix structure</a>. Scenario 2 is <a href="#rankatquery">pre-computed ranking</a>. Scenario 3 is <a href="#writehot">offline rebuild</a>.</i></p>
+
+<h2 id="subproblems">6. The hard sub-problems</h2>
+
+<h3 id="sp1">Sub-problem 1 &mdash; The prefix-lookup structure</h3>
+<p>Finding "all strings starting with P" is exactly what a <b>trie</b> is for: walk P character by character to a node in O(|P|), and every descendant shares that prefix. No scanning, no <code>LIKE 'be%'</code> table scan.</p>
+<div class="callout warn"><span class="lbl" id="scanall">The failure that happens when you get this wrong &mdash; the scan-everything query</span>
+This is <b>Scenario 1</b>. Storing completions in a row store and querying <code>WHERE q LIKE 'be%' ORDER BY popularity LIMIT 10</code> means a <a href="06.html#fullscan">scan</a> (or at best an index range) over potentially millions of rows, then a sort &mdash; nowhere near 100&nbsp;ms under load. A trie makes prefix navigation O(prefix length), independent of corpus size; held in memory, the walk is microseconds. The structure, not the database, is the answer.</div>
+
+<h3 id="sp2">Sub-problem 2 &mdash; Ranking the top-k</h3>
+<p>The trie finds the matching subtree, but you must return the <i>best</i> k by popularity. Ranking a million matches per keystroke is impossible &mdash; so you don't: <b>each trie node stores its pre-computed top-k</b>, baked in when the trie is built.</p>
+<div class="callout warn"><span class="lbl" id="rankatquery">The failure that happens when you get this wrong &mdash; rank-at-query latency</span>
+This is <b>Scenario 2</b>. Gathering all completions under a node and sorting them by popularity at query time blows the latency budget on popular prefixes (the ones with the most matches &mdash; exactly the hot path). The fix is to <b>pre-compute top-k at every node offline</b>, so the query returns a stored list with zero work. This is the same "move cost to the rare write" pattern as feed fan-out: do the ranking once when building the trie, not on every read.</div>
+
+<h3 id="sp3">Sub-problem 3 &mdash; Keeping it fresh at scale</h3>
+<p>Popularity shifts (trends, breaking news), so the trie must update &mdash; but updating top-k on millions of nodes per query is impossible. The answer is an <b>offline batch rebuild</b>: a pipeline aggregates query logs periodically, recomputes popularity and per-node top-k, builds a fresh trie, and <b>atomically swaps it</b> in place of the old one. Reads always hit a complete, immutable trie.</p>
+<div class="callout warn"><span class="lbl" id="writehot">The failure that happens when you get this wrong &mdash; the write-hot trie</span>
+This is <b>Scenario 3</b>. Trying to keep the live trie perfectly current &mdash; incrementing counts and re-sorting top-k on every query &mdash; turns the read structure into a write-contended mess and destroys read latency. Decouple them: the read trie is <b>immutable</b>; a separate offline job rebuilds it from logs and swaps it in (seconds-to-minutes staleness, which is fine for suggestions). For genuinely fast-moving trends, layer a small real-time boost on top, but the base ranking stays a periodic batch build. Replicate the (read-only) trie across servers for load and fault tolerance.</div>
+
+<h2 id="decision-table">The design at a glance</h2>
+<table>
+<tr><th>Piece</th><th>Choice</th><th>Why</th></tr>
+<tr><td>Lookup structure</td><td>In-memory trie (sharded by prefix)</td><td>O(prefix) prefix navigation, no scan</td></tr>
+<tr><td>Ranking</td><td>Pre-computed top-k per node</td><td>Zero ranking at query time</td></tr>
+<tr><td>Freshness</td><td>Offline batch rebuild + atomic swap</td><td>Keep reads immutable &amp; fast</td></tr>
+<tr><td>Scale/HA</td><td>Replicated read-only trie servers + cache</td><td>Billions of keystroke queries</td></tr>
+<tr><td>Client</td><td>Debounce keystrokes</td><td>Cut request volume</td></tr>
+</table>
+
+<h2 id="self-check">Self-check &mdash; can you reconstruct the design?</h2>
+<ul>
+<li><b>The walkthrough:</b> why is the latency budget the dominating constraint, and what does "fires per keystroke" do to query volume?</li>
+<li><b>Scenario 1 (structure):</b> Why is a DB <code>LIKE 'be%'</code> too slow, and what does a trie give you?</li>
+<li><b>Scenario 2 (ranking):</b> Why can't you rank at query time, and where does ranking actually happen?</li>
+<li><b>Scenario 3 (freshness):</b> Why is the read trie immutable, and how does it stay current without write contention?</li>
+<li>What's stored at each trie node beyond the character, and why is that the whole trick?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> a <a href="#sp1">trie</a> with <a href="#sp2">pre-computed top-k</a>, rebuilt by an <a href="#sp3">offline batch + atomic swap</a> &mdash; the query does a memory walk and zero ranking.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="24.html">Twitter Search</a>, <a href="43.html">Elasticsearch</a>, <a href="41.html">Batch &amp; Big Data</a> (the rebuild), <a href="04.html">Caching</a>.</p>
+
+<h2 id="cloud">Cloud services &mdash; what you'd build it on</h2>
+<table>
+<tr><th>Piece</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>In-memory serving</td><td>ElastiCache + EC2/ECS</td><td>Memorystore + GKE</td><td>Cache for Redis + AKS</td></tr>
+<tr><td>Log aggregation / build</td><td>Kinesis + EMR / Glue</td><td>Pub/Sub + Dataflow</td><td>Event Hubs + Synapse</td></tr>
+<tr><td>Edge cache</td><td>CloudFront</td><td>Cloud CDN</td><td>Front Door</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-trie">Trie / prefix-hash serving</h3>
+<ul><li><b>What it is.</b> The classic in-memory trie with cached top-k; some systems flatten it to a <code>prefix &rarr; top-k</code> hash for even simpler O(1) lookup.</li><li><b>Key idea.</b> Pre-baked answers + immutable read structure = trivial, fast reads.</li><li><b>The failure to watch.</b> Memory size for huge corpora &mdash; shard the trie by prefix across servers.</li></ul>
+<h3 id="impl-es">Elasticsearch completion suggester</h3>
+<ul><li><b>What it is.</b> ES ships a completion suggester backed by an in-memory FST (a compressed trie variant).</li><li><b>Key idea.</b> Off-the-shelf prefix suggestions with weights; good default before building your own.</li><li><b>The failure to watch.</b> Rebuild/refresh semantics &mdash; updates aren't instant; same offline-rebuild reality. (<a href="43.html">Elasticsearch</a>.)</li></ul>
+
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-trie">Implement a top-k trie</h3>
+<p>Build a trie that returns the top-10 completions for any prefix in O(prefix length). Where do you store the top-k, and how do you build them?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Each node represents one character; a path from root spells a prefix. At <i>build time</i>, walk the query log: for each (query, frequency), insert the query and, at every node along its path, maintain that node's top-k list (a small heap/sorted array of the most popular completions passing through it). At query time, walk the prefix to its node in O(|prefix|) and return the stored top-k &mdash; no subtree traversal, no sorting. The build is the expensive part (done offline, in batch); the query is a pointer walk. To keep memory bounded, cap k small and prune rare branches.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
+<ul>
+<li><b>Personalized suggestions.</b> Blend global top-k with a user's own history at query time without blowing the budget.</li>
+<li><b>Typo tolerance.</b> Suggest for "recieve" &rarr; "receive". What structure handles fuzzy prefixes? &rarr; edit-distance / FST.</li>
+</ul>
+
+</div>
+<div class="tab-pane hidden" data-tab="old">
 <p class="sub"><em>Designing a real-time suggestion service that recommends terms to users as they type a search query, served from an in-memory trie within tight latency bounds.</em></p>
 <div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency.</b> <span>sub-100ms suggestions via a precomputed trie, paid in offline index-build and update lag.</span></div>
 <div class="toc"><h4>In this lesson</h4>
@@ -324,6 +455,7 @@ Server 3, BXB-CDA</p>
 </ul>
 </div>
 
+</div>
 <div class="navfoot"><a href="21.html">&lsaquo; Prev: Designing Youtube or Netflix</a><a class="nx" href="23.html">Next: Designing an API Rate Limiter &rsaquo;</a></div>
 </div>
 </div>

@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Designing Uber Backend</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
-<link rel="stylesheet" href="./_principal_files/lesson.css">
+<link rel="stylesheet" href="./_principal_files/lesson.css?v=20260615a">
 <script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('sd-nav')==='collapsed')document.documentElement.classList.add('nav-collapsed');}catch(e){}})();</script>
-<script src="./_principal_files/nav.js" defer></script>
+<script src="./_principal_files/nav.js?v=20260615a" defer></script>
 </head>
 <body>
 <div class="layout">
@@ -114,6 +114,142 @@
 <div class="wrap">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Uber Backend</div>
 <h1>Designing Uber Backend</h1>
+<div class="lesson-tabs"><button type="button" data-tab="new">New &mdash; redesigned</button><button type="button" data-tab="old">Old &mdash; original</button><span class="tab-note">Old = the original Grokking walkthrough, preserved.</span></div>
+<div class="tab-pane tree-doc" data-tab="new">
+<p class="sub"><em>Match riders to nearby drivers in real time. It fuses two hard problems you've now seen separately: tracking millions of <b>moving</b> objects (the geo problem) and atomically <b>matching</b> a rider to exactly one driver (the concurrency problem) &mdash; all under a relentless firehose of GPS updates.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Index millions of moving drivers geospatially, then match each request to exactly one driver without double-assigning.</b> <span>The location-update firehose, the nearby-driver query, and the atomic match are the three hard parts.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; walk the design, then the hard parts</div>
+<pre class="tree">
+<b>Designing Uber Backend</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>
+├─ <a href="#api"><b>3. System API</b></a>
+├─ <a href="#highlevel"><b>4. High-level architecture</b></a>
+├─ <a href="#datamodel"><b>5. Data model</b></a>
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>
+├─ <a href="#subproblems"><b>6. The hard sub-problems</b></a>
+│   ├─ <a href="#sp1">Ingesting driver locations</a>  failure → <a href="#writestorm">location write storm</a>
+│   ├─ <a href="#sp2">Finding nearby drivers</a>      failure → <a href="#geoscan">geo scan</a>
+│   └─ <a href="#sp3">Atomic matching</a>            failure → <a href="#doublematch">double-assigned driver</a>
+│
+├─ <a href="#decision-table"><b>The design at a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud services</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
+</div>
+
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> drivers stream their location; a rider requests a ride; the system finds nearby available drivers and matches one; both track the trip live; fare + payment at the end. <b>Non-functional:</b> low match latency, scale to millions of concurrent drivers/riders, highly available, location updates eventually consistent but matching must be correct. <b>Extended:</b> ETA/routing, surge pricing, driver dispatch optimization.</p>
+
+<h2 id="capacity">2. Capacity estimate</h2>
+<ul>
+<li><b>Location firehose:</b> millions of active drivers each sending GPS every ~4 seconds = millions of writes/sec to the location index &mdash; the dominant write load.</li>
+<li><b>Match queries:</b> each ride request triggers a geospatial "nearby available drivers" query &mdash; read load proportional to request rate.</li>
+<li><b>Matching must be exact:</b> a driver can be offered to only one rider at a time &mdash; correctness under concurrency, not just throughput.</li>
+</ul>
+
+<h2 id="api">3. System API</h2>
+<pre><code>updateLocation(driver_id, lat, lng)            // high-frequency firehose
+requestRide(rider_id, pickup, dest) &rarr; trip_id  // triggers nearby-search + match
+// server pushes: onMatch, onDriverLocation (live tracking)</code></pre>
+
+<h2 id="highlevel">4. High-level architecture</h2>
+<ul>
+<li><b>Location-ingest path:</b> driver apps stream GPS &rarr; an in-memory <b>geospatial index</b> of available drivers (the write-heavy core).</li>
+<li><b>Matching service:</b> on a request, query the index for nearby available drivers, then atomically claim one.</li>
+<li><b>Trip service + store:</b> trip lifecycle, live tracking (push), fare, <a href="61.html">payment</a>.</li>
+</ul>
+<div class="callout note"><span class="lbl">The shape in one sentence</span>A firehose of GPS updates keeps an in-memory geo index of available drivers current; a match request queries that index for nearby drivers and atomically claims one &mdash; geo + concurrency, fused.</div>
+
+<h2 id="datamodel">5. Data model</h2>
+<table>
+<tr><th>Entity</th><th>Holds</th><th>Store</th></tr>
+<tr><td><b>Driver location/state</b></td><td>driver_id, lat, lng, cell_id, available?</td><td>In-memory geo index (Redis-like)</td></tr>
+<tr><td><b>Trip</b></td><td>trip_id, rider, driver, state, route, fare</td><td>Durable store</td></tr>
+<tr><td><b>Match lock</b></td><td>driver_id &rarr; held-by, TTL</td><td>Distributed lock (Redis)</td></tr>
+</table>
+
+<h2 id="scenarios">Three scenarios &mdash; the hard parts, as questions</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; a million GPS pings a second</span>
+Every active driver sends location every ~4 seconds. <b>That's millions of writes/sec, each potentially moving a driver between geo cells. What kind of store survives that, and what consistency can you relax?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; "find me a driver"</span>
+A rider requests a ride downtown. You need available drivers within ~2 km, fast. <b>Over millions of constantly-moving drivers, how do you answer that without scanning them all &mdash; and what lesson does this reuse?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; two riders, one driver</span>
+Two ride requests near the same driver arrive in the same instant. Both nearby-searches return that driver as the best match. <b>What must NOT happen, and how do you guarantee the driver is offered to exactly one rider?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#writestorm">location firehose</a>. Scenario 2 is the <a href="#geoscan">nearby query</a> (reuses <a href="27.html">Yelp's geo index</a>). Scenario 3 is <a href="#doublematch">atomic matching</a>.</i></p>
+
+<h2 id="subproblems">6. The hard sub-problems</h2>
+
+<h3 id="sp1">Sub-problem 1 &mdash; Ingesting driver locations</h3>
+<p>Millions of drivers &times; a ping every few seconds is a colossal write rate, and each ping may re-bucket a driver into a new geo cell. This must not melt the index.</p>
+<div class="callout warn"><span class="lbl" id="writestorm">The failure that happens when you get this wrong &mdash; the location write storm</span>
+This is <b>Scenario 1</b>, the <a href="27.html#writestorm">moving-object problem</a> from Nearby Friends, at Uber scale. Writing every GPS ping to a strongly-indexed durable store is impossible. The answer: an <b>in-memory geo index</b> sized for write throughput, <b>eventual consistency</b> on positions (a driver's dot being 1&ndash;2s stale is fine), only <b>re-bucket on cell-boundary crossing</b> (not every sub-meter jitter), and treat the location stream as ephemeral (you don't need durable history of every ping for matching). The durable store holds trips, not the firehose.</div>
+
+<h3 id="sp2">Sub-problem 2 &mdash; Finding nearby drivers</h3>
+<p>A ride request needs available drivers near the pickup &mdash; exactly the <a href="27.html">geospatial proximity</a> query, over a <i>moving</i>, filtered (available-only) set.</p>
+<div class="callout warn"><span class="lbl" id="geoscan">The failure that happens when you get this wrong &mdash; the geo scan</span>
+This is <b>Scenario 2</b>. Scanning millions of drivers per request is hopeless; the fix is the same <b>cell index</b> (geohash/quadtree/S2) from <a href="27.html#sp1">Yelp</a>: convert pickup to a cell, look up available drivers in that cell + neighbors, compute exact distance/ETA on those few, rank. The only difference from Yelp is the index is constantly updated (Sub-problem 1) and filtered to <i>available</i> drivers. Dense-city skew is handled the same way (adaptive cells). This is why Uber, Yelp, and Tinder all reduce to the same geo-index core.</div>
+
+<h3 id="sp3">Sub-problem 3 &mdash; Atomic matching</h3>
+<p>The genuinely new problem versus Yelp: a driver can be offered to only <b>one</b> rider. Two simultaneous requests must not both claim the same driver.</p>
+<div class="callout warn"><span class="lbl" id="doublematch">The failure that happens when you get this wrong &mdash; the double-assigned driver</span>
+This is <b>Scenario 3</b>. If two matching requests both read "driver X available" and both assign X, you've double-booked &mdash; one rider gets a no-show. This is a concurrency problem, not a geo one. The fix is to make the claim <b>atomic</b>: when matching picks driver X, acquire a <b>distributed lock</b> on X (e.g. Redis <code>SET driver:X NX</code> with a TTL) <i>before</i> offering the ride; if the lock fails, X was just taken &mdash; pick the next candidate. The TTL auto-releases X if the driver doesn't accept in time. (Same family as <a href="29.html">BookMyShow</a>'s seat hold and the general <a href="64.html">distributed lock</a>.) Mark X unavailable in the geo index on claim so subsequent searches skip them.</div>
+
+<h2 id="decision-table">The design at a glance</h2>
+<table>
+<tr><th>Piece</th><th>Choice</th><th>Why</th></tr>
+<tr><td>Location ingest</td><td>In-memory geo index, eventual consistency, re-bucket on boundary</td><td>Survive millions of writes/sec</td></tr>
+<tr><td>Nearby search</td><td>Cell index (geohash/S2) over available drivers</td><td>No scan; reuse Yelp's geo core</td></tr>
+<tr><td>Matching</td><td>Distributed lock per driver + TTL</td><td>Exactly-one assignment</td></tr>
+<tr><td>Trips/payment</td><td>Durable store + <a href="61.html">payment</a> flow</td><td>Correctness &amp; history where it matters</td></tr>
+</table>
+
+<h2 id="self-check">Self-check &mdash; can you reconstruct the design?</h2>
+<ul>
+<li><b>Scenario 1 (firehose):</b> Why can't you durably index every GPS ping, and what relaxations make it survivable?</li>
+<li><b>Scenario 2 (nearby):</b> Why is this the same geo-index problem as Yelp, and what's the one difference?</li>
+<li><b>Scenario 3 (matching):</b> Why is double-assignment the core risk, and how does a per-driver distributed lock + TTL prevent it?</li>
+<li>Where does each piece live &mdash; what's in the ephemeral in-memory index vs the durable store?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> a <a href="#sp1">location firehose</a> into an in-memory geo index, a <a href="#sp2">cell-based nearby query</a> (= Yelp), and an <a href="#sp3">atomic per-driver lock</a> for matching &mdash; geo + concurrency fused.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="27.html">Yelp/Nearby</a> (geo index), <a href="29.html">BookMyShow</a> &amp; <a href="64.html">Distributed Locking</a> (atomic claim), <a href="61.html">Payment</a>, <a href="13.html">realtime transports</a> (live tracking).</p>
+
+<h2 id="cloud">Cloud services &mdash; what you'd build it on</h2>
+<table>
+<tr><th>Piece</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Location index / lock</td><td>ElastiCache (Redis geo + locks)</td><td>Memorystore</td><td>Cache for Redis</td></tr>
+<tr><td>Ingest stream</td><td>Kinesis / MSK</td><td>Pub/Sub / Dataflow</td><td>Event Hubs</td></tr>
+<tr><td>Trip store</td><td>DynamoDB / Aurora</td><td>Spanner / Bigtable</td><td>Cosmos DB</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-ringpop">Uber's geo + dispatch (H3, Ringpop)</h3>
+<ul><li><b>What it is.</b> Uber built <b>H3</b> (a hexagonal global grid) for its geo-indexing and Ringpop for sharded, consistent-hashed dispatch.</li><li><b>Key idea.</b> Hexagons have uniform neighbor distance (no corner/edge ambiguity of squares); dispatch is sharded by geography.</li><li><b>The failure to watch.</b> Cell granularity + dense-city skew; matching consistency across shards.</li></ul>
+<h3 id="impl-redisgeolock">Redis (geo + distributed lock)</h3>
+<ul><li><b>What it is.</b> One store doing double duty: <code>GEOADD</code>/<code>GEOSEARCH</code> for the live index and <code>SET NX PX</code> for the match lock.</li><li><b>Key idea.</b> In-memory speed for both the firehose and the atomic claim. (<a href="64.html">Distributed Locking</a>.)</li><li><b>The failure to watch.</b> Lock correctness under Redis failover (see the distributed-lock lesson's caveats).</li></ul>
+
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-match">Design the atomic match</h3>
+<p>Two riders' nearby-searches both return driver X as best. Design the claim so exactly one gets X and the other smoothly gets the next driver.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Matching produces a <i>ranked</i> candidate list per request (nearest/soonest first). Before offering a driver, attempt an atomic claim: <code>SET lock:driver:X rider NX PX 15000</code> (set-if-not-exists, 15s TTL). If it succeeds, you hold X &mdash; offer the ride and mark X unavailable in the geo index. If it fails, X was just claimed by the other request, so move to the next candidate in your list. The TTL ensures that if the driver doesn't accept (or the claimer crashes), X is auto-released and becomes matchable again. So two simultaneous requests for X: one wins the <code>NX</code>, the other transparently falls through to its second choice &mdash; no double-assignment, no manual coordination. (Mind lock correctness across Redis failover &mdash; <a href="64.html">lesson 64</a>.)</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
+<ul>
+<li><b>Surge pricing.</b> Detect demand &gt; supply per region in real time and adjust price. &rarr; <a href="63.html">Ad Click Aggregation</a> (windowed counts).</li>
+<li><b>ETA / routing.</b> Estimate arrival times over a live road graph. </li>
+</ul>
+
+</div>
+<div class="tab-pane hidden" data-tab="old">
 <p class="sub"><em>Designing a ride-sharing service like Uber that connects passengers who need a ride with drivers who have a car, handling high-frequency location updates and real-time matching.</em></p>
 <div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth &amp; latency.</b> <span>real-time matching of moving objects, paid in a constantly-updating geo-index and ride-state consistency.</span></div>
 <div class="toc"><h4>In this lesson</h4>
@@ -347,7 +483,8 @@ If we get DriverID and their location, it will be (3+16 =&gt; 19 bytes). If we r
 </ul>
 </div>
 
-<div class="navfoot"><a href="27.html">&lsaquo; Prev: Designing Yelp or Nearby Friends</a><a class="nx" href="29.html">Next: Design BookMyShow &rsaquo;</a></div>
+</div>
+<div class="navfoot"><a href="27.html">&lsaquo; Prev: Designing Yelp or Nearby Friends</a><a class="nx" href="29.html">Next: Designing BookMyShow &rsaquo;</a></div>
 </div>
 </div>
 </div>

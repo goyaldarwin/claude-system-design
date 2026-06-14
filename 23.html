@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Designing an API Rate Limiter</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
-<link rel="stylesheet" href="./_principal_files/lesson.css">
+<link rel="stylesheet" href="./_principal_files/lesson.css?v=20260615a">
 <script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('sd-nav')==='collapsed')document.documentElement.classList.add('nav-collapsed');}catch(e){}})();</script>
-<script src="./_principal_files/nav.js" defer></script>
+<script src="./_principal_files/nav.js?v=20260615a" defer></script>
 </head>
 <body>
 <div class="layout">
@@ -114,6 +114,145 @@
 <div class="wrap">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing an API Rate Limiter</div>
 <h1>Designing an API Rate Limiter</h1>
+<div class="lesson-tabs"><button type="button" data-tab="new">New &mdash; redesigned</button><button type="button" data-tab="old">Old &mdash; original</button><span class="tab-note">Old = the original Grokking walkthrough, preserved.</span></div>
+<div class="tab-pane tree-doc" data-tab="new">
+<p class="sub"><em>Cap how many requests a client may make per window &mdash; to stop abuse, protect the origin, and enforce quotas. The hard parts aren't the counting; they're picking an algorithm whose burst behavior fits, and making the counter correct and fast across many servers without becoming a bottleneck or a single point of failure.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>A shared, atomic counter on the hot path of every request &mdash; choose the algorithm for its burst behavior, and decide what happens when the limiter itself fails.</b> <span>Token bucket / sliding window define the shape of allowed traffic; a shared store (Redis) makes the count correct across servers; fail-open vs fail-closed defines the blast radius.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; walk the design, then the hard parts</div>
+<pre class="tree">
+<b>Designing an API Rate Limiter</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>  &mdash; it's on every request
+├─ <a href="#api"><b>3. Interface</b></a>
+├─ <a href="#highlevel"><b>4. High-level architecture</b></a>  &mdash; where the limiter sits
+├─ <a href="#datamodel"><b>5. Data model</b></a>
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>
+├─ <a href="#subproblems"><b>6. The hard sub-problems</b></a>
+│   ├─ <a href="#sp1">Which algorithm?</a>          failure → <a href="#boundaryburst">boundary burst</a>
+│   ├─ <a href="#sp2">Distributed correctness</a>   failure → <a href="#race">double-spend race</a>
+│   └─ <a href="#sp3">What if the limiter fails?</a> failure → <a href="#failclosed">fail-closed outage</a>
+│
+├─ <a href="#decision-table"><b>The decision table</b></a>  &mdash; algorithms compared
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud services</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
+</div>
+
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> limit requests per client (by API key / user / IP) to N per window; return <span class="gl" data-def="HTTP 429 Too Many Requests — the standard response when a client exceeds its rate limit; carries headers like Retry-After and RateLimit-Remaining.">HTTP 429</span> with informative headers (limit, remaining, reset, retry-after) when exceeded; support different limits per tier/endpoint. <b>Non-functional:</b> very low added latency (it's on every request), accurate enough, highly available, correct across many app servers. <b>Extended:</b> distributed quotas, burst allowances, dynamic config.</p>
+
+<h2 id="capacity">2. Capacity estimate</h2>
+<ul>
+<li><b>It runs on every single request</b> &mdash; so its own latency and availability directly bound the whole API's. A few milliseconds added per request is the budget.</li>
+<li><b>State is small but hot:</b> one counter per client per window; the busiest clients' counters are read-modified-written constantly &mdash; correctness under concurrency is the crux.</li>
+<li><b>It's a shared component:</b> many app servers consult one logical limit, so the counter store is a potential bottleneck and SPOF.</li>
+</ul>
+
+<h2 id="api">3. Interface</h2>
+<pre><code>allow(client_id, endpoint) &rarr; { allowed: bool, remaining, reset_at }
+// on deny: respond 429 with headers RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, Retry-After</code></pre>
+
+<h2 id="highlevel">4. High-level architecture &mdash; where the limiter sits</h2>
+<ul>
+<li>Usually at the <b>edge / API gateway</b> (or a middleware in each app server, or a sidecar) &mdash; check before doing real work.</li>
+<li>A <b>shared counter store</b> (Redis) holds per-client counts; the check is an atomic read-decide-update.</li>
+<li>Optionally a <b>local pre-check</b> in each server (approximate) to shed obvious excess before the network hop to Redis.</li>
+</ul>
+<div class="callout note"><span class="lbl">The shape in one sentence</span>On each request, the gateway computes the client's key, atomically updates its counter in a shared fast store, and allows or returns 429 &mdash; all within a few milliseconds, and with a defined behavior if the store is unreachable.</div>
+
+<h2 id="datamodel">5. Data model</h2>
+<p>Tiny and ephemeral: <code>key = client_id [+ endpoint + window]</code> &rarr; a counter (fixed/sliding window) or a token count + last-refill timestamp (token bucket), with a TTL so stale windows expire. Lives in memory (Redis), not a durable DB.</p>
+
+<h2 id="scenarios">Three scenarios &mdash; the hard parts, as questions</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the window boundary</span>
+Your limit is 100/minute, counted per clock minute. A client sends 100 requests at 11:00:59 and 100 more at 11:01:00. <b>They've sent 200 requests in one second &mdash; while never "exceeding 100 per minute." How did your algorithm let that happen?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; two servers, one client</span>
+A client's requests hit two different app servers at the same instant. Both read "count = 99", both decide "allowed", both increment. <b>The client got through twice on its last token &mdash; why, and how do you make the count correct?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; Redis is down</span>
+Your rate-limit counter store becomes unreachable for 30 seconds. <b>Do you reject every request (safe but an outage) or allow every request (available but unprotected)? What's the right call, and is it the same for every API?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#boundaryburst">algorithm choice</a>. Scenario 2 is <a href="#race">distributed correctness</a>. Scenario 3 is <a href="#failclosed">fail-open vs fail-closed</a>.</i></p>
+
+<h2 id="subproblems">6. The hard sub-problems</h2>
+
+<h3 id="sp1">Sub-problem 1 &mdash; Which algorithm?</h3>
+<p>The algorithm defines the <i>shape</i> of allowed traffic &mdash; how much burst you tolerate:</p>
+<table>
+<tr><th>Algorithm</th><th>How</th><th>Burst behavior</th></tr>
+<tr><td><b>Fixed window</b></td><td>Count per clock window (e.g. per minute); reset at boundary</td><td>Simple, low memory &mdash; but allows a <b>2&times; burst at the boundary</b></td></tr>
+<tr><td><b>Sliding window log</b></td><td>Store timestamps; count those within the last window</td><td>Exact, no boundary burst &mdash; but memory grows with request count</td></tr>
+<tr><td><b>Sliding window counter</b></td><td>Weighted blend of current + previous fixed window</td><td>Near-exact, low memory, no boundary burst &mdash; the common default</td></tr>
+<tr><td><b>Token bucket</b></td><td>Tokens refill at a steady rate; each request spends one; bucket caps burst</td><td>Allows controlled bursts up to bucket size, steady average &mdash; great for bursty clients</td></tr>
+<tr><td><b>Leaky bucket</b></td><td>Requests queue, drain at a fixed rate</td><td>Smooths output to a constant rate; adds queueing latency</td></tr>
+</table>
+<div class="callout warn"><span class="lbl" id="boundaryburst">The failure that happens when you get this wrong &mdash; the boundary burst</span>
+This is <b>Scenario 1</b>. <b>Fixed window</b> resets the count at each clock boundary, so a client can fire a full window's worth at 11:00:59 and another full window at 11:01:00 &mdash; <b>2&times; the intended rate</b> across the boundary &mdash; while technically never exceeding the per-window cap. Pick <b>sliding window</b> (counter variant) to eliminate it cheaply, or <b>token bucket</b> if you <i>want</i> to permit deliberate bursts (e.g. a mobile app that batches calls on launch). The algorithm isn't a detail &mdash; it's the actual policy.</div>
+
+<h3 id="sp2">Sub-problem 2 &mdash; Distributed correctness</h3>
+<p>With many app servers consulting one limit, the count must be correct under concurrency. The check is a <b>read-decide-update</b> cycle; if that isn't atomic, concurrent requests race.</p>
+<div class="callout warn"><span class="lbl" id="race">The failure that happens when you get this wrong &mdash; the double-spend race</span>
+This is <b>Scenario 2</b>. Two servers both read count=99, both decide "allowed," both write 100 &mdash; the client spent its last token twice (a classic read-modify-write race). The fix is to make the whole check <b>atomic at the shared store</b>: Redis <code>INCR</code> is atomic, and for token-bucket/sliding-window logic a Redis <b>Lua script</b> (<code>EVAL</code>) runs the read-decide-update as one indivisible operation, so concurrent requests can't double-spend. Per-server <i>local</i> counters are fast but wrong (each server only sees its own slice) &mdash; use them only as an approximate pre-filter in front of the authoritative shared count.</div>
+
+<h3 id="sp3">Sub-problem 3 &mdash; What happens when the limiter fails?</h3>
+<p>The limiter is on the critical path, so its own failure mode matters as much as its logic. If the counter store is unreachable, you must <i>pre-decide</i>: <b>fail-open</b> (allow requests through) or <b>fail-closed</b> (reject them).</p>
+<div class="callout warn"><span class="lbl" id="failclosed">The failure that happens when you get this wrong &mdash; the fail-closed outage (or the fail-open flood)</span>
+This is <b>Scenario 3</b>. <b>Fail-closed</b> (reject when the limiter is down) turns a counter-store blip into a <i>full API outage</i> &mdash; usually the wrong trade for a protective component. <b>Fail-open</b> (allow when down) keeps the API up but leaves it briefly unprotected from abuse. The common choice is <b>fail-open</b> for availability, paired with a local per-server fallback limit so you're not <i>completely</i> unprotected during the blip &mdash; but a security-critical endpoint (login, payment) may deliberately fail <i>closed</i>. The point: decide it on purpose, per endpoint, rather than discovering your default the hard way. Also make the limiter store itself HA (replicated) so this is rare.</div>
+
+<h2 id="decision-table">The decision table &mdash; algorithms compared</h2>
+<table>
+<tr><th>Need</th><th>Algorithm</th><th>Why</th></tr>
+<tr><td>Simple, cheap, burst-tolerant of 2&times; is OK</td><td>Fixed window</td><td>Least memory, easy</td></tr>
+<tr><td>Accurate limiting, low memory (default)</td><td>Sliding window counter</td><td>No boundary burst, cheap</td></tr>
+<tr><td>Allow deliberate bursts, steady average</td><td>Token bucket</td><td>Bursty clients (mobile, batch)</td></tr>
+<tr><td>Smooth output to constant rate</td><td>Leaky bucket</td><td>Protect a fixed-throughput downstream</td></tr>
+<tr><td>Exact, willing to pay memory</td><td>Sliding window log</td><td>Precise per-request accounting</td></tr>
+</table>
+
+<h2 id="self-check">Self-check &mdash; can you reconstruct the design?</h2>
+<ul>
+<li><b>The walkthrough:</b> why does the limiter's own latency and availability bound the entire API's?</li>
+<li><b>Scenario 1 (boundary):</b> How does fixed-window allow a 2&times; burst, and which algorithms prevent it?</li>
+<li><b>Scenario 2 (race):</b> Why does a non-atomic read-decide-update double-spend, and how do Redis <code>INCR</code> / Lua fix it?</li>
+<li><b>Scenario 3 (failure):</b> Fail-open vs fail-closed &mdash; which is the usual default and when do you flip it?</li>
+<li>Token bucket vs sliding window &mdash; when do you specifically want each?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> 3 decisions &mdash; <a href="#sp1">algorithm (burst shape)</a>, <a href="#sp2">atomic shared counter</a>, <a href="#sp3">fail-open/closed</a> &mdash; for a component on every request's hot path.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="04.html">Caching</a> (Redis), <a href="51.html">Resilience Patterns</a> (failure modes), <a href="44.html">Service Mesh</a> (sidecar limiting), <a href="54.html">Security</a> (abuse).</p>
+
+<h2 id="cloud">Cloud services &mdash; what you'd build it on</h2>
+<table>
+<tr><th>Piece</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Gateway with built-in limiting</td><td>API Gateway / WAF</td><td>Apigee / Cloud Armor</td><td>API Management / Front Door</td></tr>
+<tr><td>Counter store</td><td>ElastiCache (Redis)</td><td>Memorystore</td><td>Cache for Redis</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-redis">Redis + Lua rate limiter</h3>
+<ul><li><b>What it is.</b> The standard build-your-own: counters/buckets in Redis, the read-decide-update done in a Lua script.</li><li><b>Key idea.</b> <code>EVAL</code> runs the logic atomically server-side, so concurrent requests can't double-spend; TTLs expire windows.</li><li><b>The failure to watch.</b> Redis becomes a hot shared dependency &mdash; make it HA and decide fail-open/closed.</li></ul>
+<h3 id="impl-gateway">Gateway / sidecar limiters (Envoy, NGINX, API gateways)</h3>
+<ul><li><b>What it is.</b> Rate limiting as a first-class feature of the edge proxy or service-mesh sidecar.</li><li><b>Key idea.</b> Enforce at the edge before requests reach your services; often a global rate-limit service backs the local proxies.</li><li><b>The failure to watch.</b> Local-only counters are approximate; a global limit needs the shared backend (and its failure policy).</li></ul>
+
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-tokenbucket">Implement a token bucket atomically</h3>
+<p>Write the per-request check for a token bucket shared across servers: refill by elapsed time, spend one token if available, deny otherwise &mdash; with no double-spend race.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Store two values per key: <code>tokens</code> and <code>last_refill_ts</code>. On a request, run a single atomic operation (a Redis Lua script): read both; compute <code>refill = (now - last_refill_ts) &times; rate</code>, set <code>tokens = min(capacity, tokens + refill)</code> and <code>last_refill_ts = now</code>; if <code>tokens &ge; 1</code>, decrement and return <i>allowed</i>, else return <i>denied</i>. Because the whole read-refill-decide-write runs inside one Lua <code>EVAL</code>, two concurrent requests can't both see the same last token &mdash; the second sees the decremented value. <code>capacity</code> sets the max burst; <code>rate</code> sets the steady average. Set a TTL so idle keys expire.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
+<ul>
+<li><b>Global limit across regions.</b> Enforce one quota when a client hits multiple data centers &mdash; exact (slow) or approximate (fast)? &rarr; <a href="53.html">Multi-Region</a>.</li>
+<li><b>Tiered quotas.</b> Free vs paid clients, per-endpoint limits, dynamic config without redeploy.</li>
+</ul>
+
+</div>
+<div class="tab-pane hidden" data-tab="old">
 <p class="sub"><em>Let's design an API Rate Limiter that throttles users based on the number of requests they send within a time window.</em></p>
 <div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Finite capacity.</b> <span>protecting a finite service by shedding load, paid in distributed counter coordination.</span></div>
 <div class="toc"><h4>In this lesson</h4>
@@ -357,6 +496,7 @@
 </ul>
 </div>
 
+</div>
 <div class="navfoot"><a href="22.html">&lsaquo; Prev: Designing Typeahead Suggestion</a><a class="nx" href="24.html">Next: Designing Twitter Search &rsaquo;</a></div>
 </div>
 </div>

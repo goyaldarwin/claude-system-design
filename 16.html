@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Designing Pastebin</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
-<link rel="stylesheet" href="./_principal_files/lesson.css">
+<link rel="stylesheet" href="./_principal_files/lesson.css?v=20260615a">
 <script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('sd-nav')==='collapsed')document.documentElement.classList.add('nav-collapsed');}catch(e){}})();</script>
-<script src="./_principal_files/nav.js" defer></script>
+<script src="./_principal_files/nav.js?v=20260615a" defer></script>
 </head>
 <body>
 <div class="layout">
@@ -114,6 +114,144 @@
 <div class="wrap">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Pastebin</div>
 <h1>Designing Pastebin</h1>
+<div class="lesson-tabs"><button type="button" data-tab="new">New &mdash; redesigned</button><button type="button" data-tab="old">Old &mdash; original</button><span class="tab-note">Old = the original Grokking walkthrough, preserved.</span></div>
+<div class="tab-pane tree-doc" data-tab="new">
+<p class="sub"><em>A close cousin of the URL shortener &mdash; generate a short key for a piece of user text, then serve it back. The twist: the payload is a blob (kilobytes to megabytes), not a URL. That single difference splits storage in two: tiny metadata in a database, the actual paste in an object store. Still read-heavy, still key-generation-driven.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Like a URL shortener, but the value is a blob &mdash; so separate metadata (DB) from content (object store), and serve reads from a CDN/cache.</b> <span>Key generation and the read path are the same problems as <a href="15.html">TinyURL</a>; the new decision is where the paste body lives.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; walk the design, then the hard parts</div>
+<pre class="tree">
+<b>Designing Pastebin</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>  &mdash; blobs dominate storage
+├─ <a href="#api"><b>3. System API</b></a>
+├─ <a href="#highlevel"><b>4. High-level architecture</b></a>
+├─ <a href="#datamodel"><b>5. Data model</b></a>  &mdash; metadata vs content split
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>
+├─ <a href="#subproblems"><b>6. The hard sub-problems</b></a>
+│   ├─ <a href="#sp1">Where does the blob live?</a>   failure → <a href="#dbblob">blobs in the database</a>
+│   ├─ <a href="#sp2">Key generation</a>              failure → <a href="#collision">collision / SPOF</a>
+│   └─ <a href="#sp3">Read path &amp; expiry</a>          failure → <a href="#stampede">hot-paste stampede</a>
+│
+├─ <a href="#decision-table"><b>The design at a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud services</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
+</div>
+
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> upload a text paste, get a unique short key/URL; retrieve a paste by key; optional custom alias; optional expiry (and size limit). <b>Non-functional:</b> highly available, low-latency reads, unguessable keys. <b>Extended:</b> analytics, syntax highlighting, public/unlisted/private visibility.</p>
+
+<h2 id="capacity">2. Capacity estimate</h2>
+<ul>
+<li><b>Writes:</b> say 1M new pastes/day &asymp; ~12 writes/sec &mdash; low.</li>
+<li><b>Reads:</b> read-heavy (each paste viewed many times); assume 10:1 &rarr; ~120 reads/sec, bursty for popular pastes.</li>
+<li><b>Storage:</b> here's the difference from a URL shortener &mdash; a paste averages, say, 10&nbsp;KB (vs ~500 bytes for a URL). 1M/day &times; 10&nbsp;KB &asymp; <b>10&nbsp;GB/day</b>, ~18&nbsp;TB over 5 years. <b>The content, not the metadata, dominates storage</b> &mdash; which is the whole reason to split them.</li>
+</ul>
+
+<h2 id="api">3. System API</h2>
+<pre><code>createPaste(api_key, content, expiry?, visibility?) &rarr; paste_url
+getPaste(paste_key) &rarr; content (+ metadata)</code></pre>
+<p>Large content is uploaded to object storage (often via a pre-signed URL) rather than streamed through the app tier &mdash; same reasoning as media in <a href="20.html">Twitter</a>/<a href="17.html">Instagram</a>.</p>
+
+<h2 id="highlevel">4. High-level architecture</h2>
+<ul>
+<li><b>App tier</b> behind a <a href="03.html">load balancer</a>.</li>
+<li><b>Metadata store</b> (key &rarr; pointer + attributes) &mdash; small, fast, sharded by key.</li>
+<li><b>Object store</b> for paste bodies (S3-like), fronted by a <a href="48.html">CDN</a> for hot pastes.</li>
+<li><b>Cache</b> for hot metadata + small bodies.</li>
+</ul>
+
+<h2 id="datamodel">5. Data model &mdash; the metadata/content split</h2>
+<p>Two stores, by design:</p>
+<table>
+<tr><th>Store</th><th>Holds</th><th>Why there</th></tr>
+<tr><td><b>Metadata DB</b></td><td><code>key &rarr; content_pointer, creator, created_at, expiry, size, visibility</code></td><td>Tiny rows, fast key lookups, queryable</td></tr>
+<tr><td><b>Object store</b></td><td>The paste body (blob), addressed by the pointer</td><td>Cheap, durable, CDN-frontable; blobs don't belong in a row store</td></tr>
+</table>
+
+<h2 id="scenarios">Three scenarios &mdash; the hard parts, as questions</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the 5 MB paste</span>
+A user pastes a 5&nbsp;MB log file. Your instinct is to store it in a <code>TEXT</code> column in the database. <b>What does that do to your database as pastes pile up, and where should the blob actually go?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; unique keys at scale</span>
+Two pastes are created in the same instant on different servers. <b>How do they get distinct, unguessable keys &mdash; the same question as TinyURL?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; a paste hits the front page</span>
+A paste is linked from a popular forum and gets hammered with reads. <b>What serves those reads cheaply, and what happens when its cache entry expires?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#sp1">blob storage</a> (the new problem). Scenario 2 is <a href="#sp2">key generation</a> (same as <a href="15.html">TinyURL</a>). Scenario 3 is the <a href="#stampede">read path</a>.</i></p>
+
+<h2 id="subproblems">6. The hard sub-problems</h2>
+
+<h3 id="sp1">Sub-problem 1 &mdash; Where does the blob live?</h3>
+<p>The one decision that distinguishes Pastebin from a URL shortener. The body is large and immutable &mdash; store it in an <b>object store</b> (S3-like), keep only a <i>pointer</i> in the metadata DB, and serve hot bodies through a <a href="48.html">CDN</a>.</p>
+<div class="callout warn"><span class="lbl" id="dbblob">The failure that happens when you get this wrong &mdash; blobs in the database</span>
+This is <b>Scenario 1</b>. Storing multi-KB/MB blobs in a relational <code>TEXT</code>/<code>BLOB</code> column bloats the row store catastrophically: backups balloon, the buffer pool fills with paste bodies instead of hot metadata, replication ships megabytes per write, and query performance craters. The fix is the metadata/content split: tiny pointer rows in the DB, bodies in object storage (durable, cheap, independently scalable, CDN-frontable). This separation recurs everywhere binaries meet databases &mdash; <a href="48.html">Object Storage &amp; CDN</a>.</div>
+
+<h3 id="sp2">Sub-problem 2 &mdash; Key generation</h3>
+<p>Identical to the <a href="15.html#sp1">URL shortener</a>: hash (collisions), counter (guessable/SPOF myth &mdash; trivial at this write rate), or random base62 (unguessable, negligible collision). Since unguessability is a requirement (private/unlisted pastes), random base62 with a uniqueness check is the clean default.</p>
+<div class="callout warn"><span class="lbl" id="collision">The failure &mdash; collision or counter SPOF</span>
+This is <b>Scenario 2</b>, and the analysis is the same as TinyURL: hashing needs collision retry; a single counter is a guessable SPOF (though trivially handled at ~12 writes/sec via Redis <code>INCR</code> or per-server ranges); random base62 is usually best when keys must be unguessable. (Full treatment: <a href="15.html#sp1">URL Shortener, Sub-problem 1</a>.)</div>
+
+<h3 id="sp3">Sub-problem 3 &mdash; Read path &amp; expiry</h3>
+<p>Reads are skewed &mdash; most pastes are cold, a few go viral. Cache hot metadata and small bodies; serve large hot bodies from the CDN. Expire pastes via TTL (lazy check on read + background sweep), reclaiming both the metadata row and the object-store blob.</p>
+<div class="callout warn"><span class="lbl" id="stampede">The failure &mdash; the hot-paste stampede</span>
+This is <b>Scenario 3</b>. A front-paged paste is a <a href="04.html#hot-key">hot key</a>; the cache/CDN absorbs it until the entry expires, then synchronized misses stampede the store. Same fixes as caching: single-flight, TTL jitter, stale-while-revalidate. For the blob specifically, the CDN's own caching shields the object store.</div>
+
+<h2 id="decision-table">The design at a glance</h2>
+<table>
+<tr><th>Piece</th><th>Choice</th><th>Why</th></tr>
+<tr><td>Content storage</td><td>Object store + CDN</td><td>Blobs don't belong in a row store</td></tr>
+<tr><td>Metadata</td><td>Key-value/SQL, sharded by key</td><td>Tiny rows, fast key lookups</td></tr>
+<tr><td>Key generation</td><td>Random base62</td><td>Unguessable, no collision/SPOF</td></tr>
+<tr><td>Read path</td><td>Cache + CDN</td><td>Skewed read popularity</td></tr>
+<tr><td>Expiry</td><td>TTL + lazy + sweep (DB + blob)</td><td>Reclaim both stores</td></tr>
+</table>
+
+<h2 id="self-check">Self-check &mdash; can you reconstruct the design?</h2>
+<ul>
+<li><b>The walkthrough:</b> how does Pastebin's capacity estimate differ from a URL shortener's, and what does that difference force?</li>
+<li><b>Scenario 1 (blob):</b> Why don't paste bodies belong in the database, and what's the metadata/content split?</li>
+<li><b>Scenario 2 (keys):</b> Why is this the same problem as TinyURL, and which scheme fits "unguessable"?</li>
+<li><b>Scenario 3 (hot paste):</b> What serves a viral paste's reads, and what's the expiry stampede risk?</li>
+<li>What must expiry clean up that a URL shortener's doesn't?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> it's <a href="15.html">TinyURL</a> + a blob &mdash; the one new decision is <a href="#sp1">metadata/content separation</a>; key generation and the cached read path carry over unchanged.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="15.html">URL Shortener</a>, <a href="48.html">Object Storage &amp; CDN</a>, <a href="04.html">Caching</a>, <a href="05.html">Sharding</a>.</p>
+
+<h2 id="cloud">Cloud services &mdash; what you'd build it on</h2>
+<table>
+<tr><th>Piece</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Object store</td><td>S3</td><td>Cloud Storage</td><td>Blob Storage</td></tr>
+<tr><td>CDN</td><td>CloudFront</td><td>Cloud CDN</td><td>Front Door</td></tr>
+<tr><td>Metadata + cache</td><td>DynamoDB + ElastiCache</td><td>Firestore + Memorystore</td><td>Cosmos DB + Cache for Redis</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-pastebin">Pastebin / GitHub Gist</h3>
+<ul><li><b>What it is.</b> Text-paste services; Gist adds versioning (Git-backed).</li><li><b>Key idea.</b> Short key &rarr; blob in object/Git storage + metadata; CDN for popular pastes.</li><li><b>The failure to watch.</b> Abuse (malware/secret leaks in pastes) needs scanning &amp; moderation &mdash; an operational, not just storage, concern.</li></ul>
+<h3 id="impl-s3">Object storage (S3-style)</h3>
+<ul><li><b>What it is.</b> The content tier &mdash; durable, content-addressable blob storage.</li><li><b>Key idea.</b> Pre-signed URLs let clients upload/download directly, bypassing the app tier. (<a href="48.html">Lesson 48</a>.)</li><li><b>The failure to watch.</b> Per-object metadata overhead at huge scale (why Meta built Haystack for photos).</li></ul>
+
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-split">Design the metadata/content write path</h3>
+<p>A user submits a 2&nbsp;MB paste. Walk the write: where does the body go, what's stored in the DB, and how do you avoid a dangling pointer if one step fails?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Generate the key; the client (or app) uploads the body to the object store at a path derived from the key (often via a pre-signed URL so the bytes never transit the app tier). Once the upload confirms, write the metadata row (key &rarr; pointer + attributes). Order matters: write the blob <i>first</i>, then the pointer &mdash; a pointer with no blob is a broken paste, but an orphan blob with no pointer is just unreferenced garbage a background GC reclaims. (Same ordering logic as the outbox/2-phase concerns in <a href="08.html">Queues</a>.) On read, fetch metadata, then stream the body from object store / CDN.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
+<ul>
+<li><b>Add visibility (public/unlisted/private).</b> Enforce access without slowing the hot read path. </li>
+<li><b>Abuse scanning.</b> Scan pastes for secrets/malware asynchronously without blocking creation. &rarr; <a href="08.html">Queues</a>.</li>
+</ul>
+
+</div>
+<div class="tab-pane hidden" data-tab="old">
 <p class="sub"><em>Let's design a Pastebin-like web service where users store plain text and get a randomly generated URL to share it — covering requirements, capacity estimation, APIs, data model, and a scalable read-heavy architecture built on a Key Generation Service.</em></p>
 <div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Finite capacity.</b> <span>metadata vs blob split — cheap scale for big content, paid in two stores to keep in sync.</span></div>
 <div class="toc"><h4>In this lesson</h4>
@@ -347,7 +485,8 @@ Delete the metadata row first (makes the paste instantly unreachable and frees t
 </ul>
 </div>
 
-<div class="navfoot"><a href="15.html">&lsaquo; Prev: Designing a URL Shortening service like TinyURL</a><a class="nx" href="17.html">Next: Designing Instagram &rsaquo;</a></div>
+</div>
+<div class="navfoot"><a href="15.html">&lsaquo; Prev: Designing a URL Shortening service</a><a class="nx" href="17.html">Next: Designing Instagram &rsaquo;</a></div>
 </div>
 </div>
 </div>

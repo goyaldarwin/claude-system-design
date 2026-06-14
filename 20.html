@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Designing Twitter</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
-<link rel="stylesheet" href="./_principal_files/lesson.css">
+<link rel="stylesheet" href="./_principal_files/lesson.css?v=20260615a">
 <script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('sd-nav')==='collapsed')document.documentElement.classList.add('nav-collapsed');}catch(e){}})();</script>
-<script src="./_principal_files/nav.js" defer></script>
+<script src="./_principal_files/nav.js?v=20260615a" defer></script>
 </head>
 <body>
 <div class="layout">
@@ -111,9 +111,11 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap tree-doc">
+<div class="wrap">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Twitter</div>
 <h1>Designing Twitter</h1>
+<div class="lesson-tabs"><button type="button" data-tab="new">New &mdash; redesigned</button><button type="button" data-tab="old">Old &mdash; original</button><span class="tab-note">Old = the original Grokking walkthrough, preserved.</span></div>
+<div class="tab-pane tree-doc" data-tab="new">
 <p class="sub"><em>A read-heavy social feed: ~1,150 tweets written per second, but ~325,000 timeline reads per second. We walk the full design &mdash; requirements, capacity math, API, high-level architecture, data model &mdash; then deep-dive the four hard parts. The thread running through all of it: optimize relentlessly for reads, and the trick that makes reads cheap (fan-out on write) is exactly what breaks for celebrities.</em></p>
 
 <div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Reads outnumber writes ~280:1, so you do more work on the rare write to make the common read cheap.</b> <span>Pre-compute each user's timeline when a tweet is posted, so a read is a lookup, not a giant query &mdash; but pre-computing for a user with 100M followers is its own failure, which is why the real answer is a <b>hybrid</b>.</span></div>
@@ -374,6 +376,251 @@ A naive per-server auto-increment collides across servers; a single central coun
 <li><b>Media pipeline.</b> 24&nbsp;TB/day of photos/video: upload, transcode, serve. Why does it never touch the tweet DB? &rarr; <a href="48.html">Object Storage &amp; CDN</a>.</li>
 </ul>
 
+</div>
+<div class="tab-pane hidden" data-tab="old">
+<p class="sub"><em>Design a Twitter-like social networking service where users post tweets, follow others, favorite tweets, and see a timeline of top tweets from the people they follow.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency.</b> <span>timeline reads made instant by fan-out-on-write, paid in fan-out cost for high-degree users.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#1-what-is-twitter">What is Twitter?</a></li>
+  <li><a href="#2-requirements-and-goals-of-the-system">Requirements and Goals of the System</a></li>
+  <li><a href="#3-capacity-estimation-and-constraints">Capacity Estimation and Constraints</a></li>
+  <li><a href="#4-system-apis">System APIs</a></li>
+  <li><a href="#5-high-level-system-design">High Level System Design</a></li>
+  <li><a href="#6-database-schema">Database Schema</a></li>
+  <li><a href="#7-data-sharding">Data Sharding</a></li>
+  <li><a href="#8-cache">Cache</a></li>
+  <li><a href="#9-timeline-generation">Timeline Generation</a></li>
+  <li><a href="#10-replication-and-fault-tolerance">Replication and Fault Tolerance</a></li>
+  <li><a href="#11-load-balancing">Load Balancing</a></li>
+  <li><a href="#12-monitoring">Monitoring</a></li>
+  <li><a href="#13-extended-requirements">Extended Requirements</a></li>
+</ul></div>
+
+
+<h2 id="1-what-is-twitter">What is Twitter?</h2>
+<p>Twitter is an online social networking service where users post and read short 140-character messages called "tweets". Registered users can post and read tweets, but those who are not registered can only read them. Users access Twitter through their website interface, SMS or mobile app.</p>
+
+<h2 id="2-requirements-and-goals-of-the-system">Requirements and Goals of the System</h2>
+<p>We will be designing a simpler version of Twitter with following requirements:</p>
+<p><strong>Functional Requirements</strong></p>
+<ol>
+<li>Users should be able to post new tweets.</li>
+<li>A user should be able to follow other users.</li>
+<li>Users should be able to mark tweets favorite.</li>
+<li>The service should be able to create and display user’s timeline consisting of top tweets from all the people the user follows.</li>
+<li>Tweets can contain photos and videos.</li>
+</ol>
+<p><strong>Non-functional Requirements</strong></p>
+<ol>
+<li>Our service needs to be highly available.</li>
+<li>Acceptable latency of the system is 200ms for timeline generation.</li>
+<li>Consistency can take a hit (in the interest of availability), if a user doesn’t see a tweet for a while, it should be fine.</li>
+</ol>
+<p><strong>Extended Requirements</strong></p>
+<ol>
+<li>Searching tweets.</li>
+<li>Reply to a tweet.</li>
+<li>Trending topics – current hot topics/searches.</li>
+<li>Tagging other users.</li>
+<li>Tweet Notification.</li>
+<li>Who to follow? Suggestions?</li>
+<li>Moments.</li>
+</ol>
+
+<h2 id="3-capacity-estimation-and-constraints">Capacity Estimation and Constraints</h2>
+<p>Let’s assume we have one billion total users, with 200 million daily active users (DAU). Also, we have 100 million new tweets every day, and on average each user follows 200 people.</p>
+<p><strong>How many favorites per day?</strong> If on average each user favorites five tweets per day, we will have:</p>
+<blockquote>200M users * 5 favorites =&gt; 1B favorites</blockquote>
+<p><strong>How many total tweet-views our system will generate?</strong> Let’s assume on average a user visits their timeline two times a day and visits five other people’s pages. On each page if a user sees 20 tweets, total tweet-views our system will generate:</p>
+<blockquote>200M DAU * ((2 + 5) * 20 tweets) =&gt; 28B/day</blockquote>
+<p><strong>Storage Estimates</strong> Let’s say each tweet has 140 characters and we need two bytes to store a character without compression. Let’s assume we need 30 bytes to store metadata with each tweet (like ID, timestamp, user ID, etc.). Total storage we would need:</p>
+<blockquote>100M * (280 + 30) bytes =&gt; 30GB/day</blockquote>
+<p>What would be our storage needs for five years? How much storage we would need for users’ data, follows, favorites? We will leave this for exercise.</p>
+<p>Not all tweets will have media, let’s assume that on average every fifth tweet has a photo and every tenth has a video. Let’s also assume on average a photo is 200KB and a video is 2MB. This will lead us to have 24TB of new media every day.</p>
+<blockquote>(100M/5 photos * 200KB) + (100M/10 videos * 2MB) ~= 24TB/day</blockquote>
+<p><strong>Bandwidth Estimates</strong> Since total ingress is 24TB per day, this would translate into 290MB/sec.</p>
+<p>Remember that we have 28B tweet views per day. We must show the photo of every tweet (if it has a photo), but let’s assume that the users watch every 3rd video they see in their timeline. So, total egress will be:</p>
+<blockquote>(28B * 280 bytes) / 86400s of text  =&gt; 93MB/s<br>
++ (28B/5 * 200KB ) / 86400s of photos =&gt; 13GB/s<br>
++ (28B/10/3 * 2MB ) / 86400s of Videos =&gt; 22GB/s<br>
+Total ~= 35GB/s</blockquote>
+
+<h2 id="4-system-apis">System APIs</h2>
+<div class="clarify">Once we've finalized the requirements, it's always a good idea to define the system APIs. This would explicitly state what is expected from the system.</div>
+<p>We can have SOAP or REST APIs to expose the functionality of our service. Following could be the definition of the API for posting a new tweet:</p>
+<pre><code>tweet(api_dev_key, tweet_data, tweet_location, user_location, media_ids, maximum_results_to_return)</code></pre>
+<p><strong>Parameters:</strong><br>
+api_dev_key (string): The API developer key of a registered account. This will be used to, among other things, throttle users based on their allocated quota.<br>
+tweet_data (string): The text of the tweet, typically up to 140 characters.<br>
+tweet_location (string): Optional location (longitude, latitude) this Tweet refers to.<br>
+user_location (string): Optional location (longitude, latitude) of the user adding the tweet.<br>
+media_ids (number[]): Optional list of media_ids to be associated with the Tweet. (All the media photo, video, etc.) need to be uploaded separately.</p>
+<p><strong>Returns:</strong> (string)<br>
+A successful post will return the URL to access that tweet. Otherwise, an appropriate HTTP error is returned.</p>
+
+<h2 id="5-high-level-system-design">High Level System Design</h2>
+<p>We need a system that can efficiently store all the new tweets, 100M/86400s =&gt; 1150 tweets per second and read 28B/86400s =&gt; 325K tweets per second. It is clear from the requirements that this will be a read-heavy system.</p>
+<p>At a high level, we need multiple application servers to serve all these requests with load balancers in front of them for traffic distributions. On the backend, we need an efficient database that can store all the new tweets and can support a huge number of reads. We would also need some file storage to store photos and videos.</p>
+<p><img src="./_principal_files/img/20_twitter_high_level_design.png" alt="diagram"></p>
+
+<h2 id="6-database-schema">Database Schema</h2>
+<p>We need to store data about users, their tweets, their favorite tweets, and people they follow.</p>
+<p><img src="./_principal_files/img/5665117697998848.png" alt="diagram"></p>
+<p>For choosing between SQL and NoSQL databases to store the above schema, please see ‘Database schema’ under <a href="17.html" target="_blank">Designing Instagram</a>.</p>
+
+<h2 id="7-data-sharding">Data Sharding</h2>
+<p>Since we have a huge number of new tweets every day and our read load is extremely high too, we need to distribute our data onto multiple machines such that we can read/write it efficiently. We have many options to shard our data; let’s go through them one by one:</p>
+<p><strong>Sharding based on UserID:</strong> We can try storing all the data of a user on one server. While storing, we can pass the UserID to our hash function that will map the user to a database server where we will store all of the user’s tweets, favorites, follows, etc. While querying for tweets/follows/favorites of a user, we can ask our hash function where can we find the data of a user and then read it from there. This approach has a couple of issues:</p>
+<ol>
+<li>What if a user becomes hot? There could be a lot of queries on the server holding the user. This high load will affect the performance of our service.</li>
+<li>Over time some users can end up storing a lot of tweets or have a lot of follows compared to others. Maintaining a uniform distribution of growing user’s data is quite difficult.</li>
+</ol>
+<p>To recover from these situations either we have to repartition/redistribute our data or use consistent hashing.</p>
+<p><strong>Sharding based on TweetID:</strong> Our hash function will map each TweetID to a random server where we will store that Tweet. To search tweets, we have to query all servers, and each server will return a set of tweets. A centralized server will aggregate these results to return them to the user. Let’s look into timeline generation example, here are the number of steps our system has to perform to generate a user’s timeline:</p>
+<ol>
+<li>Our application (app) server will find all the people the user follows.</li>
+<li>App server will send the query to all database servers to find tweets from these people.</li>
+<li>Each database server will find the tweets for each user, sort them by recency and return the top tweets.</li>
+<li>App server will merge all the results and sort them again to return the top results to the user.</li>
+</ol>
+<p>This approach solves the problem of hot users, but in contrast to sharding by UserID, we have to query all database partitions to find tweets of a user, which can result in higher latencies.</p>
+<p>We can further improve our performance by introducing cache to store hot tweets in front of the database servers.</p>
+<p><strong>Sharding based on Tweet creation time:</strong> Storing tweets based on recency will give us the advantage of fetching all the top tweets quickly, and we only have to query a very small set of servers. But the problem here is that the traffic load will not be distributed, e.g., while writing, all new tweets will be going to one server, and the remaining servers will be sitting idle. Similarly while reading, the server holding latest data will have a very high load as compared to servers holding old data.</p>
+<p><strong>What if we can combine sharding by TweetID and Tweet creation time?</strong> If we don’t store tweet creation time separately and use TweetID to reflect that, we can get benefits of both the approaches. This way it will be quite quick to find latest Tweets. For this, we must make each TweetID universally unique in our system, and each TweetID should contain timestamp too.</p>
+<p>We can use epoch time for this. Let’s say our TweetID will have two parts; the first part will be representing epoch seconds and the second part will be an auto-incrementing sequence. So, to make a new TweetID, we can take the current epoch time and append an auto-incrementing number to it. We can figure out shard number from this TweetID and store it there.</p>
+<p>What could be the size of our TweetID? Let’s say our epoch time starts today, how many bits we would need to store the number of seconds for next 50 years?</p>
+<blockquote>86400 sec/day * 365 (days a year) * 50 (years) =&gt; 1.6B</blockquote>
+<p>We would need 31 bits to store this number. Since on average we are expecting 1150 new tweets per second, we can allocate 17 bits to store auto incremented sequence; this will make our TweetID 48 bits long. So, every second we can store (2^17 =&gt; 130K) new tweets. We can reset our auto incrementing sequence every second. For fault tolerance and better performance, we can have two database servers to generate auto-incrementing keys for us, one generating even numbered keys and the other generating odd numbered keys.</p>
+<p><img src="./_principal_files/img/20_twitter_data_sharding_bits.png" alt="diagram"></p>
+<p>1483228800 000001<br>
+1483228800 000002<br>
+1483228800 000003<br>
+1483228800 000004<br>
+…</p>
+<p>If we make our TweetID 64bits (8 bytes) long, we can easily store tweets for next 100 years and also store them for mili-seconds granularity.</p>
+
+<h2 id="8-cache">Cache</h2>
+<p>We can introduce a cache for database servers to cache hot tweets and users. We can use an off-the-shelf solution like Memcache that can store the whole tweet objects. Application servers before hitting database can quickly check if the cache has desired tweets. Based on clients’ usage pattern we can determine how many cache servers we need.</p>
+<p><strong>Which cache replacement policy would best fit our needs?</strong> When the cache is full, and we want to replace a tweet with a newer/hotter tweet, how would we choose? Least Recently Used (LRU) can be a reasonable policy for our system. Under this policy, we discard the least recently viewed tweet first.</p>
+<p><strong>How can we have more intelligent cache?</strong> If we go with 80-20 rule, that is 20% of tweets are generating 80% of read traffic which means that certain tweets are so popular that majority of people read them. This dictates that we can try to cache 20% of daily read volume from each shard.</p>
+<p><strong>What if we cache the latest data?</strong> Our service can benefit from this approach. Let’s say if 80% of our users see tweets from past three days only; we can try to cache all the tweets from past three days. Let’s say we have dedicated cache servers that cache all the tweets from all users from past three days. As estimated above, we are getting 100 million new tweets or 30GB of new data every day (without photos and videos). If we want to store all the tweets from last three days, we would need less than 100GB of memory. This data can easily fit into one server, but we should replicate it onto multiple servers to distribute all the read traffic to reduce the load on cache servers. So whenever we are generating a user’s timeline, we can ask the cache servers if they have all the recent tweets for that user, if yes, we can simply return all the data from the cache. If we don’t have enough tweets in the cache, we have to query backend to fetch that data. On a similar design, we can try caching photos and videos from last three days.</p>
+<p>Our cache would be like a hash table, where ‘key’ would be ‘OwnerID’ and ‘value’ would be a doubly linked list containing all the tweets from that user in past three days. Since we want to retrieve most recent data first, we can always insert new tweets at the head of the linked list, which means all the older tweets will be near the tail of the linked list. Therefore, we can remove tweets from the tail to make space for newer tweets.</p>
+
+<h2 id="9-timeline-generation">Timeline Generation</h2>
+<p><img src="./_principal_files/img/20_twitter_timeline_generation.png" alt="diagram"></p>
+<p>For a detailed discussion about timeline generation, take a look at <a href="26.html" target="_blank">Designing Facebook’s Newsfeed</a>.</p>
+
+<h2 id="10-replication-and-fault-tolerance">Replication and Fault Tolerance</h2>
+<p>Since our system is read-heavy, we can have multiple secondary database servers for each DB partition. Secondary servers will be used for read traffic only. All writes will first go to the primary server and then will be replicated to secondary servers. This scheme will also give us fault tolerance, as whenever the primary server goes down, we can failover to a secondary server.</p>
+
+<h2 id="11-load-balancing">Load Balancing</h2>
+<p>We can add Load balancing layer at three places in our system 1) Between Clients and Application servers 2) Between Application servers and database replication servers and 3) Between Aggregation servers and Cache server. Initially, a simple Round Robin approach can be adopted; that distributes incoming requests equally among servers. This LB is simple to implement and does not introduce any overhead. Another benefit of this approach is if a server is dead, LB will take it out of the rotation and will stop sending any traffic to it. A problem with Round Robin LB is, it won’t take server load into consideration. If a server is overloaded or slow, the LB will not stop sending new requests to that server. To handle this, a more intelligent LB solution can be placed that periodically queries backend server about their load and adjusts traffic based on that.</p>
+
+<h2 id="12-monitoring">Monitoring</h2>
+<p>Having the ability to monitor our systems is crucial. We should constantly collect data to get an instant insight into how our system is doing. We can collect following metrics/counters to get an understanding of the performance of our service:</p>
+<ol>
+<li>New tweets per day/second, what is the daily peak?</li>
+<li>Timeline delivery stats, how many tweets per day/second our service is delivering.</li>
+<li>Average latency that is seen by the user to refresh timeline.</li>
+</ol>
+<p>By monitoring these counters, we will realize if we need more replication or load balancing or caching, etc.</p>
+
+<h2 id="13-extended-requirements">Extended Requirements</h2>
+<p><strong>How to serve feeds?</strong>  Get all the latest tweets from the people someone follows and merge/sort them by time. Use pagination to fetch/show tweets. Only fetch top N tweets from all the people someone follows. This N will depend on the client’s Viewport, as on mobile we show fewer tweets compared to a Web client. We can also cache next top tweets to speed things up.</p>
+<p>Alternately, we can pre-generate the feed to improve efficiency, for details please see ‘Ranking and timeline generation’ under <a href="17.html" target="_blank">Designing Instagram</a>.</p>
+<p><strong>Retweet:</strong> With each Tweet object in the database, we can store the ID of original Tweet and not store any contents on this retweet object.</p>
+<p><strong>Trending Topics:</strong> We can cache most frequently occurring hashtags or searched queries in the last N seconds and keep updating them after every M seconds. We can rank trending topics based on the frequency of tweets or search queries or retweets or likes. We can give more weight to topics which are shown to more people.</p>
+<p><strong>Who to follow? How to give suggestions?</strong> This feature will improve user engagement. We can suggest friends of people someone follows. We can go two or three level down to find famous people for the suggestions. We can give preference to people with more followers.</p>
+<p>As only a few suggestions can be made at any time, use Machine Learning (ML) to shuffle and re-prioritize. ML signals could include people with recently increased follow-ship, common followers if the other person is following this user, common location or interests, etc.</p>
+<p><strong>Moments:</strong> Get top news for different websites for past 1 or 2 hours, figure out related tweets, prioritize them, categorize them (news, support, financials, entertainment, etc.) using ML – supervised learning or Clustering. Then we can show these articles as trending topics in Moments.</p>
+<p><strong>Search:</strong> Search involves Indexing, Ranking, and Retrieval of tweets. A similar solution is discussed in our next problem <a href="24.html" target="_blank">Design Twitter Search</a>.</p>
+
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+
+/* dark-mode overrides for inline pdeep/mastery (injected) */
+:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
+:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
+:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
+:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
+:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
+:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
+:root[data-theme="dark"] .pdeep th{background:#0f1318;}
+:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
+:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
+:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The lesson presents timeline generation as a merge-on-read across TweetID shards. That model is correct for a small service but inverts the actual economics at scale: Twitter is read-heavy by ~280:1 (the lesson's own numbers: 28B reads/day vs 100M writes/day). You almost never want to do the expensive work (gather + sort + rank) at read time when reads outnumber writes by two orders of magnitude. The real design pushes work to write time. This is the single most important insight the original lesson under-develops.</p>
+
+<h3>Fan-out: write vs read vs hybrid</h3>
+<div class="box"><b>Fan-out-on-write (push)</b>When a user tweets, the tweet ID is pushed into a precomputed, per-follower home-timeline list. Reads become an O(1) cache lookup of an already-materialized list. This is what makes the 200ms timeline SLA achievable for the median user. Cost: a single tweet from a user with N followers triggers N list inserts.</div>
+<div class="box"><b>Fan-out-on-read (pull)</b>Store tweets once per author; at read time gather the latest tweets from everyone the viewer follows, merge-sort by time/rank. No write amplification, but read latency scales with follow count and requires scatter-gather across shards. This is the lesson's TweetID-sharding model.</div>
+<div class="box"><b>The celebrity problem</b>Pure push breaks for high-fanout accounts. A celebrity with 100M followers (Cristiano Ronaldo, Elon Musk) would trigger 100M list writes per tweet. At even a modest tweet rate this is a write storm that creates a "thundering herd" of cache mutations and unbounded fan-out latency — a follower could see the tweet minutes after others. This is the canonical failure mode of naive push.</div>
+
+<p>The production answer is <b>hybrid fan-out</b>: push for the vast majority of users, pull for a small set of celebrity accounts. At read time, a viewer's home timeline = (precomputed pushed list) merged with (a small pull-and-merge of the handful of celebrities they follow). Because a viewer follows only a few mega-accounts, the read-time merge stays cheap.</p>
+
+<table>
+<tr><th>Dimension</th><th>Fan-out-on-write (push)</th><th>Fan-out-on-read (pull)</th><th>Hybrid (production)</th></tr>
+<tr><td>Read latency</td><td>Very low (precomputed)</td><td>High (scatter-gather + sort)</td><td>Low (cached + tiny merge)</td></tr>
+<tr><td>Write amplification</td><td>O(followers) — fatal for celebrities</td><td>O(1)</td><td>O(followers) for normal users only</td></tr>
+<tr><td>Best for</td><td>Normal users (median ~hundreds of followers)</td><td>Celebrities / very high fanout</td><td>Everyone, routed by follower count</td></tr>
+<tr><td>Wasted work</td><td>Pushing to inactive/dormant followers</td><td>Re-merging on every refresh</td><td>Skip push to dormant accounts; pull hot accounts</td></tr>
+</table>
+
+<div class="box"><b>Optimization: don't push to the dead</b>Of 1B accounts, only 200M are daily active. Pushing a tweet into the home-timeline list of a dormant account wastes memory and write IOPS. Production systems skip fan-out to inactive followers and lazily reconstruct (pull) their timeline if they return.</div>
+
+<h3>The home-timeline cache</h3>
+<p>The lesson's cache section caches <em>tweet objects</em> keyed by OwnerID. The more important cache is the <b>home timeline</b> itself — the per-user materialized list of tweet IDs the push path writes into. Critically, you cache <b>IDs, not bodies</b>: a timeline entry is a tweet ID + author ID (~16 bytes), and bodies are hydrated from the tweet cache on read. This keeps each user's list tiny and lets one tweet body be shared across millions of timelines instead of duplicated.</p>
+<div class="box"><b>Bounded lists</b>Home-timeline lists are capped (e.g. ~800 most-recent entries). You don't materialize an infinite history — older pages fall back to pull. This bounds memory: 200M active users × 800 IDs × ~16 bytes is in the low-terabyte range, fits across a Redis fleet, and bounds the cost of a celebrity de-fan-out should one occur.</div>
+
+<h3>Redis-backed timelines</h3>
+<p>Real implementations (Twitter's was Redis-based) store each home timeline as a Redis list/sorted-set. A tweet fan-out is an <code>LPUSH</code> + <code>LTRIM</code> (or <code>ZADD</code> + <code>ZREMRANGEBYRANK</code>) per follower; a timeline read is a single <code>LRANGE</code>/<code>ZREVRANGE</code>. Sorted sets let you rank by score (recency or an ML rank signal) rather than pure insertion order. Lists are replicated and sharded by user ID; because each list is independent, the cache shards near-perfectly. See <a href="04.html">04 Caching</a> for eviction and replication mechanics.</p>
+
+<h3>Tweet storage and sharding</h3>
+<p>The lesson lands on the right answer for IDs: a Snowflake-style 64-bit TweetID = <b>timestamp ‖ machine/sequence bits</b>. The key property it under-states is that <b>time-prefixed IDs are roughly sortable</b>, so "latest tweets" is a range scan and the ID itself encodes creation time (no separate timestamp index needed). Shard tweet bodies by TweetID (spreads write load, avoids the hot-user problem of UserID sharding) but keep the per-author tweet list separately so celebrity pulls are a single-shard read rather than a scatter-gather.</p>
+<div class="box"><b>Failure mode: clock skew &amp; sequence exhaustion</b>Snowflake IDs assume monotonic clocks. A backwards NTP step on an ID-generator node can produce duplicate or out-of-order IDs; production generators refuse to issue IDs until the clock catches up. Sequence-bit exhaustion within a millisecond (more tweets/ms than the sequence space) must block-and-wait, not wrap.</div>
+
+<h3>How the social graph drives fan-out</h3>
+<p>Fan-out is fundamentally a graph traversal: "who follows this author?" must be answered for every tweet. This makes the <b>follower-list store</b> a first-class system, not an afterthought. It must answer "followers of X" (for push) and "followees of Y" (for pull) cheaply — typically an adjacency-list store sharded by user, often denormalized in both directions. The follower-count on this graph is also the routing signal that decides push vs pull per account.</p>
+
+<h3>Trending and search</h3>
+<p>Trending is a streaming heavy-hitters problem, not a batch one: you can't sort all hashtags by frequency at scale. Use approximate counting (Count-Min Sketch) over sliding windows to find top-K terms in near-real-time, weighted by velocity (rate of change) rather than raw volume so a term that's suddenly spiking beats an always-popular one. Search is a separate inverted-index pipeline. Both are deep topics — see <a href="24.html">24 Twitter Search</a>.</p>
+
+<div class="seealso"><b>Go deeper:</b> <a href="26.html">26 Newsfeed</a>, <a href="24.html">24 Twitter Search</a>, <a href="04.html">04 Caching</a></div>
+</div>
+
+<div class="mastery">
+<h2>Principal-level mastery check</h2>
+<ul>
+<li>Can you explain why a read-heavy service with a ~280:1 read/write ratio should do timeline work at <em>write</em> time, and quantify the write amplification that creates for a normal user vs. a 100M-follower celebrity?</li>
+<li>Why does pure fan-out-on-write break for celebrities, and how exactly does a hybrid scheme (push for most, pull for celebrities) keep the read-time merge cheap for a viewer who follows several mega-accounts?</li>
+<li>Can you justify storing only tweet <em>IDs</em> (not bodies) in the home-timeline cache, and explain what hydration step that forces on the read path and why it's still a net win?</li>
+<li>Why are home-timeline lists bounded (e.g. ~800 entries), and what happens when a user pages past the cached window?</li>
+<li>Can you map the home-timeline design onto concrete Redis operations — which commands run on fan-out vs. on read, and when would you choose a sorted set over a list?</li>
+<li>Why is sharding tweet bodies by TweetID preferable to sharding by UserID, and what property of a Snowflake-style time-prefixed ID makes "fetch latest tweets" cheap without a separate timestamp index?</li>
+<li>Why does the follower/followee graph store need to answer lookups in <em>both</em> directions, and how does follower count on that graph become the routing signal between push and pull?</li>
+</ul>
+</div>
+
+</div>
 <div class="navfoot"><a href="19.html">&lsaquo; Prev: Designing Facebook Messenger</a><a class="nx" href="21.html">Next: Designing Youtube or Netflix &rsaquo;</a></div>
 </div>
 </div>

@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Designing Facebook Messenger</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
-<link rel="stylesheet" href="./_principal_files/lesson.css">
+<link rel="stylesheet" href="./_principal_files/lesson.css?v=20260615a">
 <script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('sd-nav')==='collapsed')document.documentElement.classList.add('nav-collapsed');}catch(e){}})();</script>
-<script src="./_principal_files/nav.js" defer></script>
+<script src="./_principal_files/nav.js?v=20260615a" defer></script>
 </head>
 <body>
 <div class="layout">
@@ -114,6 +114,148 @@
 <div class="wrap">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Facebook Messenger</div>
 <h1>Designing Facebook Messenger</h1>
+<div class="lesson-tabs"><button type="button" data-tab="new">New &mdash; redesigned</button><button type="button" data-tab="old">Old &mdash; original</button><span class="tab-note">Old = the original Grokking walkthrough, preserved.</span></div>
+<div class="tab-pane tree-doc" data-tab="new">
+<p class="sub"><em>Real-time chat. The hard part isn't storing messages &mdash; it's that the sender and recipient are connected to <i>different</i> servers, so the system must hold millions of long-lived connections and route each message to whichever box currently holds the recipient. Presence, delivery receipts, and offline delivery all hang off that routing problem.</em></p>
+
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Deliver a message in real time when sender and recipient are on different connection servers.</b> <span>The design is a connection registry (who's on which box) + a backplane that routes messages between boxes, plus a durable store for history and offline delivery.</span></div>
+
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; walk the design, then the hard parts</div>
+<pre class="tree">
+<b>Designing Facebook Messenger</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>  &mdash; connections, not QPS
+├─ <a href="#api"><b>3. System API</b></a>
+├─ <a href="#highlevel"><b>4. High-level architecture</b></a>  &mdash; gateway + registry + backplane
+├─ <a href="#datamodel"><b>5. Data model</b></a>
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>
+├─ <a href="#subproblems"><b>6. The hard sub-problems</b></a>
+│   ├─ <a href="#sp1">Holding the connections</a>     failure → <a href="#connstate">connection-state wall</a>
+│   ├─ <a href="#sp2">Routing across servers</a>      failure → <a href="#crossserver">cross-server miss</a>
+│   └─ <a href="#sp3">Delivery, presence, offline</a> failure → <a href="#lostmsg">lost / undelivered message</a>
+│
+├─ <a href="#decision-table"><b>The design at a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud services</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
+</div>
+
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> 1:1 (and group) chat with real-time delivery; persistent history; online/offline <b>presence</b>; delivery/read receipts (sent &rarr; delivered &rarr; read); multi-device; offline users get messages when they return. <b>Non-functional:</b> low latency, high availability, ordered delivery within a conversation, durable (never lose a sent message). <b>Extended:</b> media attachments, end-to-end encryption, typing indicators.</p>
+
+<h2 id="capacity">2. Capacity estimate</h2>
+<ul>
+<li><b>The metric that matters is concurrent connections, not request rate.</b> Hundreds of millions of users hold long-lived connections; an idle connection still costs memory and a socket. At ~10&ndash;50&nbsp;KB/connection, 1M connections is 10&ndash;50&nbsp;GB of RAM before any app state &mdash; the <a href="13.html">C10k&rarr;C10M</a> problem.</li>
+<li><b>Messages are small but numerous;</b> ordering is per-conversation; history storage grows forever (archive cold conversations).</li>
+<li><b>Fan-out is modest</b> for 1:1, larger for group chats (one message &rarr; N recipients).</li>
+</ul>
+
+<h2 id="api">3. System API</h2>
+<pre><code>sendMessage(api_key, from, to/conversation_id, body, client_msg_id)
+  &rarr; ack (sent)
+// server pushes to recipient(s):  onMessage(message), onReceipt(delivered/read), onPresence(user, status)</code></pre>
+<p>The <code>client_msg_id</code> makes <code>sendMessage</code> idempotent &mdash; a retry after a flaky connection doesn't create a duplicate message.</p>
+
+<h2 id="highlevel">4. High-level architecture &mdash; gateway, registry, backplane</h2>
+<ul>
+<li><b>Connection gateway tier</b> &mdash; a thin, stateful fleet that terminates millions of <a href="13.html">WebSocket</a> connections (often Go/Rust/Erlang &mdash; WhatsApp famously ran ~2M connections per Erlang box). Holds the sockets; runs no business logic.</li>
+<li><b>Connection registry</b> &mdash; which user/device is connected to which gateway box right now (e.g. in Redis), so a message can be routed.</li>
+<li><b>Backplane (pub/sub)</b> &mdash; routes a message from the sender's box to the recipient's box (Redis Pub/Sub, Kafka, or direct lookup-and-send).</li>
+<li><b>Message store</b> &mdash; durable history, sharded by conversation; also the buffer for offline recipients.</li>
+</ul>
+<div class="callout note"><span class="lbl">The shape in one sentence</span>A thin gateway tier holds the connections, a registry says who's where, a backplane moves messages between boxes, and a durable store keeps history and feeds offline users &mdash; business logic stays on stateless services behind the gateways.</div>
+
+<h2 id="datamodel">5. Data model</h2>
+<table>
+<tr><th>Entity</th><th>Key fields</th><th>Notes</th></tr>
+<tr><td><b>Message</b></td><td>message_id (time-ordered), conversation_id, sender, body, ts, status</td><td>Sharded by conversation_id; ordered within it</td></tr>
+<tr><td><b>Conversation</b></td><td>conversation_id, [participants], last_message</td><td>1:1 or group</td></tr>
+<tr><td><b>Presence / connection</b></td><td>user_id &rarr; {status, gateway_box, device}</td><td>In the registry (Redis); ephemeral</td></tr>
+<tr><td><b>Inbox / delivery cursor</b></td><td>user_id, conversation_id, last_delivered_id</td><td>Drives offline catch-up &amp; receipts</td></tr>
+</table>
+<p>Message volume and write-heaviness make a <a href="05.html">wide-column store</a> (Cassandra/HBase) a common choice for history; the registry is in-memory.</p>
+
+<h2 id="scenarios">Three scenarios &mdash; the hard parts, as questions</h2>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; a million idle chats</span>
+Most users have the app open but aren't actively typing. Your gateway box holds 1,000,000 mostly-idle connections. <b>What's the binding resource, and what breaks when you deploy a new gateway version?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; A and B are on different boxes</span>
+User A (connected to gateway box 1) sends a message to user B (connected to box 3). Box 1 has no idea box 3 exists. <b>How does the message get to B?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; B is offline</span>
+A sends a message while B's phone is off. B turns it on an hour later. <b>Where was the message in the meantime, and how does B receive it &mdash; in order, exactly once, with A seeing "delivered"?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#connstate">connection-state wall</a>. Scenario 2 is <a href="#crossserver">cross-server routing</a> (the core problem). Scenario 3 is <a href="#lostmsg">delivery/presence/offline</a>.</i></p>
+
+<h2 id="subproblems">6. The hard sub-problems</h2>
+
+<h3 id="sp1">Sub-problem 1 &mdash; Holding the connections</h3>
+<p>Real-time push means each device holds a long-lived <a href="13.html">WebSocket</a> to a gateway. The challenge is that idle connections still cost memory + a socket, so this is a memory-and-file-descriptor problem, not a CPU one.</p>
+<div class="callout warn"><span class="lbl" id="connstate">The failure that happens when you get this wrong &mdash; the connection-state wall</span>
+This is <b>Scenario 1</b>. CPU is near zero on idle chats, but RAM and FD tables aren't &mdash; at ~10&ndash;50&nbsp;KB/connection, a million connections is 10&ndash;50&nbsp;GB before app state (the <a href="13.html">C10k&rarr;C10M</a> problem). And a deploy that rolls a gateway box <b>drops every socket on it</b> &mdash; clients reconnect at once (a thundering herd). Mitigations: a thin, efficient gateway tier (event loops; Go/Rust/Erlang), generous FD/port limits, jittered-backoff reconnect, and <a href="03.html#deploy">connection draining</a> on deploy so reconnections spread out.</div>
+
+<h3 id="sp2">Sub-problem 2 &mdash; Routing across servers</h3>
+<p>The defining problem: sender and recipient are usually on different gateway boxes. You need to know <i>where</i> the recipient is and get the message there.</p>
+<div class="callout warn"><span class="lbl" id="crossserver">The failure that happens when you get this wrong &mdash; the cross-server miss</span>
+This is <b>Scenario 2</b>. If box 1 can only deliver to connections it holds, a message to B (on box 3) is simply lost. The fix is the <b>registry + backplane</b>: a registry (Redis) maps each online user to their gateway box; box 1 looks up B, finds box 3, and publishes the message over a <b>pub/sub backplane</b> to box 3, which pushes it down B's socket. At larger scale you skip per-box routing and publish to a topic keyed by recipient; every gateway subscribed to its users' topics delivers locally. This registry + delivery split is the heart of any chat backend (and the same fan-out machinery as <a href="13.html#ex-fanout">realtime transports</a>).</div>
+
+<h3 id="sp3">Sub-problem 3 &mdash; Delivery, presence, and offline</h3>
+<p>Messages must persist, arrive in order, not duplicate, and reach users who were offline &mdash; with accurate receipts.</p>
+<div class="callout warn"><span class="lbl" id="lostmsg">The failure that happens when you get this wrong &mdash; the lost or undelivered message</span>
+This is <b>Scenario 3</b>. Push-only delivery loses messages for anyone momentarily offline. The durable answer: <b>persist every message first</b> (to the sharded store), then attempt push. If the recipient is offline, the message waits in their conversation/inbox; on reconnect, the client sends its last-delivered cursor and the server replays everything after it &mdash; in order (message IDs are time-ordered per conversation), exactly once (the <code>client_msg_id</code> + cursor dedupe). Receipts are just state transitions written back: <i>sent</i> (server stored it) &rarr; <i>delivered</i> (recipient's device acked) &rarr; <i>read</i> (recipient opened it), each pushed back to the sender. <b>Presence</b> rides the connection itself: a connection to a gateway = online; disconnect (or missed heartbeat) = offline, written to the registry and fanned out to interested contacts (debounced, since presence flaps).</div>
+
+<h2 id="decision-table">The design at a glance</h2>
+<table>
+<tr><th>Piece</th><th>Choice</th><th>Why</th></tr>
+<tr><td>Connection tier</td><td>Thin gateway fleet (Go/Rust/Erlang), WebSocket</td><td>Hold millions of idle connections cheaply</td></tr>
+<tr><td>Routing</td><td>Registry (Redis) + pub/sub backplane</td><td>Sender &amp; recipient on different boxes</td></tr>
+<tr><td>Delivery</td><td>Persist-then-push + per-conversation cursor</td><td>Order, exactly-once, offline catch-up</td></tr>
+<tr><td>History</td><td>Wide-column store, sharded by conversation</td><td>Write-heavy, ordered, grows forever</td></tr>
+<tr><td>Presence</td><td>Connection state + heartbeat, debounced fan-out</td><td>Online = connected; flaps are noisy</td></tr>
+</table>
+
+<h2 id="self-check">Self-check &mdash; can you reconstruct the design?</h2>
+<ul>
+<li><b>The walkthrough:</b> why is the binding capacity metric concurrent <i>connections</i>, not requests/sec?</li>
+<li><b>Scenario 1 (idle connections):</b> Why is memory (not CPU) the wall, and what does a gateway deploy do to connections?</li>
+<li><b>Scenario 2 (cross-server):</b> How do the registry and backplane get a message from A's box to B's box?</li>
+<li><b>Scenario 3 (offline):</b> Why persist-then-push, and how does a reconnecting client get its missed messages in order, exactly once?</li>
+<li>How do sent/delivered/read receipts and presence each get computed and propagated?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> thin gateways <a href="#sp1">hold connections</a>, a registry+backplane <a href="#sp2">route across boxes</a>, and persist-then-push <a href="#sp3">guarantees delivery, presence &amp; offline</a>.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="13.html">Long-poll/WS/SSE</a> (connections + fan-out), <a href="08.html">Queues</a> (backplane), <a href="05.html">Sharding</a> (history), <a href="59.html">Notification System</a>, <a href="54.html">Security</a> (E2E encryption).</p>
+
+<h2 id="cloud">Cloud services &mdash; what you'd build it on</h2>
+<table>
+<tr><th>Piece</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>WebSocket gateway</td><td>API Gateway WebSocket / AppSync</td><td>(GKE + Envoy) / Firebase</td><td>Web PubSub</td></tr>
+<tr><td>Registry + backplane</td><td>ElastiCache (Redis) / MSK</td><td>Memorystore / Pub/Sub</td><td>Cache for Redis / Service Bus</td></tr>
+<tr><td>Message history</td><td>DynamoDB / Keyspaces</td><td>Bigtable</td><td>Cosmos DB</td></tr>
+</table>
+<p style="font-size:13px;color:#7a8aa0">A vocabulary aid; product names change &mdash; verify before relying on it.</p>
+
+<h2 id="implementations">Famous implementations</h2>
+<h3 id="impl-whatsapp">WhatsApp (Erlang)</h3>
+<ul><li><b>What it is.</b> Famously ran ~2M concurrent connections per server on Erlang/BEAM with a tiny team.</li><li><b>Key idea.</b> Erlang's lightweight processes + per-connection isolation make holding millions of connections cheap and crash-resilient.</li><li><b>The failure to watch.</b> Connection-state memory is still the ceiling; the gateway tier must be thin.</li></ul>
+<h3 id="impl-messenger">Messenger / MQTT</h3>
+<ul><li><b>What it is.</b> Facebook Messenger adopted MQTT (a lightweight pub/sub protocol) for mobile delivery.</li><li><b>Key idea.</b> A low-overhead protocol cuts battery/bandwidth for always-on mobile connections vs heavier polling.</li><li><b>The failure to watch.</b> Mobile networks drop connections constantly &mdash; reconnect + offline replay must be rock-solid.</li></ul>
+
+<h2 id="build">Build it yourself</h2>
+<h3 id="ex-route">Design cross-server message routing</h3>
+<p>A on box 1 messages B on box 3. Design the lookup-and-deliver path, and say what happens if B disconnects in the split second between lookup and send.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Persist the message first (durable, ordered by conversation). Look up B in the registry &rarr; box 3. Publish to box 3 over the backplane (or to a topic keyed by B's user_id that box 3 subscribes to). Box 3 pushes down B's socket and the device acks &rarr; mark <i>delivered</i>. The race: if B disconnected just before delivery, box 3 has no socket &mdash; so delivery simply doesn't ack, the message stays persisted in B's inbox, and on B's next reconnect the cursor-replay delivers it. Because you persisted <i>before</i> pushing, no message is ever lost in that race &mdash; push is best-effort acceleration on top of a durable store, not the source of truth.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself</h3>
+<ul>
+<li><b>Group chat fan-out.</b> One message to a 500-person group &mdash; fan out at send or at read? &rarr; <a href="20.html">Twitter</a> fan-out trade-off.</li>
+<li><b>End-to-end encryption.</b> Deliver messages the server can't read, across multiple devices. &rarr; <a href="54.html">Security</a>.</li>
+</ul>
+
+</div>
+<div class="tab-pane hidden" data-tab="old">
 <p class="sub"><em>Designing a real-time, highly consistent instant-messaging service that delivers messages with minimum latency, tracks online/offline status, and persistently stores chat history at scale.</em></p>
 <div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; partial failure.</b> <span>real-time delivery over held connections, paid in connection state and offline handling.</span></div>
 <div class="toc"><h4>In this lesson</h4>
@@ -371,6 +513,7 @@
 </ul>
 </div>
 
+</div>
 <div class="navfoot"><a href="18.html">&lsaquo; Prev: Designing Dropbox</a><a class="nx" href="20.html">Next: Designing Twitter &rsaquo;</a></div>
 </div>
 </div>
