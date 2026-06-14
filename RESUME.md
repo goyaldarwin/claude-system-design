@@ -33,7 +33,12 @@ STRUCTURE / CONVENTIONS (keep consistent if adding/editing)
   paint — without it, dark-mode users get a white flash. Pages with INLINE <style> (.pdeep/.mastery)
   must also append the ":root[data-theme=\"dark\"] .pdeep{...}" override block before </style>,
   else those blocks stay light in dark mode. index.html is standalone and carries its own copies of
-  all three (head script, dark vars, toggle JS).
+  all three (head script, dark vars, toggle JS). The sidebar is theme-aware too (light grey in light
+  mode, navy in dark) via --side-* variables.
+- SIDEBAR COLLAPSE (desktop ≥861px): nav.js injects a .collapse-btn (« in the brand row) and a
+  .sidebar-reopen tab (›). Clicking sets html.nav-collapsed (width:0) and persists to localStorage
+  ('sd-nav'); the no-flash head script re-applies it pre-paint. On mobile the off-canvas drawer
+  (.menu-btn + body.nav-open) handles hiding instead — collapse is desktop-only by media query.
 - This is LEARNING material, not interview prep — never use "interview/candidate/interviewer/hiring"
   in visible text or filenames (technical terms like Raft "candidate" are fine).
 - Links: bare numeric slugs (e.g. href="04.html"). Two hubs index

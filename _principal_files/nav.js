@@ -15,6 +15,11 @@
         || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   }
 
+  function setCollapsed(on){
+    document.documentElement.classList.toggle('nav-collapsed', on);
+    try{ localStorage.setItem('sd-nav', on ? 'collapsed' : 'open'); }catch(e){}
+  }
+
   ready(function(){
     // ---- mobile sidebar ----
     var btn=document.querySelector('.menu-btn'), scrim=document.querySelector('.scrim');
@@ -22,6 +27,25 @@
     if(scrim){ scrim.addEventListener('click',function(){ document.body.classList.remove('nav-open'); }); }
     var a=document.querySelector('.sidebar a.active');
     if(a){ a.scrollIntoView({block:'center'}); }
+
+    // ---- desktop sidebar collapse ----
+    var sidebar=document.querySelector('.sidebar');
+    if(sidebar){
+      var col=document.createElement('button');
+      col.className='collapse-btn'; col.type='button';
+      col.innerHTML='&#171;';  // «
+      col.setAttribute('aria-label','Collapse sidebar');
+      var brand=sidebar.querySelector('.brand') || sidebar;
+      brand.appendChild(col);
+      col.addEventListener('click',function(){ setCollapsed(true); });
+
+      var reopen=document.createElement('button');
+      reopen.className='sidebar-reopen'; reopen.type='button';
+      reopen.innerHTML='&#8250;';  // ›
+      reopen.setAttribute('aria-label','Show sidebar');
+      document.body.appendChild(reopen);
+      reopen.addEventListener('click',function(){ setCollapsed(false); });
+    }
 
     // ---- dark-mode toggle ----
     var tgl=document.createElement('button');
