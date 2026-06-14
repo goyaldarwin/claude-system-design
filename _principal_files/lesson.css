@@ -118,6 +118,15 @@ blockquote{margin:0 0 18px; padding:12px 18px; background:var(--note-bg);
 .legacy-note{font-size:13px; color:var(--muted); font-style:italic; background:var(--soft); border-left:3px solid var(--line); padding:6px 12px; margin:0 0 16px; border-radius:0 4px 4px 0;}
 blockquote a{word-break:break-all;}
 
+/* Dark-mode handling of embedded (mostly opaque, light-background) diagrams.
+   Diagrams sit on a light card so they read as intentional figures, not glare;
+   captions/borders are themed. !important is required to beat the lessons' inline styles. */
+:root[data-theme="dark"] .wrap img{
+  background:#f3f4f6; padding:8px; border-color:var(--line) !important;
+  filter:brightness(.92); }
+:root[data-theme="dark"] .wrap figcaption{ color:var(--muted) !important; }
+:root[data-theme="dark"] .wrap figcaption span{ color:var(--muted) !important; }
+
 /* ===== Desktop sidebar collapse ===== */
 /* Collapse button pinned in the sidebar brand row; reopen tab shown only when collapsed. */
 /* Collapse / reopen are edge tabs, vertically centered on the sidebar's right edge (desktop only). */
