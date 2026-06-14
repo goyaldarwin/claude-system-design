@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designing a Recommendation System</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+<style>.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}.mastery ul{margin:0;padding-left:22px;}.mastery li{margin:0 0 9px;}
+/* dark-mode overrides for inline pdeep/mastery (injected) */
+:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
+:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
+:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
+:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
+:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
+:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
+:root[data-theme="dark"] .pdeep th{background:#0f1318;}
+:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
+:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
+:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
+</style>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk active" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Applied &amp; Cross-Cutting &nbsp;&rsaquo;&nbsp; Designing a Recommendation System</div>
+
+<h1>Designing a Recommendation System</h1>
+<p class="sub"><em>How large-scale recommendation and ranking systems are actually built &mdash; the multi-stage funnel from candidate generation to ranking to serving, and the data plumbing that keeps it honest.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; finite capacity.</b> <span>relevance at ms latency over millions of items, paid in a multi-stage funnel and a feedback loop.</span></div>
+
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+<li><a href="#why">Why recommendation is a systems problem, not just an ML problem</a></li>
+<li><a href="#funnel">The multi-stage funnel</a></li>
+<li><a href="#retrieval">Stage 1: candidate generation (retrieval)</a></li>
+<li><a href="#ranking">Stage 2: ranking</a></li>
+<li><a href="#rerank">Stage 3: re-ranking, rules &amp; diversity</a></li>
+<li><a href="#features">Feature stores &amp; training-serving skew</a></li>
+<li><a href="#serving">Serving: batch precompute vs real-time, cold start</a></li>
+<li><a href="#loop">The data &amp; feedback loop</a></li>
+<li><a href="#planes">Offline, nearline, online: the three planes</a></li>
+<li><a href="#choosing">Putting it together: a worked shape</a></li>
+<li><a href="#mastery">Mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="why">Why recommendation is a systems problem, not just an ML problem</h2>
+<p>People hear "recommendation system" and think of a model &mdash; matrix factorization, a neural net, "the algorithm." That is the part that gets written about, but it is a small fraction of what you actually build and operate. A production recommender is an <span class="key">online serving system with hard latency budgets</span> wrapped around a model, fed by a data pipeline that never stops, and governed by an experimentation loop that decides whether any of it works.</p>
+<p>The constraints are what make it a system-design problem. You typically have a corpus of <strong>millions to billions of items</strong> (every video on YouTube, every product in a catalog, every post that could appear in a feed) and a single request that must return an ordered list in <strong>tens of milliseconds</strong> as part of a page load. You cannot run a heavy model over a billion items per request &mdash; that is the entire reason the architecture looks the way it does. On top of that, the system <em>shapes its own future training data</em>: what you show is what users can click, and what they click is what you train on next. That feedback loop is a source of both power and bias.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span> The defining tension of a recommender is <strong>quality &times; corpus size &div; latency budget</strong>. Better models cost more compute per item; you have millions of items and ~tens of milliseconds. The architecture exists almost entirely to resolve that tension &mdash; spend cheap compute to shrink the candidate set, then spend expensive compute only on what survives.</p></div>
+
+<h2 id="funnel">The multi-stage funnel</h2>
+<p>Essentially every large-scale recommender &mdash; YouTube, Netflix, the Facebook and Instagram feeds, TikTok, large e-commerce sites &mdash; converges on the same shape: a <span class="key">funnel</span> that narrows the corpus in stages, spending progressively more compute per item as the candidate set shrinks.</p>
+
+<pre><code>  Corpus: ~10^6 to 10^9 items
+        |
+        v
+[1] CANDIDATE GENERATION (retrieval)   cheap per item, runs over everything
+        |   reduce to ~100s - 1000s
+        v
+[2] RANKING                            expensive model, scores each candidate
+        |   reduce / order to ~10s
+        v
+[3] RE-RANKING + RULES + DIVERSITY     business logic, filters, blending
+        |
+        v
+  Final ordered list shown to user (~10-30 items)</code></pre>
+
+<p>The reason for multiple stages is purely economic. Suppose your best ranking model takes 1&nbsp;ms of GPU/CPU time to score one (user, item) pair &mdash; modest for a deep network. Scoring a 100-million-item corpus would take 100,000 seconds per request. Completely impossible. So you split the work: a <strong>retrieval</strong> stage uses a very cheap scoring function (often just a vector dot product or an index lookup) to go from 100&nbsp;million to ~1,000 candidates, and only then does the expensive ranker run &mdash; on 1,000 items, that is ~1&nbsp;ms &times; 1,000 = 1 second of raw work, parallelized across cores to land inside the budget. Each stage trades recall for precision: retrieval optimizes for "don't miss anything good" cheaply; ranking optimizes for "order what's left" precisely.</p>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They frame the funnel in terms of a compute budget per stage, not just "first we retrieve, then we rank." They can state roughly how many items each stage handles and why scoring the full corpus with the ranking model is infeasible. That single argument &mdash; cost-per-item times corpus size versus latency budget &mdash; is the load-bearing idea of the whole design.</p></div>
+
+<h2 id="retrieval">Stage 1: candidate generation (retrieval)</h2>
+<p>Retrieval answers: <em>out of everything, which few hundred items are even worth considering for this user right now?</em> It must be cheap and high-recall. Several techniques are usually blended, because no single source has good coverage.</p>
+
+<h3>Collaborative filtering</h3>
+<p>The classic signal: "users who interacted with what you did also liked X." Item-to-item collaborative filtering (Amazon's famous "customers who bought this also bought") precomputes, for each item, a list of co-occurring items. At request time you take the user's recent items and union their precomputed neighbor lists &mdash; a handful of cheap key-value lookups. It captures behavioral correlation without needing to understand content at all.</p>
+
+<h3>Embeddings + approximate nearest neighbor (ANN)</h3>
+<p>The dominant modern approach. You learn a dense vector (an <span class="key">embedding</span>, typically 64&ndash;512 dimensions) for every user and every item such that "user likes item" corresponds to a high dot product / low distance in that space. Retrieval then becomes: embed the user, and find the items whose vectors are nearest to it.</p>
+<p>Doing exact nearest-neighbor over hundreds of millions of vectors per request is too slow, so you use <span class="key">Approximate Nearest Neighbor (ANN)</span> indexes. The two you must know:</p>
+<ul>
+<li><strong>HNSW</strong> (Hierarchical Navigable Small World): a layered proximity graph you greedily walk; gives sub-millisecond, high-recall search and is what most vector databases (Milvus, Qdrant, Pinecone, Weaviate) offer, and is available in libraries like FAISS.</li>
+<li><strong>IVF / product quantization</strong> (as in FAISS): partition vectors into clusters, search only the nearest few clusters, and compress vectors so billions fit in RAM.</li>
+</ul>
+<p>ANN is conceptually a cousin of the probabilistic, approximate structures covered in <a href="42.html">Probabilistic Data Structures</a> &mdash; you trade a small, bounded amount of accuracy (you might miss a true top-k neighbor occasionally) for orders-of-magnitude speed and memory savings. For a recommender, missing one candidate among thousands is irrelevant; the ranker will sort out the survivors.</p>
+
+<h3>Two-tower models</h3>
+<p>The architecture that makes embedding retrieval trainable and fast. You train two separate neural networks &mdash; a <strong>user tower</strong> (consumes user features and context) and an <strong>item tower</strong> (consumes item features) &mdash; that each output a vector, with the training objective that the dot product of the two towers predicts engagement. The key systems property: because the towers are independent, you can <strong>precompute every item's vector offline</strong> and load them into the ANN index, then at request time you only run the (cheap) user tower once and do an ANN lookup. This is exactly the structure YouTube described for its candidate-generation stage, and it is now the standard retrieval pattern industry-wide.</p>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> The two-tower design buys speed by forbidding the towers from interacting until the final dot product. That means it can't model rich cross-features between a specific user and a specific item (e.g. "this user watches cooking videos <em>on weekday evenings</em>"). That expressiveness is precisely what the ranking stage adds back &mdash; which is why retrieval and ranking are different models doing different jobs, not the same model run twice.</p></div>
+
+<h2 id="ranking">Stage 2: ranking</h2>
+<p>Now you have a few hundred to a few thousand candidates from possibly several retrieval sources (collaborative, ANN, trending, "because you follow X"). Ranking runs a <strong>much heavier model</strong> that scores each candidate with the full feature set, because it only has to score ~1,000 items, not a billion. This is where you can afford rich <span class="key">cross-features</span>: user&times;item interactions, dense behavioral history, contextual signals (time of day, device, session), and counters like "how many of this creator's videos has the user watched this week."</p>
+<p>Ranking is usually framed as predicting one or more engagement probabilities &mdash; P(click), P(watch &gt; 30s), P(like), P(purchase), P(not reported as spam) &mdash; and combining them into a single score. Modern systems are <span class="key">multi-task</span>: one model head per objective, then a weighted blend. The weights encode product strategy: YouTube famously shifted from optimizing clicks to optimizing <em>watch time</em> to fight clickbait, and feed systems weight "meaningful interactions" over raw clicks. Choosing and tuning that objective blend is a product and systems decision as much as a modeling one. This stage is the engine behind feed ordering &mdash; see <a href="26.html">Designing Facebook&rsquo;s Newsfeed</a> and the watch-time ranking discussion in <a href="21.html">Designing YouTube / Netflix</a>.</p>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> Optimizing a single proxy metric (clicks) reliably produces pathological products: clickbait, outrage bait, and engagement traps that maximize the proxy while degrading real satisfaction. The fix is multi-objective ranking plus guardrail metrics (long-term retention, survey satisfaction, "see less of this" rates), not a cleverer single-objective loss. Goodhart's law is an architectural concern here, not a footnote.</p></div>
+
+<h2 id="rerank">Stage 3: re-ranking, rules &amp; diversity</h2>
+<p>The ranker gives you a sorted list by predicted value, but you almost never show that raw order. A final stage applies cross-item logic and business rules:</p>
+<ul>
+<li><strong>Diversity:</strong> the top 10 by raw score might be ten near-identical items. Re-ranking enforces variety (e.g. MMR &mdash; maximal marginal relevance, or determinantal point processes) so a feed isn't ten posts from one creator or ten of the same product.</li>
+<li><strong>Filtering &amp; dedup:</strong> remove already-seen items, blocked creators, age-restricted content, items out of stock, things the user explicitly hid.</li>
+<li><strong>Business &amp; policy rules:</strong> sponsored slots, freshness boosts, integrity/safety demotions, regional licensing (a Netflix title not available in a region must never surface there).</li>
+<li><strong>Blending:</strong> interleaving organic recommendations with ads or different content types under quotas.</li>
+</ul>
+<p>This stage is where ML output meets the messy real world, and it's deliberately rule-heavy and auditable &mdash; you want a human to be able to explain why a specific item was or wasn't shown, which a pure neural score can't give you.</p>
+
+<h2 id="features">Feature stores &amp; training-serving skew</h2>
+<p>Models are only as good as the features fed to them, and features are where production recommenders quietly break. The central abstraction is a <span class="key">feature store</span> with two faces over the same logical features:</p>
+<ul>
+<li><strong>Offline store</strong> (warehouse / data lake): full history, used to generate training data via large <a href="41.html">batch jobs</a>.</li>
+<li><strong>Online store</strong> (low-latency KV like Redis, Cassandra, or a managed store): the latest feature values, read at serving time within the latency budget.</li>
+</ul>
+
+<h3>Training-serving skew</h3>
+<p>The number-one production bug class: the feature value used to <em>train</em> the model differs from the value computed at <em>serving</em> time, because they ran through different code paths (a Spark SQL transform offline vs. a Java function online). The model learns on one distribution and is served another, and quality silently degrades. The mitigation is a single shared feature-definition layer (the same transformation logic generates both training and serving features) &mdash; the core reason feature-store products exist.</p>
+
+<h3>Point-in-time correctness</h3>
+<p>When generating training data, every feature must reflect <em>only what was known at the moment of the labeled event</em>. If you join "user's total purchases" as of today onto a click that happened last month, you leak future information into the past &mdash; <span class="key">label leakage</span> &mdash; and the model looks brilliant offline and fails online. Correct training-data generation does time-travel joins against historical feature snapshots.</p>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> A model that suddenly performs far better offline than its predecessor is more often a leakage bug than a breakthrough. Principal engineers treat a too-good offline metric as a red flag to audit point-in-time joins, not as a result to ship.</p></div>
+
+<h2 id="serving">Serving: batch precompute vs real-time, cold start</h2>
+<p>There are two ends of a spectrum for producing recommendations:</p>
+<ul>
+<li><strong>Batch precompute:</strong> run the whole funnel offline for every user nightly, store the result lists in a KV store, serve them as a cache lookup. Cheap and simple, used where freshness doesn't matter much (weekly "recommended for you" emails). The downside is staleness &mdash; it can't react to what you did five minutes ago, and it wastes compute on the long tail of users who never visit.</li>
+<li><strong>Real-time inference:</strong> run retrieval + ranking live per request. Reacts instantly to in-session behavior (the engine behind "you watched one cooking video and the feed shifts"), but costs far more and demands the full low-latency stack: ANN service, feature store, model servers, all under a strict budget.</li>
+</ul>
+<p>Most large systems are a hybrid: precompute the expensive, slow-changing parts (item embeddings, candidate lists) offline, and do the cheap, fast-changing parts (user-tower inference, ranking, re-ranking) live. Computed recommendation lists are often cached for a short TTL per user to absorb repeated requests within a session &mdash; the same <a href="04.html">caching</a> reasoning as anywhere else, with the twist that over-caching kills the freshness that justifies real-time serving.</p>
+
+<h3>The cold-start problem</h3>
+<p>A new user has no history; a new item has no interactions. Collaborative and behavioral signals are empty. Standard mitigations:</p>
+<ul>
+<li><strong>New users:</strong> fall back to popularity/trending, demographic or context priors, or a short onboarding that collects explicit preferences; lean on content-based features that don't require interaction history.</li>
+<li><strong>New items:</strong> rely on content embeddings (the item tower works from item <em>features</em>, so it produces a vector even with zero interactions) and deliberately inject exploration &mdash; show the new item to a sample of users to gather signal, accepting some short-term quality cost for long-term catalog coverage. This explore/exploit balance (often framed as a multi-armed bandit) is what keeps fresh content from being starved by the feedback loop.</li>
+</ul>
+
+<h2 id="loop">The data &amp; feedback loop</h2>
+<p>The recommender continuously generates its own training data, and getting that loop right is more important than the model architecture.</p>
+<ol>
+<li><strong>Logging:</strong> log not just clicks but <em>impressions</em> &mdash; what was shown and not clicked. Without impression logs you have no negatives and cannot train a meaningful click model. These logs are high-volume event streams, typically flowing through <a href="39.html">Kafka</a> and processed with <a href="40.html">stream processing</a>.</li>
+<li><strong>Training-data generation:</strong> join impressions with subsequent engagement (with point-in-time-correct features) to produce labeled examples in <a href="41.html">batch pipelines</a>.</li>
+<li><strong>Offline evaluation:</strong> measure ranking quality on held-out data (AUC, NDCG, recall@k). Necessary but not sufficient &mdash; offline metrics correlate weakly with live impact.</li>
+<li><strong>Online evaluation (A/B testing):</strong> the only real test. Ship the new model to a fraction of traffic and compare guardrail and goal metrics. Almost every meaningful recommender change is gated behind an A/B experiment.</li>
+</ol>
+
+<div class="callout warn"><span class="lbl">Pitfall &mdash; feedback-loop bias</span> The model is trained on data the previous model generated. Items the old model never surfaced get no impressions, so they get no positive labels, so the new model also won't surface them &mdash; a self-reinforcing <span class="key">filter bubble</span> / popularity-rich-get-richer dynamic. Two structural defenses: (1) log the propensity (probability the item was shown) and apply inverse-propensity weighting to debias training; (2) reserve a slice of traffic for exploration so the system keeps gathering signal on things it currently underrates. If you don't actively fight the loop, the system narrows over time.</p></div>
+
+<h2 id="planes">Offline, nearline, online: the three planes</h2>
+<p>Tie it together with the three-plane split that maps cleanly onto the batch / streaming / serving distinction the course has built up. This is reminiscent of a Lambda-style batch+speed split specialized for recommendations.</p>
+
+<table>
+<thead><tr><th>Plane</th><th>Latency</th><th>Does</th><th>Tech</th></tr></thead>
+<tbody>
+<tr><td><span class="key">Offline (batch)</span></td><td>Hours&ndash;days</td><td>Train models, compute item embeddings, generate training data, build ANN indexes, precompute candidate lists</td><td>Spark / Flink batch, warehouse, GPU training (<a href="41.html">batch processing</a>)</td></tr>
+<tr><td><span class="key">Nearline (streaming)</span></td><td>Seconds&ndash;minutes</td><td>Update real-time features (counters, recent-activity windows) and freshness signals from the event stream into the online store</td><td>Kafka + Flink / stream processors (<a href="40.html">stream processing &amp; CDC</a>)</td></tr>
+<tr><td><span class="key">Online (serving)</span></td><td>Milliseconds</td><td>Per-request: user-tower inference, ANN retrieval, ranking, re-ranking, filtering</td><td>Model servers, vector/ANN service, online feature store, low-latency KV</td></tr>
+</tbody>
+</table>
+
+<p>The offline plane does the heavy, slow, expensive work whose results change slowly. The nearline plane keeps fast-moving features fresh without the cost of full retraining. The online plane assembles everything under the latency budget. A recommender's reliability story is mostly about these planes degrading gracefully &mdash; if the feature store or ANN service is slow or down, you fall back to a cached or precomputed list rather than failing the page, the same defensive posture as <a href="22.html">typeahead suggestion</a> serving precomputed results under tight latency.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span> The model is the smallest, most replaceable part of a recommender. The durable engineering is the funnel that makes serving feasible, the feature store that keeps training and serving honest, and the feedback loop that decides whether anything improves. Get those right and you can swap models freely; get them wrong and no model saves you.</p></div>
+
+<h2 id="choosing">Putting it together: a worked shape</h2>
+<p>For a video platform serving recommendations to the home page: item embeddings and candidate sources are computed nightly in the offline plane and pushed into an HNSW index plus a co-occurrence KV store. Real-time counters (what you've watched this session) stream through Kafka into the online feature store within seconds. On request, an edge service fetches user features, runs the user tower once, hits the ANN index and co-occurrence store to gather ~1,000 candidates, sends them to a ranking model server that scores each with a multi-task network, blends the objective heads into a single score, then a re-ranking service applies diversity, removes already-watched items, injects a small fraction of exploration candidates, and returns ~20 items &mdash; all in well under 100&nbsp;ms. Every impression and engagement is logged back into Kafka, closing the loop. New models ship behind A/B tests with retention and satisfaction guardrails, not just offline NDCG.</p>
+
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed ML training / serving</td><td>SageMaker</td><td>Vertex AI</td><td>Azure Machine Learning</td></tr><tr><td>Vector / ANN search</td><td>OpenSearch (k-NN)</td><td>Vertex AI Vector Search</td><td>Azure AI Search (vectors)</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
+<div class="mastery" id="mastery"><h2>Principal-level mastery check</h2>
+<ul>
+<li>Why can't you simply run your best ranking model over the entire item corpus for every request? Put numbers on it &mdash; cost per item, corpus size, latency budget &mdash; and explain how the funnel resolves the conflict.</li>
+<li>What is a two-tower model, and which systems property of it lets you serve retrieval over a billion items in single-digit milliseconds? What expressiveness does it sacrifice, and which stage recovers it?</li>
+<li>Why do retrieval and ranking use different models doing different jobs rather than one model run at two scales? What does each optimize for &mdash; recall or precision?</li>
+<li>Explain training-serving skew and point-in-time correctness. Why is a model that scores dramatically better offline a reason for suspicion rather than celebration?</li>
+<li>Walk through the cold-start problem for a brand-new item versus a brand-new user. Why does the item tower help with new items, and where does exploration come in?</li>
+<li>Describe the feedback-loop / filter-bubble bias. What are two concrete structural defenses, and why does ignoring the loop cause the system to narrow over time?</li>
+<li>Map a recommender onto the offline / nearline / online planes. What lives in each, and how should the online plane degrade if the feature store or ANN service is unavailable?</li>
+</ul>
+</div>
+
+<div class="navfoot"><a href="69.html">&lsaquo; Prev: Domain-Driven Design</a><a class="nx" href="71.html">Next: Cost-Aware System Design &rsaquo;</a></div>
+
+</div>
+</div>
+</div>
+</body>
+</html>

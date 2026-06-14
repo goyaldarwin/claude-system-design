@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design: REST, gRPC, GraphQL</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk active" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; API Design: REST, gRPC, GraphQL</div>
+
+<h1>API Design: REST, gRPC, GraphQL</h1>
+<p class="sub">The contract is the product &mdash; how to model resources, evolve schemas without breaking callers, pick the right protocol, and make retries safe.</p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; operability.</b> <span>the interface contract — efficiency vs flexibility vs evolvability, you pick the trade.</span></div>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#why">Why API design is a principal-level concern</a></li>
+<li><a href="#rest">REST and the Richardson maturity model</a></li>
+<li><a href="#idempotency">Idempotency, methods, and idempotency keys</a></li>
+<li><a href="#pagination">Pagination, filtering, and versioning</a></li>
+<li><a href="#grpc">gRPC and Protocol Buffers</a></li>
+<li><a href="#graphql">GraphQL: over/under-fetching, N+1, cost limiting</a></li>
+<li><a href="#compat">Backward and forward compatibility</a></li>
+<li><a href="#gateway">API gateways and the BFF pattern</a></li>
+<li><a href="#choosing">Choosing among the three</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="why">Why API design is a principal-level concern</h2>
+<p>An API is the most expensive thing your team will ship, because it is the hardest to take back. Internal code can be refactored freely; a published interface is a <span class="key">promise to every caller you do not control</span>. Mobile clients sit in app stores for years. Partner integrations are written once and never touched. A poorly modeled or non-evolvable API becomes a permanent cost: every future change requires coordination across teams, versioned shims, and migration windows that drag for quarters.</p>
+<p>The principal-level skill is not knowing REST verbs &mdash; it is designing a contract that can <span class="key">evolve under load without breaking callers</span>, that makes safe retries trivial, and that does not leak your internal data model. Protocol choice (REST vs gRPC vs GraphQL) is downstream of those concerns. This lesson treats them as a toolkit, not a religion.</p>
+<div class="callout note"><span class="lbl">Key insight</span>The three styles are not competitors so much as fits for different boundaries: <span class="key">REST</span> for public/partner edges and resource CRUD, <span class="key">gRPC</span> for high-throughput service-to-service inside the mesh (see <a href="44.html">Microservices and Service Mesh</a>), and <span class="key">GraphQL</span> for client-facing aggregation across many backends. Large systems run all three at once.</div>
+
+<h2 id="rest">REST and the Richardson maturity model</h2>
+<p>REST is an architectural style, not a protocol. Its leverage comes from a few constraints: resources identified by URIs, a uniform interface (the HTTP methods), statelessness, and cacheability. The <span class="key">Richardson Maturity Model</span> grades how much of that you actually use:</p>
+<ul>
+<li><span class="key">Level 0</span> &mdash; one endpoint, RPC-over-HTTP (SOAP-style POST to <code>/api</code>). HTTP is just a tunnel.</li>
+<li><span class="key">Level 1</span> &mdash; multiple resources (<code>/orders</code>, <code>/customers</code>) but verbs encoded in the body or URL.</li>
+<li><span class="key">Level 2</span> &mdash; proper use of HTTP methods and status codes (<code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>DELETE</code>; 200/201/404/409). <span class="key">This is where almost all good production APIs live.</span></li>
+<li><span class="key">Level 3</span> &mdash; HATEOAS: responses embed links to next actions. Powerful in theory, rarely worth the cost in practice because clients hardcode flows anyway.</li>
+</ul>
+<h3>Resource modeling</h3>
+<p>Model <span class="key">nouns, not verbs</span>. <code>POST /orders/123/cancel</code> is pragmatic and common, but the purer form is to make cancellation a state transition on a sub-resource: <code>POST /orders/123/cancellation</code> creating a cancellation record. The test for a good resource model: can you express the operation as create/read/update/delete on a thing? When you cannot &mdash; "search", "transcode", "rebalance" &mdash; do not contort REST; model it as an action resource or a job (<code>POST /transcoding-jobs</code> returning <code>202 Accepted</code> with a status URL). That async-job pattern is the standard way to expose long-running work over a request/response protocol.</p>
+<div class="callout warn"><span class="lbl">Pitfall</span>Leaking your database schema as your API is the most common and most damaging mistake. Your tables normalize for storage; your API should denormalize for clients. Coupling them means every schema migration is now a breaking API change, and vice versa.</div>
+
+<h2 id="idempotency">Idempotency, methods, and idempotency keys</h2>
+<p><span class="key">Idempotency</span> means applying an operation N times has the same effect as applying it once. It is the property that makes retries &mdash; the cornerstone of distributed resilience &mdash; safe. HTTP method semantics encode this:</p>
+<table>
+<tr><th>Method</th><th>Safe (no side effects)</th><th>Idempotent</th><th>Typical use</th></tr>
+<tr><td><code>GET</code></td><td>Yes</td><td>Yes</td><td>Read a resource</td></tr>
+<tr><td><code>PUT</code></td><td>No</td><td>Yes</td><td>Replace at a known URI</td></tr>
+<tr><td><code>DELETE</code></td><td>No</td><td>Yes</td><td>Remove a resource</td></tr>
+<tr><td><code>POST</code></td><td>No</td><td><span class="key">No</span></td><td>Create under a collection</td></tr>
+<tr><td><code>PATCH</code></td><td>No</td><td>Not inherently</td><td>Partial update</td></tr>
+</table>
+<p><code>PUT /accounts/42</code> with the same body twice yields one account in one state &mdash; idempotent. <code>POST /accounts</code> twice creates <span class="key">two</span> accounts. That asymmetry is exactly the problem when a client times out and retries a payment: did the first <code>POST</code> succeed before the connection dropped?</p>
+<h3>Idempotency keys</h3>
+<p>The fix, popularized by Stripe, is a client-supplied <span class="key">idempotency key</span> &mdash; a UUID the caller generates per logical operation and sends in a header. The server records <code>(key &rarr; result)</code> and replays the stored response on any retry with the same key.</p>
+<pre><code>POST /v1/charges HTTP/1.1
+Idempotency-Key: 7f3c1e9a-...-d21
+Content-Type: application/json
+
+{ "amount": 4999, "currency": "usd", "source": "tok_visa" }
+</code></pre>
+<pre><code>// Server-side, atomically
+key = request.header["Idempotency-Key"]
+row = INSERT INTO idem_keys(key, status) VALUES(key,'PENDING')
+        ON CONFLICT(key) DO NOTHING RETURNING *
+if row is null:                       // key seen before
+    existing = SELECT * FROM idem_keys WHERE key = ?
+    if existing.status == 'DONE':  return existing.response
+    else:                          return 409 Conflict  // still in flight (or block-and-replay; either way never lose/duplicate the result)
+result = do_charge(...)                // the real, non-idempotent work
+UPDATE idem_keys SET status='DONE', response=result WHERE key=?
+return result
+</code></pre>
+<div class="callout note"><span class="lbl">Key insight</span>Idempotency keys must be scoped (per-endpoint, per-account), have a TTL (Stripe keeps 24h), and the lookup-or-insert must be atomic to handle two concurrent retries racing. This is the linchpin of any <a href="61.html">payment system</a> and pairs directly with the retry guidance in <a href="51.html">Resilience Patterns</a>.</div>
+
+<h2 id="pagination">Pagination, filtering, and versioning</h2>
+<h3>Offset vs cursor pagination</h3>
+<p><span class="key">Offset pagination</span> (<code>?limit=20&amp;offset=40</code>) is simple and supports jumping to arbitrary pages, but has two fatal flaws at scale. First, <code>OFFSET 100000 LIMIT 20</code> forces the database to scan and discard 100k rows &mdash; O(offset) cost. Second, if rows are inserted or deleted between page fetches, the window <span class="key">shifts</span> and the client sees duplicates or skips items.</p>
+<p><span class="key">Cursor (keyset) pagination</span> encodes the position as an opaque token built from the last row's sort key: <code>WHERE (created_at, id) &gt; (:last_ts, :last_id) ORDER BY created_at, id LIMIT 20</code>. This is O(limit) regardless of depth (it rides an index) and is stable under concurrent writes. The trade-off: no random page access and the sort columns must be unique and immutable enough to anchor on.</p>
+<pre><code>GET /events?limit=20
+&rarr; { "data": [...], "next_cursor": "eyJ0cyI6MTcwMCwiaWQiOjk5fQ" }
+GET /events?limit=20&cursor=eyJ0cyI6MTcwMCwiaWQiOjk5fQ
+</code></pre>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Offset wins on UX affordances (page numbers, "jump to last") and developer familiarity. Cursor wins on performance and correctness for large or live datasets &mdash; feeds, logs, infinite scroll. Default to cursor for anything that grows unboundedly; offset is acceptable for small, admin-style tables.</div>
+<h3>Versioning strategies</h3>
+<ul>
+<li><span class="key">URI versioning</span> (<code>/v1/orders</code>) &mdash; explicit, cache-friendly, trivially routable at the <a href="07.html">proxy</a>/gateway. The pragmatic default for public APIs (Stripe, GitHub, Twitter all use it).</li>
+<li><span class="key">Header versioning</span> (<code>Accept: application/vnd.acme.v2+json</code>) &mdash; cleaner URIs, content-negotiation purity, but harder to test in a browser and easy to forget.</li>
+<li><span class="key">Query-param versioning</span> (<code>?version=2</code>) &mdash; easy but pollutes caching and feels bolted on.</li>
+</ul>
+<p>The deeper move is to <span class="key">version as little as possible</span>. A v1&rarr;v2 cutover means you now run two stacks and must migrate every caller. Prefer additive, non-breaking evolution (next section) so a single version lasts for years. Stripe famously pins each account to the API version active at signup and transforms responses internally &mdash; callers never have to migrate, which is a powerful (if expensive) strategy.</p>
+
+<h2 id="grpc">gRPC and Protocol Buffers</h2>
+<p><span class="key">gRPC</span> is a binary RPC framework over HTTP/2 with <span class="key">Protocol Buffers</span> as the IDL and wire format. You define the service contract once; codegen produces strongly-typed clients and servers in every language. Where it wins:</p>
+<ul>
+<li><span class="key">Compactness and speed.</span> Protobuf encodes integers as varints and uses field tags instead of field names, so payloads are a fraction of equivalent JSON and parsing skips reflection. For chatty service-to-service traffic this materially cuts CPU and bandwidth.</li>
+<li><span class="key">HTTP/2 multiplexing.</span> Many concurrent calls share one connection without head-of-line blocking at the application layer, avoiding the connection-per-request overhead of HTTP/1.1.</li>
+<li><span class="key">Streaming.</span> First-class server-streaming, client-streaming, and bidirectional streaming &mdash; ideal for telemetry, large result sets, and live updates (contrast with <a href="13.html">long-polling/WebSockets/SSE</a> on the browser edge).</li>
+<li><span class="key">Contract-first discipline.</span> The <code>.proto</code> is the single source of truth, generating consistent clients and enabling compile-time breakage detection.</li>
+</ul>
+<pre><code>syntax = "proto3";
+package orders.v1;
+
+service OrderService {
+  rpc GetOrder(GetOrderRequest) returns (Order);
+  rpc WatchOrders(WatchRequest) returns (stream OrderEvent);   // server stream
+}
+
+message Order {
+  string id        = 1;
+  int64  amount    = 2;
+  Status status    = 3;
+  // field 4 reserved for a future field; never reuse a retired tag
+}
+</code></pre>
+<h3>Schema evolution in protobuf</h3>
+<p>The wire format keys fields by their <span class="key">numeric tag</span>, not name, which gives clean evolution rules: you may add new fields (old code ignores unknown tags), rename fields freely (the name is cosmetic), and remove fields &mdash; but you must <span class="key">never reuse a tag number</span> and must mark removed numbers/names <code>reserved</code>. Changing a field's type or its tag is a breaking change. proto3 makes all scalars optional-with-defaults, which removes "required" footguns but means you cannot distinguish "absent" from "zero" without wrapper types or <code>optional</code>.</p>
+<div class="callout warn"><span class="lbl">Pitfall</span>gRPC is awkward at the browser edge &mdash; browsers cannot speak raw gRPC, so you need gRPC-Web plus a proxy (Envoy) to translate. It is also harder to debug than text JSON (no <code>curl</code> + eyeball). Keep gRPC for east-west internal traffic; expose REST or GraphQL north-south to external clients.</div>
+
+<h2 id="graphql">GraphQL: over/under-fetching, N+1, cost limiting</h2>
+<p>GraphQL exists to solve a client problem: with REST, a mobile screen often needs data from several endpoints, causing <span class="key">under-fetching</span> (many round trips) or, when the server pads responses, <span class="key">over-fetching</span> (downloading fields the screen ignores). GraphQL lets the client send one query describing exactly the graph of fields it wants:</p>
+<pre><code>query {
+  user(id: "42") {
+    name
+    orders(last: 3) { id total items { sku qty } }
+  }
+}
+</code></pre>
+<p>One request, exactly the requested shape, resolved server-side across whatever backends own each field. This is genuinely powerful for client-driven aggregation and is why it often sits in front of a microservice fleet as a federation layer.</p>
+<h3>The N+1 problem</h3>
+<p>The flexibility has a sharp edge. The query above resolves <code>user</code>, then for each order resolves <code>items</code> &mdash; naively, one DB call per order, the classic <span class="key">N+1 query</span> explosion. The standard fix is <span class="key">DataLoader</span>-style batching: within a single request tick, resolvers register the keys they need, and a batch function coalesces them into one query (<code>SELECT * FROM items WHERE order_id IN (...)</code>) with per-request caching. Without DataLoader, GraphQL will quietly hammer your databases.</p>
+<h3>Cost and complexity limiting</h3>
+<p>Because the client controls the query shape, a single request can ask for a deeply nested, expensive graph &mdash; an accidental or malicious denial of service. You cannot rate-limit by counting requests the way you would for REST (see <a href="23.html">Designing an API Rate Limiter</a>); one request is unbounded work. Defenses:</p>
+<ul>
+<li><span class="key">Query depth limiting</span> &mdash; reject queries nested beyond N levels.</li>
+<li><span class="key">Complexity/cost analysis</span> &mdash; assign each field a cost, multiply by requested list sizes, and budget per caller. Rate-limit on accumulated cost, not request count.</li>
+<li><span class="key">Persisted queries</span> &mdash; clients register approved queries by hash; the server only executes known-good shapes, killing arbitrary-query risk and shrinking payloads.</li>
+</ul>
+<div class="callout warn"><span class="lbl">Pitfall</span><span class="key">When NOT to use GraphQL:</span> simple CRUD with one backend (REST is less machinery), high-throughput internal RPC (gRPC is faster and type-safe), and when HTTP caching matters &mdash; GraphQL typically POSTs to a single <code>/graphql</code> endpoint, so CDN and proxy caching by URL evaporates. You also inherit a complex server runtime, a harder authorization story (per-field, not per-endpoint), and opaque performance.</div>
+
+<h2 id="compat">Backward and forward compatibility</h2>
+<p>The discipline that lets an API live for years is treating every change as either <span class="key">backward-compatible</span> (old clients keep working against the new server) or <span class="key">forward-compatible</span> (new clients work against an old server, vital during rolling deploys when both versions run at once &mdash; see <a href="52.html">Deployment Strategies</a>).</p>
+<table>
+<tr><th>Safe (additive)</th><th>Breaking (avoid / version)</th></tr>
+<tr><td>Add a new optional field</td><td>Remove or rename a field</td></tr>
+<tr><td>Add a new endpoint / RPC</td><td>Change a field's type or units</td></tr>
+<tr><td>Add a new enum value <em>(if clients tolerate unknowns)</em></td><td>Make an optional field required</td></tr>
+<tr><td>Relax a validation constraint</td><td>Tighten validation / shrink ranges</td></tr>
+<tr><td>Add a new optional request parameter</td><td>Change default behavior / error codes</td></tr>
+</table>
+<p>Two rules carry most of the weight. First, <span class="key">tolerant reader</span>: clients must ignore unknown fields rather than reject them &mdash; this is what makes additive evolution safe and is built into protobuf's wire format and good JSON parsers. Second, <span class="key">never repurpose a field</span>: a field's meaning and units are frozen for life; if semantics change, add a new field and deprecate the old. Adding a new enum value is the classic trap &mdash; it is only safe if every existing client has a sane default branch for unknown values, so design enums with a <code>UNKNOWN = 0</code> sentinel from day one.</p>
+
+<h2 id="gateway">API gateways and the BFF pattern</h2>
+<p>An <span class="key">API gateway</span> is the single entry point that sits between external clients and your internal services, consolidating cross-cutting concerns so each service does not re-implement them:</p>
+<ul>
+<li><span class="key">Routing</span> &mdash; path/host-based dispatch to backend services; protocol translation (REST&harr;gRPC, gRPC-Web).</li>
+<li><span class="key">AuthN/AuthZ</span> &mdash; validate JWT/OAuth tokens at the edge so services trust a verified identity (see <a href="54.html">Security in System Design</a>).</li>
+<li><span class="key">Rate limiting and quotas</span> &mdash; per-API-key throttling enforced centrally.</li>
+<li><span class="key">Aggregation</span> &mdash; fan out one client call to several services and compose the result (the lightweight cousin of GraphQL).</li>
+<li><span class="key">Observability and resilience</span> &mdash; centralized logging, metrics, request IDs, and circuit breaking.</li>
+</ul>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Be deliberate about what lives in the gateway. It is a shared component, so business logic there becomes a coupling chokepoint and a deployment bottleneck &mdash; the gateway should do generic edge concerns, not domain logic. The mesh and gateway overlap: a <a href="44.html">service mesh</a> handles east-west service-to-service policy (mTLS, retries) while the gateway handles north-south client traffic.</div>
+<p>The <span class="key">Backend-for-Frontend (BFF)</span> pattern goes further: rather than one gateway for all clients, give each client type (web, iOS, Android, partner) its own thin aggregation layer tuned to that client's needs. This avoids a single API trying to please every consumer and lets the mobile team optimize payloads without negotiating with the web team. GraphQL is one common way to implement a BFF.</p>
+
+<h2 id="choosing">Choosing among the three</h2>
+<table>
+<tr><th>Dimension</th><th>REST</th><th>gRPC</th><th>GraphQL</th></tr>
+<tr><td>Best for</td><td>Public/partner edge, CRUD</td><td>Internal east-west, high QPS</td><td>Client aggregation, BFF</td></tr>
+<tr><td>Wire format</td><td>JSON (text)</td><td>Protobuf (binary)</td><td>JSON over POST</td></tr>
+<tr><td>Transport</td><td>HTTP/1.1 or 2</td><td>HTTP/2 (streaming)</td><td>HTTP, usually POST</td></tr>
+<tr><td>Schema/typing</td><td>OpenAPI (optional)</td><td>Strong (.proto, codegen)</td><td>Strong (SDL)</td></tr>
+<tr><td>HTTP caching</td><td>Excellent (GET)</td><td>Poor</td><td>Poor (single endpoint)</td></tr>
+<tr><td>Browser support</td><td>Native</td><td>Needs gRPC-Web + proxy</td><td>Native</td></tr>
+<tr><td>Main risk</td><td>Over/under-fetching</td><td>Debuggability, edge</td><td>N+1, query cost, complexity</td></tr>
+</table>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They refuse the false binary. A mature design uses REST for the public API and partner integrations, gRPC for the chatty internal call graph behind the gateway, and a GraphQL/BFF layer for rich clients &mdash; with one shared idempotency, error, and pagination convention across all of them so the org doesn't relearn the rules per protocol.</div>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They lead with the evolution and idempotency story before naming a protocol. They reach for idempotency keys unprompted when discussing payments or any non-idempotent write over an unreliable network, default to cursor pagination for unbounded data, and treat the API contract as decoupled from the storage schema. They know GraphQL's N+1 and cost-limiting traps cold and can say crisply when <em>not</em> to use it. They distinguish north-south (gateway) from east-west (mesh) traffic and place each protocol accordingly.</div>
+<ul>
+<li>A client <code>POST</code>s a charge, the request times out, and it retries. Walk me through making this safe end-to-end &mdash; what does the server store, and how do you handle two retries racing concurrently?</li>
+<li>Your feed API uses <code>offset/limit</code>. At page 5,000 latency spikes and users report seeing duplicate items. Diagnose both symptoms and design the fix, including the cursor token's contents.</li>
+<li>A team wants to add a field to a protobuf message consumed by 40 services on independent deploy cadences. What are the rules, and what is the one operation that will silently corrupt old readers?</li>
+<li>You expose GraphQL publicly. How do you stop a single query from taking down your databases, and how does rate limiting differ from the REST case?</li>
+<li>When would you choose gRPC over REST for an internal service, and what do you lose at the browser edge and in debuggability by doing so?</li>
+<li>Marketing wants to repurpose an existing <code>discount</code> field to mean something new in v2. Talk me through why that's dangerous and what you'd do instead, given mobile clients in the wild for 2+ years.</li>
+</ul>
+
+<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
+<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (1).png" alt="API design paradigms and when to use each style" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A table comparing API architecture styles (SOAP, RESTful, GraphQL, gRPC, WebSocket, Webhook) with illustrations and use cases. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (14).png" alt="RPC vs REST API trade-offs" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A detailed comparison table of RPC vs RESTful across coupling, data format, protocol, performance, IDL, code generation, and developer friendliness. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (21).png" alt="gRPC remote procedure call mechanics" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Explains gRPC with a local-vs-remote procedure call analogy and the full client/server stub/encoding/runtime flow over HTTP/2. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+</div>
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>API gateway</td><td>API Gateway</td><td>API Gateway / Apigee</td><td>API Management</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
+<div class="navfoot"><a href="44.html">&lsaquo; Prev: Microservices and Service Mesh</a><a class="nx" href="46.html">Next: Event-Driven Architecture &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

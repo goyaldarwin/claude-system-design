@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Containers, Kubernetes and Serverless</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk active" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; Containers, Kubernetes and Serverless</div>
+
+<h1>Containers, Kubernetes and Serverless</h1>
+<p class="sub"><em>The runtime substrate underneath every modern service: what isolation you actually get, how Kubernetes reconciles desired state, where state breaks the model, and when serverless wins versus where the cost cliff bites.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Operability &amp; cost.</b> <span>packing/scheduling/scaling workloads, paid in orchestration complexity and cold-start/cost cliffs.</span></div>
+
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+<li><a href="#substrate">The runtime substrate question</a></li>
+<li><a href="#containers-vms">Containers vs VMs: what isolation you get</a></li>
+<li><a href="#k8s-model">Kubernetes: the reconciliation model</a></li>
+<li><a href="#objects">Pods, Deployments, Services, and the scheduler</a></li>
+<li><a href="#autoscaling">Autoscaling: HPA, VPA, cluster autoscaler, headroom</a></li>
+<li><a href="#state">Stateful workloads: the hard problem</a></li>
+<li><a href="#discovery">Service discovery and in-cluster load balancing</a></li>
+<li><a href="#serverless">Serverless / FaaS: cold starts and cost cliffs</a></li>
+<li><a href="#decision">Choosing the substrate</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="substrate">The runtime substrate question</h2>
+<p>Every system design eventually has to answer: <em>what runs my code, and how does it get there?</em> The substrate you choose &mdash; raw VMs, containers on Kubernetes, or functions on a serverless platform &mdash; determines your unit of deployment, your failure granularity, your scaling latency, your cost model, and how much operational surface area your team owns. A principal engineer treats this as a first-class architectural decision, not a default inherited from whatever the platform team standardized on.</p>
+<p>The three substrates are not a ladder of sophistication. They are points on a curve trading <span class="key">control</span> against <span class="key">operational leverage</span>. VMs give you maximum control and maximum toil. Serverless gives you minimum toil and minimum control. Kubernetes sits in the middle and, critically, lets you mix both inside one cluster. This lesson is about understanding the mechanics well enough to place a workload correctly.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span> The container image is the real interface, not Kubernetes. An OCI image is a portable, content-addressed filesystem bundle. Whether it runs on ECS, Kubernetes, Nomad, Fargate, or a laptop is an orchestration choice layered on top. Decouple "how do I package" from "how do I orchestrate" in your thinking.</p>
+
+</div>
+<h2 id="containers-vms">Containers vs VMs: what isolation you get</h2>
+<p>A <span class="key">virtual machine</span> virtualizes hardware. A hypervisor (KVM, Xen, Hyper-V) presents virtual CPUs, virtual NICs, and virtual block devices to a full guest OS with its own kernel. Isolation is strong because the boundary is the hardware interface itself; a guest kernel exploit does not directly reach the host kernel. The cost is density and start time: each VM carries a full kernel and OS, boots in tens of seconds, and consumes hundreds of MB to GB before your process starts.</p>
+<p>A <span class="key">container</span> does not virtualize hardware. It is a normal Linux process with a restricted view of the host, assembled from three kernel primitives:</p>
+<ul>
+<li><strong>Namespaces</strong> &mdash; partition what a process can <em>see</em>: PID (own process tree), network (own interfaces and routing table), mount (own filesystem view), UTS (hostname), IPC, user (UID mapping), and cgroup namespaces.</li>
+<li><strong>cgroups (v2)</strong> &mdash; limit and account what a process can <em>use</em>: CPU shares/quotas, memory limits (with the OOM killer enforcing them), I/O bandwidth, PIDs.</li>
+<li><strong>Capabilities, seccomp, and LSMs (AppArmor/SELinux)</strong> &mdash; restrict what a process can <em>do</em>: drop CAP_SYS_ADMIN, filter syscalls, confine file access.</li>
+</ul>
+<p>The defining property: <span class="key">all containers on a host share one kernel</span>. That is why a container starts in milliseconds and adds near-zero overhead &mdash; but it is also why container isolation is weaker than VM isolation. A kernel vulnerability or container-escape bug is a host-level compromise affecting every co-tenant.</p>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> Density and speed vs blast radius. Containers give you 10&ndash;100&times; the density and ~100&times; faster startup, at the cost of a shared-kernel attack surface. For untrusted multi-tenant workloads (running customer code), this gap matters &mdash; which is why stronger-isolation runtimes like <span class="key">Firecracker</span> (a microVM; AWS Lambda, Fargate) and <span class="key">gVisor</span> (a userspace kernel) exist: VM-grade isolation with container-grade startup (~125&nbsp;ms for Firecracker).</p>
+
+</div>
+<h2 id="k8s-model">Kubernetes: the reconciliation model</h2>
+<p>The single most important idea in Kubernetes is not pods or YAML &mdash; it is the <span class="key">control loop</span>. Kubernetes is a declarative system built on level-triggered reconciliation. You write <em>desired state</em> into etcd via the API server; a set of controllers continuously observe <em>actual state</em> and take action to converge the two. There is no imperative "do X" command; there is only "the world should look like this," repeated forever.</p>
+
+<pre><code># The reconciliation loop, conceptually
+for {
+    desired  := readSpecFromAPIServer()   # what you declared
+    observed := readStatusOfWorld()        # what actually exists
+    diff     := desired - observed
+    if diff != 0 {
+        takeActionToward(desired)          # create/delete/update
+    }
+    # no "done" state; it runs forever, idempotently
+}</code></pre>
+
+<p>This level-triggered design (react to current state) rather than edge-triggered (react to events) is what makes Kubernetes self-healing. If a node dies and 5 pods vanish, the next loop iteration sees "I want 10, I have 5" and creates 5 more &mdash; no event needed to have been delivered reliably. A dropped event is harmless because the next reconciliation re-derives reality. This is the same robustness philosophy behind <a href="34.html">anti-entropy repair</a>: continuously reconcile toward a target rather than trusting a stream of deltas.</p>
+
+<p>The control plane components:</p>
+<ul>
+<li><strong>API server</strong> &mdash; the only thing that talks to etcd; the front door for all reads/writes, doing auth, admission control, and validation.</li>
+<li><strong>etcd</strong> &mdash; the consistent, Raft-backed key-value store holding all cluster state. Its consensus layer is exactly the <a href="30.html">Raft</a> protocol; etcd's availability and write latency bound the whole control plane.</li>
+<li><strong>Controller manager</strong> &mdash; runs the built-in reconcilers (Deployment, ReplicaSet, Node, Job controllers&hellip;).</li>
+<li><strong>Scheduler</strong> &mdash; assigns unscheduled pods to nodes.</li>
+<li><strong>kubelet</strong> (per node) &mdash; the node agent that actually starts containers via the container runtime (containerd/CRI-O) and reports status.</li>
+</ul>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> etcd is the bottleneck and the single point of correctness. It is a CP system (see <a href="11.html">CAP</a>) &mdash; on a partition it sacrifices availability to preserve consistency. A wedged etcd quorum freezes the entire control plane: no scheduling, no scaling, no config changes. Running workloads keep running (kubelet caches their spec), but you are flying blind. Treat etcd capacity (it tops out around a few GB) and quorum health as a tier-0 concern.</p>
+
+</div>
+<h2 id="objects">Pods, Deployments, Services, and the scheduler</h2>
+<p>The object hierarchy maps onto the reconciliation model cleanly:</p>
+<ul>
+<li><strong>Pod</strong> &mdash; the atomic scheduling unit: one or more containers sharing a network namespace (same IP and port space) and able to share volumes. Sidecars (a service-mesh proxy, a log shipper) ride along in the pod. Pods are <em>ephemeral</em> &mdash; they are cattle, not pets, and get a new IP every time.</li>
+<li><strong>ReplicaSet</strong> &mdash; ensures N copies of a pod template exist.</li>
+<li><strong>Deployment</strong> &mdash; manages ReplicaSets to give you declarative <a href="52.html">rolling updates and rollbacks</a>. Changing the pod template spins up a new ReplicaSet and scales the old one down per <code>maxSurge</code>/<code>maxUnavailable</code>.</li>
+<li><strong>Service</strong> &mdash; a stable virtual IP and DNS name fronting a dynamic set of pods (selected by labels), since pod IPs churn.</li>
+</ul>
+
+<p>The <span class="key">scheduler</span> runs a two-phase algorithm per pending pod: <strong>filtering</strong> (which nodes are feasible &mdash; enough allocatable CPU/memory, matching nodeSelector/affinity, tolerating taints, satisfying topology constraints) then <strong>scoring</strong> (rank feasible nodes &mdash; spread for availability, bin-pack for cost, prefer image locality). It binds the pod to the highest-scoring node. Note the scheduler decides <em>placement</em> only; the kubelet on the target node does the actual work, and the scheduler never blocks waiting for it.</p>
+
+<pre><code>resources:
+  requests:                 # used for scheduling + autoscaling math
+    cpu: "500m"             # 0.5 core; the scheduler reserves this
+    memory: "512Mi"
+  limits:                   # hard ceiling; exceeding memory -> OOMKill
+    cpu: "1"               # CPU over-limit is throttled, not killed
+    memory: "1Gi"</code></pre>
+
+<div class="callout note"><span class="lbl">Key insight</span> Requests drive scheduling and bin-packing; limits drive runtime enforcement. The gap between them is how you overcommit. Set memory <code>request == limit</code> for predictable behavior (memory is incompressible &mdash; overshoot means OOMKill). For CPU (compressible &mdash; overshoot means throttling), a request floor with a higher or absent limit lets bursty workloads borrow idle capacity. Getting these wrong is the most common cause of mysterious latency (CPU throttling) and crash loops (OOMKills) in production clusters.</p>
+
+</div>
+<h2 id="autoscaling">Autoscaling: HPA, VPA, cluster autoscaler, headroom</h2>
+<p>Three distinct autoscalers operate at different layers, and conflating them causes pain:</p>
+<table>
+<thead><tr><th>Scaler</th><th>Axis</th><th>Signal</th><th>Latency</th></tr></thead>
+<tbody>
+<tr><td><strong>HPA</strong> (Horizontal Pod Autoscaler)</td><td>Pod <em>count</em></td><td>CPU/memory utilization, or custom/external metrics (RPS, queue depth)</td><td>Tens of seconds</td></tr>
+<tr><td><strong>VPA</strong> (Vertical Pod Autoscaler)</td><td>Pod <em>size</em> (requests)</td><td>Observed usage over time</td><td>Requires pod restart (until in-place resize matures)</td></tr>
+<tr><td><strong>Cluster Autoscaler</strong> / Karpenter</td><td>Node <em>count</em></td><td>Unschedulable pods (no room to place them)</td><td>Minutes (provision + boot a VM)</td></tr>
+</tbody>
+</table>
+
+<p>The reflex is to scale on CPU, but for most request-driven and especially queue-driven services, CPU lags the signal you care about. Scale on the <em>leading indicator</em>: for an HTTP service, requests-per-second per pod or p99 latency; for a consumer, <a href="08.html">queue</a> depth or Kafka consumer lag. Tools like KEDA bridge external event sources into HPA so you can scale a worker fleet on partition lag directly.</p>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> Do not run HPA and VPA on the same resource metric &mdash; they fight: VPA shrinks requests, which raises utilization %, which makes HPA add pods, which lowers utilization, which makes VPA shrink again. Use HPA on a custom metric (RPS) and let VPA handle a different dimension, or pick one.</p>
+
+<p><span class="key">Capacity headroom</span> is the trade-off that distinguishes a senior answer from a principal one. Autoscaling is not instantaneous: HPA reacts in tens of seconds, node provisioning in minutes. If your traffic can step-change faster than that (a flash sale, a thundering-herd retry storm, a cache stampede), reactive scaling arrives too late and you serve errors during the gap. You buy down that risk with headroom &mdash; running at 60% utilization instead of 90%, or pre-provisioned "pause pod" overprovisioning that holds spare node capacity warm. Headroom costs money continuously to avoid latency during bursts. State the number: "we hold 30% headroom so we can absorb a 1.5&times; spike during the ~3 min it takes to add nodes."</p>
+
+</div>
+<h2 id="state">Stateful workloads: the hard problem</h2>
+<p>Kubernetes was designed for stateless cattle. State breaks the core assumption that pods are interchangeable and disposable. A stateless web tier can lose a pod with zero consequence; a database replica cannot &mdash; it has identity, durable storage, and ordering constraints.</p>
+<p><strong>StatefulSet</strong> is the answer for stateful pods, providing what Deployments deliberately don't:</p>
+<ul>
+<li><strong>Stable network identity</strong> &mdash; pods get ordinal, predictable names (<code>mysql-0</code>, <code>mysql-1</code>) and stable per-pod DNS, so a re-scheduled <code>mysql-0</code> is still addressable as the same member.</li>
+<li><strong>Stable storage</strong> &mdash; each pod gets its own PersistentVolumeClaim that follows it across rescheduling; the data is not lost when the pod moves.</li>
+<li><strong>Ordered, controlled rollout</strong> &mdash; pods are created/updated/deleted one at a time in order, which respects quorum and bootstrap dependencies (you don't want to restart all 3 etcd members at once).</li>
+</ul>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> A StatefulSet gives you orchestration primitives, but it does <em>not</em> understand your data. Kubernetes will happily reschedule <code>postgres-0</code> to a healthy node, but it has no idea about WAL replication, failover, or quorum. That knowledge lives in an <span class="key">Operator</span> &mdash; a custom controller encoding domain logic (promote a replica, re-replicate, run backups). The reconciliation pattern extends to your data via Operators; this is exactly where <a href="36.html">leader election</a> and <a href="37.html">replication</a> mechanics re-enter the picture.</p>
+
+</div>
+<div class="callout warn"><span class="lbl">Pitfall</span> "Just run your database in Kubernetes" is a decision, not a default. You inherit the full operational burden of distributed storage on ephemeral compute: network-attached volume latency, failover correctness, backup/restore, and split-brain risk during partitions. For many teams a managed database (RDS, Cloud SQL, DynamoDB) is the right answer precisely because it takes the <a href="11.html">consistency-during-partition</a> hard problems off your plate. Run stateful systems in-cluster only when you have a mature Operator and a team that understands the data plane.</p>
+
+</div>
+<h2 id="discovery">Service discovery and in-cluster load balancing</h2>
+<p>Because pod IPs are ephemeral, you never address pods directly. A <strong>Service</strong> gives a stable identity, and discovery happens through cluster DNS (CoreDNS): <code>orders.payments.svc.cluster.local</code> resolves to the Service's virtual IP.</p>
+<p>The default <span class="key">ClusterIP</span> service is L4 load balancing implemented by <code>kube-proxy</code> programming the kernel. Classic mode uses iptables (a long DNAT rule chain, O(n) per packet for n endpoints); modern clusters use IPVS or eBPF (Cilium) for O(1) hashing and far better behavior at thousands of endpoints. The balancing is essentially random/round-robin per connection &mdash; crude. It does not understand request cost, in-flight load, or zones by default.</p>
+<p>This crudeness is exactly why a <a href="44.html">service mesh</a> exists. A sidecar proxy (Envoy) per pod upgrades you to L7: request-level load balancing (least-request, EWMA), retries with budgets, circuit breaking, mTLS, and locality-aware routing that keeps traffic in-zone to cut cross-AZ data charges and latency. Compare this with the dedicated <a href="03.html">load balancing</a> lesson &mdash; the mesh is "load balancing pushed into every hop of the call graph." For traffic <em>entering</em> the cluster, an Ingress controller or Gateway API resource fronts a cloud L7 load balancer.</p>
+
+<h2 id="serverless">Serverless / FaaS: cold starts and cost cliffs</h2>
+<p>Serverless inverts the model: you ship a function, the platform owns everything below it &mdash; provisioning, scaling, patching, even scaling to zero. The defining properties are <span class="key">statelessness</span> (no durable local state between invocations; persist everywhere else) and <span class="key">scale-to-zero</span> (you pay only for execution time, typically billed per millisecond &times; allocated memory).</p>
+
+<p>The signature failure mode is the <span class="key">cold start</span>. When no warm execution environment exists, the platform must: allocate a microVM (Firecracker ~125&nbsp;ms), pull/mount your code, initialize the runtime (JVM/Node/Python), and run your init code &mdash; before the first request executes. Penalties range from ~100&nbsp;ms (Go, small) to several seconds (a fat JVM with heavy DI). Mitigations: provisioned concurrency (pre-warmed environments &mdash; but now you're paying continuously, eroding the core value prop), lighter runtimes, snapshot-restore (Lambda SnapStart, CRaC), and trimming init work.</p>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> Serverless wins on <strong>spiky, low-average, event-driven, embarrassingly parallel</strong> workloads: cron jobs, glue/ETL between services, webhook handlers, infrequent APIs, fan-out processing. It is dominated by containers on <strong>steady, high-throughput</strong> workloads because of the <span class="key">cost cliff</span>: per-invocation pricing is wonderful at 1M requests/month and ruinous at sustained thousands of RPS, where a reserved container fleet at high utilization is often 5&ndash;10&times; cheaper. Compute the crossover point explicitly; don't argue it by vibes.</p>
+
+<p>The other serverless cost is <span class="key">vendor lock-in</span> and the loss of low-level control. You inherit hard execution-time limits (e.g. 15 min on Lambda), constrained networking (cold-start penalties spike when attaching to a VPC), no control over the kernel or co-tenancy, and an event/trigger model wired to one cloud's primitives. Migrating a deep Lambda + Step Functions + EventBridge architecture to another cloud is a rewrite, not a redeploy. This is a real strategic cost for a system you expect to run for a decade. Note that serverless also reshapes your <a href="50.html">observability</a> story &mdash; no long-lived process to attach to, so you lean entirely on structured logs, distributed traces, and platform metrics.</p>
+
+</div>
+<div class="callout note"><span class="lbl">Key insight</span> "Serverless vs containers" is a false binary. Mature architectures are hybrid: a Kubernetes core for steady stateful and high-throughput services, with serverless functions for the spiky edges &mdash; image-thumbnailing on upload, S3-event ETL, scheduled reports, and glue between systems. Place each workload by its traffic shape, not by ideology. Knative and Cloud Run even blur the line, giving scale-to-zero serverless semantics on top of containers.</p>
+
+</div>
+<h2 id="decision">Choosing the substrate</h2>
+<table>
+<thead><tr><th>Dimension</th><th>VMs</th><th>Containers + K8s</th><th>Serverless / FaaS</th></tr></thead>
+<tbody>
+<tr><td>Start time</td><td>Tens of seconds</td><td>Milliseconds (+ image pull)</td><td>ms warm; 100ms&ndash;sec cold</td></tr>
+<tr><td>Density</td><td>Low</td><td>High (shared kernel)</td><td>N/A (provider-managed)</td></tr>
+<tr><td>Isolation</td><td>Strongest (hw boundary)</td><td>Process-level (microVM optional)</td><td>microVM per tenant</td></tr>
+<tr><td>Scale-to-zero</td><td>No</td><td>Rarely (Knative can)</td><td>Yes &mdash; core feature</td></tr>
+<tr><td>Ops surface you own</td><td>Everything</td><td>Cluster + workloads</td><td>Just your code</td></tr>
+<tr><td>Cost shape</td><td>Pay for provisioned</td><td>Pay for provisioned (high util &rarr; cheap)</td><td>Pay per invocation (cliff at scale)</td></tr>
+<tr><td>Best for</td><td>Legacy, special kernels, max isolation</td><td>Steady microservices, stateful with Operators</td><td>Spiky, event-driven, glue, cron</td></tr>
+</tbody>
+</table>
+
+<p>For <a href="53.html">multi-region and DR</a>, the substrate choice has teeth: Kubernetes is regional (etcd quorum cannot straddle high-latency links), so multi-region means independent clusters with global traffic management on top &mdash; not one stretched cluster. Serverless inherits the provider's regional model and can make active-active simpler at the compute layer, while pushing the hard part down to the data layer where the <a href="31.html">consistency/latency</a> trade-offs live.</p>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They place each workload on the substrate that fits its <em>traffic shape and statefulness</em>, and they say the number &mdash; headroom percentage, cold-start budget, the RPS crossover where serverless stops being cheap. They know the isolation boundary they're actually getting (shared kernel vs microVM) and why it matters for the threat model. They treat etcd and the reconciliation loop as the heart of Kubernetes rather than reciting object names, and they're explicit that "run the database in K8s" requires an Operator and earns its complexity. Weak engineers default everything to "Kubernetes" or "serverless" as identity, can't explain requests-vs-limits, and don't connect autoscaler latency to user-facing errors during bursts.</div>
+
+<ul>
+<li>A container shares the host kernel. Walk me through what isolation a container actually gives you and where it fails &mdash; and when would you reach for Firecracker or gVisor instead?</li>
+<li>Kubernetes is "self-healing." Explain the mechanism. Why does level-triggered reconciliation survive dropped events when an edge-triggered design wouldn't?</li>
+<li>Your service has p99 latency spikes every morning at 9am. CPU never exceeds 50%. What's likely happening, and how do requests/limits, HPA, and the cluster autoscaler each contribute to or fix it?</li>
+<li>We're considering moving our high-throughput event consumer (sustained 8k RPS) from a container fleet to Lambda to "save ops effort." Argue both sides with actual cost reasoning. Where's the crossover?</li>
+<li>Walk me through what breaks when you run Postgres as a StatefulSet versus on RDS. What does the Operator have to know that Kubernetes itself doesn't?</li>
+<li>etcd loses quorum for 10 minutes. What still works, what stops, and what's your blast radius for already-running workloads versus new deployments?</li>
+</ul>
+
+<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
+<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2023-10-06 at 10.32.49 AM.jpg" alt="Containerization / Docker architecture" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Diagram showing how Docker works: Docker client (build/pull/run), daemon, containers and images on the host, and the registry. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (23).png" alt="Kubernetes cluster architecture" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Kubernetes architecture showing control plane (API server, scheduler, etcd, controller manager) and worker nodes with pods, kubelet, kube-proxy. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (3).png" alt="Containerization with Docker" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A &#x27;How does Docker work?&#x27; comparison showing source-to-process flow without Docker versus with Docker (Dockerfile, image, engine on computer/cloud). <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+</div>
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed Kubernetes</td><td>EKS</td><td>GKE</td><td>AKS</td></tr><tr><td>Serverless containers</td><td>Fargate, App Runner</td><td>Cloud Run</td><td>Container Apps</td></tr><tr><td>Functions (FaaS)</td><td>Lambda</td><td>Cloud Functions</td><td>Azure Functions</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
+<div class="navfoot"><a href="46.html">&lsaquo; Prev: Event-Driven Architecture</a><a class="nx" href="48.html">Next: Object Storage and CDN &rsaquo;</a></div>
+
+</div>
+</div>
+</div>
+</body>
+</html>

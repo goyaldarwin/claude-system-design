@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designing Twitter Search</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk active" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing Twitter Search</div>
+<h1>Designing Twitter Search</h1>
+<p class="sub"><em>Design a service that stores all user tweets and lets us search over them efficiently using a distributed inverted index.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; finite capacity.</b> <span>fast full-text via an inverted index, paid in real-time indexing and index sharding.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#1-what-is-twitter-search">What is Twitter Search?</a></li>
+  <li><a href="#2-requirements-and-goals-of-the-system">Requirements and Goals of the System</a></li>
+  <li><a href="#3-capacity-estimation-and-constraints">Capacity Estimation and Constraints</a></li>
+  <li><a href="#4-system-apis">System APIs</a></li>
+  <li><a href="#5-high-level-design">High Level Design</a></li>
+  <li><a href="#6-detailed-component-design">Detailed Component Design</a></li>
+  <li><a href="#7-fault-tolerance">Fault Tolerance</a></li>
+  <li><a href="#8-cache">Cache</a></li>
+  <li><a href="#9-load-balancing">Load Balancing</a></li>
+  <li><a href="#10-ranking">Ranking</a></li>
+</ul></div>
+
+
+<blockquote>Twitter is one of the largest social networking services where users can share photos, news, and text-based messages. In this chapter, we will design a service that can store and search user tweets.<br><br><strong>Similar Problems:</strong> Tweet search.</blockquote>
+
+<h2 id="1-what-is-twitter-search">What is Twitter Search?</h2>
+<p>Twitter users can update their status whenever they like. Each status consists of plain text, and our goal is to design a system that allows searching over all the user statuses.</p>
+
+<h2 id="2-requirements-and-goals-of-the-system">Requirements and Goals of the System</h2>
+<ul>
+<li>Let&rsquo;s assume Twitter has 1.5 billion total users with 800 million daily active users.</li>
+<li>On the average Twitter gets 400 million status updates every day.</li>
+<li>Average size of a status is 300 bytes.</li>
+<li>Let&rsquo;s assume there will be 500M searches every day.</li>
+<li>The search query will consist of multiple words combined with AND/OR.</li>
+</ul>
+<p>We need to design a system that can efficiently store and query user statuses.</p>
+
+<h2 id="3-capacity-estimation-and-constraints">Capacity Estimation and Constraints</h2>
+<p><strong>Storage Capacity:</strong> Since we have 400 million new statuses every day and each status on average is 300 bytes, therefore total storage we need, will be:</p>
+<pre><code>400M * 300 =&gt; 112GB/day</code></pre>
+<p>Total storage per second:</p>
+<pre><code>112GB / 86400 sec ~= 1.3MB/second</code></pre>
+
+<h2 id="4-system-apis">System APIs</h2>
+<p>We can have SOAP or REST APIs to expose functionality of our service; following could be the definition of search API:</p>
+<pre><code>search(api_dev_key, search_terms, maximum_results_to_return, sort, page_token)</code></pre>
+<p><strong>Parameters:</strong><br>
+api_dev_key (string): The API developer key of a registered account. This will be used to, among other things, throttle users based on their allocated quota.<br>
+search_terms (string): A string containing the search terms.<br>
+maximum_results_to_return (number): Number of status messages to return.<br>
+sort (number): Optional sort mode: Latest first (0 - default), Best matched (1), Most liked (2).<br>
+page_token (string): This token will specify a page in the result set that should be returned.</p>
+<p><strong>Returns:</strong> (JSON)<br>
+A JSON containing information about a list of status messages matching the search query. Each result entry can have the user ID &amp; name, status text, status ID, creation time, number of likes, etc.</p>
+
+<h2 id="5-high-level-design">High Level Design</h2>
+<p>At the high level, we need to store all the statues in a database, and also build an index that can keep track of which word appears in which status. This index will help us quickly find statuses that users are trying to search.</p>
+<p style="text-align:center;"><img src="./_principal_files/img/twitter_search_hld.png" alt="diagram"></p>
+<p style="text-align:center;"><em>High level design for Twitter search</em></p>
+
+<h2 id="6-detailed-component-design">Detailed Component Design</h2>
+<p><strong>1. Storage:</strong> We need to store 112GB of new data every day. Given this huge amount of data, we need to come up with a data partitioning scheme that will be efficiently distributing it onto multiple servers. If we plan for next five years, we will need following storage:</p>
+<pre><code>112GB * 365days * 5 =&gt; 200 TB</code></pre>
+<p>If we want to keep an extra 20% headroom, we would need 240TB. Let&rsquo;s assume that we want to keep an extra copy of all the statuses for fault tolerance, then our total storage requirement will be 480 TB. If we assume a modern server can store up to 4TB of data, then we would need 120 such servers to hold all of the required data for next five years.</p>
+<p>Let&rsquo;s start with a simplistic design where we store our statuses in a MySQL database. We can assume to store our statuses in a table having two columns, StatusID and StatusText. Let&rsquo;s assume we partition our data based on StatusID. If our StatusIDs are system-wide unique, we can define a hash function that can map a StatusID to a storage server, where we can store that status object.</p>
+<p><strong>How can we create system wide unique StatusIDs?</strong> If we are getting 400M new statuses each day, then how many status objects we can expect in five years?</p>
+<pre><code>400M * 365 days * 5 years =&gt; 730 billion</code></pre>
+<p>This means we would need a five bytes number to identify StatusIDs uniquely. Let&rsquo;s assume we have a service that can generate a unique StatusID whenever we need to store an object (we will discuss this in detail later). We can feed the StatusID to our hash function to find the storage server and store our status object there.</p>
+<p><strong>2. Index:</strong> What should our index look like? Since our status queries will consist of words, therefore, let&rsquo;s build our index that can tell us which word comes in which status object. Let&rsquo;s first estimate how big our index will be. If we want to build an index for all the English words and some famous nouns like people names, city names, etc., and if we assume that we have around 300K English words and 200K nouns, then we will have 500k total words in our index. Let&rsquo;s assume that the average length of a word is five characters. If we are keeping our index in memory, we would need 2.5MB of memory to store all the words:</p>
+<pre><code>500K * 5 =&gt; 2.5 MB</code></pre>
+<p>Let&rsquo;s assume that we want to keep the index in memory for all the status objects for only past two years. Since we will be getting 730B status objects in 5 years, this will give us 292B status messages in two years. Given that, each StatusID will be 5 bytes, how much memory will we need to store all the StatusIDs?</p>
+<pre><code>292B * 5 =&gt; 1460 GB</code></pre>
+<p>So our index would be like a big distributed hash table, where &lsquo;key&rsquo; would be the word, and &lsquo;value&rsquo; will be a list of StatusIDs of all those status objects which contain that word. Assuming on the average we have 40 words in each status and since we will not be indexing prepositions and other small words like &lsquo;the&rsquo;, &lsquo;an&rsquo;, &lsquo;and&rsquo; etc., let&rsquo;s assume we will have around 15 words in each status that need to be indexed. This means each StatusID will be stored 15 times in our index. So total memory will need to store our index:</p>
+<pre><code>(1460 * 15) + 2.5MB ~= 21 TB</code></pre>
+<p>Assuming a high-end server has 144GB of memory, we would need 152 such servers to hold our index.</p>
+<p>We can shard our data based on two criteria:</p>
+<p><strong>Sharding based on Words:</strong> While building our index, we will iterate through all the words of a status and calculate the hash of each word to find the server where it would be indexed. To find all statuses containing a specific word we have to query only that server which contains this word.</p>
+<p>We have a couple of issues with this approach:</p>
+<ol>
+<li>What if a word becomes hot? There would be a lot of queries on the server holding that word. This high load will affect the performance of our service.</li>
+<li>Over time some words can end up storing a lot of StatusIDs compared to others, therefore, maintaining a uniform distribution of words while statuses are growing is quite difficult.</li>
+</ol>
+<p>To recover from these situations either we have to repartition our data or use <a href="12.html" target="_blank">Consistent Hashing</a>.</p>
+<p><strong>Sharding based on the status object:</strong> While storing, we will pass the StatusID to our hash function to find the server and index all the words of the status on that server. While querying for a particular word, we have to query all the servers, and each server will return a set of StatusIDs. A centralized server will aggregate these results to return them to the user.</p>
+<p style="text-align:center;"><img src="./_principal_files/img/twitter_search_detailed.png" alt="diagram"></p>
+<p style="text-align:center;"><em>Detailed component design</em></p>
+
+<h2 id="7-fault-tolerance">Fault Tolerance</h2>
+<p>What will happen when an index server dies? We can have a secondary replica of each server, and if the primary server dies it can take control after the failover. Both primary and secondary servers will have the same copy of the index.</p>
+<p>What if both primary and secondary servers die at the same time? We have to allocate a new server and rebuild the same index on it. How can we do that? We don&rsquo;t know what words/statuses were kept on this server. If we were using &lsquo;Sharding based on the status object&rsquo;, the brute-force solution would be to iterate through the whole database and filter StatusIDs using our hash function to figure out all the required Statuses that will be stored on this server. This would be inefficient and also during the time when the server is being rebuilt we will not be able to serve any query from it, thus missing some Statuses that should have been seen by the user.</p>
+<p>How can we efficiently retrieve a mapping between Statuses and index server? We have to build a reverse index that will map all the StatusID to their index server. Our Index-Builder server can hold this information. We will need to build a Hashtable, where the &lsquo;key&rsquo; would be the index server number and the &lsquo;value&rsquo; would be a HashSet containing all the StatusIDs being kept at that index server. Notice that we are keeping all the StatusIDs in a HashSet, this will enable us to add/remove Statuses from our index quickly. So now whenever an index server has to rebuild itself, it can simply ask the Index-Builder server for all the Statuses it needs to store, and then fetch those statuses to build the index. This approach will surely be quite fast. We should also have a replica of Index-Builder server for fault tolerance.</p>
+
+<h2 id="8-cache">Cache</h2>
+<p>To deal with hot status objects, we can introduce a cache in front of our database. We can use Memcache , which can store all such hot status objects in memory. Application servers before hitting backend database can quickly check if the cache has that status object. Based on clients&rsquo; usage pattern we can adjust how many cache servers we need. For cache eviction policy, Least Recently Used (LRU) seems suitable for our system.</p>
+
+<h2 id="9-load-balancing">Load Balancing</h2>
+<p>We can add Load balancing layer at two places in our system 1) Between Clients and Application servers and 2) Between Application servers and Backend server. Initially, a simple Round Robin approach can be adopted; that distributes incoming requests equally among backend servers. This LB is simple to implement and does not introduce any overhead. Another benefit of this approach is if a server is dead, LB will take it out of the rotation and will stop sending any traffic to it. A problem with Round Robin LB is, it won&rsquo;t take server load into consideration. If a server is overloaded or slow, the LB will not stop sending new requests to that server. To handle this, a more intelligent LB solution can be placed that periodically queries backend server about their load and adjusts traffic based on that.</p>
+
+<h2 id="10-ranking">Ranking</h2>
+<p>How about if we want to rank the search results by social graph distance, popularity, relevance, etc?</p>
+<p>Let&rsquo;s assume we want to rank statuses on popularity, like, how many likes or comments a status is getting, etc. In such a case our ranking algorithm can calculate a &lsquo;popularity number&rsquo; (based on the number of likes etc.), and store it with the index. Each partition can sort the results based on this popularity number before returning results to the aggregator server. The aggregator server combines all these results, sort them based on the popularity number and sends the top results to the user.</p>
+
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+
+/* dark-mode overrides for inline pdeep/mastery (injected) */
+:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
+:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
+:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
+:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
+:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
+:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
+:root[data-theme="dark"] .pdeep th{background:#0f1318;}
+:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
+:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
+:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The lesson treats the index as a "big distributed hash table" mapping word &rarr; list of StatusIDs. That is the right mental model, but the gap between that one sentence and a system that survives the real Twitter firehose is where all the engineering lives. Twitter actually built this twice: the original <strong>Earlybird</strong> (a heavily modified Lucene that powers real-time search) and the batch <strong>Lucene</strong>-on-Hadoop indexes for older tweets. Both lessons below are drawn from how those systems behave under load.</p>
+
+<h3>The inverted index, precisely</h3>
+<p>An inverted index inverts the natural document&rarr;words mapping into a words&rarr;documents mapping. Two pieces:</p>
+<div class="box"><b>Dictionary (term dictionary)</b>Maps each term to a pointer. For 500K terms this is tiny (the lesson's 2.5&nbsp;MB) and lives fully in RAM, often as a finite-state transducer (Lucene's FST) so prefixes share storage.</div>
+<div class="box"><b>Postings list</b>Per term, the sorted list of document IDs containing it (plus per-doc payloads: term frequency, positions for phrase queries, field flags). This is the 21&nbsp;TB. Postings are <em>delta-encoded</em> (store gaps between sorted DocIDs, not absolute IDs) and bit-packed, so a list of 292B IDs compresses to a fraction of the naive 5&nbsp;bytes/ID the lesson assumes.</div>
+<p>A query like <code>cricket AND india</code> fetches both postings lists and intersects them. Because lists are sorted, intersection is a merge — and with <strong>skip lists</strong> embedded in the postings you can leapfrog over runs of the longer list, turning an O(n+m) merge into roughly O(m&nbsp;log(n/m)) for the shorter list <code>m</code>. This is why search is fast despite billion-entry lists.</p>
+
+<h3>Real-time indexing of the firehose</h3>
+<p>The lesson's design quietly assumes statuses are already stored, then indexed. Twitter's hard requirement is that a tweet is <em>searchable within ~1&ndash;10 seconds</em> of posting. That breaks the textbook "build an immutable index segment, then serve it" model, because traditional Lucene segments are write-once and merging is expensive.</p>
+<div class="box"><b>Earlybird's trick</b>Maintain a small mutable in-memory segment that accepts single-document appends, with postings stored in an <em>unsorted</em>, append-friendly layout optimized for write throughput; periodically freeze it into a read-optimized compressed segment and start a fresh mutable one. Recently-frozen and active segments are searched together. This is the same write-optimized&rarr;read-optimized lifecycle you see in an LSM tree.</div>
+<p>The plumbing that carries 400M+ writes/day into the indexers is a log: tweets land on a durable, partitioned commit log (Kafka-class), indexers consume their partitions and apply updates. This decouples ingest spikes from index-build latency and lets a rebuilt index server <em>replay</em> the log from a checkpoint rather than brute-forcing the whole DB — a much better fault-recovery story than the section&nbsp;7 "iterate the entire database" approach. See <a href="40.html">40 Stream Processing</a> and <a href="39.html">39 Kafka</a>.</p>
+
+<h3>Term-sharding vs document-sharding — the central decision</h3>
+<p>The lesson presents both but doesn't fully weigh them. This is the single most important trade-off in the design:</p>
+<table>
+<tr><th>Dimension</th><th>Term-partitioned (shard by word)</th><th>Document-partitioned (shard by StatusID)</th></tr>
+<tr><td>Query fan-out</td><td>Only shards holding the query terms (low fan-out)</td><td><strong>Every shard</strong> (scatter-gather to all N)</td></tr>
+<tr><td>Multi-term query (AND)</td><td>Postings live on different shards &rarr; must ship huge lists across the network to intersect</td><td>Each shard intersects locally, ships only matches</td></tr>
+<tr><td>Hot terms</td><td>One shard owns <code>covid</code> / a trending hashtag &rarr; brutal hotspot</td><td>Load spreads naturally across all shards</td></tr>
+<tr><td>Write path</td><td>One tweet's words scatter to many shards</td><td>One tweet indexed entirely on one shard (local write)</td></tr>
+<tr><td>Tail latency</td><td>Few shards, but skewed</td><td>Bounded by the <em>slowest</em> of N shards</td></tr>
+<tr><td>Used by</td><td>Rare in practice</td><td>Earlybird, Elasticsearch, Google web search</td></tr>
+</table>
+<div class="box"><b>Why production systems pick document-partitioning</b>Term-partitioning's killer flaw is multi-term queries: intersecting <code>cricket AND india</code> when the two postings lists live on different machines means shipping one of two billion-entry lists over the network per query. Document-partitioning keeps the intersection local; you pay for fan-out instead, which you mitigate by replicating each shard and routing to replicas. This is exactly the lesson's "Sharding based on the status object," and the reason a centralized aggregator is unavoidable.</div>
+
+<h3>Scatter-gather, tail latency, and the aggregator</h3>
+<p>Document-partitioned search means every query hits all N index shards and an aggregator merges results. The catch is the <strong>tail-latency amplification</strong> Jeff Dean popularized: if one shard has a p99 of 1&nbsp;s and you query 100 of them, the <em>query's</em> p99 is dominated by the worst shard — at 100 shards you will very often hit at least one slow one (~63% of queries in Dean &amp; Barroso's example). Mitigations: <em>hedged requests</em> (fire to a replica after a short delay, take the first to answer), tied requests, and returning partial results once enough shards respond. The aggregator also needs <strong>early termination</strong> — with results sorted by recency or score per shard, it can stop once it has enough top-K without draining every postings list.</p>
+
+<h3>Ranking and relevance — early vs late binding</h3>
+<p>The lesson stores a single "popularity number" with the index and sorts on it. Real ranking is richer and forces an <em>early-binding vs late-binding</em> decision:</p>
+<div class="box"><b>Early binding (pre-compute at index time)</b>Bake a static score (popularity, author authority, freshness boost) into the postings, so shards can early-terminate against a pre-sorted list. Fast, but the score is stale and query-independent — it can't know <em>your</em> social graph or the query terms' weight.</div>
+<div class="box"><b>Late binding (score at query time)</b>Retrieve a candidate set cheaply, then run an expensive ranker (BM25/TF-IDF for textual relevance, plus signals like engagement velocity, social-graph distance, personalization) over only the top candidates. This is the standard two-phase <em>retrieve-then-rank</em> design: a cheap recall stage followed by an expensive precision stage on a few hundred docs.</div>
+<p>Twitter does both: Earlybird applies a lightweight per-shard score for early termination, then a re-ranking stage on the aggregated candidates. The reason you can afford the expensive ranker is that late binding only runs it on the survivors, not on billions of postings. <a href="43.html">64 Search &amp; Elasticsearch</a> covers BM25 and Elasticsearch's query/filter context, which is the same recall-then-precision split.</p>
+
+<h3>Failure modes the lesson under-weights</h3>
+<table>
+<tr><th>Failure</th><th>Consequence</th><th>Mitigation</th></tr>
+<tr><td>Hot term under term-sharding</td><td>One shard saturates; query latency for that term spikes for everyone</td><td>Document-partition instead; or replicate hot-term shards heavily</td></tr>
+<tr><td>Index rebuild via full DB scan (section&nbsp;7)</td><td>Hours of unavailability; queries silently miss tweets on that shard</td><td>Replay the commit log from a checkpoint; keep a replica serving during rebuild</td></tr>
+<tr><td>One slow shard in scatter-gather</td><td>Tail-latency amplification &rarr; whole query is slow</td><td>Hedged/tied requests; partial results; per-shard deadlines</td></tr>
+<tr><td>Trending event (e.g. World Cup goal)</td><td>Write spike + query spike on the same terms simultaneously</td><td>Decouple ingest via log buffer; cache trending-query result sets with short TTL</td></tr>
+<tr><td>Deletes / edits</td><td>Immutable segments can't update in place</td><td>Tombstone the DocID in a deletes bitset, filter at query time, reclaim on segment merge</td></tr>
+</table>
+
+<div class="seealso"><b>Go deeper:</b> <a href="43.html">64 Search &amp; Elasticsearch</a>, <a href="40.html">40 Stream Processing</a></div>
+</div>
+
+<div class="mastery">
+<h2>Principal-level mastery check</h2>
+<ul>
+<li>Can you explain, given a query <code>cricket AND india</code>, exactly what the dictionary and the two postings lists do — and why keeping postings sorted lets you intersect them with skip-list leapfrogging instead of scanning both lists end to end?</li>
+<li>Why does almost every production search system (Earlybird, Elasticsearch, Google) choose <strong>document-partitioning over term-partitioning</strong>, even though term-partitioning has lower query fan-out? What specifically breaks for a multi-term AND query under term-partitioning?</li>
+<li>Document-partitioning forces a scatter-gather to all N shards. Can you explain why that makes the <em>query's</em> p99 worse than any single shard's p99, and name two mitigations (hint: hedged requests, partial results)?</li>
+<li>Why does the firehose's "searchable within seconds" requirement break the textbook write-once-segment model, and how does a mutable in-memory segment that later freezes into a compressed one (the same lifecycle as an LSM tree) solve it?</li>
+<li>Why is replaying a commit log from a checkpoint a strictly better way to rebuild a dead index shard than the lesson's "iterate the whole database and re-hash" approach?</li>
+<li>Can you distinguish <strong>early-binding</strong> ranking (static score baked into postings, enabling early termination) from <strong>late-binding</strong> ranking (expensive scorer run only on retrieved candidates), and explain why the cheap-recall-then-expensive-precision split is what makes rich relevance affordable at this scale?</li>
+<li>How do you handle deletes and edits in an index built from immutable segments, and why is a tombstone bitset filtered at query time preferable to mutating the segment in place?</li>
+</ul>
+</div>
+
+<div class="navfoot"><a href="23.html">&lsaquo; Prev: Designing an API Rate Limiter</a><a class="nx" href="25.html">Next: Designing a Web Crawler &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consistency Models and PACELC</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk active" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Consistency Models and PACELC</div>
+
+<h1>Consistency Models and PACELC</h1>
+<p class="sub"><em>A precise map of what "consistency" actually means, what it costs, and how to choose the right guarantee per use case.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth.</b> <span>stronger consistency costs latency (and availability under partition) — PACELC makes the bill explicit.</span></div>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#why">Why "consistency" is an overloaded word</a></li>
+<li><a href="#spectrum">The consistency spectrum</a></li>
+<li><a href="#client">Client-centric (session) guarantees</a></li>
+<li><a href="#lin-vs-ser">Linearizability vs serializability</a></li>
+<li><a href="#pacelc">PACELC: CAP, refined</a></li>
+<li><a href="#classify">Classifying real systems</a></li>
+<li><a href="#cost">The cost of strong consistency</a></li>
+<li><a href="#choosing">Choosing per use case</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="why">Why "consistency" is an overloaded word</h2>
+<p>The word <span class="key">consistency</span> is used for at least three different things, and conflating them is the single most common source of confusion in design discussions:</p>
+<ul>
+<li><strong>The C in ACID</strong> — a database keeps invariants (constraints, foreign keys, triggers) satisfied across a transaction. This is an application-level property and is mostly orthogonal to distributed-systems consistency.</li>
+<li><strong>The C in CAP</strong> — specifically <em>linearizability</em>, a strong single-object guarantee. See <a href="11.html">CAP Theorem</a>.</li>
+<li><strong>A consistency model</strong> — a contract between a replicated/concurrent system and its clients about which orderings of reads and writes are observable. This lesson is about this third meaning.</li>
+</ul>
+<p>A consistency model answers one question: <em>given a set of concurrent operations across replicas, which results is a client allowed to see?</em> Stronger models forbid more "surprising" outcomes but cost more in latency, availability, and coordination. Weaker models permit anomalies but are cheap and partition-tolerant. Everything below is a point on that trade-off curve.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span> Consistency models form a hierarchy ordered by <em>strength</em>. A system that provides a stronger model automatically provides all weaker ones below it. Your job as a designer is to pick the <em>weakest model that still satisfies the application's invariants</em> — not the strongest available.</div>
+
+<h2 id="spectrum">The consistency spectrum</h2>
+<p>From strongest to weakest, the canonical models for replicated data:</p>
+
+<table>
+<thead>
+<tr><th>Model</th><th>Guarantee</th><th>Forbids</th><th>Typical cost</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Strict serializability</strong></td><td>Transactions appear in a single total order consistent with real time</td><td>Stale reads, lost updates, all serialization anomalies, real-time order violations</td><td>Consensus + synchronized clocks or global ordering</td></tr>
+<tr><td><strong>Linearizable</strong></td><td>Each single-object op appears instantaneous at some point between its invocation and response; total order respects real time</td><td>Stale reads after a completed write</td><td>Quorum reads/writes or consensus per op</td></tr>
+<tr><td><strong>Sequential</strong></td><td>All clients see the same total order; each client's ops keep program order. The order need NOT match real time</td><td>Reordering within a single client</td><td>Total order broadcast, no clock sync needed</td></tr>
+<tr><td><strong>Causal</strong></td><td>Operations related by happens-before are seen in that order by all; concurrent ops may be seen in any order</td><td>Effect visible before cause</td><td>Track causal metadata (vector/version clocks); no global coordination</td></tr>
+<tr><td><strong>Eventual</strong></td><td>If writes stop, all replicas converge to the same value eventually</td><td>Nothing about <em>ordering</em> or <em>recency</em></td><td>Anti-entropy / gossip; cheapest, most available</td></tr>
+</tbody>
+</table>
+
+<p><strong>Linearizability</strong> is the gold standard for single objects. Once a write completes (the client gets an ack), every subsequent read — by any client — must return that value or a newer one. There is no "stale read" window. The price is that reads and writes must coordinate: classically via a quorum (<span class="pill">W + R &gt; N</span>) with read-repair, or via routing all ops through a consensus leader. See <a href="30.html">Consensus and Raft</a> — Raft gives you a linearizable replicated log; reads must go through the leader (or use leader leases / ReadIndex) to stay linearizable.</p>
+
+<p><strong>Sequential consistency</strong> drops the real-time requirement. Everyone agrees on <em>one</em> order of operations and each process's own operations appear in the order it issued them, but that global order need not match wall-clock reality. A read issued after a write completed (in real time) might legally return the old value because the system placed the read "earlier" in the agreed order. This is strictly weaker than linearizability and cheaper, but the distinction trips up many engineers.</p>
+
+<p><strong>Causal consistency</strong> is the strongest model that remains <em>available under partition</em> (a key result). It only orders operations that have a <span class="key">happens-before</span> relationship — if write B was made after the client observed write A, everyone must see A before B. Independent, concurrent writes can be observed in different orders by different clients. Causal metadata (version vectors) is tracked per key or per session. This is what most "collaborative" systems lean on; see <a href="33.html">Time, Clocks, and Ordering</a> for the underlying logical-clock machinery and <a href="35.html">CRDTs</a> for the convergence layer that pairs naturally with it.</p>
+
+<p><strong>Eventual consistency</strong> is the weakest commonly-named model: it says nothing about what you read <em>now</em>, only that absent new writes, replicas converge. Dynamo-style stores live here by default. The convergence is achieved through <a href="34.html">anti-entropy and gossip</a> plus conflict resolution (last-writer-wins, vector clocks, or CRDTs).</p>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> "Eventual consistency" with no further qualification is almost useless as a contract — "eventually" can mean milliseconds or, during a partition, hours. Strong engineers always ask: <em>eventual, but with which client-centric guarantees layered on top?</em> A pure eventual store can show a user their own write disappearing on the next request, which is unacceptable for most UX.</div>
+
+<h2 id="client">Client-centric (session) guarantees</h2>
+<p>The models above are <em>data-centric</em> — they describe the global behavior of the store. <span class="key">Client-centric guarantees</span> describe what a single client/session observes across its own sequence of operations, and they can be layered on top of an eventually-consistent store cheaply (usually by routing a session to the same replica or carrying a version token). They are the practical glue that makes "eventual" usable:</p>
+
+<ul>
+<li><strong>Read-your-writes (read-after-write):</strong> after a client writes a value, its own subsequent reads see that value or newer. Prevents the "I posted a comment and it vanished" anomaly. Cheapest implementation: pin the session to the primary or to the replica that accepted the write; or pass the write's version and read only from replicas caught up to it.</li>
+<li><strong>Monotonic reads:</strong> if a client reads value v, later reads never return an <em>older</em> value. Prevents time going backwards. Implemented by pinning a session to one replica (or a replica set ordered by version).</li>
+<li><strong>Monotonic writes:</strong> writes from a single client are applied in the order they were issued. Without this, a "set name=A" then "set name=B" can land as B-then-A on a replica.</li>
+<li><strong>Writes-follow-reads (causal session):</strong> a write that depends on a value the client read is ordered after that value's write everywhere. This is the per-session building block of causal consistency.</li>
+</ul>
+
+<div class="callout note"><span class="lbl">Key insight</span> Together, these four session guarantees compose into <em>causal consistency</em>. That is the bridge between the cheap eventual world and the expensive strongly-consistent world: causal+session guarantees give you most of what users perceive as "correct" without paying for global coordination.</div>
+
+<h2 id="lin-vs-ser">Linearizability vs serializability (and strict serializability)</h2>
+<p>These two are routinely confused because both are "the strong one." They are different axes:</p>
+
+<table>
+<thead>
+<tr><th></th><th>Linearizability</th><th>Serializability</th></tr>
+</thead>
+<tbody>
+<tr><td>Scope</td><td>Single object / single operation</td><td>Multi-object transactions</td></tr>
+<tr><td>Property</td><td>Recency &amp; real-time order of ops</td><td>Equivalence to <em>some</em> serial execution of transactions</td></tr>
+<tr><td>Real-time?</td><td>Yes — respects wall-clock order</td><td>No — any serial order is acceptable</td></tr>
+<tr><td>Field</td><td>Distributed systems</td><td>Database isolation (the I in ACID)</td></tr>
+</tbody>
+</table>
+
+<p>Serializability says a set of concurrent transactions produces a result equivalent to running them one at a time in <em>some</em> order. But it does not require that order to match real time. Two serializable transactions T1 (commits at 10:00) and T2 (commits at 10:01) could be serialized as "T2 then T1" — legal under serializability, even though T2 happened later. That's fine for isolation correctness but can violate user expectations.</p>
+
+<p><span class="key">Strict serializability</span> = serializability + linearizability's real-time constraint. It is the strongest practical model for a transactional distributed database: transactions appear in a single total order that is consistent with the real-time order in which they committed. This is what Google Spanner provides, and it is exactly why Spanner needs TrueTime — it must reason about real-time bounds to assign commit timestamps that respect actual ordering. See <a href="32.html">Distributed Transactions</a> for the 2PC/commit-protocol mechanics underneath.</p>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> Snapshot isolation (Postgres, MySQL-InnoDB default-ish, many distributed SQL engines) is <em>weaker</em> than serializability — it permits write-skew anomalies. It's popular because it gives non-blocking consistent reads and is far cheaper. The principal move is knowing your engine's default isolation level and whether your invariants survive write skew (e.g., "two on-call doctors, both check ≥1 other is on duty, both go off-duty" — classic write skew that SI allows and serializability forbids).</div>
+
+<h2 id="pacelc">PACELC: CAP, refined</h2>
+<p><a href="11.html">CAP</a> is famously incomplete: it only tells you what happens <em>during a network partition</em> (choose Consistency or Availability), and partitions are rare. It says nothing about the steady-state trade-off that dominates day-to-day design. <span class="key">PACELC</span> (Abadi, 2012) fixes this:</p>
+
+<pre><code>if (Partition) {
+    choose between Availability (A) and Consistency (C)
+} else {   // normal operation, the 99.99% case
+    choose between Latency (L) and Consistency (C)
+}</code></pre>
+
+<p>The "else" clause is the important addition. Even with zero partitions, a replicated system faces a fundamental tension: to guarantee a linearizable read you must contact a quorum (or the leader), which adds round trips and latency. To serve a read from the nearest replica with low latency, you risk returning stale data. <strong>You pay for consistency in latency on every single request, not just during failures.</strong></p>
+
+<p>PACELC classifies a system with a pair: its partition behavior and its normal-operation behavior. The two halves are independent — a system can be PA/EC (sacrifice consistency under partition, but prefer consistency over latency normally).</p>
+
+<div class="callout note"><span class="lbl">Key insight</span> CAP made partition tolerance look like the central trade-off. PACELC reveals that for most systems most of the time, the real, continuous decision is <em>latency vs consistency</em>. Spanner's whole engineering effort (TrueTime, atomic clocks, commit-wait) is fundamentally about paying a small bounded latency cost to deliver EC — consistency in the no-partition case.</div>
+
+<h2 id="classify">Classifying real systems</h2>
+<table>
+<thead>
+<tr><th>System</th><th>PACELC</th><th>Behavior</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>DynamoDB / Dynamo</strong></td><td>PA/EL</td><td>Stays available under partition; prefers low latency normally (eventually consistent reads by default). Optional strongly-consistent reads flip it toward EC per-request.</td></tr>
+<tr><td><strong>Cassandra</strong></td><td>PA/EL (tunable)</td><td>Tunable per query via consistency levels. ONE = PA/EL; QUORUM/QUORUM with W+R&gt;N approximates linearizability per key; LOCAL_QUORUM tunes the latency/consistency knob.</td></tr>
+<tr><td><strong>Riak / Voldemort</strong></td><td>PA/EL</td><td>Dynamo lineage; sloppy quorums + hinted handoff favor availability and latency.</td></tr>
+<tr><td><strong>Google Spanner</strong></td><td>PC/EC</td><td>Consistency over availability under partition; consistency over latency normally. TrueTime + commit-wait + Paxos groups give strict serializability. Pays a latency cost (commit-wait ~ a few ms).</td></tr>
+<tr><td><strong>MongoDB</strong></td><td>PA/EC (default)</td><td>Single-primary replica set; under partition the minority side loses its primary and goes read-only (availability sacrificed on the minority); normally favors consistency by routing reads to primary. Read/write concerns tune both axes.</td></tr>
+<tr><td><strong>HBase / BigTable</strong></td><td>PC/EC</td><td>Single region server owns a region; strongly consistent; partition can make a region unavailable until reassigned.</td></tr>
+<tr><td><strong>etcd / ZooKeeper</strong></td><td>PC/EC</td><td>Raft/Zab consensus; refuses writes (and linearizable reads) on the minority side of a partition. Built for correctness, not availability. See <a href="36.html">Leader Election and Coordination</a>.</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> Beware single-letter labels applied to a whole product. Cassandra, DynamoDB, and MongoDB all expose <em>per-operation</em> tuning (consistency levels, read/write concerns, consistent-read flags). The PACELC label describes the <em>default</em> or the dominant design bias — the right answer in practice is "it depends on the consistency level configured for that query," with the default stated.</div>
+
+<h2 id="cost">The cost of strong consistency</h2>
+<p>Strong consistency is never free. Where, precisely, does the cost show up?</p>
+<ul>
+<li><strong>Latency on the hot path.</strong> A linearizable read needs a quorum round trip or a leader hop. Cross-region, that's tens of milliseconds added to <em>every</em> read, not just writes. Spanner's commit-wait deliberately stalls a commit for the TrueTime uncertainty window (ε, typically a few ms) to guarantee timestamp ordering.</li>
+<li><strong>Availability under partition.</strong> A CP system rejects writes (and linearizable reads) on the minority side. If you require strong consistency, a partition that isolates a quorum makes part of your system unavailable — by design. See <a href="11.html">CAP Theorem</a>.</li>
+<li><strong>Throughput ceiling.</strong> A single consensus leader (Raft/Paxos) is a serialization point. You scale by sharding into independent consensus groups (Spanner's "Paxos groups," CockroachDB's "ranges"), which then reintroduces the distributed-transaction problem across shards.</li>
+<li><strong>Coordination amplifies tail latency.</strong> Quorum operations are gated by the <em>slowest</em> of the required replicas. A single slow node (GC pause, disk hiccup) inflates p99. Dynamo-style sloppy quorums trade consistency to dodge exactly this.</li>
+</ul>
+
+<pre><code>// Quorum knobs (N replicas, W write quorum, R read quorum)
+// Linearizable-ish per key requires:  W + R &gt; N   AND   W &gt; N/2
+// Examples for N=3:
+//   W=3, R=1  -> fast reads, slow/fragile writes (any node down blocks writes)
+//   W=1, R=3  -> fast writes, slow reads, write survives 1 ack only
+//   W=2, R=2  -> balanced, tolerates 1 node down, overlap guaranteed</code></pre>
+
+<p>The deeper point: strong consistency converts a <em>physics problem</em> (speed of light across regions) into a <em>latency budget</em>. There is no algorithm that removes the round trips; you can only hide them (caching, leases, local reads with bounded staleness) or push the consistency decision to the client. See <a href="37.html">Replication Deep Dive</a> for sync vs async replication mechanics that sit underneath all of this.</p>
+
+<h2 id="choosing">Choosing per use case</h2>
+<p>The principal skill is decomposing one product into many consistency decisions. The same app rarely needs one global model.</p>
+
+<table>
+<thead>
+<tr><th>Use case</th><th>Right model</th><th>Why</th></tr>
+</thead>
+<tbody>
+<tr><td>Account balance / payments / inventory decrement</td><td>Strict serializability (or at least linearizable + transactions)</td><td>Double-spend and oversell are correctness failures, not UX warts. See <a href="32.html">Distributed Transactions</a>.</td></tr>
+<tr><td>Distributed lock / leader election / config</td><td>Linearizable (consensus)</td><td>Two leaders or a stale lock = split brain. Use etcd/ZooKeeper. See <a href="36.html">Leader Election and Coordination</a>.</td></tr>
+<tr><td>Social feed, likes, view counts</td><td>Eventual + read-your-writes</td><td>A like count off by a few for a second is invisible; availability and latency matter far more.</td></tr>
+<tr><td>Collaborative editing / chat ordering</td><td>Causal consistency (+ CRDTs)</td><td>Cause must precede effect; concurrent edits merge. See <a href="35.html">CRDTs</a>.</td></tr>
+<tr><td>Shopping cart</td><td>Eventual, merge on conflict (Dynamo's original use case)</td><td>Adds should never be lost; "merge carts" beats "reject add." Availability prioritized.</td></tr>
+<tr><td>User profile / settings</td><td>Eventual + read-your-writes + monotonic reads</td><td>User must see their own edit immediately and never see it regress.</td></tr>
+</tbody>
+</table>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They never say "we'll use strong consistency" as a blanket. They name the specific invariant that demands it (no oversell, no double-spend, exactly-one leader), apply the minimum sufficient model <em>there</em>, and explicitly relax everything else to eventual + session guarantees to recover latency and availability. They also state the PACELC posture per data domain, not per system.</div>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They treat consistency as a per-domain budget, not a global switch. They distinguish linearizability (single object, real-time) from serializability (multi-object isolation) without prompting, reach for causal + session guarantees as the pragmatic middle, and quantify the cost ("strong reads add a cross-region quorum hop, ~40&nbsp;ms to p99"). When they say "eventually consistent" they immediately specify the client-centric guarantees layered on top, and they cite PACELC's else-branch as the real day-to-day trade-off rather than fixating on CAP partitions.</div>
+
+<p>Sharp questions to test your own understanding:</p>
+<ul>
+<li>"You said the store is eventually consistent. A user updates their profile photo and refreshes — they see the old photo. Is that acceptable? If not, which exact guarantee fixes it, and what does it cost to implement?"</li>
+<li>"Your design uses snapshot isolation. Walk me through a write-skew anomaly that could violate a business invariant here, and tell me whether you'd pay for serializability or guard it another way."</li>
+<li>"Classify your primary datastore in PACELC and defend both letters. Now change the consistency level / read concern on the critical read path — how does the classification and the p99 move?"</li>
+<li>"You need linearizable reads from a Raft cluster. Why isn't reading from the leader's local state automatically safe, and what mechanism (ReadIndex, lease, log barrier) makes it correct?"</li>
+<li>"Two regions, 80&nbsp;ms RTT apart. Product wants strong consistency and sub-20&nbsp;ms reads in both regions. Explain why that's physically impossible and what you'd negotiate instead (bounded staleness? read-local writes-global? Spanner-style?)."</li>
+<li>"Where in this design would causal consistency be both sufficient and strictly cheaper than linearizability, and how would you track the causal metadata at scale without it blowing up?"</li>
+</ul>
+
+<div class="navfoot"><a href="30.html">&lsaquo; Prev: Consensus and Raft</a><a class="nx" href="32.html">Next: Distributed Transactions &rsaquo;</a></div>
+
+</div>
+</div>
+</div>
+</body>
+</html>

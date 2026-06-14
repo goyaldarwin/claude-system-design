@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designing a Notification System</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk active" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing a Notification System</div>
+
+<h1>Designing a Notification System</h1>
+<p class="sub">A multi-channel fan-out platform &mdash; push, SMS, email, in-app &mdash; that must be reliable, idempotent, preference-aware, and survive flaky third-party providers at billions of messages a day.</p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; partial failure.</b> <span>fan-out delivery across providers, paid in retries, dedup, and per-channel rate limits.</span></div>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#requirements">Requirements &amp; scale estimation</a></li>
+<li><a href="#architecture">High-level architecture</a></li>
+<li><a href="#fanout">Fan-out on write vs read &amp; the celebrity problem</a></li>
+<li><a href="#providers">Provider abstraction &amp; third-party integration</a></li>
+<li><a href="#reliability">Reliability: retries, DLQ, idempotency</a></li>
+<li><a href="#ratelimit">Rate limiting &amp; prioritization</a></li>
+<li><a href="#preferences">Preferences, templating &amp; opt-out at scale</a></li>
+<li><a href="#tracking">Delivery tracking &amp; read state</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="requirements">Requirements &amp; scale estimation</h2>
+<p>A notification system accepts <span class="key">trigger events</span> from upstream services (a new message, an order shipped, a price drop, a marketing blast) and delivers the right message to the right user over the right channel. The interesting engineering is almost entirely in the non-functional requirements.</p>
+
+<h3>Functional</h3>
+<ul>
+<li>Multiple channels: <span class="pill">push (APNs/FCM)</span> <span class="pill">SMS</span> <span class="pill">email</span> <span class="pill">in-app</span> <span class="pill">webhook</span>.</li>
+<li>Two traffic shapes: <span class="key">transactional</span> (1:1, latency-sensitive &mdash; OTP, password reset) and <span class="key">bulk/marketing</span> (1:N fan-out, throughput-sensitive).</li>
+<li>Templating with localization and variable substitution.</li>
+<li>User preferences and opt-out, honored per channel and per category.</li>
+<li>Delivery and read-state tracking, plus analytics.</li>
+</ul>
+
+<h3>Non-functional</h3>
+<ul>
+<li><span class="key">Reliability:</span> at-least-once delivery with no duplicate sends &mdash; sending an OTP twice or a bill reminder five times is a reputational and cost problem.</li>
+<li><span class="key">Scalability:</span> elastic fan-out; a single marketing campaign may target 50M users.</li>
+<li><span class="key">Low latency for transactional:</span> p99 &lt; a few seconds end-to-end; bulk can tolerate minutes.</li>
+<li><span class="key">Provider isolation:</span> a degraded SMS vendor must not stall push or email.</li>
+</ul>
+
+<div class="callout note"><span class="lbl">Key insight</span>The single most important framing move: separate the <em>transactional</em> path (low-latency, small fan-out, strict idempotency) from the <em>bulk</em> path (high-throughput, batched, rate-shaped). They share the provider layer but have different SLOs, different queues, and different backpressure behavior. Conflating them is the most common junior mistake.</div>
+
+<h3>Back-of-envelope</h3>
+<p>Assume 100M DAU, average 10 notifications/user/day &rarr; <span class="key">1B notifications/day</span> &asymp; 11.6K/s average, with peaks of 5&ndash;10&times; (say 100K/s) during campaign bursts or breaking-news fan-out. If 20% carry a ~1&nbsp;KB payload for tracking and the rest are references, the metadata store ingests roughly 1B rows/day &mdash; squarely a partitioned NoSQL or time-series workload, not a single relational table. See <a href="10.html">SQL vs. NoSQL</a> and <a href="05.html">Sharding</a>.</p>
+
+<h2 id="architecture">High-level architecture</h2>
+<p>The backbone is an event-driven pipeline. Producers never call providers directly; they emit an intent, and the platform owns the messy delivery semantics. This is a textbook application of <a href="46.html">Event-Driven Architecture</a> built on durable logs (<a href="39.html">Kafka</a>) and worker queues (<a href="08.html">Queues</a>).</p>
+
+<pre><code>Producer services
+      |  emit NotificationRequest {userId|segment, templateId, payload, category, priority, dedupeKey}
+      v
+[ Ingestion API / Gateway ]  --auth, validation, schema, idempotency check
+      |
+      v
+[ Notification Service ]  --hydrate recipients, check preferences, render template, pick channels
+      |
+      +--> Kafka topic: notifications.high   (transactional)
+      +--> Kafka topic: notifications.bulk    (marketing, lower priority)
+      |
+      v
+[ Channel Workers ]   push-worker | sms-worker | email-worker | inapp-worker
+      |   (rate-limited, batched, retry-aware)
+      v
+[ Provider Adapters ]  APNs | FCM | Twilio | SES | internal WebSocket gateway
+      |
+      v
+[ Delivery callbacks / receipts ]  --> Tracking store + analytics + retry/DLQ feedback</code></pre>
+
+<p>Key decomposition decisions:</p>
+<ul>
+<li>The <span class="key">Notification Service</span> does recipient hydration, preference filtering, deduplication, and template rendering &mdash; the CPU-light but fan-out-heavy work &mdash; <em>before</em> anything hits a per-channel queue. By the time a message lands on <code>notifications.high</code> it is a fully-resolved, single-recipient, single-channel unit of work.</li>
+<li><span class="key">Channel workers</span> are independent consumer groups. Each scales on its own lag, owns its own retry policy, and is the natural place to enforce per-provider rate limits. A Twilio outage backs up only the SMS worker's lag; push keeps flowing.</li>
+<li>Separate <span class="key">priority topics</span> (or a priority-aware queue) prevent a 50M-user marketing campaign from starving an OTP. Cheaper than a single queue with reordering logic.</li>
+</ul>
+
+<h2 id="fanout">Fan-out on write vs read &amp; the celebrity problem</h2>
+<p>When a single event targets many recipients (a sports score to 20M fans, a creator posting to 30M followers), you face the same fan-out dilemma as <a href="20.html">Designing Twitter</a> and <a href="26.html">Facebook&#8217;s Newsfeed</a>.</p>
+
+<table>
+<tr><th>Strategy</th><th>How it works</th><th>Good for</th><th>Cost</th></tr>
+<tr><td><span class="key">Fan-out on write (push)</span></td><td>At event time, expand the audience into N per-recipient messages and enqueue each.</td><td>Most notifications &mdash; recipients expect timely delivery.</td><td>Write amplification; a 20M fan-out is 20M queue messages.</td></tr>
+<tr><td><span class="key">Fan-out on read (pull)</span></td><td>Store the event once; recipients materialize their feed of pending in-app notifications on open.</td><td>In-app inboxes for very-high-fan-out, low-open-rate content.</td><td>Read-time cost; useless for push/SMS which must be pushed.</td></tr>
+</table>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>The <span class="key">celebrity / thundering-herd problem</span>: naively expanding a 30M-follower fan-out inline blocks the producer for minutes and floods queues in one burst. <em>Async, chunked expansion</em> is the fix &mdash; the ingestion API records the intent and returns immediately; a dedicated fan-out service reads the audience in pages (e.g. 10K recipients per chunk), enqueues each chunk as a sub-job, and applies a token-bucket so the burst is smeared over time. This also makes the job resumable: store a cursor so a worker crash mid-fan-out resumes rather than re-sends from the start.</div>
+
+<p>For physical push (APNs/FCM/SMS), <span class="key">fan-out on write is effectively mandatory</span> &mdash; you cannot "pull" a push notification. Fan-out on read only applies to the in-app inbox channel, where you can store one event and let clients query it. A strong design often uses a <span class="key">hybrid</span>: push a lightweight "you have updates" signal eagerly, but materialize the rich in-app list on read.</p>
+
+<h2 id="providers">Provider abstraction &amp; third-party integration</h2>
+<p>Every channel terminates at a third party you do not control: <span class="key">APNs</span> (Apple), <span class="key">FCM</span> (Android/web), <span class="key">Twilio/MessageBird</span> (SMS), <span class="key">SES/SendGrid</span> (email). They differ in auth (APNs JWT/p8 tokens vs FCM OAuth), payload limits (APNs 4KB), rate limits, error taxonomies, and async vs sync receipts. Hide all of it behind a uniform adapter interface.</p>
+
+<pre><code>interface ProviderAdapter {
+    SendResult send(RenderedMessage msg);   // maps to provider-specific call
+    // classifies provider errors into a normalized enum:
+    //   PERMANENT  (invalid token, unsubscribed, bad number)  -> drop + mark device dead
+    //   TRANSIENT  (429, 5xx, timeout)                        -> retry with backoff
+    //   THROTTLED  (provider rate limit)                       -> slow down, requeue
+}</code></pre>
+
+<ul>
+<li><span class="key">Normalize errors.</span> The retry logic must never see provider-specific codes. An APNs <code>410 Unregistered</code> and an FCM <code>NotRegistered</code> both map to PERMANENT &mdash; delete the device token, never retry.</li>
+<li><span class="key">Multi-provider failover.</span> For SMS/email, keep two vendors behind the adapter. If the primary trips a <a href="51.html">circuit breaker</a> (error rate over threshold), shift traffic to the secondary. This also enables least-cost routing for SMS by country.</li>
+<li><span class="key">Async receipts.</span> Most providers report final delivery via webhook/callback, not the send response. The send call only confirms <em>acceptance</em>. Reconcile the true delivered/bounced state from the receipt stream into the tracking store.</li>
+<li><span class="key">Connection management.</span> APNs uses long-lived HTTP/2 connections; pool and reuse them &mdash; churning TLS handshakes per message destroys throughput.</li>
+</ul>
+
+<h2 id="reliability">Reliability: retries, dead-letter, idempotency</h2>
+<p>The contract is <span class="key">at-least-once delivery, exactly-once effect</span>. Queues give you at-least-once for free (a worker can crash after sending but before ack, causing redelivery). The hard half is suppressing the duplicate <em>visible</em> send.</p>
+
+<h3>Idempotency</h3>
+<p>Every notification carries a deterministic <span class="key">idempotency / dedupe key</span> &mdash; ideally supplied by the producer (e.g. <code>order-4821-shipped</code>), otherwise derived as <code>hash(userId, templateId, contentHash, timeWindow)</code>. Before dispatching, the worker does an atomic check-and-set against a fast store:</p>
+
+<pre><code>// SETNX with TTL in Redis (or a conditional insert in a dedup table)
+key = "notif:dedupe:" + dedupeKey
+if (redis.set(key, channel, NX, EX=86400)) {
+    dispatch(msg);          // first time we've seen this key -> send
+} else {
+    metrics.inc("dedupe.suppressed");   // already sent (or in flight) -> drop
+}</code></pre>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>The check-and-send is not truly atomic with the external provider call &mdash; you can SETNX, then crash before the provider accepts, leaving a key set for a message never sent. Mitigate by writing the dedupe key only <em>after</em> the provider returns acceptance, and accepting that the window between SETNX-on-attempt and confirmation is the residual duplicate risk. For high-value sends, store dispatch state (ATTEMPTED &rarr; SENT) rather than a boolean, and let retries re-send only ATTEMPTED entries. There is no perfect exactly-once across a system boundary you don't control &mdash; you minimize, not eliminate.</div>
+
+<h3>Retries &amp; dead-letter</h3>
+<ul>
+<li><span class="key">Exponential backoff with jitter</span> for TRANSIENT/THROTTLED errors, capped at a max attempt count. Don't retry PERMANENT errors &mdash; that just burns quota and annoys users.</li>
+<li>Use a <span class="key">delay queue / retry topic</span> rather than blocking the worker (e.g. publish to <code>notifications.retry.5m</code> consumed after a delay). Tail-latency-friendly and keeps the main consumer draining.</li>
+<li>After N failed attempts, route to a <span class="key">dead-letter queue (DLQ)</span> with full context. The DLQ is monitored, alertable, and replayable &mdash; a poison message or a vendor outage shows up as DLQ growth, not silent loss. See <a href="56.html">Designing a Distributed Message Queue</a>.</li>
+</ul>
+
+<h2 id="ratelimit">Rate limiting &amp; prioritization</h2>
+<p>Two distinct rate-limiting concerns, both built on the algorithms from <a href="23.html">Designing an API Rate Limiter</a>:</p>
+
+<table>
+<tr><th>Limit</th><th>Why</th><th>Mechanism</th></tr>
+<tr><td><span class="key">Per-provider</span></td><td>Twilio/APNs enforce hard QPS; exceeding it gets you 429'd or banned.</td><td>Distributed token bucket in Redis, keyed per provider (and per region/sender ID). Workers acquire a token before sending.</td></tr>
+<tr><td><span class="key">Per-user / frequency cap</span></td><td>Don't send a user 40 pushes in an hour &mdash; they'll uninstall or report spam, hurting sender reputation.</td><td>Sliding-window counter per (userId, category); drop or coalesce when over cap.</td></tr>
+</table>
+
+<p><span class="key">Prioritization:</span> transactional messages must preempt bulk. Implement with separate topics/consumer groups (high vs bulk), giving the high path more workers and reserved provider token budget. Within bulk, a marketing campaign can be deliberately <span class="key">paced</span> &mdash; spread 50M sends over 30 minutes &mdash; both to respect provider limits and to avoid a self-inflicted traffic spike on your own downstream (e.g. a deep-link landing page).</p>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>When the per-provider token bucket is exhausted, do you <em>drop</em>, <em>delay</em>, or <em>shed by priority</em>? For SMS OTPs you delay briefly and fail fast (a 30s-late OTP is useless &mdash; better to error so the user retries). For marketing you delay freely. For breaking news you may drop the tail rather than deliver hours late. The right answer is per-category policy, not a single global setting &mdash; surface this explicitly in the design.</div>
+
+<h2 id="preferences">Preferences, templating &amp; opt-out at scale</h2>
+
+<h3>Preferences &amp; opt-out</h3>
+<p>Users control notifications along several axes: per <span class="key">channel</span> (no SMS, push OK), per <span class="key">category</span> (security alerts always, marketing off), and <span class="key">quiet hours</span> by timezone. Plus legal opt-out (CAN-SPAM unsubscribe, TCPA for SMS, GDPR consent) which is non-negotiable.</p>
+<ul>
+<li>Store preferences in a read-optimized store keyed by userId; cache hot entries (<a href="04.html">Caching</a>). The preference check sits on the fan-out hot path, so it must be a single fast lookup, not a join.</li>
+<li>Evaluate preferences <em>during</em> hydration in the Notification Service, before enqueueing &mdash; never generate work that will be discarded downstream.</li>
+<li>Maintain a global <span class="key">suppression list</span> (hard bounces, unsubscribes, complaint feedback loops from ISPs). A hard bounce or spam complaint must immediately suppress that address &mdash; ISP reputation systems punish repeat sends to dead addresses.</li>
+</ul>
+
+<h3>Templating</h3>
+<ul>
+<li>Versioned templates with variable interpolation and localization (i18n). Render server-side in the Notification Service so workers handle opaque, finished payloads.</li>
+<li>Separate <span class="key">content</span> (template + variables) from <span class="key">presentation</span> per channel &mdash; the same "order shipped" event renders to a 160-char SMS, a rich push, and an HTML email from one logical template family.</li>
+<li>Validate at template-publish time, not send time, so a broken template fails for the author rather than silently corrupting a million messages.</li>
+</ul>
+
+<h2 id="tracking">Delivery tracking &amp; read state</h2>
+<p>The lifecycle of a notification is a small state machine: <code>CREATED &rarr; QUEUED &rarr; SENT &rarr; DELIVERED &rarr; OPENED/READ</code> (or <code>FAILED/BOUNCED</code>). State transitions arrive from two sources: the send path and async provider receipts.</p>
+<ul>
+<li>Persist events to a high-write-throughput store (Cassandra/DynamoDB partitioned by userId or notificationId, or a time-series log). At 1B/day this is append-heavy &mdash; an <a href="38.html">LSM-tree</a> store fits far better than a B-tree relational table.</li>
+<li>Drive analytics (delivery rate, open rate, per-provider failure rate) from a stream pipeline rather than querying the operational store &mdash; see <a href="40.html">Stream Processing &amp; CDC</a>.</li>
+<li>For <span class="key">in-app read state</span>, store unread counts per user and update on read. This is the channel where fan-out-on-read shines: keep an inbox per user and a badge count, materialized lazily.</li>
+<li>Real-time in-app delivery rides a persistent connection &mdash; <a href="13.html">WebSockets/SSE</a> through a connection gateway, the same primitive used in <a href="19.html">Facebook Messenger</a>.</li>
+</ul>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat delivery receipts as a first-class, eventually-consistent feedback stream &mdash; reconciling provider webhooks back into state, feeding bounce/complaint data into the suppression list, and closing the loop so a dead token gets pruned automatically. They don't assume "send returned 200" means "user saw it."</div>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They split transactional and bulk paths early, push all preference/dedup work upstream of the per-channel queues, hide every provider behind a normalized adapter with circuit-breaking and failover, and are explicit that "exactly-once" across a third-party boundary is a best-effort property &mdash; they design for at-least-once with aggressive dedup, not a fantasy of perfect delivery. They quantify: queue depth, provider QPS budgets, fan-out chunk sizes, retry caps.</div>
+<p>Probing questions to ask engineers:</p>
+<ul>
+<li>"A creator with 30M followers posts. Walk me through exactly what happens from the API call to the first push landing &mdash; and what happens if a fan-out worker crashes halfway."</li>
+<li>"Twilio starts returning 429 for 20% of requests. What does your system do in the next 60 seconds, and what does the user experience?"</li>
+<li>"Your worker sends an OTP, then crashes before acking the queue. The message is redelivered. How do you guarantee the user doesn't get two OTPs &mdash; and where exactly is the residual duplicate window?"</li>
+<li>"How do you stop a runaway marketing campaign from delaying password-reset emails by 20 minutes?"</li>
+<li>"A user reports they're still getting marketing SMS after opting out. Where in the pipeline could the opt-out have been missed, and how do you make that check authoritative?"</li>
+<li>"You're at 100K notifications/sec peak. Which component breaks first, and what's your scaling lever &mdash; and which part of this is genuinely a strong-consistency problem versus eventually-consistent?"</li>
+</ul>
+
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Push / SMS / email delivery</td><td>SNS, Pinpoint, SES</td><td>(FCM), (SendGrid via marketplace)</td><td>Notification Hubs, Communication Services</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
+<div class="navfoot"><a href="58.html">&lsaquo; Prev: Designing a Unique ID Generator</a><a class="nx" href="60.html">Next: Designing a Distributed Job Scheduler &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

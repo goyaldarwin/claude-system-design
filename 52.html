@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deployment Strategies</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk active" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Reliability &amp; Operations &nbsp;&rsaquo;&nbsp; Deployment Strategies</div>
+
+<h1>Deployment Strategies</h1>
+<p class="sub"><em>How to ship changes to a running distributed system without taking it down, and how to undo a bad change before it burns your users.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Operability.</b> <span>shipping change safely, paid in gradual rollout machinery and migration discipline.</span></div>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#frame">The core problem: change is the leading cause of outages</a></li>
+<li><a href="#deploy-vs-release">Decoupling deploy from release</a></li>
+<li><a href="#rolling">Rolling updates</a></li>
+<li><a href="#bluegreen">Blue-green deployment</a></li>
+<li><a href="#canary">Canary releases and automated analysis</a></li>
+<li><a href="#flags">Feature flags, dark launches, and shadow traffic</a></li>
+<li><a href="#migrations">Zero-downtime database migrations</a></li>
+<li><a href="#rollback">Rollback vs roll-forward</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="frame">The core problem: change is the leading cause of outages</h2>
+<p>Most production incidents are not caused by random hardware failure or organic traffic — they are <span class="key">self-inflicted</span>, triggered by a change someone deployed. Google's SRE writings put the figure at roughly 70% of outages tracing to a change in a live system. That single fact reframes the whole discipline: a deployment strategy is fundamentally a <em>risk-management</em> mechanism, not a delivery convenience. The question is never "how do I get my code out?" It is "how do I limit the blast radius and the time-to-detect when this change is wrong, and how fast can I get back to a known-good state?"</p>
+
+<p>Three properties matter for any strategy, and you should be able to name them under pressure:</p>
+<ul>
+<li><span class="key">Blast radius</span> — what fraction of traffic/users sees the new code before you have a signal it is healthy.</li>
+<li><span class="key">Time to detect (TTD)</span> — how long between a bad version going live and you knowing it is bad. This is bounded by your <a href="50.html">observability</a> and your <a href="49.html">SLOs</a>.</li>
+<li><span class="key">Time to recover (TTR)</span> — how long to get back to good once you know. The whole point of blue-green and canary is to make TTR a config flip, not a rebuild.</li>
+</ul>
+
+<div class="callout note"><span class="lbl">Key insight</span>Every deployment strategy is a different point on the curve trading off <em>cost/complexity</em> against <em>blast radius</em> and <em>recovery speed</em>. Rolling is cheap but slow to recover; blue-green recovers instantly but doubles capacity cost; canary minimizes blast radius but needs real automated analysis to be worth the operational weight.</p></div>
+
+<h2 id="deploy-vs-release">Decoupling deploy from release</h2>
+<p>The most important conceptual move a principal makes is separating two things that juniors conflate:</p>
+<ul>
+<li><span class="key">Deploy</span> — getting new <em>binary/code</em> onto production machines. This is an operational, infrastructure event.</li>
+<li><span class="key">Release</span> — making new <em>behavior</em> visible to users. This is a product event.</li>
+</ul>
+<p>If these are coupled, every behavior change requires a deploy, and every deploy is a high-stakes event because it simultaneously changes what's running <em>and</em> what users experience. Once you decouple them — typically with <a href="#flags">feature flags</a> — you can deploy a binary that contains dormant code many times a day with low risk, then turn on the actual feature independently, gradually, and reversibly. This is why mature orgs deploy continuously but release deliberately.</p>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They volunteer the deploy/release distinction early and use it to simplify the rest of the design: "I'd ship the new code path behind a flag defaulting to off, deploy it through a rolling update, verify it's inert, then ramp the flag as a canary on the <em>release</em> dimension." Now the rollback for a behavioral bug is a flag flip with sub-second TTR, no redeploy.</p></div>
+
+<h2 id="rolling">Rolling updates</h2>
+<p>A rolling update replaces instances of the old version with the new version incrementally — N at a time — until the fleet is fully converted. This is the Kubernetes default <code>RollingUpdate</code> strategy and the baseline for most stateless services. See <a href="47.html">Containers, Kubernetes and Serverless</a> for the orchestration mechanics.</p>
+
+<pre><code>strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 25%   # never drop below 75% capacity during roll
+    maxSurge: 25%         # may briefly run 125% to keep capacity
+readinessProbe:           # CRITICAL: gate traffic on real readiness
+  httpGet: { path: /healthz/ready, port: 8080 }
+  initialDelaySeconds: 5
+  periodSeconds: 5</code></pre>
+
+<p>The decisive detail is the <span class="key">readiness probe</span>. Kubernetes only routes traffic to a pod once its readiness probe passes, and a rolling update will not proceed to the next batch until new pods are ready. A weak or missing readiness check is the classic cause of a "successful deploy" that black-holes traffic: the orchestrator declares the new pods up, the load balancer (see <a href="03.html">Load Balancing</a>) sends them requests, and they 500 because the connection pool or cache warm-up isn't done.</p>
+
+<table>
+<tr><th>Property</th><th>Rolling update</th></tr>
+<tr><td>Extra capacity needed</td><td>Minimal (just <code>maxSurge</code>)</td></tr>
+<tr><td>Blast radius</td><td>Grows continuously — no clean "X% of traffic" knob</td></tr>
+<tr><td>Mixed versions live?</td><td>Yes, throughout the roll — both versions serve simultaneously</td></tr>
+<tr><td>Rollback</td><td>Roll backward, also incremental and slow (TTR in minutes)</td></tr>
+</table>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>Because old and new run concurrently during the roll, <span class="key">both versions must be mutually compatible</span> — same as the constraint for online schema changes. A v2 that writes a new message format an in-flight v1 consumer cannot parse will break <em>during the roll itself</em>, not just at the end. This is the single most overlooked rolling-update failure mode.</p></div>
+
+<h2 id="bluegreen">Blue-green deployment</h2>
+<p>Blue-green runs two complete production environments. <span class="pill">blue = current</span> serves all traffic; <span class="pill">green = new</span> is deployed in full and tested in isolation. You cut over by repointing the router/load balancer (or DNS, or a service selector) from blue to green atomically. Rollback is the reverse cutover — near-instant, because blue is still running, fully warmed, untouched.</p>
+
+<pre><code># Conceptually, the cutover is one atomic pointer move:
+router.active_pool = green_pool   # was blue_pool
+# rollback:
+router.active_pool = blue_pool    # blue never went away</code></pre>
+
+<table>
+<tr><th></th><th>Blue-green</th><th>Rolling</th></tr>
+<tr><td>Capacity cost</td><td>2x during cutover</td><td>~1x</td></tr>
+<tr><td>Mixed versions</td><td>No (clean cut)</td><td>Yes</td></tr>
+<tr><td>TTR (rollback)</td><td>Seconds (flip back)</td><td>Minutes (re-roll)</td></tr>
+<tr><td>Blast radius at cutover</td><td>100% at once</td><td>Gradual</td></tr>
+</table>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Blue-green gives you the fastest rollback and a clean, un-mixed version boundary — but it flips <span class="key">100% of traffic at once</span>, so a bad version that passed your pre-cutover tests still hits every user instantly. You've optimized TTR at the expense of blast radius. That is why serious shops layer a <a href="#canary">canary</a> on top: route 1% to green first, then flip the rest. Blue-green also doubles compute cost during the window, and it does <em>not</em> magically solve stateful concerns — a shared database is touched by both, so schema compatibility and in-flight sessions still need the <a href="#migrations">expand-contract</a> discipline below.</p></div>
+
+<p>Sticky sessions and long-lived connections (WebSockets, gRPC streams — see <a href="13.html">Long-Polling vs WebSockets vs SSE</a>) complicate the clean cut: existing connections pinned to blue must drain. Production blue-green typically allows a <span class="key">connection-draining</span> window where blue keeps serving established connections while new connections go to green.</p>
+
+<h2 id="canary">Canary releases and automated analysis</h2>
+<p>A canary release routes a small slice of traffic (often 1%, then 5%, 25%, 50%, 100%) to the new version and <em>measures</em> it against the baseline before widening. The name comes from canaries in coal mines — a small, expendable early-warning signal. The blast radius at each step is bounded, and you only proceed when the data says the canary is healthy.</p>
+
+<p>A naive canary — "route 5%, eyeball a dashboard, click promote" — is barely better than nothing because it depends on a human watching at the right moment. The principal-grade version is <span class="key">automated canary analysis (ACA)</span>: a controller compares the canary's metrics against a control (ideally a same-age baseline pulled from the same release, not the old production version, to avoid confounds like cache warmth) and promotes or aborts automatically.</p>
+
+<pre><code># Progressive canary with SLO-burn-based auto-rollback (e.g. Argo Rollouts / Flagger)
+steps:
+  - setWeight: 1
+  - pause: { duration: 5m }
+  - analysis:                         # query Prometheus/Datadog
+      metrics:
+        - name: error-rate
+          successCondition: result &lt; 0.01      # &lt;1% 5xx
+        - name: p99-latency
+          successCondition: result &lt; 300       # ms
+      # if ANY metric fails -> abort, route 100% back to stable
+  - setWeight: 25
+  - pause: { duration: 10m }
+  - analysis: { ... }
+  - setWeight: 50
+  - pause: { duration: 10m }
+  - setWeight: 100</code></pre>
+
+<p>The metrics that gate promotion should be your actual <a href="49.html">SLIs</a>: error rate, latency percentiles (p50/p95/p99 — never the mean), and saturation. The strong pattern is to tie the abort condition to <span class="key">SLO error-budget burn rate</span>: if the canary is burning budget fast enough that, extrapolated, it would blow the monthly budget, abort. This is the same fast-burn alert logic from SLO theory applied at deploy time, which is far more robust than a fixed "error rate > 1%" threshold because it scales with how much room you actually have.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span>Canary analysis is a statistical comparison, not a threshold check. Two pitfalls dominate: (1) <span class="key">low traffic to the canary</span> means too few samples for the difference to be significant — a 1% slice of a low-QPS service may take an hour to detect a regression; consider weighting by request count, not just percentage. (2) <span class="key">confounding</span> — comparing a cold canary against warm production conflates the version change with cache/JIT warmth. Compare canary vs. a freshly-deployed baseline of the <em>current</em> version when you can.</p></div>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>Canaries catch problems proportional to the traffic they see. They are excellent for latency/error regressions and bad for <span class="key">rare-event and time-delayed bugs</span>: a data-corruption bug that only manifests on a nightly batch, a memory leak that takes 6 hours to OOM, or a bug triggered by a specific tenant that never lands in the 1% slice. Don't claim a canary "proves" correctness — it bounds risk, it doesn't eliminate it.</p></div>
+
+<h2 id="flags">Feature flags, dark launches, and shadow traffic</h2>
+<p>Feature flags are runtime conditionals that gate behavior without a deploy. They are the mechanism that makes <a href="#deploy-vs-release">deploy/release decoupling</a> real, and they enable per-user, per-tenant, or percentage-based rollout independent of which binary is running.</p>
+
+<pre><code>if (flags.isEnabled("new_ranking_v2", ctx.userId, ctx.tenantId)) {
+    return rankWithV2(query);     // new path, dark until ramped
+} else {
+    return rankWithV1(query);     // stable path
+}</code></pre>
+
+<ul>
+<li><span class="key">Dark launch</span> — deploy and even execute the new code path in production <em>without surfacing its result to users</em>, to validate it under real load and data before exposure. Facebook famously dark-launched features by running the new backend for real traffic and discarding the output.</li>
+<li><span class="key">Shadow traffic (traffic mirroring)</span> — duplicate a copy of real production requests to the new version, which processes them but whose responses are <em>discarded</em> (and must not have side effects). This is the gold standard for de-risking a rewrite of a read path: you compare v2's output and latency against v1 on identical real traffic, with zero user-facing risk. Service meshes (see <a href="44.html">Microservices and Service Mesh</a>) make mirroring a config line.</li>
+</ul>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>Shadow traffic is only safe for <span class="key">idempotent, side-effect-free</span> paths. Mirror a request that writes to the DB, charges a card (see <a href="61.html">Payment System</a>), or publishes to <a href="39.html">Kafka</a>, and you double the side effect. Shadow consumers must hit a sandboxed datastore or have all writes stubbed. Also account for doubled load on shared downstream dependencies — mirroring 100% traffic effectively doubles QPS on any backend the shadow path calls.</p></div>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Flags are powerful but become <span class="key">technical debt and a combinatorial test problem</span>. Every flag is an <code>if</code> that doubles the code paths; ten flags are 1024 theoretical combinations. The discipline: flags must have owners and expiry dates, and a process to retire them (delete the dead branch) once a release is fully rolled out. Long-lived "permanent" flags blur into config and should be reclassified as such. Stale flags have caused major incidents — the 2012 Knight Capital collapse was, in part, dead flag-gated code reactivated by a partial deploy.</p></div>
+
+<h2 id="migrations">Zero-downtime database migrations</h2>
+<p>This is where most engineers fall apart, and where principals earn their title. Code is easy to roll forward and back; <span class="key">schema and data are not</span>. The constraint is the same one rolling updates impose: during any rollout, old code and new code run against the <em>same</em> database simultaneously, so the schema must be readable and writable by both. You cannot do a destructive schema change in lockstep with a code change.</p>
+
+<h3>Expand-contract (parallel-change)</h3>
+<p>The canonical pattern decomposes a breaking schema change into a sequence of individually backward-compatible steps. To rename column <code>email</code> to <code>email_address</code>:</p>
+<ol>
+<li><span class="key">Expand</span> — add the new column <code>email_address</code> (nullable / with default). Schema now has both. Old code ignores it; this deploy is safe because it adds, never removes.</li>
+<li><span class="key">Dual-write</span> — deploy code that writes to <em>both</em> <code>email</code> and <code>email_address</code> on every write, but still reads from the old one. Now new rows are consistent in both.</li>
+<li><span class="key">Backfill</span> — run a batched migration to copy <code>email</code> &rarr; <code>email_address</code> for all historical rows. Batch it (e.g. 5k rows/txn) to avoid long locks and replication lag (see <a href="37.html">Replication Deep Dive</a>).</li>
+<li><span class="key">Migrate reads</span> — deploy code that reads from <code>email_address</code>. Verify. The dual-write window means a rollback to step 3 code still works.</li>
+<li><span class="key">Stop writing old</span> — deploy code that only writes/reads the new column.</li>
+<li><span class="key">Contract</span> — after a soak period with no rollback need, drop the old <code>email</code> column.</li>
+</ol>
+
+<div class="callout note"><span class="lbl">Key insight</span>The <span class="key">dual-write window</span> is the safety net that makes each step independently reversible. At every point, the version you might roll back to can still read and write the database correctly. The cost is that the application carries temporary complexity (writing two columns, a backfill job) and the migration spans <em>multiple deploys over days</em> — you cannot do it in one PR. Proposing "ALTER TABLE RENAME COLUMN" in a single deploy has just designed an outage.</p></div>
+
+<h3>Other rules of zero-downtime DDL</h3>
+<ul>
+<li><span class="key">Additive changes are safe; destructive ones need the contract phase.</span> Adding a nullable column or a new table is non-breaking. Dropping a column, renaming, narrowing a type, or adding a <code>NOT NULL</code> without a default is breaking.</li>
+<li><span class="key">Adding NOT NULL</span> — add the column nullable, backfill, then add the constraint, rather than blocking on a default-fill that locks the table.</li>
+<li><span class="key">Index creation</span> — use <code>CREATE INDEX CONCURRENTLY</code> (Postgres) / online DDL (MySQL 8 / gh-ost / pt-online-schema-change) so you don't take a long table lock. A naive index build on a large table is a multi-minute write lock = outage.</li>
+<li><span class="key">Beware long-running migrations on replicas</span> — a single huge transaction can stall the replication stream and blow read-replica lag, indirectly degrading the whole service.</li>
+</ul>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>The dual-write window introduces a <span class="key">consistency hazard</span>: if a write to column A succeeds and the write to column B fails (or the process crashes between them), the two diverge. For a single-row multi-column write inside one transaction this is fine. But if "dual write" spans two datastores (e.g. old DB and a new service), you've created a distributed write with no atomicity — exactly the problem <a href="32.html">distributed transactions</a> and <a href="40.html">CDC / outbox</a> patterns exist to solve. Don't hand-roll cross-store dual writes; use change-data-capture to derive the second store from the first.</p></div>
+
+<h2 id="rollback">Rollback vs roll-forward</h2>
+<p>When a deploy goes bad, you have two recoveries, and a principal knows when each applies:</p>
+<ul>
+<li><span class="key">Rollback</span> — revert to the previous known-good version. Fast, low-risk <em>for stateless code</em>. The default reaction to a freshly-deployed regression. Blue-green and flag-flips make this seconds; rolling makes it minutes.</li>
+<li><span class="key">Roll-forward</span> — fix the bug and deploy a new version. Necessary when rollback is <em>impossible or unsafe</em> — most commonly because a schema/data migration already ran and the old code can no longer read the new state. Once you've passed the "contract" phase of expand-contract, you cannot roll back; you can only roll forward.</li>
+</ul>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Rollback is faster and safer for code, but <span class="key">data migrations are frequently irreversible</span>, which is precisely why expand-contract keeps the old schema alive through the rollout — it preserves the option to roll back. The architectural decision is: how long do you keep the rollback option open (the soak period before contract), versus the carrying cost of dual schemas and dual writes? High-stakes systems keep it open for days; the cost is acceptable complexity for the recovery guarantee.</p></div>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They state the recovery plan as part of the design, not as an afterthought: define the <span class="key">automated rollback trigger</span> (SLO burn / canary abort), confirm the rollback target is still healthy and warm, and explicitly call out the point of no return where the strategy switches from rollback to roll-forward. They also know that rolling back doesn't undo emitted side effects — messages already published, emails already sent, payments already taken — and that those need compensating actions, linking deployment safety to <a href="51.html">resilience patterns</a> like idempotency and sagas.</p></div>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat deployment as risk management with explicit blast-radius / TTD / TTR levers, not as a CI/CD checkbox. They decouple deploy from release with flags, propose canary <em>with automated SLO-burn-based analysis</em> rather than hand-watched dashboards, and — the real differentiator — they handle the database. They reach for expand-contract unprompted, articulate the dual-write window as the thing that preserves reversibility, and name the exact point where the strategy crosses from rollback to roll-forward. They connect deployment safety to <a href="49.html">error budgets</a>, <a href="50.html">observability</a>, and <a href="51.html">resilience</a> instead of treating them as separate topics.</p></div>
+
+<p>Sharp questions to test your own understanding:</p>
+<ul>
+<li>You're renaming a heavily-used column on a 2-billion-row table with zero downtime. Walk me through every deploy and the exact failure mode at each step if you skipped it. Where is the point of no return?</li>
+<li>Your canary is at 1% on a service doing 50 QPS, and you're hunting a regression that affects 1 in 500 requests. How long until you'd detect it, and how would you change the canary to detect faster?</li>
+<li>You want to validate a rewritten pricing service with shadow traffic. The service writes to a ledger and calls a payment provider. What breaks, and how do you mirror safely?</li>
+<li>A blue-green cutover passed all pre-cut tests but green is failing for 30% of users post-flip. What's your recovery, and why might the failure not have shown pre-cut?</li>
+<li>How would you wire your canary's abort condition to an SLO error budget rather than a fixed error-rate threshold, and why is that better?</li>
+<li>You have 40 feature flags, three are years old. What's your governance, and what's the incident risk of leaving them? (Probe: do they know the Knight Capital story?)</li>
+</ul>
+
+<div class="navfoot"><a href="51.html">&lsaquo; Prev: Resilience Patterns</a><a class="nx" href="53.html">Next: Multi-Region and Disaster Recovery &rsaquo;</a></div>
+
+</div>
+</div>
+</div>
+</body>
+</html>

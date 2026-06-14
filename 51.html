@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resilience Patterns</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk active" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Reliability &amp; Operations &nbsp;&rsaquo;&nbsp; Resilience Patterns</div>
+
+<h1>Resilience Patterns</h1>
+<p class="sub"><em>How distributed systems survive partial failure on purpose &mdash; timeouts, retries, circuit breakers, bulkheads, backpressure, and the discipline to fail fast instead of cascading.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Partial failure.</b> <span>designing for failure (timeouts, retries, breakers), paid in added logic and tuning.</span></div>
+
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+<li><a href="#design-for-failure">Designing for failure</a></li>
+<li><a href="#timeouts">Timeouts: the foundation</a></li>
+<li><a href="#retries">Retries, backoff, jitter, and the retry storm</a></li>
+<li><a href="#circuit-breakers">Circuit breakers</a></li>
+<li><a href="#bulkheads">Bulkheads and resource isolation</a></li>
+<li><a href="#backpressure">Backpressure and load shedding</a></li>
+<li><a href="#rate-limiting">Rate limiting and throttling as protection</a></li>
+<li><a href="#degradation">Graceful degradation and fallbacks</a></li>
+<li><a href="#idempotency">Idempotency: the prerequisite for safe retries</a></li>
+<li><a href="#cascading">The anatomy of cascading failure</a></li>
+<li><a href="#chaos">Chaos engineering to validate</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="design-for-failure">Designing for failure</h2>
+<p>At scale, failure is not an exceptional event &mdash; it is the steady state. A service with 100 dependencies, each at 99.9% availability, has a theoretical ceiling of <span class="key">~90.5%</span> availability if every dependency is on the critical path and treated as required. Resilience is the art of breaking that multiplicative trap: making most dependencies optional, isolating the ones that aren't, and ensuring that when a downstream component degrades, the blast radius stays contained instead of propagating upward.</p>
+<p>The mental model: every remote call is a potential source of latency, errors, and resource exhaustion. The patterns in this lesson are the standard toolkit for bounding that exposure. They are not independent &mdash; they compose. A timeout makes a circuit breaker possible; a circuit breaker makes load shedding meaningful; idempotency makes retries safe. Strong engineers discuss them as a <em>system</em>, not a checklist.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span>Resilience is fundamentally about <strong>converting one failure mode into a less harmful one</strong>. A timeout converts an indefinite hang into a fast error. A circuit breaker converts a slow error into an instant one. Load shedding converts total collapse into partial, predictable degradation. You are always trading something.</div>
+
+<h2 id="timeouts">Timeouts: the foundation</h2>
+<p>The single most common cause of cascading failure is a <span class="key">missing or unbounded timeout</span>. When a downstream service slows down, callers without timeouts hold their threads, connections, and memory hostage waiting for a response that may never come. Each waiting request consumes a slot in a finite pool. Within seconds the caller's thread pool or connection pool is exhausted, and now the caller is also &quot;down&quot; &mdash; even though its own code is healthy. The failure has propagated one hop upstream.</p>
+
+<h3>Setting timeouts correctly</h3>
+<ul>
+<li><strong>Base them on the p99 (or p99.9), not the average.</strong> A timeout near the average will reject a large fraction of your slow-but-valid requests. A common starting point is the downstream's p99.9 latency plus a small margin.</li>
+<li><strong>Make timeouts shorter as you go up the stack, or use deadline propagation.</strong> If the user-facing API has a 2s budget and it calls service B which calls service C, C must finish well within B's remaining budget. Naive per-hop timeouts (each 2s) let a deep call chain blow the user budget many times over.</li>
+<li><strong>Distinguish connect timeout from read/request timeout.</strong> A connect timeout should be tight (tens to low hundreds of ms on a fast network); the request timeout covers actual work.</li>
+</ul>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They reach for <strong>deadline propagation</strong> rather than fixed per-hop timeouts. The top-level request stamps an absolute deadline (e.g. <code>deadline = now + 2s</code>), passes it through headers or gRPC context, and every hop computes its remaining budget: <code>remaining = deadline - now</code>. If remaining is near zero, the hop fails fast instead of starting doomed work. gRPC does this natively; see <a href="45.html">API Design: REST, gRPC, GraphQL</a>.</div>
+
+<pre><code>// Deadline propagation, conceptual
+func handle(ctx Context, req Request) Response {
+    // ctx carries an absolute deadline set by the edge
+    remaining := ctx.Deadline().Sub(now())
+    if remaining &lt; minUsefulWork {
+        return errDeadlineExceeded   // fail fast, don't start work we can't finish
+    }
+    // pass a *tightened* deadline downstream
+    childCtx := ctx.WithTimeout(remaining - networkBudget)
+    return downstream.Call(childCtx, req)
+}</code></pre>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>A timeout without an accompanying <strong>cancellation</strong> only protects the caller, not the callee. If you time out but the downstream keeps processing the now-abandoned request, you have wasted work piling up on an already-struggling service &mdash; you have made the overload <em>worse</em>. Propagate cancellation so the downstream can stop.</div>
+
+<h2 id="retries">Retries, backoff, jitter, and the retry storm</h2>
+<p>Retries paper over transient failures &mdash; a dropped packet, a brief GC pause, a rolling restart. They are also one of the most dangerous patterns because they <strong>amplify load exactly when a system is least able to handle it</strong>.</p>
+
+<h3>The retry storm / thundering herd</h3>
+<p>Suppose a downstream service briefly degrades and starts returning errors. Every caller retries 3 times. Instantaneous load on the recovering service is now 4&times; normal. The extra load keeps it pinned, causing more errors, causing more retries &mdash; a self-reinforcing <span class="key">retry storm</span> that turns a 2-second blip into a 20-minute outage. If every client also retries on the <em>same</em> schedule, they synchronize into a thundering herd that hammers the service in waves.</p>
+
+<h3>The required mitigations</h3>
+<ol>
+<li><strong>Exponential backoff:</strong> wait <code>base * 2^attempt</code> between retries, so load decays instead of staying constant.</li>
+<li><strong>Jitter:</strong> randomize the backoff so clients de-synchronize. <em>Full jitter</em> &mdash; <code>sleep = random(0, base * 2^attempt)</code> &mdash; is a widely-recommended default that performs comparably to decorrelated jitter and is simpler to implement.</li>
+<li><strong>A retry budget / token bucket:</strong> cap retries to a fraction (e.g. 10%) of successful requests so a sustained outage can't multiply load. This is what gRPC's retry throttling and Envoy's retry budgets implement.</li>
+<li><strong>Retry only idempotent or retry-safe operations</strong> (see <a href="#idempotency">idempotency</a>), and only on retryable error classes (timeouts, 503, connection resets &mdash; not 400, 404, or 409).</li>
+</ol>
+
+<pre><code>// Exponential backoff with full jitter + retry budget
+attempt := 0
+for attempt &lt;= maxAttempts {
+    if !retryBudget.tryAcquire() { break }   // stop amplifying load under sustained failure
+    resp, err := call()
+    if err == nil || !isRetryable(err) { return resp, err }
+    backoff := min(maxBackoff, base * (1 &lt;&lt; attempt))
+    sleep(random(0, backoff))                // FULL JITTER
+    attempt++
+}</code></pre>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>Retries at every layer of a stack <strong>multiply</strong>. If the edge retries 3&times;, the mid-tier retries 3&times;, and the data layer retries 3&times;, a single user request can become 27 downstream requests during a partial outage. Decide on <strong>one</strong> layer that owns retries (usually closest to the failure, or the edge) and disable them elsewhere. This is the most underappreciated rule in retry design.</div>
+
+<h2 id="circuit-breakers">Circuit breakers</h2>
+<p>A circuit breaker stops sending requests to a dependency that is clearly failing, giving it room to recover and letting the caller fail fast. It is a state machine with three states:</p>
+
+<table>
+<thead><tr><th>State</th><th>Behavior</th><th>Transition</th></tr></thead>
+<tbody>
+<tr><td><strong>Closed</strong></td><td>Requests flow normally; failures are counted (error rate over a rolling window).</td><td>If error rate or count crosses threshold &rarr; <strong>Open</strong>.</td></tr>
+<tr><td><strong>Open</strong></td><td>Requests fail immediately (no call made) &mdash; fast failure, no thread held, downstream gets relief.</td><td>After a cooldown timer (e.g. 5&ndash;30s) &rarr; <strong>Half-open</strong>.</td></tr>
+<tr><td><strong>Half-open</strong></td><td>A limited number of trial requests are allowed through to probe recovery.</td><td>Trials succeed &rarr; <strong>Closed</strong>. Any trial fails &rarr; back to <strong>Open</strong>.</td></tr>
+</tbody>
+</table>
+
+<div class="callout note"><span class="lbl">Key insight</span>A circuit breaker's value is <strong>failing fast</strong>. When open, the caller doesn't waste a timeout-worth of latency and a held thread on every request &mdash; it returns instantly (ideally to a <a href="#degradation">fallback</a>). This is what prevents thread-pool exhaustion from propagating. Trip on <em>error rate</em> over a rolling window, not raw counts, so low-traffic dependencies don't trip on a single error and high-traffic ones don't tolerate thousands.</div>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>Tuning is hard and breakers can <strong>cause</strong> outages. A threshold that's too sensitive trips during normal latency variance and takes down a healthy dependency. A breaker shared across all clients of a service means one misbehaving caller's failures can open the circuit for everyone (an argument for per-client or per-endpoint breakers). And a breaker that opens during a partial outage can deny service to the <em>healthy</em> partition. Always pair with a fallback and good metrics.</div>
+
+<h2 id="bulkheads">Bulkheads and resource isolation</h2>
+<p>Named after a ship's watertight compartments: if one floods, the others keep the ship afloat. In software, a bulkhead partitions a finite resource (threads, connections, memory) so that exhaustion in one area can't sink the whole process.</p>
+<ul>
+<li><strong>Per-dependency thread/connection pools.</strong> Give each downstream its own bounded pool. If dependency X hangs, only X's pool exhausts; calls to Y, Z, and local-only endpoints keep flowing. Hystrix popularized this; a shared global pool is the classic anti-pattern that turns one slow dependency into total outage.</li>
+<li><strong>Per-tenant / per-customer isolation.</strong> A noisy tenant generating 10&times; load shouldn't starve everyone else. Partition capacity or use cell-based architecture (shuffle sharding) so each customer maps to a subset of capacity and a bad actor's blast radius is bounded.</li>
+<li><strong>Separate critical from non-critical paths.</strong> Don't let analytics writes share a connection pool with checkout. See <a href="61.html">Designing a Payment System</a> for where this matters most.</li>
+</ul>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Bulkheads improve isolation but <strong>reduce statistical multiplexing efficiency</strong>. Ten dedicated pools of 10 connections can't absorb a burst the way one shared pool of 100 can &mdash; you may reject requests while idle capacity sits in another partition. You're trading peak utilization for fault isolation. Size partitions for the dependency's real concurrency, and consider semaphore isolation (cheap, no extra threads) for low-latency dependencies where a thread pool's overhead isn't worth it.</div>
+
+<h2 id="backpressure">Backpressure and load shedding</h2>
+<p>When demand exceeds capacity, a system has three choices: queue the excess, slow the producers, or drop work. Doing nothing &mdash; unbounded queuing &mdash; is the path to collapse.</p>
+
+<h3>Backpressure</h3>
+<p><span class="key">Backpressure</span> propagates &quot;slow down&quot; signals back to the source. TCP flow control is the canonical example. Reactive frameworks (Reactive Streams, gRPC flow control) make it explicit: a consumer requests N items, and the producer must not exceed that. The goal is to keep work in <em>bounded</em> buffers and let the slowest stage govern the rate, rather than letting fast producers build an unbounded backlog that eventually OOMs a consumer. This connects directly to <a href="08.html">Queues</a> and <a href="39.html">Kafka</a>, where bounded queues and consumer lag are the explicit backpressure mechanism.</p>
+
+<h3>Load shedding</h3>
+<p>When backpressure can't reach the source (e.g. external user traffic), the server must <strong>shed load</strong> &mdash; reject excess work fast so the requests it <em>does</em> accept succeed. The cardinal rule:</p>
+
+<div class="callout note"><span class="lbl">Key insight</span>A system at overload should return a <strong>fast 503</strong>, never a slow timeout. Rejecting 30% of requests in 1ms so the other 70% succeed in 50ms is vastly better than accepting 100% and having all of them time out at 10s. Goodput (useful work completed) collapses when you try to serve everyone &mdash; the throughput-vs-offered-load curve bends downward past the knee. Load shedding keeps you at the knee.</div>
+
+<ul>
+<li><strong>Shed at the edge / load balancer</strong> when possible &mdash; cheapest place to drop. See <a href="03.html">Load Balancing</a>.</li>
+<li><strong>Prioritize:</strong> shed low-value traffic first (background sync, retries, free tier) and protect high-value traffic (checkout, paying customers). Carry a priority class on requests.</li>
+<li><strong>Use queue length and latency as the signal.</strong> Adaptive techniques like <em>controlled delay (CoDel)</em> or Netflix's concurrency-limit (Little's Law&ndash;based) shed when latency climbs, without needing a hand-tuned RPS cap.</li>
+</ul>
+
+<h2 id="rate-limiting">Rate limiting and throttling as protection</h2>
+<p>Rate limiting is load shedding made deliberate and contractual. It protects a service from being overwhelmed by any single client &mdash; whether malicious, buggy, or just successful. Common algorithms: <em>token bucket</em> (allows bursts up to bucket size, refills at a steady rate), <em>leaky bucket</em> (smooths to a constant rate), <em>fixed window</em> (simple but boundary-spiky), and <em>sliding window</em> (smoother, more state). The full design is in <a href="23.html">Designing an API Rate Limiter</a>.</p>
+<ul>
+<li><strong>Throttling</strong> (returning 429 with <code>Retry-After</code>) is the polite cousin &mdash; it tells well-behaved clients to back off rather than dropping silently.</li>
+<li><strong>Per-client, per-endpoint, and global limits</strong> compose: a per-client limit enforces fairness; a global limit protects the service's absolute capacity.</li>
+<li><strong>Distributed rate limiting</strong> needs shared state (often Redis with a token-bucket Lua script) to enforce a global limit across many instances &mdash; a consistency vs. latency trade-off (see <a href="11.html">CAP Theorem</a>).</li>
+</ul>
+
+<h2 id="degradation">Graceful degradation and fallbacks</h2>
+<p>When a dependency is unavailable (circuit open, timeout, shed), the question is: <em>what do we serve instead?</em> Graceful degradation means the system delivers reduced but useful functionality rather than an error page.</p>
+<ul>
+<li><strong>Serve stale-but-valid cached data</strong> (stale-while-revalidate) instead of failing. See <a href="04.html">Caching</a>.</li>
+<li><strong>Return a sensible default</strong> &mdash; e.g. an empty recommendations list, generic ranking, or a &quot;personalization unavailable&quot; experience &mdash; rather than 500.</li>
+<li><strong>Disable non-essential features</strong> under load (feature flags), shedding the expensive optional work to protect the core flow.</li>
+<li><strong>Degrade write paths to async:</strong> accept the write into a durable queue and process later, instead of failing synchronously.</li>
+</ul>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They classify every dependency as <strong>critical</strong> or <strong>optional</strong> up front. Optional dependencies <em>must</em> have a fallback so their failure can't take down the request. Critical dependencies get the heaviest investment in redundancy and isolation. This classification is the difference between a service that degrades gracefully and one that collapses on the first downstream hiccup.</div>
+
+<h2 id="idempotency">Idempotency: the prerequisite for safe retries</h2>
+<p>Retries are only safe if re-executing an operation is harmless. <span class="key">Idempotency</span> means applying an operation N times has the same effect as applying it once. Reads and overwrites (<code>PUT name = "x"</code>) are naturally idempotent; increments, appends, and &quot;create a new order&quot; are not.</p>
+<p>The standard mechanism is an <strong>idempotency key</strong>: the client generates a unique key per logical operation and sends it with every retry. The server records the key and the result; on a duplicate key it returns the stored result instead of re-executing.</p>
+
+<pre><code>// Idempotent create with a client-supplied key
+func createPayment(key string, req PaymentReq) Result {
+    if existing := store.get(key); existing != nil {
+        return existing            // duplicate retry -> return prior result, no double-charge
+    }
+    res := process(req)
+    store.putIfAbsent(key, res)    // atomic; handles concurrent duplicates
+    return res
+}</code></pre>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>The check-and-store must be <strong>atomic</strong> and durable, or two concurrent retries both pass the &quot;does the key exist?&quot; check and both execute &mdash; a double charge. Use a unique constraint, conditional write (<code>putIfAbsent</code> / <code>INSERT ... ON CONFLICT</code>), or a distributed lock (see <a href="64.html">Distributed Locking Service</a>). This is exactly why payment systems treat idempotency as a first-class API contract.</div>
+
+<h2 id="cascading">The anatomy of cascading failure</h2>
+<p>Cascading failure is the macro-pattern these tactics defend against. The canonical sequence:</p>
+<ol>
+<li>One node or dependency slows down or dies (GC pause, deploy, hot shard).</li>
+<li>Its share of load redistributes to surviving nodes, pushing them past capacity.</li>
+<li>Surviving nodes slow down; callers without timeouts hold threads; retries amplify load.</li>
+<li>More nodes tip over. The healthy capacity that remains is now <em>also</em> overwhelmed &mdash; the system can't recover even after the original trigger is gone.</li>
+</ol>
+<p>The insidious part is step 4: a <span class="key">metastable failure</span>. The system is stuck in a bad equilibrium sustained by its own retry and load-redistribution feedback loops. Removing the original trigger doesn't help &mdash; you have to break the loop by shedding load, draining queues, or restarting with rate limits.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span>Every pattern in this lesson breaks the cascade at a specific link: <strong>timeouts</strong> stop thread exhaustion from propagating; <strong>circuit breakers</strong> stop hammering a downed dependency; <strong>retry budgets + jitter</strong> stop load amplification; <strong>bulkheads</strong> contain the blast radius; <strong>load shedding</strong> keeps surviving capacity productive. Recovery from a metastable state almost always requires deliberately <em>reducing</em> load below normal until the system re-stabilizes.</div>
+
+<div class="callout warn"><span class="lbl">Pitfall</span>Beware self-inflicted cascades: a thundering herd of cache misses after a flush (<em>cache stampede</em> &mdash; mitigate with request coalescing and staggered TTLs), or synchronized health-check failures that eject every node at once. Auto-scaling can also <em>amplify</em> a cascade if new instances need to warm caches or connect to an already-saturated database.</div>
+
+<h2 id="chaos">Chaos engineering to validate</h2>
+<p>Resilience patterns that aren't continuously exercised <strong>rot</strong>. A timeout config drifts, a fallback path breaks silently because no one tests it, a circuit breaker's threshold becomes wrong as traffic grows. Chaos engineering is the practice of injecting controlled failure in production (or production-like) environments to verify the system behaves as designed.</p>
+<ul>
+<li><strong>Start with a hypothesis and a steady-state metric</strong> (e.g. &quot;checkout success rate stays &gt;99.9% if recommendation service is killed&quot;). Inject the failure; confirm the metric holds.</li>
+<li><strong>Inject realistic failures:</strong> latency, errors, instance termination, network partition, dependency unavailability, clock skew (relevant to <a href="33.html">Time, Clocks, and Ordering</a>), region loss (see <a href="53.html">Multi-Region and DR</a>).</li>
+<li><strong>Limit blast radius:</strong> start in staging, then a small production cell, with an automatic abort if the steady-state metric breaches. Netflix's Chaos Monkey / ChAP and Gremlin operationalize this.</li>
+<li><strong>You cannot validate resilience without <a href="50.html">observability</a>.</strong> You need the metrics, traces, and SLO dashboards (see <a href="49.html">SLI/SLO/SLA</a>) to even know whether an experiment passed.</li>
+</ul>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat the fallback path as a <strong>first-class, continuously-tested code path</strong>, not an emergency hatch. The most common production surprise is discovering the fallback was itself broken &mdash; it called the same down dependency, or threw on the degraded input. GameDays and automated chaos experiments are how you find that <em>before</em> the incident.</div>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat resilience as a system of composing trade-offs, not a checklist of buzzwords. They name the specific failure mode each pattern addresses, reason about how patterns interact (retries are dangerous without idempotency and budgets; circuit breakers are useless without fallbacks), and they always ask &quot;what's the blast radius?&quot; They distinguish critical from optional dependencies, default to deadline propagation over per-hop timeouts, pick one layer to own retries, and insist that fallback paths and timeout configs be continuously validated via chaos testing. Crucially, they understand metastable failure: that recovery often requires deliberately shedding load below normal.</div>
+
+<ul>
+<li><strong>A downstream dependency's p99 latency jumps from 50ms to 5s but it never returns errors. Walk me through exactly how this takes down your service, and which single pattern would have prevented it.</strong> (Listening for: thread/connection-pool exhaustion from missing timeouts; why a circuit breaker that trips only on errors wouldn't fire here; latency-based shedding or slow-call thresholds.)</li>
+<li><strong>You add retries with exponential backoff to improve reliability and availability gets worse during partial outages. Why, and how do you fix it without removing retries?</strong> (Retry storm / amplification; jitter; retry budgets; retries multiplying across layers; retrying only retryable, idempotent operations.)</li>
+<li><strong>Your service recovered from the triggering event 20 minutes ago but is still failing. What's happening and how do you get out?</strong> (Metastable failure; self-sustaining retry/load loops; recovery requires shedding load below normal, draining queues, rate-limited restart.)</li>
+<li><strong>How do you set timeouts across a 4-hop call chain so a 2-second user budget is never exceeded, and so a slow service doesn't waste downstream work?</strong> (Deadline propagation vs. fixed per-hop timeouts; remaining-budget computation; cancellation propagation so abandoned work stops.)</li>
+<li><strong>When is a bulkhead the wrong choice, and what does it cost you?</strong> (Loss of statistical multiplexing; rejecting requests while idle capacity sits in another partition; sizing; semaphore vs. thread-pool isolation for low-latency deps.)</li>
+<li><strong>How would you prove your resilience design actually works, and what's the most likely thing you'd discover is broken?</strong> (Chaos engineering with steady-state hypotheses and bounded blast radius; the fallback path being silently broken; dependence on observability to evaluate experiments.)</li>
+</ul>
+
+<div class="navfoot"><a href="50.html">&lsaquo; Prev: Observability</a><a class="nx" href="52.html">Next: Deployment Strategies &rsaquo;</a></div>
+
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designing a Metrics and Monitoring System</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk active" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing a Metrics and Monitoring System</div>
+
+<h1>Designing a Metrics and Monitoring System</h1>
+<p class="sub"><em>Build a time-series metrics &amp; monitoring system (Prometheus/Datadog-class) &mdash; ingestion at scale, rollups, cardinality, and the query path.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Finite capacity.</b> <span>time-series at huge write volume, paid in cardinality limits, rollups, and tiered retention.</span></div>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#req">Requirements &amp; scope</a></li>
+<li><a href="#estimate">Back-of-envelope estimation</a></li>
+<li><a href="#model">The time-series data model &amp; cardinality</a></li>
+<li><a href="#api">API surface</a></li>
+<li><a href="#ingest">Ingestion pipeline: push vs pull</a></li>
+<li><a href="#storage">Storage: TSDB internals &amp; compression</a></li>
+<li><a href="#rollup">Rollups, downsampling &amp; retention</a></li>
+<li><a href="#query">The query path</a></li>
+<li><a href="#alert">Alerting pipeline</a></li>
+<li><a href="#bottleneck">Bottlenecks &amp; failure modes</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="req">Requirements &amp; scope</h2>
+<p>We are building the backbone of an observability platform: a system that ingests <span class="key">numeric time-series metrics</span> from tens of thousands of hosts and services, stores them durably with tiered retention, powers near-real-time dashboards, and evaluates alerting rules. Think Prometheus, Datadog, InfluxDB, M3, or Amazon CloudWatch &mdash; the metrics pillar specifically, not logs or traces (covered in <a href="50.html">Observability</a>).</p>
+<p><span class="key">Functional requirements:</span></p>
+<ul>
+<li>Ingest the three core metric types: <span class="key">counters</span> (monotonic, e.g. <code>requests_total</code>), <span class="key">gauges</span> (point-in-time, e.g. <code>memory_bytes</code>), and <span class="key">histograms/summaries</span> (latency distributions exposed as bucketed counters).</li>
+<li>Serve dashboard queries with single-digit-second latency over recent windows, and longer-range queries over downsampled data.</li>
+<li>Evaluate alerting rules continuously and fire/resolve notifications.</li>
+<li>Apply retention policies with automatic downsampling.</li>
+</ul>
+<p><span class="key">Non-functional requirements &mdash; and the explicit trade-offs we accept:</span></p>
+<ul>
+<li><span class="key">Very high write throughput</span> is the dominant constraint. Reads are a tiny fraction of writes.</li>
+<li><span class="key">Lossy and late data are tolerable.</span> Monitoring is statistical, not transactional &mdash; dropping 0.01% of datapoints under load is acceptable; blocking ingestion to guarantee every point is not. This is the opposite stance from a <a href="61.html">payment system</a>.</li>
+<li><span class="key">Availability over consistency.</span> A monitoring system must stay up precisely when the rest of the infra is on fire. It is firmly AP.</li>
+<li><span class="key">Bounded query cost.</span> A single bad query must not be able to OOM a storage node.</li>
+</ul>
+
+<h2 id="estimate">Back-of-envelope estimation</h2>
+<p>Assume 10,000 hosts. Each host emits roughly 1,000 active time series (host metrics, plus the services it runs and their per-endpoint histograms). That is <strong>10 million active series</strong>. With a 10-second scrape interval, each series produces 0.1 datapoints/sec, so:</p>
+<ul>
+<li><span class="key">Write rate:</span> 10M series &times; 0.1 dp/s = <strong>1M datapoints/sec</strong> sustained. Large fleets push this to 10&ndash;100M dp/s.</li>
+<li><span class="key">Raw storage (naive):</span> a datapoint is timestamp (8 B) + value (8 B) = 16 B. 1M dp/s &times; 16 B = 16 MB/s = ~1.4 TB/day raw. Over 15 days of raw retention that is ~20 TB &mdash; before replication.</li>
+<li><span class="key">After compression:</span> good TSDB encoding reaches <strong>~1.3 bytes/datapoint</strong> (see Gorilla below). That collapses 16 B to ~1.3 B &mdash; a ~12&times; reduction, bringing raw retention to ~1.7 TB. This is why compression is not optional; it is the difference between a viable and an unviable system.</li>
+</ul>
+<div class="callout note"><span class="lbl">Key insight</span>The system is write-dominated and the working set is enormous, but the data is highly compressible because consecutive timestamps and values change predictably. The entire storage design exists to exploit that regularity. Reads, by contrast, are bursty and unpredictable &mdash; a dashboard refresh can fan out to thousands of series at once.</div>
+
+<h2 id="model">The time-series data model &amp; cardinality</h2>
+<p>A <span class="key">time series</span> is uniquely identified by a metric name plus a set of key-value <span class="key">labels</span> (tags). The label set is the identity:</p>
+<pre><code>http_requests_total{service="checkout", method="POST", status="500", region="us-east-1", instance="10.2.3.4:9090"}
+   &rarr; (timestamp, value) (timestamp, value) ...</code></pre>
+<p>Each unique combination of label values is a <em>distinct series</em> with its own append-only chunk on disk. This leads directly to the single most important challenge in the whole design.</p>
+
+<h3>The cardinality explosion</h3>
+<p><span class="key">Cardinality</span> is the total number of distinct series. It is the <em>product</em> of the cardinalities of every label. Add one label with high cardinality &mdash; <code>user_id</code>, <code>request_id</code>, <code>email</code>, a raw URL with query params &mdash; and the series count multiplies catastrophically:</p>
+<table>
+<tr><th>Labels</th><th>Distinct values</th><th>Series created</th></tr>
+<tr><td><code>service</code> &times; <code>status</code> &times; <code>region</code></td><td>50 &times; 10 &times; 5</td><td>2,500 (fine)</td></tr>
+<tr><td>&hellip; add <code>endpoint</code></td><td>&times; 200</td><td>500,000 (watch it)</td></tr>
+<tr><td>&hellip; add <code>user_id</code></td><td>&times; 1,000,000</td><td>500 billion (system dies)</td></tr>
+</table>
+<p>Cardinality is the enemy because the in-memory <span class="key">inverted index</span> (label &rarr; series IDs, used to resolve queries) grows with the number of series, not the number of datapoints. Memory, not disk, is usually the first thing to fall over. A single misbehaving service tagging metrics with a unique ID can take down ingestion for everyone on a shared cluster.</p>
+<div class="callout warn"><span class="lbl">The cardinality bomb</span>The classic outage: an engineer adds <code>user_id</code> or a full request path as a label "just for debugging." Series count jumps from 1M to billions, the index blows past RAM, the ingester OOMs, and the monitoring system goes dark during the incident it was supposed to observe. Defend with per-tenant series limits, label allow-lists, and active-series alerts on the monitoring system itself.</div>
+<p>Estimating distinct-label-value counts for limit enforcement is itself a streaming-cardinality problem &mdash; you cannot keep an exact set per tenant cheaply, so use <span class="key">HyperLogLog</span> sketches to approximate distinct series per tenant in bounded memory. See <a href="42.html">Probabilistic Data Structures</a> for HLL and Bloom filters, the latter useful for "does this series exist?" checks during ingestion.</p>
+
+<h2 id="api">API surface</h2>
+<pre><code># Ingestion (push model, line-protocol style)
+POST /v1/write
+  metric=http_requests_total
+  labels={service:"checkout",status:"500"}
+  samples=[(t0,v0),(t1,v1),...]      # batched, gzip-compressed
+
+# Pull model: target merely exposes a scrape endpoint
+GET /metrics            &rarr; text/plain exposition of all current series
+
+# Query (PromQL-style)
+GET /v1/query?query=sum(rate(http_requests_total{status="5.."}[5m])) by (service)&time=...
+GET /v1/query_range?query=...&start=...&end=...&step=15s
+
+# Alerting rules CRUD
+POST /v1/rules   { expr, for, labels, annotations }</code></pre>
+<p>The query language is the product. <code>rate()</code> over a counter, <code>histogram_quantile()</code> over bucketed histograms, and aggregation operators (<code>sum/avg/max by (label)</code>) are the primitives dashboards and alerts are built from.</p>
+
+<h2 id="ingest">Ingestion pipeline: push vs pull</h2>
+<p>The first architectural fork is how datapoints arrive.</p>
+<table>
+<tr><th></th><th>Pull (Prometheus scrape)</th><th>Push (StatsD / Datadog agent)</th></tr>
+<tr><td>Mechanism</td><td>Server scrapes <code>/metrics</code> on a schedule</td><td>Client/agent sends to a collector</td></tr>
+<tr><td>Target discovery</td><td>Server-side service discovery; knows what <em>should</em> be up</td><td>Targets must know where to send</td></tr>
+<tr><td>Liveness signal</td><td>Free &mdash; a failed scrape = target down</td><td>Absence is ambiguous (down vs. silent)</td></tr>
+<tr><td>Short-lived jobs</td><td>Awkward (need a pushgateway)</td><td>Natural fit</td></tr>
+<tr><td>Firewall/NAT</td><td>Server must reach targets</td><td>Targets reach out (easier across boundaries)</td></tr>
+</table>
+<p>Large platforms run a hybrid: pull for infrastructure where service discovery is rich, push for serverless/edge/batch jobs. The key principal point is that the <em>scrape or receive layer is stateless and horizontally shardable</em> &mdash; shard targets across collectors by a consistent hash of the target identity (see <a href="12.html">Consistent Hashing</a>) so adding collectors rebalances minimally.</p>
+
+<h3>Buffering through a stream</h3>
+<p>To decouple ingestion spikes from storage and to tolerate downstream slowness, write into a durable log rather than straight to the TSDB:</p>
+<ul>
+<li>Collectors append batches to <a href="39.html">Kafka</a>, partitioned by <code>hash(series_id)</code> so all points for a series land on one partition &mdash; preserving per-series order and giving consumers locality.</li>
+<li>TSDB ingesters consume partitions, build in-memory chunks, and flush. If an ingester falls behind or restarts, Kafka retains the backlog; nothing is lost during a deploy.</li>
+<li>A <a href="40.html">stream processing</a> layer (Flink/Kafka Streams) computes pre-aggregated rollups (e.g. per-service request rate) on the fly, so common dashboard queries hit a small materialized series instead of fanning out over millions.</li>
+</ul>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>The buffering log adds end-to-end latency (typically a few seconds) and operational cost, but converts a tightly-coupled, back-pressure-fragile pipeline into one where storage can be restarted, scaled, or briefly unavailable without dropping data. For a system that must survive infra incidents, that decoupling is worth the latency.</div>
+
+<h2 id="storage">Storage: TSDB internals &amp; compression</h2>
+<p>A purpose-built <span class="key">time-series database</span> beats a general KV or relational store here because the access pattern is so specific: append-heavy, time-ordered, queried by label and time range.</p>
+
+<h3>LSM-based, time-bucketed layout</h3>
+<p>Recent data lives in an in-memory <span class="key">head block</span> (a memtable-equivalent). Periodically it is flushed to immutable, time-partitioned <span class="key">blocks</span> on disk &mdash; e.g. one block per 2-hour window, later compacted into larger blocks (1-day, then 1-week). This is an <a href="38.html">LSM-tree</a> specialized for time: writes are always appends to the head, and old blocks are never mutated, only compacted and eventually deleted. A <span class="key">write-ahead log</span> protects the head block against crashes before it is flushed.</p>
+<p>Time-bucketed partitioning makes retention a metadata operation: dropping data older than 15 days is just deleting whole blocks &mdash; no per-row tombstones, no compaction debt. Range queries touch only the blocks overlapping the query window.</p>
+
+<h3>Columnar compression: delta-of-delta &amp; Gorilla</h3>
+<p>Within a block, timestamps and values are stored in separate columns and compressed aggressively (the Facebook <span class="key">Gorilla</span> scheme):</p>
+<ul>
+<li><span class="key">Timestamps &mdash; delta-of-delta:</span> scrapes are near-periodic, so the gap between consecutive timestamps is nearly constant. Store the <em>delta of the delta</em>, which is usually 0 and encodes in a single bit.</li>
+<li><span class="key">Values &mdash; XOR encoding:</span> consecutive float values are often identical or close. XOR the current value with the previous; for slow-moving gauges the result is mostly leading/trailing zeros, encoded in a handful of bits.</li>
+</ul>
+<p>Together these reach ~1.3 bytes/datapoint on real workloads &mdash; the ~12&times; win from the estimation section.</p>
+
+<h3>Hot / warm / cold tiers</h3>
+<table>
+<tr><th>Tier</th><th>Medium</th><th>Holds</th><th>Serves</th></tr>
+<tr><td>Hot</td><td>RAM + local NVMe</td><td>Last few hours, full resolution</td><td>Live dashboards, alert evaluation</td></tr>
+<tr><td>Warm</td><td>Local/SSD blocks</td><td>Days&ndash;weeks</td><td>Recent investigation</td></tr>
+<tr><td>Cold</td><td>Object storage (S3/GCS)</td><td>Months&ndash;years, downsampled</td><td>Long-range trend queries</td></tr>
+</table>
+<p>Shipping compacted blocks to object storage (the Thanos/Mimir/M3 pattern) decouples storage cost from compute and makes the cluster effectively stateless &mdash; ingesters hold only the head block. See <a href="48.html">Object Storage &amp; CDN</a>.</p>
+
+<h2 id="rollup">Rollups, downsampling &amp; retention</h2>
+<p>Nobody queries 10-second resolution for data from six months ago, and storing it would be ruinous. <span class="key">Downsampling</span> pre-aggregates older data into coarser intervals, preserving the aggregates that queries actually need (count, sum, min, max &mdash; from which avg and rate are derivable):</p>
+<table>
+<tr><th>Resolution</th><th>Retention</th><th>Rationale</th></tr>
+<tr><td>Raw (10s)</td><td>15 days</td><td>Incident debugging needs fine detail</td></tr>
+<tr><td>5-minute rollup</td><td>90 days</td><td>Weekly/monthly trends, capacity planning</td></tr>
+<tr><td>1-hour rollup</td><td>1 year+</td><td>Year-over-year, long-term trends</td></tr>
+</table>
+<p>Rollups are computed during compaction (a background job over immutable blocks) and stored as separate, lower-cardinality series. The query layer picks the coarsest resolution that satisfies the requested <code>step</code>. Storing min/max alongside the mean is what preserves the ability to see spikes that an average would smooth away.</p>
+
+<h2 id="query">The query path</h2>
+<p>A query like <code>sum(rate(http_requests_total[5m])) by (service)</code> executes roughly as:</p>
+<ol>
+<li><span class="key">Parse &amp; plan:</span> resolve the label matchers against the inverted index to get the set of matching series IDs.</li>
+<li><span class="key">Fan-out:</span> the query frontend splits the request across the storage shards that own those series (and across the time-block tiers). This is a scatter-gather &mdash; the slowest shard bounds latency, so hedged requests and per-shard timeouts matter.</li>
+<li><span class="key">Per-shard execution:</span> each shard decodes the relevant chunks, applies <code>rate()</code> per series, and partially aggregates.</li>
+<li><span class="key">Merge:</span> the frontend combines partial results, finishes the <code>sum by (service)</code>, and returns.</li>
+</ol>
+<p>Three things keep this fast and safe: a <span class="key">query frontend</span> that splits long ranges into parallel sub-queries and caches results; <span class="key">pre-aggregated rollups</span> so common dashboard panels never touch raw series; and hard <span class="key">resource limits</span> (max series touched, max samples, query timeout) so one expensive query cannot exhaust a storage node. Caching is layered &mdash; see <a href="04.html">Caching</a> for the result/fragment cache patterns reused here.</p>
+
+<h2 id="alert">Alerting pipeline</h2>
+<p>Alerting is a continuous query loop, separate from ad-hoc dashboards:</p>
+<ol>
+<li><span class="key">Rule evaluation:</span> a stateless evaluator runs each alert expression (e.g. <code>job:errors:rate5m &gt; 0.05</code>) on a fixed interval against the TSDB. To scale, shard rules across evaluators by rule group.</li>
+<li><span class="key">For-duration:</span> a rule fires only after the condition holds for a configured <code>for</code> window (e.g. 5m), which suppresses flapping on transient spikes.</li>
+<li><span class="key">Alert manager:</span> receives firing alerts and handles <span class="key">deduplication</span> (the same alert from replicated evaluators counts once), <span class="key">grouping</span> (collapse 500 per-host alerts into one "region down" notification), <span class="key">silencing/inhibition</span> (a node-down alert inhibits the 50 service alerts it caused), and routing to channels (PagerDuty, Slack, email).</li>
+</ol>
+<p>Alerting rules are where this system connects to <a href="49.html">SLI/SLO &amp; Error Budgets</a>: SLO burn-rate alerts (fast/slow multi-window) are just metric expressions evaluated by this same pipeline, and the metrics here are the SLIs. Run the evaluator and alert manager <em>replicated and independent of the main storage path</em> so alerting survives a storage outage.</p>
+<div class="callout warn"><span class="lbl">Failure mode</span>Naive per-host alerting causes <span class="key">alert storms</span> &mdash; one rack failure pages the on-call 300 times. Grouping and inhibition are not nice-to-haves; without them the alerting layer becomes noise and engineers start ignoring pages, defeating the system's entire purpose.</div>
+
+<h2 id="bottleneck">Bottlenecks &amp; failure modes</h2>
+<ul>
+<li><span class="key">Cardinality limits (the #1 limit):</span> active-series count, not datapoint volume, is what kills the index in RAM. Enforce per-tenant series quotas at ingestion, reject/relabel high-cardinality labels, and alert on series growth. Everything else is secondary to this.</li>
+<li><span class="key">Write amplification:</span> LSM compaction rewrites data multiple times as blocks merge from 2h &rarr; 1d &rarr; 1w. Tune compaction so it does not starve the ingestion path of disk IO during write peaks.</li>
+<li><span class="key">Hot shards:</span> if one service emits vastly more series than others, its shard becomes a hotspot. Shard by series identity (consistent hashing) rather than by metric name to spread load; resharding is the painful operation, so over-provision partitions up front.</li>
+<li><span class="key">Late &amp; out-of-order data:</span> a host with clock skew or a delayed batch arrives after its block was flushed. Allow a bounded out-of-order window into the head block; drop or route to a separate block anything older. Tolerating late data is explicitly in scope.</li>
+<li><span class="key">Query blast radius:</span> an unbounded query (<code>{__name__=~".+"}</code> over a year) can scan everything. Hard limits and a query frontend that rejects over-broad plans are mandatory.</li>
+</ul>
+<div class="callout note"><span class="lbl">Compare &amp; contrast</span>This problem is a close cousin of <a href="63.html">Ad Click Aggregation</a>: both ingest a high-volume event stream, both pre-aggregate via stream processing, and both accept approximate/lossy results for speed. The difference is the query model &mdash; ad-click aggregation answers a handful of known aggregation queries, whereas a metrics system must serve <em>arbitrary</em> label-matcher queries, which is exactly why the inverted index and its cardinality limits dominate this design.</div>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They identify cardinality as the central challenge within the first few minutes and structure the whole design around protecting the index &mdash; rather than getting lost in compression tricks. They explicitly state that the system is write-dominated, AP, and tolerant of loss, and they treat the monitoring system's <em>own</em> reliability (it must survive the incidents it observes) as a first-class requirement. They separate the ingestion, storage, query, and alerting planes so each scales and fails independently.</div>
+<p>Probing questions to ask engineers:</p>
+<ul>
+<li>"An engineer adds <code>user_id</code> as a label and your active series jumps from 1M to 5B. Walk me through exactly what breaks first and how you prevent it."</li>
+<li>"You quoted 1.3 bytes per datapoint. Where does that compression come from, and what kind of metric would compress badly?"</li>
+<li>"A dashboard query for the last 6 months and one for the last 10 minutes hit the same API. How does the system serve each differently?"</li>
+<li>"A rack of 300 hosts fails. How many pages does the on-call get, and why?"</li>
+<li>"Your storage cluster is down for 10 minutes during a deploy. What happens to in-flight datapoints, and what happens to alert evaluation?"</li>
+<li>"Why a purpose-built TSDB instead of putting this in Cassandra or Postgres? Be specific about the access pattern."</li>
+</ul>
+
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Metrics / time-series</td><td>CloudWatch, Managed Prometheus</td><td>Cloud Monitoring, Managed Prometheus</td><td>Azure Monitor / Managed Prometheus</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
+<div class="navfoot"><a href="64.html">&lsaquo; Prev: Designing a Distributed Locking Service</a><a class="nx" href="66.html">Next: Architectural Styles and How to Choose &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

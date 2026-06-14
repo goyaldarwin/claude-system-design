@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redundancy and Replication</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk active" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; Redundancy and Replication</div>
+<h1>Redundancy and Replication</h1>
+<p class="sub"><em>Duplicating critical data and services to remove single points of failure, and adopting a shared-nothing architecture for reliability and resilience.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Partial failure.</b> <span>machines die — surviving it means duplicating, which costs hardware and a consistency problem between copies.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#redundancy">Redundancy</a></li>
+</ul></div>
+
+
+<h2 id="redundancy">Redundancy</h2>
+<p>Redundancy means duplication of critical data or services with the intention of increased reliability of the system. For example, if there is only one copy of a file stored on a single server, then losing that server means losing the file. Since losing data is seldom a good thing, we can create duplicate or redundant copies of the file to solve this problem.</p>
+<p>This same principle applies to services too. If we have a critical service in our system, ensuring that multiple copies or versions of it are running simultaneously can secure against the failure of a single node.</p>
+<p>Creating redundancy in a system can remove single points of failure and provide backups if needed in a crisis. For example, if we have two instances of a service running in production, and if one fails or degrades, the system can failover to the other one. These failovers can happen automatically or can be done manually.</p>
+
+<p class="legacy-note">The original lesson showed a diagram here illustrating redundant primary and secondary servers with failover between them; it is described by the surrounding text.</p>
+
+<p>Another important part of service redundancy is to create a shared-nothing architecture, where each node can operate independently of one another. There should not be any central service managing state or orchestrating activities for the other nodes. This helps a lot with scalability since new servers can be added without special conditions or knowledge and most importantly, such systems are more resilient to failure as there is no single point of failure.</p>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Replication topologies, failover, and split-brain</h2>
+<p>The original lesson frames replication as "keep extra copies for availability." At principal level the real questions are: <em>who is allowed to accept writes</em>, <em>how do conflicting writes get reconciled</em>, and <em>what exactly happens at the moment a leader dies</em>. Those three questions determine your durability, your consistency model, and whether a network partition silently corrupts your data.</p>
+
+<h3>Three topologies, three conflict stories</h3>
+<p>Replication architectures differ primarily in where writes are accepted, and that single choice dictates the conflict-resolution burden you inherit.</p>
+<table>
+<tr><th>Topology</th><th>Write path</th><th>Conflict handling</th><th>Representative systems</th></tr>
+<tr><td><b>Single-leader</b></td><td>All writes to one leader; replicated to followers</td><td>No write conflicts by construction &mdash; total order at the leader</td><td>PostgreSQL/MySQL primary-replica, MongoDB replica set, Kafka partition leader</td></tr>
+<tr><td><b>Multi-leader</b></td><td>Writes accepted at 2+ leaders (often per-region)</td><td>Concurrent writes to the same key <em>must</em> be merged: LWW, version vectors, or CRDTs</td><td>Active-active MySQL, CouchDB; many multi-region setups</td></tr>
+<tr><td><b>Leaderless</b></td><td>Client writes to many replicas directly; quorum reads/writes</td><td>Conflicts surfaced via vector clocks / read-repair; app or DB resolves. Read-after-write needs <code>W + R &gt; N</code> so read and write quorums overlap</td><td>Dynamo, Cassandra, Riak, ScyllaDB</td></tr>
+</table>
+<p>Single-leader is the default for a reason: a single ordering point makes <code>read-after-write</code> reasoning tractable. The moment you accept writes in more than one place &mdash; multi-leader or leaderless &mdash; you have <em>concurrent writes</em>, and concurrency is undefined order. You then must pick a deterministic merge rule. Last-write-wins (LWW) is seductive but lossy: it silently discards one of two genuinely concurrent updates, and it depends on clock skew you do not control. Version vectors detect concurrency precisely; CRDTs (e.g. an OR-Set or a PN-Counter) make merges associative/commutative/idempotent so that <em>order no longer matters</em> &mdash; the principled answer when you truly need multi-master writes.</p>
+
+<h3>Synchronous, asynchronous, semi-synchronous</h3>
+<p>This is the durability-versus-latency dial, and it is the single most consequential replication setting in production.</p>
+<ul>
+<li><b>Synchronous</b>: the leader does not ack the client until a replica has durably persisted the write. Zero data loss on leader failure, but every write pays a cross-node (often cross-AZ, ~1&ndash;2&nbsp;ms; cross-region, tens of ms) round trip, and a single slow replica stalls all writes.</li>
+<li><b>Asynchronous</b>: the leader acks immediately and ships changes in the background. Lowest latency and best availability, but a leader crash loses every write still in flight &mdash; the <em>data-loss window</em>.</li>
+<li><b>Semi-synchronous</b>: ack after <em>at least one</em> replica confirms (the rest async). This is the pragmatic middle ground &mdash; MySQL <code>rpl_semi_sync</code>, PostgreSQL <code>synchronous_standby_names</code> with <code>ANY 1 (...)</code>. You bound data loss to "a replica that also has to fail" without paying for all-replica acks.</li>
+</ul>
+<div class="box"><b>The async data-loss window</b>Under async replication, replication lag <em>is</em> your RPO. If a leader is lagging followers by 800&nbsp;ms of write volume and it dies, those 800&nbsp;ms of acknowledged-to-the-client writes are gone &mdash; the client believes they committed. This is precisely how many MySQL async failovers lose data. Always state your RPO in terms of <em>worst-case observed lag</em>, not average.</div>
+
+<h3>Replication lag and client-centric guarantees</h3>
+<p>Async followers are always somewhere in the past. Rather than forcing global linearizability (expensive), mature systems paper over lag with weaker, <em>per-client</em> guarantees:</p>
+<ul>
+<li><b>Read-your-writes (read-after-write)</b>: a user who just posted must see their own post. Achieve it by routing that user's reads to the leader for a short window, by tracking the write's log position (<code>LSN</code>/GTID) and reading only from a replica that has caught up to it, or by sticky-session pinning.</li>
+<li><b>Monotonic reads</b>: a user must never see time go backwards (read v5, then v3 from a more-lagged replica). Achieve it by pinning each user to a single replica via consistent hashing on user id.</li>
+<li><b>Consistent prefix reads</b>: causally related writes are seen in order &mdash; critical when a partitioned/sharded system could otherwise show an answer before its question.</li>
+</ul>
+<p>These are far cheaper than strong consistency and cover the vast majority of user-facing correctness needs. See <a href="31.html">Consistency Models</a> for how PACELC frames the latency cost you are trading away here even when there is no partition.</p>
+
+<h3>Automatic failover and the split-brain trap</h3>
+<p>Failover sounds simple &mdash; promote a follower when the leader dies &mdash; but every step hides a failure mode. You must (1) <em>detect</em> the leader is dead (usually a timeout, which cannot distinguish "crashed" from "slow/partitioned"), (2) <em>choose</em> a new leader (ideally the most up-to-date follower, by log position), and (3) <em>reconfigure</em> clients and the old leader to follow the new one.</p>
+<p>The lethal case: the old leader was only <em>partitioned</em>, not dead. Now you have two nodes both accepting writes &mdash; <b>split-brain</b> &mdash; diverging the dataset, and on reunion you face unmergeable conflicts. Defenses are non-optional:</p>
+<ul>
+<li><b>Quorum / majority</b>: a node may only act as leader if it can see a majority of the cluster. A minority partition cannot form a quorum and so cannot elect itself &mdash; this is why Raft/Paxos clusters use odd counts (3, 5). See <a href="36.html">Leader Election &amp; Coordination</a>.</li>
+<li><b>Witness / tiebreaker node</b>: a lightweight voting-only member (no data) in a third AZ so a two-DC deployment still has an odd vote count.</li>
+<li><b>Fencing (STONITH / fencing tokens)</b>: when a new leader is promoted, the old one must be forcibly prevented from doing damage &mdash; either shot in the head (power-fenced) or issued a monotonically increasing fencing token that storage/clients check, rejecting any write carrying a stale token. Fencing tokens are the software answer when you cannot physically kill the node.</li>
+</ul>
+<div class="box"><b>Timeout tuning is a real trade-off</b>A short failure-detection timeout fails over fast but flaps on transient GC pauses or network blips, causing needless promotions (each of which risks losing in-flight async writes). A long timeout is stable but extends downtime. There is no universally correct value &mdash; it is a function of your network's tail latency and your RTO target.</div>
+
+<h3>How the bytes actually move: WAL shipping vs logical replication</h3>
+<p>Two fundamentally different replication mechanisms, with different coupling and flexibility:</p>
+<ul>
+<li><b>Physical / WAL (log) shipping</b>: ship the storage engine's write-ahead log byte-for-byte. Cheap and exact, but the replica must run an identical engine version and on-disk format &mdash; no cross-version upgrades, no cross-engine replication, no selective tables. (PostgreSQL streaming replication; MySQL binlog applied at the storage layer.) The WAL also underpins crash recovery and ties directly into storage-engine design &mdash; see <a href="37.html">Replication Deep Dive</a>.</li>
+<li><b>Logical / row-based</b>: replicate decoded logical change events (insert/update/delete of row X with these values). Decoupled from physical format, so it enables zero-downtime major-version upgrades, replicating a subset of tables, fan-out to heterogeneous sinks, and Change-Data-Capture pipelines (Debezium &rarr; Kafka). The cost is more CPU to encode/decode and the need to handle schema evolution.</li>
+</ul>
+<p>Statement-based replication (ship the SQL) is the legacy third option and is dangerous: non-deterministic functions (<code>NOW()</code>, <code>RAND()</code>, auto-increment races) diverge replicas. Modern systems default to row-based for exactly this reason.</p>
+
+<h3>Read replicas: scaling reads and the staleness cost</h3>
+<p>Adding async read replicas is the standard lever to scale a read-heavy workload &mdash; fan reads across N replicas while writes stay funneled to the leader. The catch is that <em>every</em> replica is stale by its replication lag, so this only works for read-tolerant paths. The principal-level discipline is to <b>classify reads by staleness tolerance</b>: route account-balance-after-transfer or "did my comment post" reads to the leader (or a caught-up replica via LSN), and route analytics, feeds, and search to replicas. Beware the read-scaling ceiling: every replica still applies <em>100%</em> of the write volume, so replicas relieve read CPU/IO but never reduce write load &mdash; past that point you must shard, not just replicate.</p>
+
+<div class="seealso"><b>See also:</b> <a href="37.html">Replication Deep Dive</a>, <a href="36.html">Leader Election &amp; Coordination</a>, <a href="31.html">Consistency Models</a></div>
+</div>
+
+<style>
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+
+/* dark-mode overrides for inline pdeep/mastery (injected) */
+:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
+:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
+:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
+:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
+:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
+:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
+:root[data-theme="dark"] .pdeep th{background:#0f1318;}
+:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
+:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
+:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
+</style>
+<div class="mastery">
+<h2>Principal-level mastery check</h2>
+<ul>
+<li>Can you state the precise data-loss window for <b>async</b> replication after a leader crash, and explain why <b>sync</b> replication trades that window for write latency and availability (one slow/dead follower stalls every commit)? When does semi-sync (ack from <em>one</em> of N) become the right middle ground?</li>
+<li>Why does <b>single-leader</b> give you a clean ordering and no write conflicts, while <b>multi-leader</b> and <b>leaderless</b> push the conflict-resolution problem onto you (LWW, version vectors, CRDTs)? For each, when is it the correct choice?</li>
+<li>Can you explain why <b>replication lag</b> breaks read-your-writes consistency, and name three fixes &mdash; route post-write reads to the leader, track the client's last-seen LSN/position and only read from a caught-up replica, or pin a session to one replica?</li>
+<li>Why does monotonic-reads violation (a user sees data, refreshes, and it "disappears") happen when reads bounce across replicas at different lag, and how does session stickiness solve it?</li>
+<li>Can you describe how <b>split-brain</b> arises (a network partition leaves two nodes each believing they're leader) and why <b>fencing</b> &mdash; a monotonically increasing fencing token rejected by storage if stale, or STONITH &mdash; is required because a lease/heartbeat timeout alone cannot prevent a paused-then-resumed old leader from issuing a write?</li>
+<li>Can you reason about the read-scaling ceiling &mdash; why adding async read replicas relieves read load but never write load (every replica applies 100% of writes), and at what point you must shard instead of replicate?</li>
+<li>Why does a quorum system need <b>W + R &gt; N</b> for read-after-write consistency, and what goes wrong (stale reads, lost updates) when you weaken it to W + R &le; N for latency?</li>
+</ul>
+<p style="margin:14px 0 0;font-size:14px;color:#5b6472;">Go deeper: <a href="37.html">37 Replication Deep Dive</a></p>
+</div>
+
+<div class="navfoot"><a href="08.html">&lsaquo; Prev: Queues</a><a class="nx" href="10.html">Next: SQL vs. NoSQL &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

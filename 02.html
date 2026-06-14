@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Design Basics</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk active" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; System Design Basics</div>
+<h1>System Design Basics</h1>
+<p class="sub"><em>A short orientation to the core building blocks of scalable systems and how the upcoming chapters fit together.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Orientation.</b> <span>this lesson maps the building blocks; each one pays a specific cost introduced in lesson 01.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#1-the-three-questions-behind-every-design">The three questions behind every design</a></li>
+  <li><a href="#2-scale-only-when-you-need-to-but-plan-for-it">Scale only when you need to &mdash; but plan for it</a></li>
+  <li><a href="#3-the-building-blocks-ahead">The building blocks ahead</a></li>
+  <li><a href="#4-how-this-fits-the-bigger-picture">How this fits the bigger picture</a></li>
+</ul></div>
+
+
+<h2 id="1-the-three-questions-behind-every-design">The three questions behind every design</h2>
+<p>Whenever we set out to design a large system, the work reduces to three recurring questions. They are simple to state and surprisingly hard to answer well, and the rest of this course exists to give you a vocabulary and a set of reusable answers for each.</p>
+<ul>
+<li><span class="key">What pieces are available?</span> What is the menu of building blocks &mdash; load balancers, caches, databases, queues, proxies, indexes &mdash; that we can assemble into a system?</li>
+<li><span class="key">How do these pieces interact?</span> How does a request flow from a client through the edge, into the application tier, across the data tier, and back? Where does state live, and who talks to whom?</li>
+<li><span class="key">What are the right trade-offs?</span> Every block buys you something (throughput, latency, availability) at a cost (complexity, consistency, money). Choosing well &mdash; and being able to defend the choice &mdash; is the entire game.</li>
+</ul>
+
+<div class="callout note"><span class="lbl">Key insight</span>There is no single "correct" architecture. A design is good only relative to a set of requirements and constraints. The same problem can have a perfectly reasonable single-server answer and a perfectly reasonable globally-distributed answer &mdash; the difference is the scale, the SLAs, and the budget you were handed.</div>
+
+<h2 id="2-scale-only-when-you-need-to-but-plan-for-it">Scale only when you need to &mdash; but plan for it</h2>
+<p>Investing heavily in scaling infrastructure before you actually need it is not smart engineering, and it is not smart business. Premature scaling burns money, multiplies operational surface area, and slows you down with complexity you are not yet using. Many products would be better served by a boring, well-understood setup on a single beefy machine for far longer than engineers like to admit.</p>
+<p>That said, a little forethought goes a long way. Knowing <em>where</em> the system will bend as load grows &mdash; which component becomes the bottleneck first, which piece of state is hardest to shard, which call sits on the critical path &mdash; lets you avoid decisions that are cheap to make today and brutally expensive to undo later. The goal is not to build for a billion users on day one; it is to avoid painting yourself into a corner.</p>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Under-engineering means you scramble and re-architect under fire when traffic spikes. Over-engineering means you pay &mdash; in dollars and in velocity &mdash; for capacity and complexity you never use. The craft is finding the point where a small, reversible investment in headroom is worth it, and stopping there.</div>
+
+<div class="clarify">In practice, this is exactly why you ask about scale up front. "How many users? How many requests per second? Read-heavy or write-heavy? What are the latency and availability targets?" The answers tell you whether a single database is fine or whether you genuinely need partitioning, replication, and a CDN. Designing for unstated scale is a common way engineers lose points.</div>
+
+<h2 id="3-the-building-blocks-ahead">The building blocks ahead</h2>
+<p>The next several chapters each take one fundamental building block and treat it in depth. Read in order, they form a toolkit: by the end you should be able to look at any of the classic and advanced design problems later in the course and reach for the right component on instinct, knowing both what it does and what it costs.</p>
+<table>
+<tr><th>Chapter</th><th>Building block</th><th>What problem it solves</th></tr>
+<tr><td><a href="03.html">03</a></td><td><a href="03.html">Load balancing</a></td><td>Spreads traffic across many servers; removes single points of failure at the compute tier.</td></tr>
+<tr><td><a href="04.html">04</a></td><td><a href="04.html">Caching</a></td><td>Keeps hot data close to where it is read to cut latency and offload the datastore.</td></tr>
+<tr><td><a href="05.html">05</a></td><td><a href="05.html">Sharding / partitioning</a></td><td>Splits data across machines when one box can no longer hold or serve it.</td></tr>
+<tr><td><a href="06.html">06</a></td><td><a href="06.html">Indexes</a></td><td>Makes reads fast at the cost of slower writes and extra storage.</td></tr>
+<tr><td><a href="07.html">07</a></td><td><a href="07.html">Proxies</a></td><td>Intermediaries that aggregate, filter, transform, or shield requests.</td></tr>
+<tr><td><a href="08.html">08</a></td><td><a href="08.html">Queues</a></td><td>Decouple producers from consumers and absorb bursts asynchronously.</td></tr>
+<tr><td><a href="09.html">09</a></td><td><a href="09.html">Redundancy &amp; replication</a></td><td>Keeps copies of data and components so failures do not mean downtime or loss.</td></tr>
+<tr><td><a href="10.html">10</a></td><td><a href="10.html">SQL vs. NoSQL</a></td><td>Choosing the data model and consistency story that fit the access pattern.</td></tr>
+<tr><td><a href="11.html">11</a></td><td><a href="11.html">CAP theorem</a></td><td>The fundamental limit on consistency vs. availability under network partitions.</td></tr>
+<tr><td><a href="12.html">12</a></td><td><a href="12.html">Consistent hashing</a></td><td>Distributes keys across nodes so adding or removing a node moves minimal data.</td></tr>
+<tr><td><a href="13.html">13</a></td><td><a href="13.html">Long-poll / WebSockets / SSE</a></td><td>Patterns for pushing data to clients in near real time.</td></tr>
+</table>
+
+<div class="callout note"><span class="lbl">Key insight</span>Notice the recurring shape: nearly every block is a way of trading one resource for another. Caching trades memory and staleness for read latency. Indexes trade write speed and storage for read speed. Replication trades storage and write coordination for availability. Once you see the trade as the unit of thinking, the blocks stop being a list to memorize and become a small set of levers you pull deliberately.</div>
+
+<h2 id="4-how-this-fits-the-bigger-picture">How this fits the bigger picture</h2>
+<p>These fundamentals are not an end in themselves &mdash; they are the foundation for the distributed-system design problems that dominate the second half of the course. When you later design a URL shortener, an Instagram, a Twitter, or an Uber backend, you will not invent new primitives; you will compose the blocks introduced here, justifying each choice against the requirements you clarified up front.</p>
+<p>So the path through the course is deliberate: first the building blocks (chapters 03&ndash;13), then a step-by-step framework (chapter 14) for assembling them into a coherent design, then a long sequence of worked design problems that exercise the toolkit, and finally deeper distributed-systems theory and advanced designs for those targeting senior and principal levels.</p>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat the building blocks as a shared language. Instead of describing a mechanism from scratch &mdash; "we'll keep frequently-read data in fast memory near the servers" &mdash; they name it ("we add a read-through cache") and immediately move to the interesting part: the trade-offs, the failure modes, and the eviction or invalidation policy. Knowing the vocabulary cold frees your time in practice for the judgment that actually distinguishes you.</div>
+
+<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
+<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1694239618199.jpeg" alt="Latency numbers every engineer should know" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">The classic latency-numbers pyramid (L1/L2 cache, RAM, network, SSD, DB, HDD, packet round-trip) mapped to real systems like Redis, RocksDB, Postgres. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1754990591658.jpeg" alt="End-to-end system architecture composition" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A &#x27;System Design Master Template&#x27; showing a generic full architecture with client, load balancer, API gateways, metadata/block servers, caching, queues, CDN, video processing, and data warehouse. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2024-12-04 at 8.57.45 AM.jpg" alt="Core system-design pillars overview" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Infographic of the four pillars of system design — scalability, availability, reliability, performance — each with sub-techniques and small diagrams. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+</div>
+<div class="navfoot"><a href="01.html">&lsaquo; Prev: Why System Design Matters</a><a class="nx" href="03.html">Next: Load Balancing &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

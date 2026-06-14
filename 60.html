@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designing a Distributed Job Scheduler</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk active" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Job Scheduler</div>
+
+<h1>Designing a Distributed Job Scheduler</h1>
+<p class="sub">A managed cron / workflow service that fires millions of one-time and recurring jobs on time, survives worker crashes, and never silently drops a run.</p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth &amp; partial failure.</b> <span>reliable scheduled execution, paid in leader election, leases, and fencing tokens.</span></div>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#req">Requirements &amp; scope</a></li>
+<li><a href="#estimate">Back-of-the-envelope</a></li>
+<li><a href="#api">API &amp; data model</a></li>
+<li><a href="#arch">High-level architecture</a></li>
+<li><a href="#timewheel">Time-bucketing &amp; the hot-shard problem</a></li>
+<li><a href="#election">Leader election &amp; the dispatcher</a></li>
+<li><a href="#delivery">Exactly-once, leases &amp; fencing</a></li>
+<li><a href="#backfill">Backfill &amp; missed runs</a></li>
+<li><a href="#dag">DAGs, dependencies &amp; priority</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="req">Requirements &amp; scope</h2>
+<p>The problem: "design a distributed job scheduler." That phrase covers everything from a glorified <code>cron</code> to Airflow to AWS EventBridge Scheduler / Temporal. Your first job is to <span class="key">scope it</span>. State the functional surface explicitly:</p>
+<ul>
+<li><span class="key">One-time jobs</span> ("run task X at 2026-07-01T03:00Z") and <span class="key">recurring jobs</span> (cron expression or fixed interval).</li>
+<li><span class="key">Submit / cancel / pause / update</span> a job; <span class="key">query</span> status and run history.</li>
+<li><span class="key">Execution</span>: the scheduler does not run business logic itself &mdash; it triggers a target (HTTP webhook, enqueue to <a href="08.html">a queue</a>, invoke a function, run a container).</li>
+<li><span class="key">Delivery semantics</span>: at-least-once by default, with an idempotency contract; optional exactly-once <em>effects</em>.</li>
+<li><span class="key">DAG dependencies</span> and <span class="key">priorities</span> as an extension.</li>
+</ul>
+<p>Non-functional requirements are where the interesting design lives:</p>
+<ul>
+<li><span class="key">Scale</span>: 100M+ registered jobs, 10k&ndash;100k fires/sec at peak.</li>
+<li><span class="key">Timing accuracy</span>: a stated SLO, e.g. p99 fire within 1&ndash;2&nbsp;s of scheduled time. "On time" is a distribution, not a guarantee &mdash; nail this number down.</li>
+<li><span class="key">Durability</span>: an accepted job is never lost across crashes, deploys, or AZ failure.</li>
+<li><span class="key">No double-fire under normal operation</span>, and bounded duplicates under failure.</li>
+<li><span class="key">Multi-tenant fairness</span>: one tenant's 50M jobs cannot starve everyone else.</li>
+</ul>
+<div class="callout warn"><span class="lbl">Pitfall</span>It is tempting to jump straight to "a priority queue keyed by next-run-time." That's the easy 10%. The hard 90% is what happens when a worker grabbing the job dies mid-flight, when 4M jobs are all scheduled for midnight UTC, and when the leader that owns dispatch is partitioned away but still thinks it's the leader.</div>
+
+<h2 id="estimate">Back-of-the-envelope</h2>
+<p>Anchor the design in numbers. Suppose 100M recurring jobs averaging one fire per hour &mdash; that's ~28k fires/sec average. Peaks concentrate on round timestamps (top of the minute/hour), so a naive design typically sees 10&ndash;100&times; that load in a 1&nbsp;s window, and pathological clustering can push it far higher. If 60% of 100M jobs use a cron like <code>0 * * * *</code>, ~60M fires land in the same second every hour &mdash; thousands of times the average. <em>That</em> spike, not the average, sizes your system.</p>
+<table>
+<tr><th>Quantity</th><th>Estimate</th></tr>
+<tr><td>Registered jobs</td><td>100M</td></tr>
+<tr><td>Avg fire rate</td><td>~28k/s</td></tr>
+<tr><td>Peak burst (top of hour)</td><td>millions in &lt;1s &mdash; must be spread</td></tr>
+<tr><td>Job metadata row</td><td>~1&ndash;2 KB &rarr; ~150&ndash;200 GB, easily sharded</td></tr>
+<tr><td>Run-history retention</td><td>append-only, far larger &rarr; time-partitioned store / object storage</td></tr>
+</table>
+
+<h2 id="api">API &amp; data model</h2>
+<pre><code>POST /jobs
+{
+  "name": "nightly-report",
+  "schedule": { "type": "cron", "expr": "0 3 * * *", "tz": "America/New_York" },
+  "target":   { "type": "http", "url": "https://svc/run", "method": "POST", "body": {...} },
+  "policy":   { "retries": 5, "backoff": "exponential", "timeout_s": 300,
+                "misfire": "fire_once", "overlap": "skip" },
+  "idempotency_key_template": "report-{{run_id}}",
+  "priority": 5
+}
+POST   /jobs/{id}/pause | /resume | /cancel
+GET    /jobs/{id}/runs?from=...&to=...</code></pre>
+<p>Two tables matter most. <span class="key">Jobs</span> holds the durable definition. <span class="key">Runs</span> (a.k.a. executions) is the per-fire record &mdash; this is the source of truth for "did run R for job J at time T happen?" and is what makes the system idempotent and auditable.</p>
+<pre><code>jobs(  job_id PK, tenant_id, schedule, target, policy,
+       next_run_at, state[ACTIVE|PAUSED], version, owner_shard )
+
+runs(  run_id PK,            -- deterministic: hash(job_id, scheduled_time)
+       job_id, scheduled_at, state[PENDING|LEASED|RUNNING|SUCCEEDED|FAILED|LOST],
+       lease_owner, lease_expires_at, fence_token, attempt, last_error )</code></pre>
+<div class="callout note"><span class="lbl">Key insight</span>Make <code>run_id</code> a <em>deterministic</em> function of <code>(job_id, scheduled_time)</code>, not a random UUID. Then "insert this run" becomes an idempotent upsert: two dispatchers that both decide job J should fire at T produce the same <code>run_id</code> and the second insert is a no-op (unique-constraint conflict). This single decision collapses a whole class of double-fire bugs at the data layer. For ID strategy see <a href="58.html">Designing a Unique ID Generator</a>.</div>
+
+<h2 id="arch">High-level architecture</h2>
+<p>Separate the three concerns that people conflate: <span class="key">storing</span> jobs, <span class="key">deciding</span> what should fire now, and <span class="key">executing</span> the trigger.</p>
+<ul>
+<li><span class="key">API / control plane</span> &mdash; validates and persists job definitions, computes the first <code>next_run_at</code>, fronted by <a href="03.html">load balancers</a>. Stateless.</li>
+<li><span class="key">Durable store</span> &mdash; sharded SQL (Postgres/CockroachDB) or a wide-column store, partitioned by time bucket. This is the system of record. See <a href="05.html">Sharding</a> and <a href="10.html">SQL vs NoSQL</a>.</li>
+<li><span class="key">Dispatcher / scheduler tier</span> &mdash; scans for due runs, materializes <code>runs</code> rows, and pushes them onto an internal queue. This tier needs coordination so partitions don't double-scan.</li>
+<li><span class="key">Execution queue</span> &mdash; a <a href="56.html">distributed message queue</a> (SQS, Kafka, or a Redis-backed queue) decouples "decide" from "do" and absorbs bursts.</li>
+<li><span class="key">Worker pool</span> &mdash; pulls leased runs, invokes targets, applies retries/timeouts, writes terminal state back to <code>runs</code>.</li>
+</ul>
+<p>The decouple-via-queue step is the key architectural move: the scheduler tier only has to be fast enough to <em>enqueue</em>, and the queue smooths the midnight spike into whatever the worker pool can drain. This is classic <a href="46.html">event-driven</a> back-pressure.</p>
+
+<h2 id="timewheel">Time-bucketing &amp; the hot-shard problem</h2>
+<p>You will not <code>SELECT ... WHERE next_run_at &lt;= now()</code> across 100M rows every second &mdash; that's a full hot-index scan. Instead <span class="key">bucket time</span>. Partition the due-index by a coarse time unit (e.g. one bucket per second or per minute), so a dispatcher only reads the handful of buckets that are due. A <span class="key">hierarchical timing wheel</span> (the Kafka / Linux-kernel approach) is the in-memory version: O(1) insert and tick, with overflow wheels for far-future jobs. For durability the wheel is a cache in front of the persistent bucket index, rebuilt on restart.</p>
+<p>The classic failure: <span class="key">hot buckets</span>. Cron expressions cluster on round numbers &mdash; <code>0 0 * * *</code> (midnight), <code>0 * * * *</code> (top of hour), <code>*/5</code>. Millions of jobs land in the same second-bucket, and whichever shard owns it gets crushed.</p>
+<table>
+<tr><th>Mitigation</th><th>How</th></tr>
+<tr><td>Jitter on materialization</td><td>Spread fires across a window: <code>actual = scheduled + hash(job_id) % jitter_window</code>. Only valid if the SLO allows it &mdash; "approximately 3am" jobs, yes; financial cutoffs, no.</td></tr>
+<tr><td>Shard by job_id, not by time</td><td>The due-index partition key = <code>hash(job_id)</code>; each shard independently scans its own slice of the current time bucket. Distributes the midnight spike across all shards.</td></tr>
+<tr><td>Pre-materialize early</td><td>Generate <code>runs</code> rows a few seconds <em>ahead</em> of scheduled time and let the queue hold them, so the fire itself is just a queue dequeue at T.</td></tr>
+<tr><td>Smooth the queue</td><td>The execution queue + worker autoscaling absorbs the residual burst; timing SLO is measured at <em>enqueue</em>, throughput is bounded by workers.</td></tr>
+</table>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Sharding the due-index by <code>hash(job_id)</code> kills the hot-time-bucket problem but means <em>every</em> shard must tick every bucket &mdash; more total scan work, more dispatcher nodes. Sharding by time bucket is cheaper to scan but reintroduces hot shards. Most production designs shard by job_id and accept the fan-out, because predictable load beats cheap-but-spiky.</div>
+
+<h2 id="election">Leader election &amp; the dispatcher</h2>
+<p>If N dispatcher nodes all scan the same bucket, they'll all try to fire the same jobs. Two safe designs:</p>
+<h3>Option A &mdash; partitioned ownership (preferred at scale)</h3>
+<p>Assign each due-index shard to exactly one dispatcher via a <span class="key">coordination service</span> (ZooKeeper / etcd / Consul). Use <a href="12.html">consistent hashing</a> over the shard ring so adding/removing a dispatcher reshuffles only 1/N of shards. When a dispatcher dies, its ephemeral lock expires and its shards are reassigned. This is horizontally scalable &mdash; no single leader is a bottleneck. The mechanics of leases, ephemeral nodes, and herd avoidance are covered in <a href="36.html">Leader Election and Coordination</a> and <a href="64.html">Designing a Distributed Locking Service</a>.</p>
+<h3>Option B &mdash; single leader</h3>
+<p>One elected leader (Raft &mdash; see <a href="30.html">Consensus and Raft</a>) owns all scanning and hands work out. Simpler reasoning, but the leader is a throughput ceiling and a single point of latency. Fine for thousands of jobs, not millions.</p>
+<div class="callout warn"><span class="lbl">Pitfall</span>Leader election does <em>not</em> by itself prevent double-fire. A leader can be partitioned, fail to receive heartbeats, and a new leader gets elected &mdash; while the old leader, not yet aware it lost the lease, fires a job. This is the split-brain window. The defense is not "better election," it's <span class="key">idempotency at the run layer</span> plus <span class="key">fencing tokens</span> at the side-effect layer. Never rely on a lock alone to guarantee single execution.</div>
+
+<h2 id="delivery">Exactly-once, leases &amp; fencing</h2>
+<p>Be precise: <span class="key">exactly-once delivery is impossible</span> over an unreliable network (the Two Generals problem). What you can build is <span class="key">at-least-once delivery</span> + <span class="key">idempotent effects</span> = "effectively-once." Choose at-least-once over at-most-once: a duplicate fire is recoverable if effects are idempotent; a dropped fire of a payroll job is not.</p>
+<h3>Worker leasing &amp; visibility timeout</h3>
+<p>A worker doesn't "take" a run, it <span class="key">leases</span> it: atomically set <code>state=LEASED, lease_owner=W, lease_expires_at=now+T, fence_token=monotonic++</code>. The worker must <span class="key">heartbeat</span> to extend the lease while running. If the worker crashes, the lease expires (the queue's <em>visibility timeout</em>), the run reverts to <code>PENDING</code>, and another worker reclaims it. This is exactly the SQS visibility-timeout pattern.</p>
+<pre><code># reclaim loop (runs on dispatchers)
+UPDATE runs SET state='PENDING'
+WHERE state IN ('LEASED','RUNNING') AND lease_expires_at &lt; now();
+
+# worker claim (atomic, idempotent)
+UPDATE runs SET state='LEASED', lease_owner=:w,
+               lease_expires_at=now()+:T, fence_token=:tok
+WHERE run_id=:r AND state='PENDING';   -- 0 rows affected =&gt; someone beat us</code></pre>
+<h3>Fencing tokens</h3>
+<p>The lease-expiry reclaim creates a danger: the original worker may have only been <em>slow</em> (GC pause), wake up, and complete its side effect after a second worker already started. Guard the downstream with a <span class="key">monotonically increasing fence token</span>. The target (or a dedup layer) records the highest token it has seen for a given <code>run_id</code> and rejects any write with a lower token. This is the canonical defense Kleppmann describes &mdash; a stale lease holder is fenced out at the resource, not at the lock. See the same pattern in <a href="64.html">Distributed Locking Service</a>.</p>
+<h3>End-to-end idempotency</h3>
+<p>Pass the deterministic <code>idempotency_key</code> (derived from <code>run_id</code>) to the target. The target deduplicates on it. For HTTP targets this is a header; for queue targets it's the message dedup key. Combined with deterministic <code>run_id</code> and fence tokens, a duplicate fire becomes a no-op rather than a double payment. See <a href="51.html">Resilience Patterns</a> for retry/backoff/dead-letter handling and <a href="61.html">Designing a Payment System</a> for why idempotency keys are non-negotiable on money-moving targets.</p>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Shorter visibility timeout =&gt; faster recovery from dead workers, but more false reclaims of slow-but-alive workers (more duplicates). Longer timeout =&gt; fewer duplicates, slower failover (a fire stuck behind a dead worker waits the full timeout). Heartbeat-based lease extension lets you keep the timeout short <em>and</em> tolerate long-running jobs &mdash; the right answer for variable job durations.</div>
+
+<h2 id="backfill">Backfill &amp; missed runs</h2>
+<p>The scheduler is down (deploy, outage, partition) from 02:55 to 03:10 and a job was due at 03:00. What now? This is a <span class="key">misfire policy</span> and it must be explicit per job, not a global behavior:</p>
+<ul>
+<li><span class="key">Fire once on recovery</span> &mdash; coalesce all missed occurrences into a single catch-up fire. Right for "send the daily digest" (you don't want three digests).</li>
+<li><span class="key">Fire all (backfill)</span> &mdash; replay every missed occurrence in order. Right for batch ETL where each interval is a distinct data partition. See <a href="41.html">Batch &amp; Big Data Processing</a>.</li>
+<li><span class="key">Skip / fire-next-only</span> &mdash; drop the missed window entirely; only run the next scheduled occurrence. Right for "publish current price snapshot" where stale data is worthless.</li>
+</ul>
+<p>Implementation: because <code>run_id = hash(job_id, scheduled_time)</code>, the scheduler can on recovery enumerate every <code>scheduled_time</code> in the gap and decide per-policy which runs to materialize. The deterministic ID means re-running the recovery scan twice is safe &mdash; it produces the same run rows. Track <code>last_materialized_time</code> per job so you know the exact gap boundary. Airflow's <code>catchup</code> flag and <code>max_active_runs</code> are this policy made concrete.</p>
+<div class="callout warn"><span class="lbl">Pitfall</span>Naive backfill of a job that was paused for a week with a 1-minute cron generates 10,080 runs at once and stampedes the workers. Always cap backfill (<code>max_catchup_runs</code>) and feed it through the same rate-limited queue, not a tight loop. Relate this to <a href="23.html">API rate limiting</a>.</div>
+
+<h2 id="dag">DAGs, dependencies &amp; priority</h2>
+<h3>Dependency scheduling</h3>
+<p>Beyond time triggers, jobs depend on other jobs: "run <code>aggregate</code> only after <code>extract</code> and <code>transform</code> both succeed." Model the workflow as a <span class="key">DAG</span> of tasks. A task becomes <span class="key">eligible</span> when all upstream edges are in a satisfied terminal state. Two execution models:</p>
+<ul>
+<li><span class="key">Event-driven</span> &mdash; on each task completion, emit an event; a coordinator decrements the unmet-dependency count of downstream tasks and enqueues those that hit zero. Scales well; needs durable event handling.</li>
+<li><span class="key">Polling / sweep</span> &mdash; a scheduler periodically evaluates which tasks are now eligible. Simpler, higher latency. (Airflow's scheduler loop.)</li>
+</ul>
+<p>Store the DAG topology and per-run task states durably; a DAG run is itself a row tree so you can resume from the failure point rather than re-running succeeded upstream tasks. Cycle detection at submit time is mandatory.</p>
+<h3>Priority &amp; multi-tenant fairness</h3>
+<p>A single FIFO queue lets a low-priority bulk job block a latency-sensitive one. Use <span class="key">priority queues</span> (multiple queues drained weighted, or a score-ordered structure). For multi-tenancy, layer <span class="key">weighted fair queueing</span> per tenant so one tenant's 50M-job backfill can't monopolize workers &mdash; cap concurrent runs per tenant and round-robin across tenant queues. This is the same fairness concern as in <a href="08.html">Queues</a>.</p>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They separate <em>delivery semantics</em> from <em>execution semantics</em> early, and state plainly that exactly-once delivery is impossible &mdash; then build at-least-once + idempotent effects + fencing tokens to get effectively-once. They make <code>run_id</code> deterministic so idempotency falls out of a unique constraint. They identify the hot-time-bucket problem unprompted and pick a sharding strategy with eyes open about the fan-out cost. They treat leader election as necessary-but-insufficient and never claim a lock alone prevents double-fire. They tie timing accuracy to a concrete SLO measured at enqueue, and they make misfire/backfill an explicit per-job policy rather than hand-waving "we'll just re-run it."</div>
+<ul>
+<li>Your SLO is "p99 fire within 1s of schedule." Walk me through every place latency accumulates between the scheduled instant and the target receiving the trigger &mdash; and where you'd measure it.</li>
+<li>A worker leases a run, GC-pauses for 40s, the lease expires, a second worker runs the job, then the first worker wakes and POSTs to the target. Trace exactly what prevents a double side-effect. What if the target has no fencing support?</li>
+<li>60% of 100M jobs use <code>0 * * * *</code>. At 12:00:00 your design must not melt. Show me the load distribution across shards and where the burst is absorbed. What changes if jitter is disallowed by the SLO?</li>
+<li>The scheduler tier is down for 12 minutes during a deploy. For a 1-minute-cron ETL job, a daily-digest job, and a price-snapshot job &mdash; what fires on recovery, and how do you stop a backfill stampede?</li>
+<li>How do you guarantee a job submitted via the API is durable before you return 200, while keeping submit latency low at 10k submits/sec? Where exactly does the write land and what's your replication/consistency model? (See <a href="11.html">CAP</a>, <a href="31.html">PACELC</a>.)</li>
+<li>How would you support exactly-once <em>effects</em> for a target that moves money but exposes no idempotency key? What do you push back on, and what compensating design (ledger, two-phase, dedup table) would you propose?</li>
+</ul>
+
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Scheduled / cron jobs</td><td>EventBridge Scheduler</td><td>Cloud Scheduler</td><td>Logic Apps / Functions timer</td></tr><tr><td>Workflow orchestration</td><td>Step Functions</td><td>Workflows</td><td>Logic Apps / Durable Functions</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
+<div class="navfoot"><a href="59.html">&lsaquo; Prev: Designing a Notification System</a><a class="nx" href="61.html">Next: Designing a Payment System &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

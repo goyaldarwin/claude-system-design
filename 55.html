@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designing a Distributed Cache</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk active" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Cache</div>
+
+<h1>Designing a Distributed Cache</h1>
+<p class="sub">Build a Redis/Memcached-class cache from first principles &mdash; eviction, sharding, replication, hot keys, and the failure modes that take down the database behind it.</p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency.</b> <span>building the cache itself — eviction, sharding, stampede control, all to keep reads near memory speed.</span></div>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#requirements">Requirements &amp; scope</a></li>
+<li><a href="#estimation">Scale estimation</a></li>
+<li><a href="#api">Cache API &amp; data model</a></li>
+<li><a href="#single">Single-node engine: hashmap + eviction</a></li>
+<li><a href="#eviction">Eviction policies: LRU, LFU, W-TinyLFU</a></li>
+<li><a href="#sharding">Sharding via consistent hashing</a></li>
+<li><a href="#replication">Replication &amp; availability</a></li>
+<li><a href="#hotkeys">Hot keys</a></li>
+<li><a href="#invalidation">Invalidation &amp; write patterns</a></li>
+<li><a href="#stampede">Cache stampede / thundering herd</a></li>
+<li><a href="#persistence">Persistence &amp; memory management</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="requirements">Requirements &amp; scope</h2>
+<p>A <span class="key">distributed cache</span> is an in-memory key-value store fronting a slower, authoritative datastore. The contract is simple but the engineering is dense: sub-millisecond reads at high throughput, predictable behavior under memory pressure, and graceful degradation when nodes die. This builds directly on <a href="04.html">Caching</a> &mdash; here we design the cache <em>itself</em>, not just place one in an architecture.</p>
+<h3>Functional</h3>
+<ul>
+<li><code>get(key)</code>, <code>set(key, value, ttl)</code>, <code>delete(key)</code>, atomic <code>incr</code>/<code>cas</code>.</li>
+<li>Per-key <span class="key">TTL</span> with lazy + active expiration.</li>
+<li>Eviction when memory is full (configurable policy).</li>
+<li>Horizontal scale across many nodes; client routes keys to the right node.</li>
+</ul>
+<h3>Non-functional</h3>
+<ul>
+<li><span class="key">Latency:</span> p99 read &lt; 1 ms intra-AZ; the whole point is to beat the DB.</li>
+<li><span class="key">Throughput:</span> 100k&ndash;1M ops/sec per node (single-threaded Redis does ~100k&ndash;200k/core; Memcached scales multi-threaded higher).</li>
+<li><span class="key">Availability:</span> a cache node loss should degrade hit rate, never lose correctness of the system of record.</li>
+<li><span class="key">Consistency:</span> caches are intentionally weak-consistency. The hard question is always <em>invalidation</em>, not storage.</li>
+</ul>
+<div class="callout note"><span class="lbl">Key insight</span>Frame the cache as a <em>lossy, best-effort</em> tier. The authoritative copy lives in the database. Every design decision (eviction, replication, persistence) trades hit rate and recovery speed &mdash; not durability of truth. If you find yourself treating the cache as a source of truth, you have built a slow, weird database.</div>
+
+<h2 id="estimation">Scale estimation</h2>
+<p>Anchor numbers so capacity, not vibes, drives the design. Suppose a read-heavy product: 1M DAU, 50 reads/user/day cache-eligible, 10:1 read:write.</p>
+<ul>
+<li><span class="key">Read QPS:</span> 1M &times; 50 / 86,400 &asymp; 580 avg; assume 5&times; peak &rarr; ~3k QPS sustained, bursts higher. (Real hyperscale caches run 10M+ QPS; scale the math.)</li>
+<li><span class="key">Working set:</span> say 100M hot objects &times; 1 KB avg = <span class="key">100 GB</span>. Add ~50&ndash;75% overhead for keys, pointers, and allocator fragmentation &rarr; budget ~160&ndash;180 GB.</li>
+<li><span class="key">Node sizing:</span> 64 GB usable RAM/node &rarr; ~3 shards for data; round up for replicas and headroom &rarr; ~6&ndash;9 nodes.</li>
+<li><span class="key">Network:</span> 3k QPS &times; 1 KB = 3 MB/s &mdash; trivial. Hot keys or large values flip this fast; a 1 MB value at 5k QPS is 5 GB/s and saturates a single NIC.</li>
+</ul>
+<p>The two numbers that actually decide the design: <span class="key">working-set size</span> (drives shard count) and <span class="key">value-size distribution</span> (drives hot-key and network risk).</p>
+
+<h2 id="api">Cache API &amp; data model</h2>
+<p>Keep the wire protocol tiny and binary-friendly. Memcached's text/binary protocol and Redis's RESP are the references. A pragmatic surface:</p>
+<pre><code>GET key                 -> value | MISS
+SET key value ttl flags -> OK
+DEL key                 -> count
+CAS key value cas_token -> OK | EXISTS   // compare-and-swap for optimistic concurrency
+INCR key delta          -> new_value     // atomic counter
+MGET k1 k2 ...          -> values        // pipelined multi-get, amortizes RTT</code></pre>
+<p>Data model is a flat keyspace of opaque bytes. The cache should <em>not</em> understand the value (no server-side joins). Two metadata fields per entry matter:</p>
+<ul>
+<li><span class="key">expireAt</span> (absolute epoch ms) &mdash; for TTL.</li>
+<li><span class="key">cas/version</span> &mdash; monotonic token for optimistic writes and for detecting stale invalidations.</li>
+</ul>
+
+<h2 id="single">Single-node engine: hashmap + eviction</h2>
+<p>Each node is a high-throughput in-memory map. Core structures:</p>
+<ul>
+<li>A <span class="key">hash table</span> (open-addressing or chained) for O(1) lookup. Redis uses incremental rehashing &mdash; it keeps two tables and migrates buckets a few at a time so a resize never causes a multi-millisecond stall.</li>
+<li>An <span class="key">eviction index</span> over entries (see below) to pick a victim when full.</li>
+<li>An <span class="key">expiry structure</span> &mdash; Redis keeps a separate dict of keys-with-TTL; expiration is <em>lazy</em> (checked on access) plus <em>active</em> (a background sampler deletes a random batch of expired keys ~10&times;/sec to bound stale memory).</li>
+</ul>
+<h3>Threading model</h3>
+<p>Two camps, and you should be able to defend either:</p>
+<table>
+<tr><th>Model</th><th>Example</th><th>Trade-off</th></tr>
+<tr><td>Single-threaded event loop</td><td>Redis</td><td>No locks, simple reasoning, atomic commands for free; bounded by one core for the data path (offloads I/O/fsync to helper threads).</td></tr>
+<tr><td>Multi-threaded, sharded locks</td><td>Memcached</td><td>Scales with cores on a big box; needs fine-grained locking and lock-free LRU tricks to avoid contention on the eviction list.</td></tr>
+</table>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Single-threaded buys correctness simplicity at the cost of vertical scaling &mdash; which is fine because you scale <em>horizontally</em> across shards anyway. The common mistake is adding threads to a node before adding shards to the cluster.</div>
+
+<h2 id="eviction">Eviction policies: LRU, LFU, W-TinyLFU</h2>
+<h3>LRU via hashmap + doubly-linked list</h3>
+<p>The canonical O(1) LRU: a hash map from key &rarr; node, plus a doubly-linked list ordered most-recently-used at the head. On access, splice the node to the head; on insert past capacity, drop the tail.</p>
+<pre><code>get(key):
+  node = map[key]
+  if not node: return MISS
+  list.moveToHead(node)        // O(1) unlink + relink
+  return node.value
+
+set(key, val):
+  if key in map: node=map[key]; node.value=val; list.moveToHead(node)
+  else:
+    if size == capacity:
+      victim = list.tail
+      list.remove(victim); map.remove(victim.key)   // evict LRU
+    node = Node(key,val); list.addHead(node); map[key]=node</code></pre>
+<p>Two well-known weaknesses: (1) <span class="key">scan resistance</span> &mdash; one large sequential scan evicts your whole hot set; (2) updating the list on every read is a write that hurts concurrency. Real systems approximate. Redis samples N random keys (default 5) and evicts the oldest &mdash; <em>approximate LRU</em> that avoids maintaining a global list.</p>
+<h3>LFU and its decay problem</h3>
+<p>LFU evicts the least-<em>frequently</em> used. Naive frequency counts never forget, so a key that was hot last week clings forever. Redis's LFU uses a logarithmic counter plus time-based decay so cold keys age out. LFU beats LRU on skewed, stable workloads but reacts slowly to shifts.</p>
+<h3>W-TinyLFU</h3>
+<p><span class="key">W-TinyLFU</span> (used by Caffeine) is the current state of the art and worth naming. It pairs a small <span class="key">window LRU</span> (catches bursty recency) with a large main segment admitted via a frequency filter. Frequency is tracked cheaply with a <span class="key">Count-Min Sketch</span> (see <a href="42.html">Probabilistic Data Structures</a>) plus a periodic halving (aging). A new item is only admitted to the main cache if its estimated frequency beats the would-be victim's &mdash; giving near-optimal hit ratios with O(1) memory for counters and strong scan resistance.</p>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>Don't just say "use LRU." State the workload (skewed? scan-heavy? bursty?), pick the matching policy, and acknowledge that production systems use <em>approximate</em> eviction (sampling, sketches) because maintaining exact global order is a concurrency bottleneck.</div>
+
+<h2 id="sharding">Sharding via consistent hashing</h2>
+<p>One node cannot hold 160 GB or serve 1M QPS, so partition the keyspace. Naive <code>hash(key) % N</code> remaps almost every key when N changes &mdash; a cold-cache catastrophe during scale-up. Use <a href="12.html">Consistent Hashing</a> with <span class="key">virtual nodes</span>: each physical node owns many points on the ring, so adding/removing a node only moves ~1/N of keys and keeps load balanced. This connects to <a href="05.html">Sharding / Data Partitioning</a>.</p>
+<h3>Where does routing live?</h3>
+<table>
+<tr><th>Approach</th><th>Example</th><th>Notes</th></tr>
+<tr><td>Client-side hashing</td><td>Memcached clients, Redis Cluster smart clients</td><td>No proxy hop &mdash; lowest latency; all clients must agree on the ring/topology.</td></tr>
+<tr><td>Proxy / router tier</td><td>Twemproxy, Envoy</td><td>Centralizes topology, simplifies clients; adds a hop and a thing to scale.</td></tr>
+<tr><td>Server-side cluster</td><td>Redis Cluster (16384 hash slots)</td><td>Nodes own slot ranges, redirect clients via <code>MOVED</code>/<code>ASK</code>; topology gossiped between nodes.</td></tr>
+</table>
+<div class="callout warn"><span class="lbl">Pitfall</span>Redis Cluster uses 16384 fixed hash slots, not a continuous ring &mdash; slots are explicitly assigned to nodes, which makes rebalancing a discrete, controllable migration rather than an emergent ring property. Conflating "consistent hashing" with "Redis Cluster slots" in practice signals you haven't read the implementation.</div>
+
+<h2 id="replication">Replication &amp; availability</h2>
+<p>A lost shard means a cold spot: every key it owned now misses and hammers the DB. Mitigate with replication &mdash; primary + N async replicas per shard (see <a href="37.html">Replication Deep Dive</a> and <a href="09.html">Redundancy &amp; Replication</a>).</p>
+<ul>
+<li><span class="key">Async replication</span> is standard for caches: the primary acks the client before replicas confirm. You accept a small window of replica staleness/loss because the DB is the source of truth anyway.</li>
+<li><span class="key">Failover:</span> a sentinel/cluster process detects primary death and promotes a replica. Redis Sentinel and Cluster do leader election here &mdash; the same primitives covered in <a href="36.html">Leader Election &amp; Coordination</a>.</li>
+<li><span class="key">Read scaling:</span> serve reads from replicas to spread hot shards &mdash; but accept stale reads. For a cache, usually fine.</li>
+</ul>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Synchronous replication would make failover lossless but doubles write latency and re-introduces the availability fragility you came to the cache to avoid. Per PACELC (<a href="31.html">Consistency Models &amp; PACELC</a>), caches almost always pick latency over consistency in the no-partition case. A cache that blocks on replica acks defeats its purpose.</div>
+
+<h2 id="hotkeys">Hot keys</h2>
+<p>Consistent hashing balances <em>keyspace</em>, not <em>traffic</em>. A single viral key (celebrity profile, flash-sale SKU) lands on one shard and melts it &mdash; the classic <span class="key">hot-key</span> problem. Detection: per-key request sampling, or top-K sketches (Count-Min + heavy hitters). Mitigations, in escalating order:</p>
+<ol>
+<li><span class="key">Local/L1 cache</span> on the app node (near cache). A few-second TTL on the client absorbs almost all reads of a hot key with zero network. This is the single highest-leverage fix.</li>
+<li><span class="key">Key splitting / replication</span>: store <code>hotkey#1..hotkey#N</code> across shards and have clients pick a random copy &mdash; spreads read load N-way at the cost of N-way write fan-out.</li>
+<li><span class="key">Dedicated replicas</span> for the hot shard, serving reads round-robin.</li>
+<li><span class="key">Request coalescing</span> (see stampede below) so concurrent misses don't multiply backend load.</li>
+</ol>
+<div class="callout warn"><span class="lbl">Pitfall</span>A 1 MB hot value isn't a QPS problem, it's a <em>bandwidth</em> problem &mdash; replication won't save a saturated NIC. The fix is a local cache or shrinking the value (store an ID, fetch the blob from a CDN/object store). Always ask for the value-size distribution.</div>
+
+<h2 id="invalidation">Invalidation &amp; write patterns</h2>
+<p>"There are only two hard things in computer science: cache invalidation and naming things." The write path determines correctness. Know all four patterns cold:</p>
+<table>
+<tr><th>Pattern</th><th>Mechanism</th><th>Use when</th></tr>
+<tr><td><span class="key">Cache-aside</span> (lazy)</td><td>App reads cache; on miss, reads DB, populates cache. Writes go to DB then <code>DEL</code> the key.</td><td>Default. Resilient to cache loss; only caches what's read.</td></tr>
+<tr><td><span class="key">Write-through</span></td><td>App writes to cache, cache synchronously writes to DB.</td><td>Read-heavy, need fresh cache, can tolerate write latency.</td></tr>
+<tr><td><span class="key">Write-back</span> (write-behind)</td><td>Write to cache, async-flush to DB later (batched).</td><td>Write-heavy, can tolerate data loss on cache crash. Risky.</td></tr>
+<tr><td><span class="key">Write-around</span></td><td>Write straight to DB, skip cache; populate on next read.</td><td>Write-once-read-rarely data (avoids cache pollution).</td></tr>
+</table>
+<div class="callout warn"><span class="lbl">Pitfall</span>On a write, <em>delete</em> the cache key rather than <em>updating</em> it. Update-on-write races with concurrent reads: a slow reader can write a stale value back <em>after</em> your update, leaving the cache permanently wrong until TTL. Delete-on-write forces a fresh read-through. Even deletes race &mdash; for strict correctness use versioned writes (CAS) or change-data-capture invalidation via <a href="40.html">Stream Processing &amp; CDC</a>.</div>
+<p><span class="key">TTL</span> is your safety net: even if an invalidation is lost, the key self-heals at expiry. Set the shortest TTL the freshness SLA tolerates. TTL also bounds the blast radius of any invalidation bug.</p>
+
+<h2 id="stampede">Cache stampede / thundering herd</h2>
+<p>A popular key expires. In the same millisecond, 10,000 requests miss simultaneously, all stampede the database, and the DB falls over &mdash; the cache that was protecting it becomes the trigger for its collapse. Three layered defenses:</p>
+<h3>1. Request coalescing (single-flight)</h3>
+<p>Only the first miss for a key recomputes; concurrent callers wait on the same in-flight result. Per-node, a map of in-flight key &rarr; future:</p>
+<pre><code>get(key):
+  v = cache.get(key); if v: return v
+  // only one goroutine computes per key per node
+  return inflight.do(key, () -> {
+    v2 = cache.get(key)            // double-check after acquiring slot
+    if v2: return v2
+    v2 = db.load(key)
+    cache.set(key, v2, ttl)
+    return v2
+  })</code></pre>
+<p>Go's <code>singleflight</code> is the reference implementation. This collapses a herd to one backend call <em>per node</em>; pair with a distributed lock (see <a href="64.html">Distributed Locking Service</a>) to collapse it to one call cluster-wide if the recompute is genuinely expensive.</p>
+<h3>2. Probabilistic early expiration (XFetch)</h3>
+<p>Instead of everyone seeing the key expire at the same instant, each reader probabilistically refreshes <em>slightly before</em> expiry, with probability rising as expiry nears. This staggers recomputation across time so no single moment has a herd:</p>
+<pre><code>// recompute early if: now - delta*beta*ln(rand()) >= expiry
+//   delta = time the last recompute took, beta ~ 1.0
+if (now() - computeTime * beta * Math.log(random())) >= expireAt:
+    value = recompute(); cache.set(key, value, ttl)</code></pre>
+<h3>3. Stale-while-revalidate</h3>
+<p>Serve the stale value immediately and refresh asynchronously in the background. Users never see a miss; the DB sees one refresh, not a herd. Combine with jittered TTLs so a batch of keys set together don't all expire in the same second.</p>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They distinguish three failure modes precisely: <em>stampede</em> (one hot key expires), <em>cache penetration</em> (queries for keys that don't exist bypass the cache &mdash; defend with a <a href="42.html">Bloom filter</a> or negative caching), and <em>cache avalanche</em> (many keys expire at once or the cache tier dies &mdash; defend with TTL jitter, replication, and DB rate-limiting / circuit breakers from <a href="51.html">Resilience Patterns</a>).</div>
+
+<h2 id="persistence">Persistence &amp; memory management</h2>
+<h3>Do you even need persistence?</h3>
+<p>A pure cache can be volatile &mdash; on restart it warms up cold. But a cold restart of a 100 GB cache under live traffic <em>is</em> an avalanche. Persistence options (Redis's two modes are the canonical reference):</p>
+<ul>
+<li><span class="key">Snapshot (RDB):</span> periodic point-in-time fork-and-dump. Compact, fast restart, but loses everything since the last snapshot. Fork uses copy-on-write so the live process keeps serving.</li>
+<li><span class="key">Append-only log (AOF):</span> append every write to a log, replay on restart. Durable to the last fsync, but larger and slower to replay; needs periodic rewrite/compaction. This is the same LSM-style append-then-compact idea in <a href="38.html">Storage Engines: LSM vs B-Tree</a>.</li>
+<li><span class="key">Hybrid:</span> RDB base + AOF tail &mdash; fast restart with bounded loss. Best of both.</li>
+</ul>
+<p>For warm restarts, also consider replica-driven recovery: bring a new node up as a replica, let it sync from the primary, then promote &mdash; no DB stampede.</p>
+<h3>Memory management</h3>
+<ul>
+<li><span class="key">Allocator:</span> jemalloc-style slab/size-class allocators (Memcached's slabs, Redis on jemalloc) reduce external fragmentation that plagues general malloc under churn. Watch the <em>fragmentation ratio</em> (RSS / used-memory) &mdash; &gt;1.5 means you're wasting RAM.</li>
+<li><span class="key">maxmemory + policy:</span> set a hard cap and an eviction policy (<code>allkeys-lru</code>, <code>volatile-lfu</code>, <code>noeviction</code>). Hitting the cap with <code>noeviction</code> turns writes into errors &mdash; usually the wrong default for a cache.</li>
+<li><span class="key">Big keys are landmines:</span> a single multi-GB value or a collection with millions of elements stalls the single-threaded loop on access/delete and skews shard memory. Detect and shard or reject them.</li>
+</ul>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They start by pinning down the workload &mdash; read:write ratio, value-size distribution, key skew, freshness SLA &mdash; <em>before</em> drawing boxes, because every later decision (eviction policy, sharding, hot-key strategy, write pattern) follows from those four numbers. They treat the cache as a lossy tier protecting a system of record, name real systems and algorithms (approximate LRU, W-TinyLFU + Count-Min, Redis Cluster's 16384 slots, singleflight, XFetch), and proactively raise the failure trio &mdash; stampede, penetration, avalanche &mdash; with a distinct defense for each. Weak engineers say "add a Redis" and stop.</div>
+<ul>
+<li>Your cache node holding a hot shard dies at peak. Walk me through the next 30 seconds &mdash; what does the DB see, how does failover work, and how do you avoid a cold-cache avalanche on recovery?</li>
+<li>Why <code>DEL</code> the key on write instead of updating it in place? Construct the exact race that makes update-on-write leave a permanently stale value.</li>
+<li>You're caching at 5M QPS and one key is 40% of traffic. Consistent hashing didn't help &mdash; why, and what are your options in priority order?</li>
+<li>Compare LRU, LFU, and W-TinyLFU on a workload with a periodic batch scan over the entire keyspace. Which survives and why? How does each track frequency without unbounded memory?</li>
+<li>Differentiate cache stampede, cache penetration, and cache avalanche. Give a distinct mitigation for each, and explain why probabilistic early expiry beats a plain lock for stampede.</li>
+<li>When would you turn on AOF persistence for a cache, and when is it actively harmful? What does it cost you on the write path and on restart?</li>
+<li>Design the invalidation path when the source-of-truth DB is updated by a service you don't control. How do CDC and versioned writes give you correctness that TTL alone can't?</li>
+</ul>
+
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed Redis / Memcached</td><td>ElastiCache</td><td>Memorystore</td><td>Azure Cache for Redis</td></tr><tr><td>DAX-style in-front-of-DB cache</td><td>DynamoDB Accelerator (DAX)</td><td>(Memorystore in front)</td><td>(Cosmos integrated cache)</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
+<div class="navfoot"><a href="54.html">&lsaquo; Prev: Security in System Design</a><a class="nx" href="56.html">Next: Designing a Distributed Message Queue &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

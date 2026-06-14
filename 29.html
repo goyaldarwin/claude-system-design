@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designing BookMyShow</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk active" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Classic Design Problems &nbsp;&rsaquo;&nbsp; Designing BookMyShow</div>
+<h1>Designing BookMyShow</h1>
+<p class="sub"><em>Designing an online movie ticket booking system like BookMyShow that sells movie tickets, handling high-concurrency seat reservations fairly with ACID-safe transactions, five-minute holds, and a first-come-first-serve waiting queue. Similar services: bookmyshow.com, ticketmaster.com. Difficulty: Hard.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Concurrency.</b> <span>preventing double-booking under contention, paid in locking/holds and a booking-payment saga.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#1-what-is-an-online-movie-ticket-booking-system">What is an online movie ticket booking system?</a></li>
+  <li><a href="#2-requirements-and-goals-of-the-system">Requirements and Goals of the System</a></li>
+  <li><a href="#3-some-design-considerations">Some Design Considerations</a></li>
+  <li><a href="#4-capacity-estimation">Capacity Estimation</a></li>
+  <li><a href="#5-system-apis">System APIs</a></li>
+  <li><a href="#6-database-design">Database Design</a></li>
+  <li><a href="#7-high-level-design">High Level Design</a></li>
+  <li><a href="#8-detailed-component-design">Detailed Component Design</a></li>
+  <li><a href="#a-activereservationsservice">a. ActiveReservationsService</a></li>
+  <li><a href="#b-waitingusersservice">b. WaitingUsersService</a></li>
+  <li><a href="#9-concurrency">Concurrency</a></li>
+  <li><a href="#10-fault-tolerance">Fault Tolerance</a></li>
+  <li><a href="#11-data-partitioning">Data Partitioning</a></li>
+</ul></div>
+
+
+<h2 id="1-what-is-an-online-movie-ticket-booking-system">What is an online movie ticket booking system?</h2>
+<p>A movie ticket booking system provides its customers the ability to purchase theatre seats online. E-ticketing systems allow the customers to browse through movies currently being played and to book seats, anywhere and anytime.</p>
+
+<h2 id="2-requirements-and-goals-of-the-system">Requirements and Goals of the System</h2>
+<p>Our ticket booking service should meet the following requirements:</p>
+<p><strong>Functional Requirements:</strong></p>
+<ol>
+<li>Our ticket booking service should be able to list down different cities where its affiliate cinemas are located.</li>
+<li>Once the user selects the city, the service should display the movies released in that particular city.</li>
+<li>Once the user selects the movie, the service should display the cinemas running that movie and its available shows.</li>
+<li>The user should be able to select the show at a particular cinema and book their tickets.</li>
+<li>The service should be able to show the user the seating arrangement of the cinema hall. The user should be able to select multiple seats according to their preference.</li>
+<li>The user should be able to distinguish available seats from the booked ones.</li>
+<li>Users should be able to put a hold on the seats for five minutes before they make a payment to finalize the booking.</li>
+<li>The user should be able to wait if there is a chance that seats might become available &ndash; e.g. when holds by other users expire.</li>
+<li>Waiting customers should be serviced fairly in a first come first serve manner.</li>
+</ol>
+<p><strong>Non-Functional Requirements:</strong></p>
+<ol>
+<li>The system would need to be highly concurrent. There will be multiple booking requests for the same seat at any particular point in time. The service should handle this gracefully and fairly.</li>
+<li>The core thing of the service is ticket booking which means financial transactions. This means that the system should be secure and the database ACID compliant.</li>
+</ol>
+
+<h2 id="3-some-design-considerations">Some Design Considerations</h2>
+<ol>
+<li>For simplicity, let&rsquo;s assume our service doesn&rsquo;t require user authentication.</li>
+<li>The system will not handle partial ticket orders. Either user gets all the tickets they want, or they get nothing.</li>
+<li>Fairness is mandatory for the system.</li>
+<li>To stop system abuse, we can restrict users not to book more than ten seats.</li>
+<li>We can assume that traffic would spike on popular/much-awaited movie releases, and the seats fill up pretty fast. The system should be scalable, highly available to cope up with the surge in traffic.</li>
+</ol>
+
+<h2 id="4-capacity-estimation">Capacity Estimation</h2>
+<p><strong>Traffic estimates:</strong> Let&rsquo;s assume that our service has 3 billion page views per month and sells 10 million tickets a month.</p>
+<p><strong>Storage estimates:</strong> Let&rsquo;s assume that we have 500 cities and on average each city has ten cinemas. If there are 2000 seats in each cinema and on average, there are two shows every day.</p>
+<p>Let&rsquo;s assume each seat booking needs 50 bytes (IDs, NumberOfSeats, ShowID, MovieID, SeatNumbers, SeatStatus, Timestamp, etc.) to store in the database. We would also need to store information about movies and cinemas, let&rsquo;s assume it&rsquo;ll take 50 bytes. So, to store all the data about all shows of all cinemas of all cities for a day:</p>
+<blockquote style="color:#787a42;">
+500 cities * 10 cinemas * 2000 seats * 2 shows * (50+50) bytes = 2GB / day
+</blockquote>
+<p>To store five years of this data, we would need around 3.6TB.</p>
+
+<h2 id="5-system-apis">System APIs</h2>
+<p>We can have SOAP or REST APIs to expose the functionality of our service. Following could be the definitions of the APIs to search movie shows and reserve seats.</p>
+<pre><code>SearchMovies(api_dev_key, keyword, city, lat_long, radius, start_datetime, end_datetime, postal_code,
+includeSpellcheck, results_per_page, sorting_order)</code></pre>
+<p><strong>Parameters:</strong><br>
+<strong>api_dev_key (string):</strong> The API developer key of a registered account. This will be used to, among other things, throttle users based on their allocated quota.<br>
+<strong>keyword (string):</strong> Keyword to search on.<br>
+<strong>city (string):</strong> City to filter movies by.<br>
+<strong>lat_long (string):</strong> Latitude and longitude to filter by.<br>
+<strong>radius (number):</strong> Radius of the area in which we want to search for events.<br>
+<strong>start_datetime (string):</strong> Filter movies with a start datetime after this datetime.<br>
+<strong>end_datetime (string):</strong> Filter movies with a start datetime before this datetime.<br>
+<strong>postal_code (string):</strong> Filter movies by postal code / zipcode.<br>
+<strong>includeSpellcheck (Enum: &ldquo;yes&rdquo; or &quot; no&quot;):</strong> Yes, to include spell check suggestions in the response.<br>
+<strong>results_per_page (number):</strong> How many results to return per page. Maximum is 30.<br>
+<strong>sorting_order (string):</strong> Sorting order of the search result. Some allowable values : &lsquo;name,asc&rsquo;, &lsquo;name,desc&rsquo;, &lsquo;date,asc&rsquo;, &lsquo;date,desc&rsquo;, &lsquo;distance,asc&rsquo;, &lsquo;name,date,asc&rsquo;, &lsquo;name,date,desc&rsquo;, &lsquo;date,name,asc&rsquo;, &lsquo;date,name,desc&rsquo;.</p>
+<p><strong>Returns: (JSON)</strong><br>
+Here is a sample list of movies and their shows:</p>
+<pre><code>[
+  {
+    "MovieID": 1,
+    "ShowID": 1,
+    "Title": "Cars 2",
+    "Description": "About cars",
+    "Duration": 120,
+    "Genre": "Animation",
+    "Language": "English",
+    "ReleaseDate": "8th Oct. 2014",
+    "Country": "USA",
+    "StartTime": "14:00",
+    "EndTime": "16:00",
+    "Seats":
+    [
+      {
+        "Type": "Regular",
+        "Price": 14.99,
+        "Status": "Almost Full"
+      },
+      {
+        "Type": "Premium",
+        "Price": 24.99,
+        "Status": "Available"
+      }
+    ]
+  },
+  {
+    "MovieID": 1,
+    "ShowID": 2,
+    "Title": "Cars 2",
+    "Description": "About cars",
+    "Duration": 120,
+    "Genre": "Animation",
+    "Language": "English",
+    "ReleaseDate": "8th Oct. 2014",
+    "Country": "USA",
+    "StartTime": "16:30",
+    "EndTime": "18:30",
+    "Seats":
+    [
+        {
+          "Type": "Regular",
+          "Price": 14.99,
+          "Status": "Full"
+      },
+        {
+          "Type": "Premium",
+          "Price": 24.99,
+          "Status": "Almost Full"
+      }
+    ]
+  }
+ ]</code></pre>
+<pre><code>ReserveSeats(api_dev_key, session_id, movie_id, show_id, seats_to_reserve[])</code></pre>
+<p><strong>Parameters:</strong><br>
+<strong>api_dev_key (string):</strong> same as above<br>
+<strong>session_id (string):</strong> User&rsquo;s session ID to track this reservation. Once the reservation time expires, user&rsquo;s reservation on the server will be removed using this ID.<br>
+<strong>movie_id (string):</strong> Movie to reserve.<br>
+<strong>show_id (string):</strong> Show to reserve.<br>
+<strong>seats_to_reserve (array of numbers):</strong> An array containing seat IDs to reserve.</p>
+<p><strong>Returns:</strong> (JSON)<br>
+Returns the status of the reservation, which would be one of the following: 1) &ldquo;Reservation Successful&rdquo; 2) &ldquo;Reservation Failed - Show Full,&rdquo; 3) &ldquo;Reservation Failed - Retry, as other users are holding reserved seats&rdquo;.</p>
+
+<h2 id="6-database-design">Database Design</h2>
+<p>Here are a few observations about the data we are going to store:</p>
+<ol>
+<li>Each City can have multiple Cinemas.</li>
+<li>Each Cinema will have multiple halls.</li>
+<li>Each Movie will have many Shows, and each Show will have multiple Bookings.</li>
+<li>A user can have multiple bookings.</li>
+</ol>
+<p style="text-align:center;"><img src="./_principal_files/img/5756035713204224.png" alt="diagram"></p>
+
+<h2 id="7-high-level-design">High Level Design</h2>
+<p>At a high level, our web servers will manage Users&rsquo; sessions, and application servers will handle all the ticket management, storing data in the databases and work with cache servers to process reservations.</p>
+<p style="text-align:center;"><img src="./_principal_files/img/5644572721938432.png" alt="diagram"></p>
+
+<h2 id="8-detailed-component-design">Detailed Component Design</h2>
+<p>First, let&rsquo;s try to build our service assuming if it is being served from a single server.</p>
+<p><strong>Ticket Booking Workflow:</strong> Following would be a typical ticket booking workflow:</p>
+<ol>
+<li>User searches for a movie.</li>
+<li>User selects a movie.</li>
+<li>User is shown the available shows of the movie.</li>
+<li>User selects a show.</li>
+<li>User selects the number of seats to be reserved.</li>
+<li>If the required number of seats are available, the user is shown a map of the theater to select seats. If not, the user is taken to &lsquo;step 8&rsquo; below.</li>
+<li>Once the user selects the seat, the system will try to reserve those selected seats.</li>
+<li>If seats can&rsquo;t be reserved, we have following options:</li>
+</ol>
+<ul>
+<li>Show is full; the user is shown the error message.</li>
+<li>The seats user wants to reserve are no longer available, but there are other seats available, so the user is taken back to the theater map to choose different seats.</li>
+<li>There are no seats available to reserve, but all the seats are not booked yet as there are some seats that other users are holding in reservation pool and have not booked yet. The user will be taken to a waiting page where they can wait until required seats get freed from the reservation pool. This waiting could result in following options:
+<ul>
+<li>If the required number of seats become available, the user is taken to the theater map page where they can choose the seats.</li>
+<li>While waiting if all seats get booked, or there are fewer seats in the reservation pool than the user intend to book, the user is shown the error message.</li>
+<li>User cancels the waiting and is taken back to the movie search page.</li>
+<li>At maximum, a user can wait one hour, after that user&rsquo;s session gets expired and the user is taken back to the movie search page.</li>
+</ul>
+</li>
+</ul>
+<ol start="9">
+<li>If seats are reserved successfully, the user has five minutes to pay for the reservation. After payment, booking is marked complete. If the user is not able to pay within five minutes, all their reserved seats are freed to become available to other users.</li>
+</ol>
+<p style="text-align:center;"><img src="./_principal_files/img/5752142325350400.png" alt="diagram"></p>
+<p class="legacy-note">The original lesson had an interactive step-by-step animation of the ticket booking workflow here; shown above as static content.</p>
+
+<p><strong>How would the server keep track of all the active reservation that haven&rsquo;t been booked yet? And how would the server keep track of all the waiting customers?</strong><br>
+We need two daemon services, one to keep track of all active reservations and to remove any expired reservation from the system, let&rsquo;s call it&nbsp;<strong>ActiveReservationsService</strong>. The other service would be keeping track of all the waiting user requests, and as soon as the required number of seats become available, it&rsquo;ll notify the (the longest waiting) user to choose the seats, let&rsquo;s call it&nbsp;<strong>WaitingUsersService</strong>.</p>
+
+<h2 id="a-activereservationsservice">a. ActiveReservationsService</h2>
+<p>We can keep all the reservations of a &lsquo;show&rsquo; in memory in a <a href="https://docs.oracle.com/javase/7/docs/api/java/util/LinkedHashMap.html" target="_blank">Linked HashMap</a> in addition to keeping all the data in the database. We would need a Linked HashMap so that we can jump to any reservation to remove it when the booking is complete. Also, since we will have expiry time associated with each reservation, the head of the linked HashTable will always point to the oldest reservation record, so that the reservation can be expired when the timeout is reached.</p>
+<p>To store every reservation for every show, we can have a HashTable where the &lsquo;key&rsquo; would be &lsquo;ShowID&rsquo; and the &lsquo;value&rsquo; would be the Linked HashMap containing &lsquo;BookingID&rsquo; and creation &lsquo;Timestamp&rsquo;.</p>
+<p>In the database, we&rsquo;ll store the reservation in the &lsquo;Booking&rsquo; table, and the expiry time will be in the Timestamp column. The &lsquo;Status&rsquo; field will have a value of &lsquo;Reserved (1)&rsquo; and as soon as a booking is complete, the system will update the &lsquo;Status&rsquo; to &lsquo;Booked (2)&rsquo; and remove the reservation record from the Linked HashMap of the relevant show. When the reservation is expired, we can either remove it from the Booking table or mark it &lsquo;Expired (3)&rsquo; in addition to removing it from memory.</p>
+<p>ActiveReservationsService will also work with the external financial service to process user payments. Whenever a booking is completed, or a reservation gets expired, WaitingUsersService will get a signal, so that any waiting customer can be served.</p>
+<p style="text-align:center;"><img src="./_principal_files/img/5752142325350400.png" alt="diagram"></p>
+<p style="text-align:center;"><em>ActiveReservationsService keeping track of all active reservations</em></p>
+
+<h2 id="b-waitingusersservice">b. WaitingUsersService</h2>
+<p>Just like ActiveReservationsService, we can keep all the waiting users of a show in memory in a Linked HashMap. We need a Linked HashMap so that we can jump to any user to remove them from the HashMap when the user cancels their request. Also, since we are serving in a first-come-first-serve manner, the head of the Linked HashMap would always be pointing to the longest waiting user, so that whenever seats become available, we can serve users in a fair manner.</p>
+<p>We will have a HashTable to store all the waiting users for every Show. The &lsquo;key&rsquo; would be 'ShowID, and the &lsquo;value&rsquo; would be a Linked HashMap containing &lsquo;UserIDs&rsquo; and their wait-start-time.</p>
+<p>Clients can use <a href="https://en.wikipedia.org/wiki/Push_technology#Long_polling" target="_blank">Long Polling</a> for keeping themselve updated for their reservation status. Whenever seats become available, the server can use this request to notify the user.</p>
+<p><strong>Reservation Expiration</strong><br>
+On the server, ActiveReservationsService keeps track of expiry (based on reservation time) of active reservations. As the client will be shown a timer (for the expiration time) which could be a little out of sync with the server, we can add a buffer of five seconds on the server to safeguard from a broken experience - such that &ndash; the client never times out after the server, preventing a successful purchase.</p>
+
+<h2 id="9-concurrency">Concurrency</h2>
+<p><strong>How to handle concurrency; such that no two users are able to book same seat?</strong> We can use transactions in SQL databases to avoid any clashes. For example, if we are using SQL server we can utilize&nbsp;<a href="https://docs.microsoft.com/en-us/sql/odbc/reference/develop-app/transaction-isolation-levels" target="_blank">Transaction Isolation Levels</a> to lock the rows before we can update them. Here is the sample code:</p>
+<pre><code>SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
+BEGIN TRANSACTION;
+
+    -- Suppose we intend to reserve three seats (IDs: 54, 55, 56) for ShowID=99
+    Select * From Show_Seat where ShowID=99 &amp;&amp; ShowSeatID in (54, 55, 56) &amp;&amp; Status=0 -- free
+
+    -- if the number of rows returned by the above statement is three, we can update to
+    -- return success otherwise return failure to the user.
+    update Show_Seat ...
+    update Booking ...
+
+COMMIT TRANSACTION;</code></pre>
+<p>&lsquo;Serializable&rsquo; is the highest isolation level and guarantees safety from <a href="https://en.wikipedia.org/wiki/Isolation_(database_systems)#Dirty_reads" target="_blank">Dirty</a>, <a href="https://en.wikipedia.org/wiki/Isolation_(database_systems)#Non-repeatable_reads" target="_blank">Nonrepeatable</a> and <a href="https://en.wikipedia.org/wiki/Isolation_(database_systems)#Phantom_reads" target="_blank">Phantoms</a> reads. One thing to note here, within a transaction if we read rows we acquire a shared/range lock on them that blocks other transactions from updating them.</p>
+<p>Once the above database transaction is successful, we can start tracking the reservation in ActiveReservationsService.</p>
+
+<h2 id="10-fault-tolerance">Fault Tolerance</h2>
+<p><strong>What happens when ActiveReservationsService or WaitingUsersService crashes?</strong><br>
+Whenever ActiveReservationsService crashes, we can read all the active reservations from the &lsquo;Booking&rsquo; table. Remember that we keep the &lsquo;Status&rsquo; column as &lsquo;Reserved (1)&rsquo; until a reservation gets booked. Another option is to have master-slave configuration so that when master crashes slave can take over. Since we are not storing the waiting users in the database, so when WaitingUsersService crashes, we don&rsquo;t have any means to recover that data unless we have a master-slave setup.</p>
+<p>Similarly, we&rsquo;ll have a master-slave setup for databases to make them fault tolerant.</p>
+
+<h2 id="11-data-partitioning">Data Partitioning</h2>
+<p><strong>Database partitioning:</strong> If we partition by &lsquo;MovieID&rsquo; then all the Shows of a movie will be on a single server. For a very hot movie, this could cause a lot of load on that server. A better approach would be to partition based on ShowID, this way the load gets distributed among different servers.</p>
+<p><strong>ActiveReservationsService and WaitingUsersService partitioning:</strong> Our web servers will manage all the active users&rsquo; sessions and handle all the communication with the users. We can use Consistent Hashing to allocate application servers for both ActiveReservationsService and WaitingUsersService based upon the &lsquo;ShowID&rsquo;. This way, all reservations and waiting users of a particular show will be handled by a certain set of servers. Let&rsquo;s assume for load balancing our <a href="12.html" target="_blank">Consistent Hashing</a> allocates three servers for any Show, so whenever a reservation is expired, the server holding that reservation will do following things:</p>
+<ol>
+<li>Update database to remove the Booking (or mark it expired) and update the seats&rsquo; Status in &lsquo;Show_Seats&rsquo; table.</li>
+<li>Remove the reservation from the Linked HashMap.</li>
+<li>Notify the user that their reservation has expired.</li>
+<li>Broadcast a message to all WaitingUsersService servers that are holding waiting users of that Show to figure out the longest waiting user. Consistent Hashing scheme will tell what servers are holding these users.</li>
+<li>Send a message to the WaitingUsersService server holding the longest waiting user to process their request if required seats have become available.</li>
+</ol>
+<p>Whenever a reservation is successful, following things will happen:</p>
+<ol>
+<li>The server holding that reservation sends a message to all servers holding waiting users of that Show so that they can expire all those waiting users that need more seats than the available seats.</li>
+<li>Upon receiving above message, all servers holding the waiting users will query the database to find how many free seats are available now. Database cache would greatly help here to run this query only once.</li>
+<li>Expire all waiting users who want to reserve more seats than the available seats. For this, WaitingUsersService has to iterate through the Linked HashMap of all the waiting users.</li>
+</ol>
+
+<style>
+.pdeep{margin:40px 0;padding:28px 32px;background:#fff;border:1px solid #e3e8ee;border-top:4px solid #2d6cdf;border-radius:8px;line-height:1.7;}
+.pdeep .tag{display:inline-block;background:#eaf1fc;color:#2d6cdf;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 10px;border-radius:20px;margin-bottom:10px;}
+.pdeep h2{font-size:22px;margin:0 0 8px;border:0;padding:0;}
+.pdeep h3{font-size:17px;margin:22px 0 6px;}
+.pdeep .box{background:#eef3fb;border-left:4px solid #5a8edb;padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px;font-size:15px;}
+.pdeep .box b{display:block;text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:3px;}
+.pdeep table{border-collapse:collapse;width:100%;margin:0 0 14px;font-size:14.5px;}
+.pdeep th,.pdeep td{border:1px solid #e3e8ee;padding:8px 11px;text-align:left;}
+.pdeep th{background:#f6f8fa;}
+.pdeep .seealso{margin-top:20px;padding-top:14px;border-top:1px solid #e3e8ee;font-size:14px;color:#5b6472;}
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+
+/* dark-mode overrides for inline pdeep/mastery (injected) */
+:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
+:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
+:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
+:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
+:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
+:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
+:root[data-theme="dark"] .pdeep th{background:#0f1318;}
+:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
+:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
+:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
+</style>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Deeper analysis: trade-offs &amp; failure modes</h2>
+
+<p>The entire system collapses to one hard problem: <strong>two users must never own the same seat</strong>, and this must hold under a burst of thousands of requests hitting the <em>same</em> few rows the instant a hot show opens. Everything else &mdash; search, catalogue, the seat map &mdash; is read-heavy and trivially cacheable. The booking path is the only place real money and real contention collide. Get the concurrency model wrong and you either double-sell (a refund, an angry customer, a chargeback) or you over-lock and the whole show grinds to a halt while one slow client holds a lock.</p>
+
+<div class="box"><b>The core invariant</b>
+A seat for a given <code>ShowID</code> is in exactly one of three states at any instant: <code>FREE</code>, <code>HELD</code> (by one session, with an expiry), or <code>BOOKED</code> (paid, permanent). Every transition must be atomic and observed by all readers. The bug to fear is the lost update / phantom: two transactions both read <code>FREE</code>, both write <code>HELD</code>.</p></div>
+
+<h3>Three ways to guarantee the invariant</h3>
+
+<table>
+<tr><th>Strategy</th><th>How it works</th><th>Wins</th><th>Costs / failure mode</th></tr>
+<tr><td><strong>Pessimistic locking</strong> (the lesson's <code>SERIALIZABLE</code> approach)</td><td><code>SELECT ... FOR UPDATE</code> on the seat rows inside a txn; concurrent txns block until commit.</td><td>Simple, correct, no retry logic. Fine at moderate QPS.</td><td>Under a thundering herd the hot rows become a serialization point. Lock held across a slow app round-trip = head-of-line blocking. <code>SERIALIZABLE</code> can also deadlock or abort with serialization failures you must retry.</td></tr>
+<tr><td><strong>Optimistic concurrency (OCC)</strong></td><td>Read seat + a <code>version</code>; on write do <code>UPDATE ... WHERE id=? AND version=?</code>. Zero rows affected &rarr; someone else won, retry.</td><td>No locks held during user think-time; great when conflicts are <em>rare</em>.</td><td>On a hot show conflicts are the <em>common</em> case, so you get a retry storm &mdash; OCC degrades exactly when you need it most.</td></tr>
+<tr><td><strong>Reservation-with-timeout (seat hold)</strong></td><td>A short atomic write flips <code>FREE&rarr;HELD</code> with a TTL; the slow steps (think-time, payment) happen <em>outside</em> any DB lock. Hold auto-expires.</td><td>Decouples the millisecond-scale conflict resolution from the minutes-scale payment flow. This is what BookMyShow / Ticketmaster actually do.</td><td>Need a reliable expiry mechanism and idempotent confirm; a crash mid-flow must not strand a seat as <code>HELD</code> forever.</td></tr>
+</table>
+
+<div class="box"><b>The seat-hold pattern in practice</b>
+The hold is the only step that must be globally serialized, and it is <em>cheap</em> &mdash; a single conditional write. A common high-throughput implementation: a Redis key per seat, <code>SET show:99:seat:54 &lt;sessionId&gt; NX PX 300000</code>. <code>NX</code> makes it atomic (only one session can create the key); <code>PX</code> sets the 5-minute TTL so a hold self-expires even if the client vanishes. The relational <code>Booking</code> row is written on <em>confirm</em>, not on hold &mdash; so the DB never sees the contention. The lesson's in-memory Linked HashMap is the single-server version of exactly this idea; Redis (or a partitioned hold service) is the distributed version. See <a href="64.html">62 Distributed Locking</a> for why a naive Redis lock needs fencing tokens to survive a primary failover.</p></div>
+
+<h3>Thundering herd on a hot show</h3>
+<p>When tickets for a blockbuster (or a Taylor Swift tour &mdash; Ticketmaster's 2022 Eras Sale fielded ~3.5 billion requests and melted) open at 10:00:00, the load is not uniform: it is a vertical spike onto a few hundred rows. Defenses, layered:</p>
+
+<div class="box"><b>Waiting room / virtual queue</b>
+Don't let the herd reach the booking tier at all. Admit users through a token-issuing queue (a la Ticketmaster's "Smart Queue", or a Cloudflare Waiting Room). Each admitted user gets a signed token granting a time window; the booking service rejects anyone without a valid token. This converts an uncontrollable spike into a steady, capacity-matched drip and is the single most important scaling decision for this system.</p></div>
+
+<ol>
+<li><strong>Front the seat-map reads with a cache + CDN.</strong> 99% of the herd is just <em>looking</em>. Serve the seat-availability snapshot from Redis/edge with a 1&ndash;2s TTL; accept slight staleness on reads, enforce truth only at hold-time.</li>
+<li><strong>Shard the hold service by <code>ShowID</code>.</strong> (The lesson's consistent-hashing partitioning.) One show's frenzy can't starve another's. A single mega-show may still need its seats spread across shards or its own dedicated capacity.</li>
+<li><strong>Fail fast and clearly.</strong> A losing hold attempt should return instantly ("seat just taken, pick another") rather than queue behind a lock &mdash; the lesson's three-way <code>ReserveSeats</code> response is exactly this.</li>
+<li><strong>First-come-first-serve waiting list</strong> (the <code>WaitingUsersService</code>) absorbs users for seats that <em>might</em> free up when holds expire, served fairly via the head of the Linked HashMap.</li>
+</ol>
+
+<h3>Hold &rarr; pay &rarr; confirm: a saga, not a transaction</h3>
+<p>You cannot wrap "hold the seat" and "charge the card" in one ACID transaction &mdash; the payment lives in an external gateway (Stripe/Razorpay), takes seconds-to-minutes, and may involve a 3-D Secure redirect. This is a textbook distributed transaction handled as a <strong>saga</strong> with compensations rather than a 2PC:</p>
+
+<table>
+<tr><th>Step</th><th>Forward action</th><th>Compensation if a later step fails</th></tr>
+<tr><td>1. Hold</td><td><code>FREE&rarr;HELD</code> with 5-min TTL</td><td>Let TTL expire (or release explicitly) &rarr; back to <code>FREE</code></td></tr>
+<tr><td>2. Charge</td><td>Call payment gateway with an idempotency key</td><td>Refund / void the authorization</td></tr>
+<tr><td>3. Confirm</td><td><code>HELD&rarr;BOOKED</code>, write <code>Booking</code> row, issue ticket</td><td>(terminal) on confirm failure after a successful charge &rarr; auto-refund + alert</td></tr>
+</table>
+
+<div class="box"><b>Idempotency is non-negotiable</b>
+The dangerous window is between a successful charge and a successful confirm. A client retry, a duplicated message, or a gateway webhook delivered twice must not double-charge or double-book. Two keys do the work: (1) an <em>idempotency key</em> on the payment call so the gateway dedupes a retried charge; (2) a unique constraint <code>(ShowID, SeatID)</code> with <code>Status=BOOKED</code> in the DB so a duplicate confirm is rejected at the storage layer, not just in app code. Prefer authorize-on-hold + capture-on-confirm so an unpaid expiry never leaves a real charge. See <a href="61.html">59 Payment System</a> for exactly-once charge semantics and <a href="32.html">32 Distributed Transactions</a> for saga orchestration vs. choreography.</p></div>
+
+<div class="box"><b>The "stranded HELD seat" failure mode</b>
+If the hold lives only in an in-memory map (as in the base lesson) and that server crashes, the seat is logically held with no owner and no expiry to fire. Mitigations: persist the hold's expiry in the <code>Booking</code> row (the lesson's recovery path), use a TTL-backed store (Redis) as the source of truth so expiry is intrinsic, and run a reconciliation sweeper that releases <code>HELD</code> rows whose timestamp is past. The lesson's 5-second server-side buffer (client never times out after the server) is a smaller version of the same defensive instinct &mdash; never let two parties disagree about whether a hold is still alive.</p></div>
+
+<div class="seealso"><b>Go deeper:</b> <a href="64.html">62 Distributed Locking</a>, <a href="32.html">32 Distributed Transactions</a>, <a href="61.html">59 Payment System</a></div>
+</div>
+
+<div class="mastery">
+<h2>Principal-level mastery check</h2>
+<ul>
+<li>Can you explain, in terms of the three seat states (<code>FREE</code>/<code>HELD</code>/<code>BOOKED</code>), the exact race that causes a double-booking &mdash; and name the single atomic operation that prevents it?</li>
+<li>Why does optimistic concurrency degrade precisely on a hot show, while a reservation-with-timeout hold thrives there? When would you still pick pessimistic <code>SELECT ... FOR UPDATE</code>?</li>
+<li>Why can't "hold the seat" and "charge the card" live in one ACID transaction, and how does a saga with compensations close that gap? What are the compensating actions for each step?</li>
+<li>Can you describe the dangerous window between a successful charge and a successful confirm, and the two distinct mechanisms (idempotency key vs. unique DB constraint) that make the flow safe under retries and duplicate webhooks?</li>
+<li>Why is a virtual waiting room / token queue a more effective answer to a thundering herd than simply adding more booking servers? What does each admitted token grant?</li>
+<li>If the server holding an in-memory hold crashes, why might a seat be stranded as <code>HELD</code> forever &mdash; and what three mechanisms recover it? Why the 5-second server-side expiry buffer?</li>
+<li>Why partition the hold service and database by <code>ShowID</code> rather than <code>MovieID</code>, and what's the residual problem when a single show is itself the hotspot?</li>
+</ul>
+</div>
+
+<div class="navfoot"><a href="28.html">&lsaquo; Prev: Designing Uber backend</a><a class="nx" href="30.html">Next: Consensus and Raft &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

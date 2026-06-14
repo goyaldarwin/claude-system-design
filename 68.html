@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Choosing a Message Broker</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk active" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Architecture &amp; Technology Choices &nbsp;&rsaquo;&nbsp; Choosing a Message Broker</div>
+
+<h1>Choosing a Message Broker</h1>
+<p class="sub"><em>How to pick between queues and logs &mdash; SQS, RabbitMQ, Kafka, Kinesis, Pulsar &mdash; by ordering, replay, throughput, and delivery needs.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Method.</b> <span>choosing queue vs log by which bottleneck dominates — ordering, replay, throughput, delivery.</span></div>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#dichotomy">The core dichotomy: queue vs log</a></li>
+<li><a href="#dimensions">Decision dimensions that actually matter</a></li>
+<li><a href="#brokers">Broker by broker: sweet spots &amp; when to avoid</a></li>
+<li><a href="#guide">A decision guide in prose</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="dichotomy">The core dichotomy: queue vs log</h2>
+<p>Almost every "which message broker?" decision collapses to one question first: do you want a <span class="key">queue</span> or a <span class="key">log</span>? They look similar &mdash; producers write messages, consumers read them &mdash; but their storage model and consumption semantics are fundamentally different, and that difference dictates what they are good at.</p>
+<p>A <span class="key">queue</span> treats a message as a unit of work that is <em>consumed and destroyed</em>. The broker holds the message, hands it to a consumer, waits for an acknowledgement, and then deletes it. Each message is delivered to one consumer in a group; the broker tracks per-message state (in-flight, acked, redelivered). This is the model of <span class="key">SQS</span> and <span class="key">RabbitMQ</span>. It gives you per-message acknowledgement, dead-letter handling, and trivially elastic competing consumers &mdash; but there is <em>no replay</em>: once acked, the message is gone.</p>
+<p>A <span class="key">log</span> treats a message as an <em>immutable, ordered event appended to a file</em> and retained for a configured window (or forever). Consumers are not handed messages; they pull from a position and track their own <span class="key">offset</span>. Multiple independent consumer groups read the same data at their own pace, and any of them can rewind and replay. This is the model of <span class="key">Kafka</span>, <span class="key">Kinesis</span>, and <span class="key">Pulsar</span>. The broker is "dumb" (it just stores and serves bytes by offset); the intelligence lives in the consumer. See <a href="08.html">Queues</a>, <a href="39.html">Kafka &amp; Log Messaging</a>, and <a href="56.html">Designing a Distributed Message Queue</a> for the internals.</p>
+<table>
+<tr><th>Property</th><th>Queue (SQS, RabbitMQ)</th><th>Log (Kafka, Kinesis, Pulsar)</th></tr>
+<tr><td>Message lifecycle</td><td>Deleted on ack</td><td>Retained for a window; offset-tracked</td></tr>
+<tr><td>Replay / re-read</td><td>No</td><td>Yes &mdash; rewind the offset</td></tr>
+<tr><td>State owner</td><td>Broker (per-message)</td><td>Consumer (per-offset)</td></tr>
+<tr><td>Fan-out to N consumers</td><td>Needs N queues / exchange routing</td><td>Native &mdash; N consumer groups, same log</td></tr>
+<tr><td>Ordering</td><td>Best-effort or per-FIFO-group</td><td>Strict per partition</td></tr>
+<tr><td>Per-message ack / retry</td><td>First-class</td><td>Coarse (offset commit); manual DLQ</td></tr>
+<tr><td>Typical use</td><td>Task/work distribution, RPC-style jobs</td><td>Event streaming, CDC, analytics, audit</td></tr>
+</table>
+<div class="callout note"><span class="lbl">Mental model</span>A queue answers <em>"who does this work?"</em> A log answers <em>"what happened, in what order, and who needs to know?"</em> When you find yourself wanting <em>both</em> per-message retry semantics <em>and</em> replay across many consumers, that tension is exactly what Pulsar and Kafka-with-DLQ patterns try to resolve.</div>
+
+<h2 id="dimensions">Decision dimensions that actually matter</h2>
+<p>Once you know whether you lean queue or log, the choice between specific brokers is driven by a handful of dimensions. A principal engineer names the two or three that dominate <em>their</em> workload rather than reciting all of them.</p>
+<ul>
+<li><span class="key">Ordering guarantees.</span> None / best-effort, per-key (partition), or strict global? Global ordering across a whole topic is rare and expensive &mdash; it forces a single partition and caps throughput. Almost always you want <em>per-key</em> ordering (same user, same account) and partition by that key.</li>
+<li><span class="key">Replay &amp; retention.</span> Do downstream consumers need to reprocess history &mdash; rebuild a search index, backfill a new service, recover from a bad deploy? If yes, you need a log. If a message is a one-shot command, retention is wasted cost.</li>
+<li><span class="key">Throughput.</span> Thousands/sec is comfortable for any broker. Hundreds of thousands to millions/sec per topic pushes you to partitioned logs (Kafka, Pulsar) where parallelism scales with partition count.</li>
+<li><span class="key">Delivery semantics.</span> <span class="key">At-least-once</span> is the default everywhere and demands <em>idempotent consumers</em>. <span class="key">Exactly-once</span> exists (Kafka transactions, idempotent producer) but only end-to-end within a single broker ecosystem (Kafka, and also Pulsar) and at a latency/complexity cost. Treat "exactly-once" claims skeptically.</li>
+<li><span class="key">Partitioning &amp; parallelism.</span> In logs, the partition is the unit of both ordering and parallelism &mdash; consumer concurrency is capped at the partition count. In queues, you scale consumers freely but lose ordering.</li>
+<li><span class="key">Fan-out model.</span> One message to one worker (competing consumers) vs one event to many independent subscribers (pub/sub). Logs make multi-subscriber fan-out free; queues need routing or duplicate queues.</li>
+<li><span class="key">Latency.</span> RabbitMQ and Redis Streams offer sub-millisecond hops; Kafka favors throughput and sits in the low single-digit to low double-digit ms (depending on batching/linger config); SQS standard adds tens of ms and is variable.</li>
+<li><span class="key">Operational cost.</span> Managed (SQS, Kinesis) means no brokers to babysit but per-request/shard pricing and vendor lock-in. Self-hosted Kafka/RabbitMQ means clusters, rebalancing, and on-call &mdash; real headcount cost.</li>
+<li><span class="key">Ecosystem.</span> Kafka Connect, Streams, ksqlDB, Schema Registry; RabbitMQ plugins; cloud-native triggers (Lambda from SQS/Kinesis). The surrounding tooling often decides the pick more than the core broker. See <a href="46.html">Event-Driven Architecture</a>.</li>
+</ul>
+
+<h2 id="brokers">Broker by broker: sweet spots &amp; when to avoid</h2>
+
+<h3>Amazon SQS &mdash; the managed default queue</h3>
+<p>Fully managed, effectively infinitely scalable, pay-per-request. <span class="key">Standard</span> queues give at-least-once delivery with no ordering and possible duplicates; <span class="key">FIFO</span> queues give exactly-once processing and strict ordering within a <em>message group</em>, capped around 3,000 msg/s with batching. Visibility timeout + DLQ handle retries cleanly.</p>
+<p><strong>Sweet spot:</strong> decoupling AWS services, background jobs, task buffering, smoothing spiky load &mdash; when you want zero operational burden and don't need replay or high ordered throughput.</p>
+<p><strong>Avoid when:</strong> you need to replay history, fan a stream out to many independent consumers, or push millions/sec through one ordered stream.</p>
+
+<h3>RabbitMQ &mdash; the flexible smart broker</h3>
+<p>A mature <span class="key">AMQP</span> broker with rich routing: exchanges (direct, topic, fanout, headers) decide which queues a message lands in. It is a "smart broker, dumb consumer" design &mdash; routing logic lives in the broker. Excellent per-message control, priorities, TTLs, and low latency.</p>
+<p><strong>Sweet spot:</strong> complex routing topologies, RPC-style request/reply, work queues where you want fine-grained acks and per-message priorities, and moderate throughput (tens of thousands/sec).</p>
+<p><strong>Avoid when:</strong> you need event replay, very high sustained throughput, or long retention &mdash; RabbitMQ is a queue, not a log, and deep queues degrade performance.</p>
+
+<h3>Apache Kafka &mdash; the high-throughput log</h3>
+<p>The de facto standard distributed commit log. Topics split into <span class="key">partitions</span> replicated across brokers; ordering is guaranteed per partition; retention is time- or size-based (or compacted to keep the latest value per key). Scales to millions of messages/sec and petabytes retained. Rich ecosystem: Connect, Streams, Schema Registry, exactly-once via transactions.</p>
+<p><strong>Sweet spot:</strong> event streaming, the central event backbone/log, CDC (see <a href="40.html">Stream Processing &amp; CDC</a>), metrics/log pipelines, and any case needing replay plus high throughput plus many consumer groups.</p>
+<p><strong>Avoid when:</strong> you have a handful of messages/sec, need complex per-message routing, or lack the operational maturity to run a cluster (or budget a managed offering like MSK/Confluent).</p>
+
+<h3>Amazon Kinesis &mdash; managed Kafka-like on AWS</h3>
+<p>A managed log with the same shard/partition + offset model. Capacity is provisioned in <span class="key">shards</span> (1 MB/s in, 2 MB/s out each); ordering is per shard; retention up to 365 days. Tight integration with Lambda, Firehose, and Analytics.</p>
+<p><strong>Sweet spot:</strong> AWS-native streaming where you want log semantics and replay without operating Kafka &mdash; clickstreams, IoT telemetry, real-time analytics feeding S3/Redshift.</p>
+<p><strong>Avoid when:</strong> you need Kafka's ecosystem/portability, very large fan-out (read throughput per shard is limited without enhanced fan-out), or you object to shard-based provisioning and AWS lock-in.</p>
+
+<h3>Apache Pulsar &mdash; segmented storage &amp; multi-tenancy</h3>
+<p>A log that <span class="key">separates serving (brokers) from storage (BookKeeper)</span>, so you scale them independently and rebalance without copying data. Natively supports both queue and streaming subscription modes (exclusive, shared, failover, key-shared), tiered storage to object stores, and first-class multi-tenancy with namespaces.</p>
+<p><strong>Sweet spot:</strong> platform/multi-tenant environments needing both queue and log semantics in one system, geo-replication, and independent compute/storage scaling.</p>
+<p><strong>Avoid when:</strong> you want the largest community/ecosystem and operational know-how (Kafka still wins there), or the extra moving part (BookKeeper) outweighs the flexibility for your scale.</p>
+
+<h3>Redis Streams &mdash; the lightweight log</h3>
+<p>An append-only log data type inside Redis with consumer groups and offset tracking. Sub-millisecond latency, trivial to run if you already operate Redis. Durability is bounded by Redis persistence and memory.</p>
+<p><strong>Sweet spot:</strong> low-latency, modest-volume streaming where Redis is already in the stack &mdash; real-time notifications, ephemeral event fan-out, simple job streams.</p>
+<p><strong>Avoid when:</strong> you need durable long-term retention, very large datasets that exceed memory economics, or strong cross-broker replication guarantees.</p>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>The recurring tension is <em>broker-managed per-message state</em> (queues: easy retries, easy elastic consumers, no replay) versus <em>consumer-managed offsets</em> (logs: replay and free fan-out, but you own idempotency, DLQ, and partition-bounded parallelism). Picking the wrong side means either bolting replay onto a queue or hand-rolling per-message retry on a log &mdash; both are painful. Choose the model that matches your dominant access pattern.</div>
+
+<h2 id="guide">A decision guide in prose</h2>
+<p>Walk it top-down, stopping at the first constraint that binds:</p>
+<ol>
+<li><span class="key">Do you need replay or multiple independent consumers of the same data?</span> If yes &rarr; a <strong>log</strong> (Kafka / Kinesis / Pulsar / Redis Streams). If a message is a one-shot command consumed once and discarded &rarr; a <strong>queue</strong> (SQS / RabbitMQ).</li>
+<li><span class="key">Do you need strict ordering per key?</span> Logs give it per partition for free &mdash; partition by your ordering key. With queues, use SQS FIFO message groups or RabbitMQ single-consumer-per-key; accept the throughput cap that ordering imposes.</li>
+<li><span class="key">What is the throughput target?</span> Up to ~tens of thousands/sec &rarr; any broker works; pick on ergonomics. Hundreds of thousands to millions/sec &rarr; a partitioned log (Kafka or Pulsar), and your parallelism is bounded by partition count, so size partitions for peak consumer concurrency.</li>
+<li><span class="key">Managed or self-hosted?</span> On AWS with no platform team &rarr; SQS for queues, Kinesis (or MSK) for logs. Willing to operate or running multi-cloud &rarr; RabbitMQ for routing-heavy queues, Kafka for the event backbone, Pulsar when you need both models and multi-tenancy.</li>
+<li><span class="key">Any special needs?</span> Complex routing &rarr; RabbitMQ. Sub-ms latency on an existing Redis stack &rarr; Redis Streams. Independent storage/compute scaling and geo-replication &rarr; Pulsar. A rich streaming ecosystem (Connect, Streams, schema governance) &rarr; Kafka.</li>
+</ol>
+<p>A common, defensible end state at scale: <strong>Kafka as the durable event backbone</strong> (replay, fan-out, CDC, analytics) with <strong>SQS/RabbitMQ at the edges</strong> for command-style work queues that need per-message retry and elastic workers. Don't force one broker to do both jobs.</p>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They start by classifying the workload as queue-shaped or log-shaped <em>before</em> naming a product, and they justify the choice from the dominant dimension (replay, ordering, throughput) rather than personal familiarity. They are explicit that "exactly-once" almost always means "at-least-once + idempotent consumer," and they bound parallelism by partition count out loud.</div>
+<p>Probing questions to ask engineers:</p>
+<ul>
+<li>"You picked Kafka. A new service needs to backfill from six months ago &mdash; walk me through what changes versus if you'd chosen SQS."</li>
+<li>"Your consumer needs strict per-user ordering but also 500k msg/s. How do partitioning and consumer concurrency interact here?"</li>
+<li>"You said 'exactly-once.' Define precisely where the boundary is and what happens on a consumer crash mid-batch."</li>
+<li>"When would you deliberately choose RabbitMQ over Kafka, and when is that choice a mistake?"</li>
+<li>"This is a one-shot 'send welcome email' command. Why might a log be the wrong tool, and what does it cost you if you use one anyway?"</li>
+<li>"How would you handle a poison message in Kafka versus in SQS, and which gives cleaner semantics?"</li>
+</ul>
+
+<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
+<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2024-12-04 at 9.01.25 AM.jpg" alt="Message broker landscape and trade-offs" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Diagram showing message queue evolution across IBM MQ, RabbitMQ, Kafka, and Pulsar with their internal architectures. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+</div>
+<div class="navfoot"><a href="67.html">&lsaquo; Prev: Choosing a Database</a><a class="nx" href="69.html">Next: Domain-Driven Design &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL vs. NoSQL</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk active" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Fundamentals &amp; Building Blocks &nbsp;&rsaquo;&nbsp; SQL vs. NoSQL</div>
+<h1>SQL vs. NoSQL</h1>
+<p class="sub"><em>How relational and non-relational databases differ in structure, schema, querying, scalability, and reliability &mdash; and how to choose between them.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Finite capacity &amp; no shared truth.</b> <span>the data-model choice trades query power and ACID for scale, or vice versa.</span></div>
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+  <li><a href="#sql">SQL</a></li>
+  <li><a href="#nosql">NoSQL</a></li>
+  <li><a href="#high-level-differences-between-sql-and-nosql">High level differences between SQL and NoSQL</a></li>
+  <li><a href="#sql-vs-nosql-which-one-to-use">SQL VS. NoSQL - Which one to use?</a></li>
+</ul></div>
+
+
+<p>In the world of databases, there are two main types of solutions: SQL and NoSQL - or relational databases and non-relational databases. Both of them differ in the way they were built, the kind of information they store, and how they store it.</p>
+
+<p>Relational databases are structured and have predefined schemas, like phone books that store phone numbers and addresses. Non-relational databases are unstructured, distributed and have a dynamic schema, like file folders that hold everything from a person&rsquo;s address and phone number to their Facebook &lsquo;likes&rsquo; and online shopping preferences.</p>
+
+<h2 id="sql">SQL</h2>
+
+<p>Relational databases store data in rows and columns. Each row contains all the information about one entity, and columns are all the separate data points. Some of the most popular relational databases are MySQL, Oracle, MS SQL Server, SQLite, Postgres, MariaDB, etc.</p>
+
+<h2 id="nosql">NoSQL</h2>
+
+<p>Following are most common types of NoSQL:</p>
+
+<p><strong>Key-Value Stores:</strong> Data is stored in an array of key-value pairs. The &lsquo;key&rsquo; is an attribute name, which is linked to a &lsquo;value&rsquo;. Well-known key value stores include Redis, Voldemort and Dynamo.</p>
+
+<p><strong>Document Databases:</strong> In these databases data is stored in documents, instead of rows and columns in a table, and these documents are grouped together in collections. Each document can have an entirely different structure. Document databases include the CouchDB and MongoDB.</p>
+
+<p><strong>Wide-Column Databases:</strong> Instead of &lsquo;tables,&rsquo; in columnar databases we have column families, which are containers for rows. Unlike relational databases, we don&rsquo;t need to know all the columns up front, and each row doesn&rsquo;t have to have the same number of columns. Columnar databases are best suited for analyzing large datasets - big names include Cassandra and HBase.</p>
+
+<p><strong>Graph Databases:</strong> These databases are used to store data whose relations are best represented in a graph. Data is saved in graph structures with nodes (entities), properties (information about the entities) and lines (connections between the entities). Examples of graph database include Neo4J and InfiniteGraph.</p>
+
+<h2 id="high-level-differences-between-sql-and-nosql">High level differences between SQL and NoSQL</h2>
+
+<p><strong>Storage:</strong> SQL stores data in tables, where each row represents an entity, and each column represents a data point about that entity; for example, if we are storing a car entity in a table, different columns could be &lsquo;Color&rsquo;, &lsquo;Make&rsquo;, &lsquo;Model&rsquo;, and so on.</p>
+
+<p>NoSQL databases have different data storage models. The main ones are key-value, document, graph and columnar. We will discuss differences between these databases below.</p>
+
+<p><strong>Schema:</strong> In SQL, each record conforms to a fixed schema, meaning the columns must be decided and chosen before data entry and each row must have data for each column. The schema can be altered later, but it involves modifying the whole database and going offline.</p>
+
+<p>Whereas in NoSQL, schemas are dynamic. Columns can be added on the fly, and each &lsquo;row&rsquo; (or equivalent) doesn&rsquo;t have to contain data for each &lsquo;column.&rsquo;</p>
+
+<p><strong>Querying:</strong> SQL databases uses SQL (structured query language) for defining and manipulating the data, which is very powerful. In NoSQL database, queries are focused on a collection of documents. Sometimes it is also called UnQL (Unstructured Query Language). Different databases have different syntax for using UnQL.</p>
+
+<p><strong>Scalability:</strong> In most common situations, SQL databases are vertically scalable, i.e., by increasing the horsepower (higher Memory, CPU, etc.) of the hardware, which can get very expensive. It is possible to scale a relational database across multiple servers, but this is a challenging and time-consuming process.</p>
+
+<p>On the other hand, NoSQL databases are horizontally scalable, meaning we can add more servers easily in our NoSQL database infrastructure to handle large traffic. Any cheap commodity hardware or cloud instances can host NoSQL databases, thus making it a lot more cost-effective than vertical scaling. A lot of NoSQL technologies also distribute data across servers automatically.</p>
+
+<p><strong>Reliability or ACID Compliancy (Atomicity, Consistency, Isolation, Durability):</strong> The vast majority of relational databases are ACID compliant. So, when it comes to data reliability and safe guarantee of performing transactions, SQL databases are still the better bet.</p>
+
+<p>Most of the NoSQL solutions sacrifice ACID compliance for performance and scalability.</p>
+
+<h2 id="sql-vs-nosql-which-one-to-use">SQL VS. NoSQL - Which one to use?</h2>
+
+<p>When it comes to database technology, there&rsquo;s no one-size-fits-all solution. That&rsquo;s why many businesses rely on both relational and non-relational databases for different needs. Even as NoSQL databases are gaining popularity for their speed and scalability, there are still situations where a highly structured SQL database may perform better; choosing the right technology hinges on the use case.</p>
+
+<h3>Reasons to use SQL database</h3>
+
+<p>Here are a few reasons to choose a SQL database:</p>
+
+<ol>
+<li>We need to ensure ACID compliance. ACID compliance reduces anomalies and protects the integrity of your database by prescribing exactly how transactions interact with the database. Generally, NoSQL databases sacrifice ACID compliance for scalability and processing speed, but for many e-commerce and financial applications, an ACID-compliant database remains the preferred option.</li>
+<li>Your data is structured and unchanging. If your business is not experiencing massive growth that would require more servers and if you&rsquo;re only working with data that&rsquo;s consistent, then there may be no reason to use a system designed to support a variety of data types and high traffic volume.</li>
+</ol>
+
+<h3>Reasons to use NoSQL database</h3>
+
+<p>When all the other components of our application are fast and seamless, NoSQL databases prevent data from being the bottleneck. Big data is contributing to a large success for NoSQL databases, mainly because it handles data differently than the traditional relational databases. A few popular examples of NoSQL databases are MongoDB, CouchDB, Cassandra, and HBase.</p>
+
+<ol>
+<li>Storing large volumes of data that often have little to no structure. A NoSQL database sets no limits on the types of data we can store together and allows us to add different new types as the need changes. With document-based databases, you can store data in one place without having to define what &ldquo;types&rdquo; of data those are in advance.</li>
+<li>Making the most of cloud computing and storage. Cloud-based storage is an excellent cost-saving solution but requires data to be easily spread across multiple servers to scale up. Using commodity (affordable, smaller) hardware on-site or in the cloud saves you the hassle of additional software, and NoSQL databases like Cassandra are designed to be scaled across multiple data centers out of the box without a lot of headaches.</li>
+<li>Rapid development. NoSQL is extremely useful for rapid development as it doesn&rsquo;t need to be prepped ahead of time. If you&rsquo;re working on quick iterations of your system which require making frequent updates to the data structure without a lot of downtime between versions, a relational database will slow you down.</li>
+</ol>
+
+<div class="pdeep">
+<span class="tag">Principal-level deep dive</span>
+<h2>Beyond the dichotomy: NewSQL, storage engines, tunable consistency</h2>
+
+<p>The 2018 "SQL is vertically scalable, NoSQL is horizontally scalable" framing is now actively misleading. The taxonomy collapses three independent axes &mdash; <b>query language</b>, <b>storage engine</b>, and <b>consistency model</b> &mdash; into a single binary. A principal engineer reasons about each axis separately, because a modern datastore can mix any combination: distributed SQL with serializable isolation, a key-value store with a B-tree engine, or a wide-column store with tunable per-query consistency. The label on the tin tells you almost nothing about the trade-offs that actually matter.</p>
+
+<h3>NewSQL: horizontal scale <i>with</i> ACID and SQL</h3>
+<p>The premise that you must sacrifice ACID to scale out died with Google Spanner (2012). NewSQL systems shard data into ranges, run a consensus protocol (Paxos or Raft) <i>per shard</i>, and layer a SQL engine on top. Each range is a small replicated state machine; cross-range transactions use two-phase commit coordinated across the Raft leaders. This gives you linear write scaling <i>and</i> serializable transactions &mdash; the old trade-off was an artifact of single-node B-tree databases, not a law of physics.</p>
+<ul>
+<li><b>Spanner</b> uses TrueTime &mdash; GPS and atomic clocks expose a bounded uncertainty interval &epsilon; (typically &lt;7ms). A commit waits out 2&epsilon; before acknowledging, which makes external consistency (linearizability) achievable globally. The cost is that commit latency is floored by clock uncertainty.</li>
+<li><b>CockroachDB</b> reproduces Spanner's architecture on commodity hardware without atomic clocks, using HLC (hybrid logical clocks) and a configurable max clock offset (default 500ms) instead of TrueTime. It serializes via a timestamp-ordered MVCC layer on RocksDB/Pebble.</li>
+<li><b>TiDB</b> separates SQL (TiDB) from storage (TiKV, a Raft-replicated key-value store) with a Percolator-style transaction model, plus a columnar engine (TiFlash) for HTAP.</li>
+<li><b>Vitess</b> takes the opposite path: it shards vanilla MySQL horizontally with a routing layer. You keep MySQL's engine and replication but lose cross-shard ACID unless you opt into 2PC.</li>
+</ul>
+
+<h3>The real axis is the storage engine</h3>
+<p>Whether you write SQL or a document query is almost irrelevant to performance characteristics under load. What dominates is the on-disk structure: a <b>B-tree</b> (update-in-place, read-optimized) or an <b>LSM-tree</b> (append-only with background compaction, write-optimized). This is why Cassandra, RocksDB, HBase, and ScyllaDB feel similar despite different APIs &mdash; they all use LSM &mdash; while MySQL/InnoDB and Postgres feel similar because both use B-trees.</p>
+<table>
+<tr><th>Dimension</th><th>B-tree (InnoDB, Postgres)</th><th>LSM-tree (Cassandra, RocksDB)</th></tr>
+<tr><td>Writes</td><td>Random I/O, in-place; write amplification from page splits</td><td>Sequential I/O to memtable then flush; high throughput</td></tr>
+<tr><td>Reads</td><td>Predictable, ~log<sub>b</sub>(n) page reads</td><td>May touch multiple SSTables; mitigated by bloom filters</td></tr>
+<tr><td>Space</td><td>Fragmentation, fill-factor waste</td><td>Compaction overhead; tombstones until compacted</td></tr>
+<tr><td>Worst case</td><td>Write-heavy random-key workloads</td><td>Read amplification + compaction stalls under write pressure</td></tr>
+</table>
+<div class="box"><b>Heuristic</b>Write-heavy, append-mostly, time-series &rarr; LSM. Read-heavy with point lookups and range scans on a working set that fits memory &rarr; B-tree. See <a href="38.html">Storage Engines</a> for compaction strategies (size-tiered vs leveled) and the read/write/space amplification triangle.</div>
+
+<h3>Consistency is tunable, not a property of "NoSQL"</h3>
+<p>"NoSQL sacrifices consistency" is wrong as a blanket statement &mdash; consistency is a <i>per-operation</i> knob in most serious distributed stores. Cassandra and DynamoDB let you trade latency for guarantees on every read and write:</p>
+<ul>
+<li><b>Cassandra quorums:</b> with replication factor <code>N</code>, choosing read consistency <code>R</code> and write consistency <code>W</code> such that <code>R + W &gt; N</code> guarantees a read sees the latest acknowledged write. <code>QUORUM</code> reads + <code>QUORUM</code> writes (<code>R=W=2, N=3</code>) gives strong consistency; <code>ONE</code>/<code>ONE</code> gives low latency and eventual consistency. You set this per statement.</li>
+<li><b>DynamoDB</b> exposes the same idea as a boolean: <code>ConsistentRead=true</code> routes to the leader replica (strong, ~2x cost and higher latency), <code>false</code> reads any replica (eventual, cheaper). Transactions add ACID across items via <code>TransactWriteItems</code>.</li>
+</ul>
+<p>This is why <a href="31.html">PACELC</a> is the better lens than CAP: it forces you to state behavior both during a partition (consistency vs availability) <i>and</i> in the normal case (latency vs consistency). The quorum math above is exactly the "ELC" leg made tunable.</p>
+
+<h3>ACID vs BASE is a spectrum</h3>
+<p>Treating ACID and BASE as opposites is a category error. Isolation alone has levels &mdash; read-uncommitted, read-committed, repeatable-read, snapshot, serializable &mdash; and most "ACID" SQL databases default to <i>read-committed</i> (Postgres) or <i>repeatable-read</i> (MySQL), not serializable. Meanwhile DynamoDB transactions and MongoDB multi-document transactions (since 4.0) provide real ACID within their scope. The honest question is never "ACID or BASE?" but "what isolation level, over what transaction boundary, with what durability (fsync-per-commit vs group commit vs async)?"</p>
+
+<h3>Polyglot persistence: a store per access pattern</h3>
+<p>At principal scale you stop picking <i>a</i> database and start mapping each access pattern to the engine that fits it, accepting the operational cost of running several. A single product commonly uses:</p>
+<table>
+<tr><th>Workload</th><th>Best fit</th><th>Why</th></tr>
+<tr><td>Transactional core (orders, payments)</td><td>Relational / NewSQL</td><td>Multi-row ACID, foreign keys, serializable isolation</td></tr>
+<tr><td>User sessions, feature flags, rate limits</td><td>Key-value (Redis)</td><td>Sub-ms point lookups; see <a href="57.html">Key-Value Store</a></td></tr>
+<tr><td>Product catalog, user profiles</td><td>Document (MongoDB)</td><td>Heterogeneous, nested, schema-evolving objects read whole</td></tr>
+<tr><td>Event/telemetry firehose</td><td>Wide-column (Cassandra) / time-series</td><td>High write throughput, time-partitioned, append-only (LSM)</td></tr>
+<tr><td>Recommendations, fraud rings, social graph</td><td>Graph (Neo4j)</td><td>Multi-hop traversals that explode into expensive JOINs in SQL</td></tr>
+</table>
+<p>Each genuinely wins where its physical layout matches the query: graph databases win when you do variable-depth traversals (a 4-hop friend-of-friend query is one index-free adjacency walk vs four self-JOINs); time-series databases win because they exploit timestamp ordering for compression and retention TTLs; document stores win when the aggregate boundary matches the read boundary, avoiding JOINs entirely. The cost of polyglot persistence is real &mdash; more failure modes, dual writes, cross-store consistency, and operational surface &mdash; so consolidate ruthlessly and only split a store out when one access pattern is demonstrably starving another. Replication topology and read-replica routing (<a href="37.html">Replication</a>) often solve the read-scaling problem before a second engine is justified.</p>
+
+<div class="seealso"><b>See also:</b> <a href="38.html">Storage Engines</a>, <a href="31.html">Consistency Models &amp; PACELC</a>, <a href="57.html">Key-Value Store</a>, <a href="37.html">Replication</a></div>
+</div>
+
+<style>
+.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}
+.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}
+.mastery ul{margin:0;padding-left:22px;} .mastery li{margin:0 0 9px;}
+
+/* dark-mode overrides for inline pdeep/mastery (injected) */
+:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
+:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
+:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
+:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
+:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
+:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
+:root[data-theme="dark"] .pdeep th{background:#0f1318;}
+:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
+:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
+:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
+</style>
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed relational (SQL)</td><td>RDS, Aurora</td><td>Cloud SQL, Spanner, AlloyDB</td><td>Azure SQL Database</td></tr><tr><td>Managed document / NoSQL</td><td>DynamoDB, DocumentDB</td><td>Firestore, Bigtable</td><td>Cosmos DB</td></tr><tr><td>Managed wide-column</td><td>Keyspaces (Cassandra)</td><td>Bigtable</td><td>Cosmos DB (Cassandra API)</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
+<div class="mastery">
+<h2>Principal-level mastery check</h2>
+<ul>
+<li>Can you defend a database choice purely from the dominant access pattern (read whole aggregate vs multi-hop traversal vs append-only time-ordered writes) without ever invoking which engine the team already knows?</li>
+<li>What specifically does NewSQL (Spanner, CockroachDB, TiDB) change about the old SQL-vs-NoSQL trade-off &mdash; how does it give you horizontal scale <em>and</em> distributed ACID, and what is the cost (TrueTime / commit-wait latency, write amplification across Raft groups)?</li>
+<li>Why does tunable consistency (Cassandra/DynamoDB R + W &gt; N) let one store behave strongly consistent for some queries and eventually consistent for others &mdash; and what latency and availability do you trade at each setting?</li>
+<li>For each NoSQL family, can you name the physical layout that makes it genuinely win &mdash; document = aggregate boundary matches read boundary (no JOIN); wide-column = LSM + time-partitioning for write throughput; graph = index-free adjacency for variable-depth traversal; key-value = O(1) hash on a known key?</li>
+<li>Why is "schema-less" misleading &mdash; where does the schema actually move to, and what does that cost you at read time and during evolution?</li>
+<li>When is polyglot persistence justified, and what concrete failure modes (dual writes, cross-store consistency, more operational surface) does it add &mdash; and why should you try read replicas and routing <em>before</em> adding a second engine?</li>
+<li>Can you explain why a relational database with proper indexes and partitioning often outscales a NoSQL store for the same workload, making "we need NoSQL to scale" frequently the wrong premise?</li>
+</ul>
+<p style="margin:14px 0 0;font-size:14px;">Go deeper: <a href="67.html">68 Choosing a Database</a></p>
+</div>
+
+<div class="navfoot"><a href="09.html">&lsaquo; Prev: Redundancy and Replication</a><a class="nx" href="11.html">Next: CAP Theorem &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

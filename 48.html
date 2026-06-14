@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Object Storage and CDN</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk active" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; Object Storage and CDN</div>
+
+<h1>Object Storage and CDN</h1>
+<p class="sub"><em>Object stores and CDNs &mdash; getting large and static content off your application's critical path.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; cost.</b> <span>getting large content off the app path, paid in CDN invalidation and consistency nuances.</span></div>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#why">Why bytes don't belong in your app tier</a></li>
+<li><a href="#object">Object storage semantics</a></li>
+<li><a href="#durability">Durability, consistency &amp; the upload path</a></li>
+<li><a href="#classes">Storage classes, lifecycle &amp; versioning</a></li>
+<li><a href="#cdn">CDNs: edge caching mechanics</a></li>
+<li><a href="#invalidation">Cache control, invalidation &amp; private content</a></li>
+<li><a href="#patterns">Design patterns that compose them</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="why">Why bytes don't belong in your app tier</h2>
+<p>The single most common mistake in a media-heavy design is to stream a 4&nbsp;GB video, a 20&nbsp;MP photo, or a user's PDF <em>through</em> the application servers. A stateless app process that should be answering a request in single-digit milliseconds is instead held open for minutes, its memory and socket buffers consumed copying bytes it does nothing with. Concurrency collapses: an autoscaling group sized for 50,000 lightweight API calls per node now serves a few hundred uploads. Worse, you are paying premium compute prices to do a job that a purpose-built byte-mover does for a fraction of the cost.</p>
+<p>The principal-level instinct is to recognize two fundamentally different workloads and route them to two fundamentally different substrates. <span class="key">Metadata and transactions</span> &mdash; who owns the file, its name, its ACL, its version pointer &mdash; are small, mutable, queryable, and belong in a database. <span class="key">The blob itself</span> &mdash; large, write-once, read-many &mdash; belongs in an object store, and its delivery belongs to a CDN. Your app tier touches neither byte stream; it only mints the URLs that let clients talk to those systems directly.</p>
+
+<h2 id="object">Object storage semantics</h2>
+<p><span class="key">Object storage</span> (S3, GCS, Azure Blob) is not a filesystem and not a block device. It is a flat namespace of <span class="key">objects</span> &mdash; an opaque blob of bytes plus a key (the full path string), plus metadata and a version. There are no directories; the slashes in <code>users/42/avatar.png</code> are just characters in the key, and the "folder" view your console shows is a prefix-listing illusion. This flatness is what makes object stores scale to trillions of objects across a fleet without a central inode table to bottleneck on.</p>
+<p>Contrast the three storage models, because the boundaries are easy to get wrong:</p>
+<table>
+<tr><th>Model</th><th>Unit / API</th><th>Mutability</th><th>Use case</th></tr>
+<tr><td><span class="key">Block</span> (EBS)</td><td>Fixed-size blocks, read/write offsets</td><td>Random in-place writes</td><td>Database volumes, raw disks for a single attached host</td></tr>
+<tr><td><span class="key">File</span> (NFS/EFS)</td><td>POSIX paths, directories, locks</td><td>Partial in-place edits</td><td>Shared mounts, legacy apps expecting a filesystem</td></tr>
+<tr><td><span class="key">Object</span> (S3)</td><td><code>PUT</code>/<code>GET</code>/<code>DELETE</code> by key over HTTP</td><td>Whole-object replace; no append/edit-in-place</td><td>Media, backups, static assets, data-lake files</td></tr>
+</table>
+<p>The key semantic consequence: objects are effectively <span class="key">immutable</span>. You cannot patch byte 5,000 of an object &mdash; you overwrite the whole key with a new version. This write-once, read-many shape is exactly what allows the aggressive caching and replication that give object stores their durability and CDN-friendliness. It also means object storage is the wrong home for anything needing frequent small mutations, like a hot counter or a transactional row.</p>
+
+<h2 id="durability">Durability, consistency &amp; the upload path</h2>
+<p>Object stores advertise <span class="key">eleven nines of durability</span> (99.999999999%) &mdash; the expected probability that a stored object survives a year. That is not a slogan; it is engineered. Each object is split and stored with redundancy, classically via <span class="key">erasure coding</span>: an object is chopped into <em>k</em> data fragments plus <em>m</em> parity fragments (say 10+4), spread across independent disks, racks, and availability zones, so any 4 of the 14 fragments can be lost and the object still reconstructs. Erasure coding tolerates more simultaneous failures than 3&times; replication (any 4 of 14 fragments here vs. 2 lost copies) at roughly 1.4&times; the storage cost instead of 3&times; &mdash; the reason it dominates at scale.</p>
+
+<h3>Consistency model</h3>
+<p>For years S3 was famously <span class="key">eventually consistent</span> for overwrites and list operations, which forced ugly workarounds (read-after-write retries, external manifests). Since December 2020, S3 provides <span class="key">strong read-after-write consistency</span> for all operations. Concretely: the moment a <code>PUT</code> returns 200, any subsequent <code>GET</code> from any client, in any AZ of that region, is guaranteed to return the new bytes &mdash; never a stale version, never a 404 for an object that was just written. The same now holds for overwrites and for <code>LIST</code> reflecting newly added keys. This eliminates an entire class of "I just wrote it but the next service can't see it" race bugs. Note this is per-object; it is <em>not</em> a multi-object transaction &mdash; there is no atomic "rename" across two keys.</p>
+
+<h3>Multipart upload</h3>
+<p>A single <code>PUT</code> tops out around 5&nbsp;GB and risks restarting the whole transfer if the connection drops at 99%. <span class="key">Multipart upload</span> solves both: the client initiates an upload, sends parts (5&nbsp;MB&ndash;5&nbsp;GB each, up to 10,000 parts) in parallel, each retryable independently, then sends a <code>CompleteMultipartUpload</code> that stitches them server-side into one object. This is how you upload terabyte-scale objects, saturate bandwidth with parallelism, and resume after a flaky mobile connection drops.</p>
+
+<h3>Presigned URLs</h3>
+<p>The mechanism that gets the app server off the byte path is the <span class="key">presigned URL</span>. Your backend, holding the real credentials, computes a signed URL that grants a <em>specific</em> operation (<code>PUT</code> to one key, or <code>GET</code> of one object) for a <em>bounded</em> time. The client then talks straight to the object store. The app never sees the bytes; it only authorizes.</p>
+<pre><code>// Backend: mint a 15-minute upload grant, then hand the URL to the client
+url = s3.presign(
+    method   = "PUT",
+    bucket   = "user-uploads",
+    key      = "u/42/" + uuid() + ".jpg",
+    expires  = 900,                      // seconds
+    conditions = { "content-length-range": [0, 10_000_000],
+                   "Content-Type": "image/jpeg" }
+);
+// Client uploads directly to S3 with this URL; app tier never touches the blob.</code></pre>
+
+<div class="callout note"><span class="lbl">Key insight</span>Durability (will the bytes survive?) is not availability (can I reach them right now?). Eleven nines of durability still sits behind a regional service with its own availability SLA &mdash; and a single-region bucket is a single-region failure domain. If the object data is business-critical, cross-region replication is a separate, deliberate decision. See <a href="53.html">Multi-Region &amp; DR</a>.</div>
+
+<h2 id="classes">Storage classes, lifecycle &amp; versioning</h2>
+<p>Not all objects are accessed equally, and storage cost dominates the bill for large archives. Object stores expose <span class="key">storage classes</span> that trade retrieval latency and cost: a hot Standard tier for frequently read objects; Infrequent-Access tiers that are cheaper to store but charge a retrieval fee; and cold archive tiers (Glacier-style) where storage is nearly free but a restore can take minutes to hours. An Intelligent-Tiering option moves objects between tiers automatically based on observed access.</p>
+<p><span class="key">Lifecycle policies</span> automate this: "transition objects to Infrequent-Access after 30 days, to archive after 90, expire after 365." This is the difference between a log/media archive that costs sane money and one that bankrupts the team a year in. <span class="key">Versioning</span>, when enabled, keeps every overwrite and delete as a prior version (a delete just writes a delete-marker), giving you accidental-deletion recovery and an audit trail &mdash; at the cost of storing every revision, which is precisely why lifecycle rules to expire old non-current versions matter.</p>
+
+<h2 id="cdn">CDNs: edge caching mechanics</h2>
+<p>A <span class="key">Content Delivery Network</span> is a globally distributed fleet of cache servers (<span class="key">edge PoPs</span>) that sit between users and your origin. The win is twofold: <em>latency</em> &mdash; serving from a PoP 10&nbsp;ms away instead of an origin 150&nbsp;ms across an ocean &mdash; and <em>offload</em> &mdash; the origin (your object store or app) sees a tiny fraction of total traffic because the edge absorbs the rest.</p>
+<p>Requests are steered to the nearest healthy PoP by <span class="key">anycast</span> routing: the same IP is announced from every PoP, and BGP delivers the packet to the topologically closest one. This is conceptually the geographic sibling of the load balancing you do inside a region &mdash; see <a href="03.html">Load Balancing</a>. On a request, the edge checks its local cache:</p>
+<ul>
+<li><span class="key">Cache hit</span> &mdash; the object is present and fresh; served immediately from the edge. No origin contact.</li>
+<li><span class="key">Cache miss</span> &mdash; not present (or stale); the edge fetches from origin, stores a copy, and serves it. Subsequent requests for that key in that PoP hit.</li>
+</ul>
+<p>A subtle but critical optimization is <span class="key">origin shielding</span> (a.k.a. a mid-tier or "shield" cache): rather than every one of hundreds of PoPs independently missing and hammering the origin on a cold object, misses funnel through a designated regional shield PoP. The origin sees at most one fetch per object instead of one per PoP &mdash; this is what prevents a viral video or a fresh deploy of static assets from creating a <span class="key">thundering herd</span> against your bucket. It is the same dogpile/stampede problem covered in <a href="04.html">Caching</a>, solved at the network edge.</p>
+<p>Two delivery models exist. A <span class="key">pull CDN</span> (the default and overwhelmingly common one) lazily fetches from origin on the first miss &mdash; zero pre-work, ideal for large catalogs where you don't know what will be hot. A <span class="key">push CDN</span> has you proactively upload content to the edge ahead of demand &mdash; useful for a small set of guaranteed-hot assets (a launch-day video, a software release) where you can't afford the cold-miss latency for the first viewer.</p>
+
+<h2 id="invalidation">Cache control, invalidation &amp; private content</h2>
+<p>Freshness is governed by HTTP headers the origin sets, and getting these right is most of the skill:</p>
+<ul>
+<li><span class="key"><code>Cache-Control: max-age=N</code></span> &mdash; the TTL. For how many seconds may the edge (and browser) serve this without re-checking origin? <code>public</code> allows shared caches to store it; <code>private</code> restricts to the browser; <code>no-store</code> forbids caching entirely.</li>
+<li><span class="key"><code>ETag</code></span> &mdash; an opaque content fingerprint. After TTL expires, the edge sends a conditional <code>If-None-Match</code>; if unchanged the origin replies <code>304 Not Modified</code> with no body, revalidating cheaply instead of re-shipping the bytes.</li>
+<li><span class="key"><code>stale-while-revalidate=N</code></span> &mdash; serve the stale copy <em>instantly</em> while asynchronously refreshing it in the background. The user never waits on a revalidation round-trip; the cache self-heals. Pair with <code>stale-if-error</code> to keep serving stale content when the origin is down &mdash; a free resilience win.</li>
+</ul>
+
+<div class="callout warn"><span class="lbl">Cache invalidation is hard</span>"There are only two hard things in computer science." Once an object is replicated across hundreds of PoPs, <em>recalling</em> it is slow and expensive &mdash; explicit purges can take seconds to minutes to propagate globally, and aggressive purging defeats the point of the cache. The robust answer is to avoid invalidation entirely: treat URLs as immutable via <span class="key">content-hashed / versioned filenames</span> (<code>app.9f3c1a.js</code>, <code>logo.v2.png</code>). New content gets a new URL, so there is nothing to invalidate; old URLs simply age out. Reserve explicit purges for emergencies (leaked content, legal takedown).</div>
+
+<p>For <span class="key">private content</span> &mdash; a paid video, a user's private document &mdash; you cannot rely on an unguessable URL. CDNs support <span class="key">signed URLs / signed cookies</span>: the edge itself validates a cryptographic signature (and expiry, and optionally source-IP) before serving. This pushes authorization to the edge so the byte path still never touches your app, while a leaked link stops working after its short expiry. This is the same presigned-URL idea from the object store, enforced one layer further out at the CDN.</p>
+
+<h2 id="patterns">Design patterns that compose them</h2>
+<p>These primitives combine into three patterns you should reach for reflexively:</p>
+<ol>
+<li><span class="key">Direct-to-S3 upload via presigned URL.</span> Client asks the app for an upload grant; app returns a presigned <code>PUT</code> URL and records intended metadata as <em>pending</em>; client uploads straight to the bucket; an S3 event notification (or the client's completion callback) flips the metadata to <em>ready</em>. The app tier handled two tiny JSON requests and zero bytes. This is the backbone of file upload in <a href="18.html">Dropbox</a> and avatar/photo upload in any social product.</li>
+<li><span class="key">CDN-in-front-of-object-store for static assets.</span> Point the CDN's origin at the bucket, set long <code>max-age</code> on versioned filenames, and serve all images, JS/CSS bundles, and downloads from the edge. The origin bucket sees near-zero traffic after warm-up; the app tier serves only dynamic API calls.</li>
+<li><span class="key">Metadata-in-DB + blob-in-store split.</span> The relational/NoSQL row holds the small queryable truth (owner, title, ACL, <code>storage_key</code>, version, size, checksum); the object store holds the bytes. Queries, joins, permission checks, and feeds all run against the cheap, indexable database; the heavy bytes live where bytes are cheap. This split is the data-modeling heart of <a href="21.html">YouTube / Netflix</a> (catalog and watch-history in databases, transcoded video renditions in the object store, delivered via CDN) and of essentially every media product.</li>
+</ol>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>The DB-plus-store split introduces a two-system consistency gap: the row and the blob are written separately and can diverge (an orphaned blob whose row never committed, or a row pointing at a key that failed to upload). You reconcile this with the <em>pending&rarr;ready</em> state machine plus an async sweeper that garbage-collects orphaned objects and retries or expires stuck-pending rows. You are trading a clean single-system transaction for scale and cost &mdash; a trade worth making, but only if you actually build the reconciliation.</div>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They get bytes off the app tier in the first two minutes &mdash; presigned upload, CDN in front of the store &mdash; without being prompted, and they reason explicitly about the metadata/blob split and the consistency gap it creates. They reach for versioned-URL caching over purge-based invalidation, and they distinguish durability from availability and from access control rather than treating "we'll use S3" as a complete answer.</div>
+<p>Probing questions to ask engineers:</p>
+<ul>
+<li>"A user uploads a 3&nbsp;GB video from a phone on a flaky connection. Walk me through every hop &mdash; what touches the bytes, and what happens when the connection drops at 80%?"</li>
+<li>"You're caching avatars at the edge with a one-year TTL. A user changes their avatar. How does anyone ever see the new one?"</li>
+<li>"How do you serve a paid movie so a leaked link can't be shared, without your app tier ever streaming the bytes?"</li>
+<li>"Your DB row says the file exists but the <code>GET</code> 404s. How did that happen and how does your design prevent or repair it?"</li>
+<li>"Eleven nines of durability &mdash; does that mean the data is highly available? What's the difference, and what would you add for a region-failure scenario?"</li>
+<li>"Why erasure coding instead of three full copies, and what does that buy you in storage cost versus rebuild time?"</li>
+</ul>
+
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Object storage</td><td>S3</td><td>Cloud Storage</td><td>Blob Storage</td></tr><tr><td>CDN</td><td>CloudFront</td><td>Cloud CDN</td><td>Azure CDN / Front Door</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
+<div class="navfoot"><a href="47.html">&lsaquo; Prev: Containers Kubernetes and Serverless</a><a class="nx" href="49.html">Next: SLI SLO SLA and Error Budgets &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

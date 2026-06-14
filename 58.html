@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Designing a Unique ID Generator</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk active" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing a Unique ID Generator</div>
+
+<h1>Designing a Unique ID Generator</h1>
+<p class="sub">How to mint billions of globally unique, roughly time-ordered 64-bit identifiers per day with no central coordinator on the hot path.</p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth.</b> <span>unique IDs without coordination, paid in clock-skew handling and roughly-sortable bit layouts.</span></div>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#req">Requirements and back-of-envelope</a></li>
+<li><a href="#uuid">Approach 1: UUIDs</a></li>
+<li><a href="#dbauto">Approach 2: DB auto-increment</a></li>
+<li><a href="#ticket">Approach 3: Ticket / segment servers (Flickr)</a></li>
+<li><a href="#snowflake">Approach 4: Twitter Snowflake</a></li>
+<li><a href="#clock">The clock problem: skew and rollback</a></li>
+<li><a href="#sortable">Why sortable IDs matter: ULID, KSUID, index locality</a></li>
+<li><a href="#coord">Machine-id assignment and coordination</a></li>
+<li><a href="#wrap">Putting it together</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="req">Requirements and back-of-envelope</h2>
+<p>The problem: "a service that generates unique IDs in a distributed system." Before sketching anything, pin down the functional and non-functional requirements &mdash; the right answer is entirely determined by them.</p>
+<ul>
+<li><span class="key">Uniqueness:</span> no two IDs ever collide, across all data centers, forever.</li>
+<li><span class="key">Size:</span> typically <span class="key">64-bit</span> integers. They fit a <code>BIGINT</code> / <code>long</code>, index densely, and are half the width of a 128-bit UUID in every B-tree page, network frame, and cache line.</li>
+<li><span class="key">Sortable / k-sorted:</span> IDs should be <em>roughly</em> time-ordered so that newer rows sort after older ones. This is a soft requirement that has outsized impact on storage-engine performance (see <a href="#sortable">below</a>).</li>
+<li><span class="key">Throughput &amp; latency:</span> e.g. 10,000+ IDs/sec per node, p99 &lt; 1&nbsp;ms, ideally generated locally with <em>no network round-trip</em>.</li>
+<li><span class="key">No single point of failure:</span> the generator must not depend on a central server on the critical path.</li>
+</ul>
+<div class="callout note"><span class="lbl">Key insight</span>The whole problem is a tension between two goals that pull in opposite directions: <em>uniqueness</em> wants global coordination, while <em>throughput and availability</em> want zero coordination. Every approach below is a different point on that trade-off curve. The winning designs push coordination off the hot path &mdash; they coordinate <em>rarely</em> (a machine-id lease) so they can generate IDs <em>locally</em> (no round-trip per ID).</div>
+
+<h4>Sanity numbers</h4>
+<p>A 64-bit unsigned space is ~1.8&times;10<sup>19</sup> values. Twitter at peak tweeted &lt; 10<sup>4</sup>/sec; even a hyperscaler minting 10<sup>6</sup> IDs/sec burns through only ~3&times;10<sup>13</sup>/year &mdash; you will exhaust the <em>timestamp</em> field (a 41-bit ms clock lasts ~69 years) long before the space. The real scarcity is bits, not IDs.</p>
+
+<h2 id="uuid">Approach 1: UUIDs</h2>
+<p>A <span class="key">UUID</span> (RFC 4122) is a 128-bit value. Two variants matter here:</p>
+<ul>
+<li><span class="key">UUIDv4</span> &mdash; 122 random bits. Collision probability is negligible (you'd need ~10<sup>18</sup> UUIDs for a 50% chance). Fully decentralized, zero coordination, generate anywhere offline. <strong>But</strong> it is <em>not sortable</em> &mdash; consecutive inserts scatter randomly across the index.</li>
+<li><span class="key">UUIDv1</span> &mdash; 60-bit timestamp + 14-bit clock sequence + 48-bit MAC/node. Time-ordered in principle, but the timestamp is laid out in a byte order that is <em>not</em> lexicographically sortable, and it leaks the MAC address (privacy / security concern). UUIDv6/v7 (2024 RFC 9562) fix the ordering &mdash; v7 is a Unix-ms timestamp + random, and is the modern recommendation when you can afford 128 bits.</li>
+</ul>
+<div class="callout warn"><span class="lbl">Pitfall</span>The killer problem with random UUIDs (v4) as a <em>primary key</em> is write amplification. In an InnoDB B-tree (clustered index) or any B-tree storage engine, random keys cause inserts to land in random pages &mdash; constant page splits, a cold buffer pool, and poor fill factor. Benchmarks routinely show 2&ndash;10&times; slower bulk inserts and a 30&ndash;40% larger index versus a monotonic key. See <a href="38.html">Storage Engines: LSM vs B-Tree</a>. Also: 128 bits is double the storage and, because secondary indexes in InnoDB embed the PK, that bloat multiplies.</div>
+<p><span class="pill">verdict</span> Great when you need <em>offline / client-side</em> generation and don't care about 64-bit or sort order. For a system requiring a <em>sortable 64-bit</em> ID, UUIDv4 is a wrong answer; UUIDv7 is acceptable only if the 128-bit width is fine.</p>
+
+<h2 id="dbauto">Approach 2: DB auto-increment</h2>
+<p>The naive answer: a single table with an <code>AUTO_INCREMENT</code> / <code>SERIAL</code> column. Insert a row, read back the generated key.</p>
+<p>It gives you small, perfectly monotonic, sortable IDs &mdash; but it has two fatal flaws at scale:</p>
+<ul>
+<li><span class="key">SPOF and write ceiling:</span> a single primary DB is one machine's worth of write throughput and one failure domain. Every ID generation is a network round-trip plus a durable write.</li>
+<li><span class="key">Doesn't shard:</span> the moment you partition the database (see <a href="05.html">Sharding / Data Partitioning</a>), each shard's counter is independent and they collide.</li>
+</ul>
+<p>The classic workaround is <span class="key">stepped sequences</span>: configure N database servers with <code>auto_increment_increment = N</code> and distinct <code>auto_increment_offset</code> (server 1 &rarr; 1,3,5,7&hellip;; server 2 &rarr; 2,4,6,8&hellip; for N=2). This removes the single SPOF but is brittle: adding a node requires re-planning the modulus, IDs are only <em>weakly</em> time-ordered across servers, and you've coupled ID generation to DB topology.</p>
+
+<h2 id="ticket">Approach 3: Ticket / segment servers (Flickr)</h2>
+<p>Flickr's well-known design uses dedicated <span class="key">ticket servers</span> &mdash; tiny MySQL boxes whose only job is to vend IDs via <code>REPLACE INTO</code> on a single-row table:</p>
+<pre><code>REPLACE INTO Tickets64 (stub) VALUES ('a');
+SELECT LAST_INSERT_ID();</code></pre>
+<p>Two ticket servers run with offset 1/2 and increment 2 (odd vs even) so a failure of one doesn't stop ID issuance. The crucial scaling refinement is the <span class="key">segment (range) allocator</span>, used by systems like Meituan's <em>Leaf</em>: instead of one ID per round-trip, a service requests a <em>block</em> of IDs (e.g. 1,000) in a single transaction, then hands them out from local memory.</p>
+<pre><code>-- atomic range claim
+UPDATE id_alloc SET max_id = max_id + 1000
+  WHERE biz_tag = 'orders';
+SELECT max_id FROM id_alloc WHERE biz_tag = 'orders';
+-- server now owns [max_id-1000, max_id), serves locally</code></pre>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They immediately propose <em>double buffering</em> on the segment allocator: prefetch the next block asynchronously when the current block is ~80% consumed, so a client never blocks on the DB round-trip. This makes p99 latency independent of the DB and tolerates short DB outages (you keep serving from the buffer). It is the difference between a textbook answer and a production one.</div>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Segment allocation trades <em>density</em> for <em>availability</em>: on every restart you discard the unused tail of the current block, so IDs have gaps. That's fine (gaps are allowed; only uniqueness matters) but it means IDs are <em>k-sorted</em> across servers, not globally monotonic &mdash; two servers holding adjacent blocks can interleave.</div>
+
+<h2 id="snowflake">Approach 4: Twitter Snowflake</h2>
+<p><span class="key">Snowflake</span> is the canonical answer for a <em>distributed, coordination-free, sortable 64-bit</em> ID. Every node generates IDs locally by composing three fields into a single 64-bit integer. The original Twitter layout:</p>
+<pre><code> 0 | 41-bit timestamp (ms since epoch) | 10-bit machine id | 12-bit sequence
+ ^   ^                                   ^                    ^
+ |   |                                   |                    +-- 4096 ids / ms / node
+ |   |                                   +-- 1024 nodes (5 dc + 5 worker, or flat)
+ |   +-- ~69 years from a custom epoch
+ +-- sign bit, always 0 -> id stays positive in signed long</code></pre>
+<table>
+<tr><th>Field</th><th>Bits</th><th>Capacity</th><th>Purpose</th></tr>
+<tr><td>Sign</td><td>1</td><td>always 0</td><td>keeps the value positive in a signed 64-bit long</td></tr>
+<tr><td>Timestamp</td><td>41</td><td>~69 yrs of ms</td><td>high bits &rarr; sort order; use a <em>custom epoch</em> to extend lifespan</td></tr>
+<tr><td>Machine id</td><td>10</td><td>1024 nodes</td><td>guarantees cross-node uniqueness without coordination per ID</td></tr>
+<tr><td>Sequence</td><td>12</td><td>4096 / ms</td><td>disambiguates IDs minted in the same millisecond on one node</td></tr>
+</table>
+<p>Because the timestamp occupies the <em>high-order bits</em>, the integer ordering of two IDs matches their time ordering &mdash; this is what makes Snowflake IDs sortable. The generation logic:</p>
+<pre><code>synchronized long nextId() {
+  long now = currentTimeMillis();
+  if (now &lt; lastTs)                 // clock moved backwards!
+      throw new ClockBackwardException(lastTs - now);
+  if (now == lastTs) {
+      seq = (seq + 1) &amp; 0xFFF;       // 12-bit mask
+      if (seq == 0) now = waitNextMillis(lastTs);  // burned 4096, spin
+  } else {
+      seq = 0;
+  }
+  lastTs = now;
+  return ((now - EPOCH) &lt;&lt; 22)       // 10 + 12 = 22 bits below timestamp
+       | (machineId &lt;&lt; 12)
+       | seq;
+}</code></pre>
+<p>Field widths are <em>negotiable per workload</em>: if you have only a few nodes but huge per-node throughput, steal bits from machine-id and give them to the sequence. Discord, Instagram, and Sonyflake all ship Snowflake variants with different splits (Instagram embeds a shard id; Sonyflake uses 10&nbsp;ms ticks to last 174 years with fewer sequence bits).</p>
+
+<h2 id="clock">The clock problem: skew and rollback</h2>
+<p>Snowflake's correctness rests entirely on the wall clock being <em>monotonically non-decreasing</em>. This is its single biggest operational hazard.</p>
+<ul>
+<li><span class="key">Clock skew:</span> two nodes' clocks differ by tens of ms. This is harmless for <em>uniqueness</em> (machine-id keeps them distinct) but means IDs are only <span class="key">k-sorted</span> &mdash; globally ordered within the skew window, not strictly. Don't promise strict total order across nodes.</li>
+<li><span class="key">Clock rollback:</span> NTP slews or steps the clock <em>backwards</em>, or a VM is restored from a snapshot. If <code>now &lt; lastTs</code>, naive code could re-mint an already-issued (timestamp, machine-id, seq) triple &mdash; a <em>collision</em>.</li>
+</ul>
+<div class="callout warn"><span class="lbl">Pitfall</span>Never run NTP in <em>step</em> mode on an ID-generation host. Use <code>chrony</code> in <em>slew</em>-only mode (<code>maxslewrate</code>, no <code>makestep</code>) so the clock only ever speeds up or slows down, never jumps back. A backward jump is the one thing the algorithm cannot tolerate.</div>
+<p>Mitigation strategies, in increasing robustness:</p>
+<ol>
+<li><span class="key">Refuse and wait:</span> if the rollback is small (&lt; a few ms), block until the clock catches up to <code>lastTs</code>. Simple, but stalls.</li>
+<li><span class="key">Refuse and alarm:</span> if the rollback exceeds a threshold, throw and let the node take itself out of rotation. Availability over a silent collision.</li>
+<li><span class="key">Persist the high-water mark:</span> periodically write <code>lastTs</code> to durable storage / ZooKeeper. On restart, refuse to issue IDs until the clock passes the persisted watermark. Baidu's <em>UidGenerator</em> and Meituan Leaf-snowflake do exactly this against ZooKeeper.</li>
+<li><span class="key">Logical clocks:</span> decouple the high bits from wall time entirely &mdash; advance a monotonic counter on every backward jump. This trades strict time-meaning for guaranteed monotonicity (related ideas in <a href="33.html">Time, Clocks and Ordering</a>).</li>
+</ol>
+
+<h2 id="sortable">Why sortable IDs matter: ULID, KSUID, index locality</h2>
+<p>Sortability is not a nice-to-have; it directly governs storage-engine efficiency. Time-ordered keys turn random I/O into sequential I/O:</p>
+<ul>
+<li><span class="key">B-trees:</span> monotonic inserts always append to the rightmost leaf page &mdash; minimal page splits, high fill factor, hot pages stay in the buffer pool. Random keys (UUIDv4) thrash the whole tree.</li>
+<li><span class="key">LSM trees:</span> sorted keys compact cleanly and, critically, enable efficient <em>range scans</em> &mdash; "fetch the last hour of events" becomes a contiguous read. Time-prefixed keys also bound which SSTables a read must touch.</li>
+</ul>
+<p>This is why <a href="38.html">storage-engine choice</a> and ID design must be discussed together. Two popular wider sortable formats sit alongside Snowflake:</p>
+<table>
+<tr><th>Format</th><th>Bits</th><th>Layout</th><th>Notable</th></tr>
+<tr><td>Snowflake</td><td>64</td><td>41 ts(ms) + 10 node + 12 seq</td><td>fits BIGINT; needs coordinated machine-id</td></tr>
+<tr><td>ULID</td><td>128</td><td>48 ts(ms) + 80 random</td><td>Crockford base32, lexicographically sortable as text; no node coordination</td></tr>
+<tr><td>KSUID</td><td>160</td><td>32 ts(s) + 128 random</td><td>second-granularity, huge random space, URL-safe</td></tr>
+</table>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span><span class="key">Snowflake</span> buys you 64 bits and tight ordering at the cost of <em>coordination</em> (you must assign unique machine-ids). <span class="key">ULID/KSUID/UUIDv7</span> buy you <em>zero coordination</em> (random low bits) at the cost of 128/160 bits and only millisecond/second-level ordering with random tie-breaking. For a sharded database PK where width matters, Snowflake wins; for client-generated IDs or where you can't run a coordinator, ULID/UUIDv7 win.</div>
+
+<h2 id="coord">Machine-id assignment and coordination</h2>
+<p>Snowflake's Achilles heel: two nodes must never share a machine-id, or they will collide within the same millisecond. The 10-bit field gives only 1024 slots, so static config files break the moment you autoscale, replace, or restart pods. Options:</p>
+<ul>
+<li><span class="key">ZooKeeper sequential znodes:</span> on startup a node creates an <em>ephemeral sequential</em> znode under <code>/snowflake/workers/</code>; the sequence number (mod 1024) is its machine-id. The original Twitter Snowflake used exactly this. Ephemeral means the slot is reclaimed on disconnect (related: <a href="36.html">Leader Election and Coordination</a>).</li>
+<li><span class="key">Lease + persistence (Leaf):</span> get a worker-id from ZooKeeper, then cache it locally and persist the clock watermark, so a brief ZK outage doesn't stop generation.</li>
+<li><span class="key">Derive from infra:</span> map machine-id from the pod's stable ordinal in a Kubernetes <code>StatefulSet</code>, or from a DB-backed registry that hands out leases with a TTL. The DB-segment approach (Leaf-segment) sidesteps the machine-id problem entirely.</li>
+</ul>
+<div class="callout warn"><span class="lbl">Pitfall</span>The dangerous edge case: a node loses its ZK session (GC pause, network blip), ZK reclaims its ephemeral slot and hands it to a new node, but the old node hasn't noticed yet and keeps minting IDs with the now-shared id. Mitigate by having the generator <em>stop issuing</em> as soon as it detects a lost session, and by ensuring the session timeout exceeds your max GC pause. This is the same fencing problem covered in <a href="64.html">Designing a Distributed Locking Service</a>.</div>
+
+<h2 id="wrap">Putting it together</h2>
+<p>A pragmatic production design:</p>
+<ol>
+<li><span class="key">Default:</span> Snowflake generated <em>in-process</em> inside each application instance &mdash; no ID service, no network hop, lowest latency. Machine-id leased from ZooKeeper/etcd at startup.</li>
+<li><span class="key">If clients can't be trusted to generate IDs</span> (mobile, third parties): run a small fleet of stateless ID servers behind a load balancer (<a href="03.html">Load Balancing</a>), each with its own machine-id, returning Snowflake IDs over a thin RPC.</li>
+<li><span class="key">If you can't run a coordinator at all:</span> use UUIDv7/ULID and accept 128 bits.</li>
+<li><span class="key">If you need guaranteed gapless small integers</span> (e.g. human-facing invoice numbers): a DB segment allocator with double buffering &mdash; but understand it serializes per biz-tag.</li>
+</ol>
+<p>This pattern underpins real designs in this course: short-code generation in <a href="15.html">Designing a URL Shortening service like TinyURL</a> is the same problem with a different encoding, and tweet/message IDs in <a href="20.html">Designing Twitter</a> are literally where Snowflake was born.</p>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They start by extracting the <em>exact</em> requirements (64-bit? sortable? coordination allowed? gapless?) because each one eliminates whole approaches &mdash; they don't reflexively answer "Snowflake." They proactively raise the clock-rollback failure mode and propose NTP slew-mode plus a persisted watermark before being prompted. They correctly distinguish <em>uniqueness</em> (hard guarantee) from <em>ordering</em> (best-effort, k-sorted) and never overclaim strict global ordering across nodes. And they connect ID design to downstream storage cost &mdash; write amplification in B-trees, compaction in LSM &mdash; rather than treating the generator in isolation.</div>
+<ul>
+<li>"You proposed Snowflake. Walk me through what happens, bit by bit, when one machine mints two IDs in the same millisecond &mdash; and what happens on the 4097th."</li>
+<li>"NTP steps the clock back 200&nbsp;ms on one node. Trace the exact failure. Now design three independent layers of defense, and tell me which one you'd ship first."</li>
+<li>"How does a freshly autoscaled pod get a machine-id? What guarantees no two live pods share one, and what's the failure window if ZooKeeper reclaims a slot too early?"</li>
+<li>"A teammate wants random UUIDv4 as the clustered primary key in MySQL for 'simplicity.' Quantify what that costs at 50k inserts/sec versus a Snowflake key."</li>
+<li>"The product asks for strictly increasing, gapless order numbers. Why can't Snowflake give you that, and what's the throughput ceiling of the design that can?"</li>
+<li>"Your IDs are 'roughly sortable.' Define the exact bound on how out-of-order two IDs can be, in terms of your clock-skew SLA."</li>
+</ul>
+
+<div class="navfoot"><a href="57.html">&lsaquo; Prev: Designing a Key-Value Store</a><a class="nx" href="59.html">Next: Designing a Notification System &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

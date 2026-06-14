@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observability</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk active" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Reliability &amp; Operations &nbsp;&rsaquo;&nbsp; Observability</div>
+
+<h1>Observability</h1>
+<p class="sub"><em>Understanding systems you cannot fully predict: the three pillars, what they cost, and how to alert without drowning your on-call.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Operability.</b> <span>understanding a system you can't predict, paid in metrics/logs/traces cardinality and cost.</span></div>
+
+<div class="toc"><h4>In this lesson</h4>
+<ul>
+<li><a href="#monitoring-vs-observability">Monitoring vs Observability</a></li>
+<li><a href="#metrics">Pillar 1: Metrics</a></li>
+<li><a href="#logs">Pillar 2: Logs</a></li>
+<li><a href="#traces">Pillar 3: Traces</a></li>
+<li><a href="#cardinality">The Cardinality Cost</a></li>
+<li><a href="#correlation">Correlating Across Pillars</a></li>
+<li><a href="#alerting">Alerting That Pages a Human</a></li>
+<li><a href="#otel">OpenTelemetry and the Wire</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="monitoring-vs-observability">Monitoring vs Observability</h2>
+<p>The distinction is not marketing, even though vendors have abused it into mush. <span class="key">Monitoring</span> answers <em>known-unknowns</em>: you decided in advance which questions matter, instrumented them, and built dashboards and alerts around them. "Is CPU above 80%? Is p99 latency above 300ms? Is the error rate above 1%?" These are questions you knew to ask before the incident.</p>
+<p><span class="key">Observability</span> is the property that lets you answer <em>unknown-unknowns</em> &mdash; questions you did not anticipate &mdash; <strong>without shipping new code</strong>. The classic formulation: can you debug a novel failure mode purely from the telemetry you already emit? "Why are requests from Android 13 clients in ap-south-1 hitting checkout v2 with coupon codes timing out, but only after 14:00 UTC?" Nobody built that dashboard. If your data has enough dimensionality and is queryable arbitrarily, you can slice your way to the answer. If not, you are flying blind and your only recourse is to add instrumentation and wait for it to happen again.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span> Observability is fundamentally about <strong>high-dimensional, arbitrarily-queryable data</strong>. The reason distributed systems made this urgent is combinatorial: a monolith has a handful of failure modes you can enumerate; a mesh of 200 microservices has a failure surface no human can pre-enumerate. You cannot predict the failures, so you must be able to interrogate the system after the fact.</p></div>
+
+<p>The three pillars &mdash; <span class="pill">metrics</span> <span class="pill">logs</span> <span class="pill">traces</span> &mdash; are the three data shapes that, combined, give you that property. They are not interchangeable; each occupies a distinct point on the cost / cardinality / queryability spectrum, and a mature system uses all three with deliberate boundaries. This ties directly into how you measure reliability &mdash; see <a href="49.html">SLI, SLO, SLA and Error Budgets</a> &mdash; because your SLIs are computed <em>from</em> this telemetry.</p>
+
+<h2 id="metrics">Pillar 1: Metrics</h2>
+<p>A metric is a numeric measurement aggregated over time: a counter, a gauge, or a histogram, tagged with a small set of labels, sampled at a fixed interval (commonly 10s&ndash;60s). The defining property is that metrics are <span class="key">pre-aggregated and cheap</span>. A counter incrementing a million times per second still costs one number per scrape interval. This is why metrics are the substrate for dashboards, SLO burn-rate calculations, and almost all alerting.</p>
+
+<h3>Storage model: time-series</h3>
+<p>Systems like Prometheus, VictoriaMetrics, and Cortex/Mimir store a <span class="key">time series</span> per unique combination of metric name and label set. <code>http_requests_total{method="GET", status="200", route="/checkout"}</code> is one series. Storage and query cost scale with the <strong>number of active series</strong>, not the number of events &mdash; this is the crux of the cardinality problem we hit below.</p>
+
+<h3>RED and USE: the two canonical methods</h3>
+<p>You should be able to recite both and know when each applies.</p>
+<table>
+<tr><th>Method</th><th>For</th><th>The three signals</th></tr>
+<tr><td><span class="key">RED</span></td><td>Request-driven services (APIs, RPC endpoints)</td><td><strong>R</strong>ate (req/s), <strong>E</strong>rrors (failed req/s), <strong>D</strong>uration (latency distribution)</td></tr>
+<tr><td><span class="key">USE</span></td><td>Resources (CPU, disk, queues, connection pools)</td><td><strong>U</strong>tilization (% busy), <strong>S</strong>aturation (queue depth / wait), <strong>E</strong>rrors (e.g. ECC, dropped packets)</td></tr>
+</table>
+<p>RED (Tom Wilkie) is what you put on every service dashboard; it maps cleanly onto the Google SRE "Four Golden Signals" (latency, traffic, errors, saturation). USE (Brendan Gregg) is the bottom-up resource view. The skill is knowing that <strong>saturation</strong> &mdash; the depth of a queue, the wait time on a lock, the fraction of a connection pool in use &mdash; is the leading indicator that predicts the latency cliff <em>before</em> errors appear. Most teams alert on utilization and get surprised; the strong ones alert on saturation.</p>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> Latency is a <strong>distribution, not a number</strong>. Averaging latency is malpractice &mdash; a p50 of 40ms can hide a p99 of 8s that is destroying 1% of your users. Worse, you cannot average percentiles across instances (the average of two p99s is not the fleet p99). Use histograms (Prometheus <code>histogram</code> or native histograms; HDR histograms) and aggregate the <em>buckets</em>, then compute the quantile. And remember the long tail: at p99.9, the user often hits several services in series, so tail latencies compound multiplicatively.</p></div>
+
+<h2 id="logs">Pillar 2: Logs</h2>
+<p>A log is a timestamped record of a discrete event, ideally <span class="key">structured</span> (JSON or a typed key-value format), not a free-text string. Logs are where <strong>high cardinality lives cheaply at write time and expensively at query time</strong> &mdash; the inverse of metrics. You can attach a <code>user_id</code>, <code>request_id</code>, <code>trace_id</code>, <code>coupon_code</code>, full request context, and it costs nothing extra to write one more field. The cost shows up in storage volume and in the indexing/scanning required to query.</p>
+
+<pre><code>// Don't do this:
+log.info("user " + userId + " failed checkout: " + err.getMessage());
+
+// Do this &mdash; structured, queryable, correlatable:
+log.info("checkout_failed", Map.of(
+    "user_id",    userId,
+    "order_id",   orderId,
+    "trace_id",   ctx.traceId(),      // the join key to traces
+    "amount_cents", amountCents,
+    "error_code", err.code(),
+    "payment_provider", provider,
+    "duration_ms", elapsed
+));</code></pre>
+
+<p>The two architectural camps:</p>
+<ul>
+<li><span class="key">Index-everything</span> (Elasticsearch / OpenSearch): fast arbitrary search, but indexing is CPU- and storage-hungry; ingest cost dominates and clusters fall over under log floods.</li>
+<li><span class="key">Index-nothing / label-and-scan</span> (Grafana Loki): only index a tiny set of labels (stream selectors), store the log body compressed in object storage, and brute-force scan at query time. Dramatically cheaper to ingest; queries over wide time ranges are slower but parallelizable. The discipline is keeping label cardinality low &mdash; the same cardinality trap as metrics.</li>
+</ul>
+
+<div class="callout tradeoff"><span class="lbl">Trade-off</span> Logs give you the richest per-event detail, which is exactly why they are the most expensive pillar to retain at full fidelity. At scale (millions of req/s) you cannot log every request body. The mature move is <strong>tiered retention and sampling</strong>: log 100% of errors and a small sample (e.g. 1%) of successes, keep hot logs for 7 days and cold/archived in object storage (S3 + Parquet, queryable via Athena/ClickHouse) for compliance. Never log PII without tokenization &mdash; see <a href="54.html">Security in System Design</a>.</p></div>
+
+<h2 id="traces">Pillar 3: Traces</h2>
+<p>Distributed tracing reconstructs the path of a single request as it fans out across services. A <span class="key">trace</span> is a tree (technically a DAG) of <span class="key">spans</span>; each span is one unit of work (an RPC, a DB query, a cache lookup) with a start time, duration, a <code>span_id</code>, a <code>parent_span_id</code>, and attributes. All spans for one request share a <code>trace_id</code>. This is the pillar that answers "where did the 800ms go?" by showing you the waterfall.</p>
+
+<h3>Context propagation: the hard part</h3>
+<p>Tracing only works if the <code>trace_id</code> and current <code>span_id</code> travel with the request across every process and protocol boundary. This is <span class="key">context propagation</span>, standardized by the W3C <code>traceparent</code> header:</p>
+<pre><code>traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+             ^  ^                                ^                ^
+          version  trace-id (16 bytes)      parent-span-id    trace-flags
+                                              (8 bytes)        (sampled?)</code></pre>
+<p>Every hop &mdash; HTTP, gRPC, a Kafka message header, a Thrift call &mdash; must extract the incoming context and inject it into outgoing calls. Miss one boundary (an async job that drops the header, a thread-pool handoff that loses the thread-local) and the trace fractures into disconnected fragments. Async and message-driven flows are the usual culprits; you must propagate context through the message envelope &mdash; relevant when you read <a href="39.html">Kafka and Log-based Messaging</a> and <a href="46.html">Event-Driven Architecture</a>. A <a href="44.html">service mesh</a> can propagate the standard headers for you at the sidecar, but it cannot create application-level child spans &mdash; only your code knows that.</p>
+
+<h3>Sampling: head vs tail</h3>
+<p>You cannot store a trace for every request at scale &mdash; the storage and the per-request overhead are prohibitive. The decision is <em>when</em> and <em>how</em> you sample:</p>
+<table>
+<tr><th>Strategy</th><th>Decision point</th><th>Pro / Con</th></tr>
+<tr><td><span class="key">Head-based</span></td><td>At the first service, before the request is processed (e.g. keep 1%)</td><td>Cheap, stateless, decision propagates in <code>trace-flags</code>. But it's blind &mdash; it discards 99% <em>including the slow and failing ones</em> you actually want.</td></tr>
+<tr><td><span class="key">Tail-based</span></td><td>After the full trace completes, at a collector that has buffered all spans</td><td>Can keep 100% of errors and slow traces and 1% of the rest. But the collector must buffer all spans for a trace until it's done &mdash; stateful, memory-hungry, and routing-sensitive (all spans of a trace must reach the same collector).</td></tr>
+</table>
+
+<div class="callout note"><span class="lbl">Key insight</span> The whole point of tracing is debugging the <em>anomalous</em> request, so uniform head sampling defeats the purpose &mdash; it throws away the needles and keeps the hay. Production-grade setups use tail-based sampling (or a hybrid: cheap head sampling to thin the firehose, tail decision for the keep/drop) so that <strong>every error and every p99+ outlier is retained</strong>. This is the single highest-leverage tracing decision you will make.</p></div>
+
+<h2 id="cardinality">The Cardinality Cost</h2>
+<p><span class="key">Cardinality</span> is the number of distinct values a dimension can take. It is the dominant cost driver in observability and the source of the most expensive operational mistakes. The killer arithmetic: in a time-series database, every unique label combination is a separate series, and the cost is <strong>multiplicative across labels</strong>.</p>
+<pre><code>http_requests_total{
+  route,          //   200 routes
+  status,         //     5 status classes
+  region,         //    10 regions
+  instance        //   500 pods
+}
+//  200 x 5 x 10 x 500 = 5,000,000 active series &mdash; from ONE metric
+
+// Now someone adds user_id as a label (10M users):
+//  -&gt; 5,000,000 x 10,000,000  ===  CARDINALITY EXPLOSION
+//  the TSDB OOMs, ingestion stalls, queries time out</code></pre>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> The number-one way teams take down their metrics backend is putting an <strong>unbounded-cardinality field as a metric label</strong>: <code>user_id</code>, <code>request_id</code>, <code>email</code>, full URL with query string, raw error message. These belong in <em>logs and traces</em>, never in metric labels. The rule of thumb: a label is safe only if its value set is small and bounded (enum-like). If you cannot enumerate the values, it is not a label.</p></div>
+
+<p>This is precisely the division of labor between the pillars: <strong>metrics for low-cardinality aggregates, logs/traces for high-cardinality detail.</strong> When you need high-cardinality <em>analytics</em> (e.g. "p99 latency grouped by customer_id"), that is a columnar store problem (ClickHouse, Honeycomb's Retriever, Druid) &mdash; a wide-event model that indexes nothing and scans columns fast &mdash; not a time-series database problem.</p>
+
+<h2 id="correlation">Correlating Across Pillars</h2>
+<p>Three pillars are only worth their cost if you can <strong>jump between them</strong>. The on-call workflow you are designing for:</p>
+<ol>
+<li>A <strong>metric/SLO alert</strong> fires: checkout error rate crossed the burn-rate threshold. (Tells you <em>something</em> is wrong, fleet-wide.)</li>
+<li>You pivot to <strong>traces</strong> for the failing requests in that window and find the latency is in the <code>payment-gateway</code> span. (Tells you <em>where</em>.)</li>
+<li>You jump from an exemplar trace to the <strong>logs</strong> for those exact spans via the shared <code>trace_id</code> and read the error: <code>provider_timeout: connect ETIMEDOUT</code>. (Tells you <em>why</em>.)</li>
+</ol>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They make the join keys explicit and non-negotiable: a <code>trace_id</code> on every log line, <span class="key">exemplars</span> on histograms (a metric bucket carries a sample <code>trace_id</code>, so you click a latency spike and land on the trace that caused it), and consistent <code>service.name</code> / <code>region</code> labels across all three pillars so a single dashboard variable filters everything coherently. The pillars are not three silos &mdash; they are three indexes over the same underlying events, stitched by shared identifiers.</p></div>
+
+<h2 id="alerting">Alerting That Pages a Human</h2>
+<p>The purpose of a page is to summon a human to fix something a machine cannot. Every page that does not meet that bar erodes trust and causes <span class="key">alert fatigue</span> &mdash; the state where on-call reflexively acks and ignores, and the one real page gets lost in the noise. Two principles separate good alerting from bad:</p>
+
+<h3>Symptom-based, not cause-based</h3>
+<p>Alert on what the <strong>user experiences</strong> (symptoms), not on every internal condition that <em>might</em> cause it (causes). "p99 checkout latency &gt; 1s for 5 minutes" is a symptom &mdash; it is true exactly when users are hurting, regardless of root cause. "Node 7's CPU is at 95%" is a cause; it may be totally benign (a batch job) or already mitigated by autoscaling. Cause-based alerts proliferate, fire on non-problems, and miss novel failure modes that present the same symptom through a new cause.</p>
+
+<div class="callout note"><span class="lbl">Key insight</span> Tie your paging alerts to <strong>SLO burn rate</strong>, not raw thresholds. Multi-window, multi-burn-rate alerting (the Google SRE pattern) pages fast on a severe burn (e.g. 14.4&times; the budget over 1h, exhausting a month of budget in ~2 days) and pages slow on a sustained mild burn, while suppressing brief blips that don't threaten the budget. This is the bridge from <a href="49.html">error budgets</a> to a pager that fires precisely when the budget is actually at risk.</p></div>
+
+<h3>Every page must be actionable and documented</h3>
+<p>If a human is woken at 3am, the alert must (a) reflect a real, user-facing problem, (b) require human judgment (not something autoscaling/retries already handle), and (c) link to a runbook. Anything that fails these is a candidate for deletion or for downgrading to a <em>ticket</em> (non-paging) or a dashboard. Three severity tiers is a healthy model: <span class="pill">page</span> (act now), <span class="pill">ticket</span> (act this week), <span class="pill">log/dashboard</span> (look when investigating). A useful audit: track your alert-to-action ratio &mdash; if &gt;50% of pages resolve with "no action needed," your signal-to-noise is broken.</p>
+
+<div class="callout warn"><span class="lbl">Pitfall</span> Beware alerting on <strong>predicted</strong> conditions and on tightly-coupled cascades. A single upstream failure can fan out into 200 simultaneous downstream pages, burying the root cause. Alert grouping/deduplication (Alertmanager inhibition rules), dependency-aware suppression, and alerting on the <em>edge</em> (the user-facing symptom) rather than every internal hop are the countermeasures. Retries and circuit breakers also generate misleading signals &mdash; understand how they shape your error metrics; see <a href="51.html">Resilience Patterns</a>.</p></div>
+
+<h2 id="otel">OpenTelemetry and the Wire</h2>
+<p><span class="key">OpenTelemetry (OTel)</span> is the CNCF standard that ended the era of vendor-specific agents and per-vendor instrumentation. It defines: a data model (metrics, logs, traces, and the unifying concept of <em>context</em>), a wire protocol (<span class="key">OTLP</span>, over gRPC/HTTP), language SDKs, and the <span class="key">Collector</span> &mdash; a vendor-neutral pipeline of receivers &rarr; processors &rarr; exporters.</p>
+
+<pre><code># otel-collector pipeline: instrument once, route anywhere
+receivers:
+  otlp: { protocols: { grpc: {}, http: {} } }
+processors:
+  batch: {}
+  tail_sampling:                 # keep all errors + slow, 1% of the rest
+    policies:
+      - { name: errors, type: status_code, status_code: { status_codes: [ERROR] } }
+      - { name: slow,   type: latency,     latency: { threshold_ms: 500 } }
+      - { name: sample, type: probabilistic, probabilistic: { sampling_percentage: 1 } }
+exporters:
+  prometheus: {}                 # metrics here
+  loki: {}                       # logs here
+  otlphttp/tempo: {}             # traces here
+service:
+  pipelines:
+    traces:  { receivers: [otlp], processors: [batch, tail_sampling], exporters: [otlphttp/tempo] }
+    metrics: { receivers: [otlp], processors: [batch], exporters: [prometheus] }</code></pre>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They treat OTel as the <strong>decoupling layer</strong>: instrument the application once against a stable API, and let the Collector handle sampling, redaction (drop PII attributes), batching, and fan-out to backends. This means you can swap Jaeger for Tempo, or move from Datadog to a self-hosted stack, <em>without touching application code</em> &mdash; the same dependency-inversion argument you'd make for any abstraction boundary. They also run the Collector as both a sidecar/agent (for fast local egress) and a gateway tier (for tail sampling, which needs all spans of a trace co-located).</p></div>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+
+<div class="callout ok"><span class="lbl">What strong engineers do</span> They never recite "the three pillars" as a checklist. They reason about <strong>cost vs. cardinality vs. queryability</strong> and place each signal deliberately &mdash; low-cardinality aggregates in metrics, high-cardinality context in logs/traces, request topology in traces &mdash; and they can quantify the cardinality blast radius of a bad label choice. They connect alerting to <em>error budgets</em> and <em>symptoms</em>, not arbitrary thresholds, and they treat alert fatigue as a first-class reliability risk. They know context propagation is the thing that actually breaks (especially across async boundaries), and they default to tail-based sampling because the point of a trace is the anomaly, not the average. They name OTel as the decoupling layer and the Collector as where sampling and redaction belong.</p></div>
+
+<p>Sharp questions to test your own understanding:</p>
+<ul>
+<li>You want to break down p99 latency by <code>customer_id</code> across 50M customers. Walk me through why you would <em>not</em> do this with metric labels, and what storage model you'd reach for instead.</li>
+<li>Your tracing covers synchronous HTTP calls but traces fracture the moment a request enters your job queue. What broke, and how do you propagate context through a Kafka/SQS hop?</li>
+<li>On-call says "we get 400 pages a week and ignore most of them." Diagnose the failure and redesign the alerting strategy. Where does burn-rate alerting fit, and what gets downgraded from a page to a ticket?</li>
+<li>Defend head-based vs tail-based sampling. At 2M req/s, which do you pick, what does the failure mode of each look like, and how does tail sampling complicate your collector topology?</li>
+<li>An incident is in progress: error-rate SLO alert just fired. Walk me through the exact sequence of pillar-to-pillar pivots you'd make to get from "something's wrong" to root cause in under 10 minutes. What join keys make that possible?</li>
+<li>You're told to cut the observability bill by 40% without losing the ability to debug production incidents. What do you cut first, and what is non-negotiable?</li>
+</ul>
+
+<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Metrics & monitoring</td><td>CloudWatch</td><td>Cloud Monitoring</td><td>Azure Monitor</td></tr><tr><td>Distributed tracing</td><td>X-Ray</td><td>Cloud Trace</td><td>Application Insights</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
+<div class="navfoot"><a href="49.html">&lsaquo; Prev: SLI SLO SLA and Error Budgets</a><a class="nx" href="51.html">Next: Resilience Patterns &rsaquo;</a></div>
+
+</div>
+</div>
+</div>
+</body>
+</html>

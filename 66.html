@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architectural Styles and How to Choose</title>
+<link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
+<link rel="stylesheet" href="./_principal_files/lesson.css">
+<script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="./_principal_files/nav.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<button class="menu-btn" aria-label="Toggle index">&#9776; Index</button>
+<div class="scrim"></div>
+<nav class="sidebar">
+<div class="brand"><a href="index.html">System Design<span>Principal Engineer Track</span></a></div>
+<div class="grp"><h5>Fundamentals &amp; building blocks</h5>
+<a class="lk" data-file="01.html" href="01.html"><span class="n">01</span>Foundations</a>
+<a class="lk" data-file="02.html" href="02.html"><span class="n">02</span>System Design Basics</a>
+<a class="lk" data-file="03.html" href="03.html"><span class="n">03</span>Load Balancing</a>
+<a class="lk" data-file="04.html" href="04.html"><span class="n">04</span>Caching</a>
+<a class="lk" data-file="05.html" href="05.html"><span class="n">05</span>Sharding / Partitioning</a>
+<a class="lk" data-file="06.html" href="06.html"><span class="n">06</span>Indexes</a>
+<a class="lk" data-file="07.html" href="07.html"><span class="n">07</span>Proxies</a>
+<a class="lk" data-file="08.html" href="08.html"><span class="n">08</span>Queues</a>
+<a class="lk" data-file="09.html" href="09.html"><span class="n">09</span>Redundancy &amp; Replication</a>
+<a class="lk" data-file="10.html" href="10.html"><span class="n">10</span>SQL vs. NoSQL</a>
+<a class="lk" data-file="11.html" href="11.html"><span class="n">11</span>CAP Theorem</a>
+<a class="lk" data-file="12.html" href="12.html"><span class="n">12</span>Consistent Hashing</a>
+<a class="lk" data-file="13.html" href="13.html"><span class="n">13</span>Long-Poll / WS / SSE</a>
+<a class="lk" data-file="14.html" href="14.html"><span class="n">14</span>Design Framework</a>
+</div>
+<div class="grp"><h5>Classic design problems</h5>
+<a class="lk" data-file="15.html" href="15.html"><span class="n">15</span>URL Shortener (TinyURL)</a>
+<a class="lk" data-file="16.html" href="16.html"><span class="n">16</span>Pastebin</a>
+<a class="lk" data-file="17.html" href="17.html"><span class="n">17</span>Instagram</a>
+<a class="lk" data-file="18.html" href="18.html"><span class="n">18</span>Dropbox</a>
+<a class="lk" data-file="19.html" href="19.html"><span class="n">19</span>Facebook Messenger</a>
+<a class="lk" data-file="20.html" href="20.html"><span class="n">20</span>Twitter</a>
+<a class="lk" data-file="21.html" href="21.html"><span class="n">21</span>YouTube / Netflix</a>
+<a class="lk" data-file="22.html" href="22.html"><span class="n">22</span>Typeahead Suggestion</a>
+<a class="lk" data-file="23.html" href="23.html"><span class="n">23</span>API Rate Limiter</a>
+<a class="lk" data-file="24.html" href="24.html"><span class="n">24</span>Twitter Search</a>
+<a class="lk" data-file="25.html" href="25.html"><span class="n">25</span>Web Crawler</a>
+<a class="lk" data-file="26.html" href="26.html"><span class="n">26</span>Facebook Newsfeed</a>
+<a class="lk" data-file="27.html" href="27.html"><span class="n">27</span>Yelp / Nearby Friends</a>
+<a class="lk" data-file="28.html" href="28.html"><span class="n">28</span>Uber Backend</a>
+<a class="lk" data-file="29.html" href="29.html"><span class="n">29</span>BookMyShow</a>
+</div>
+<div class="grp"><h5>Distributed systems theory</h5>
+<a class="lk" data-file="30.html" href="30.html"><span class="n">30</span>Consensus &amp; Raft</a>
+<a class="lk" data-file="31.html" href="31.html"><span class="n">31</span>Consistency Models &amp; PACELC</a>
+<a class="lk" data-file="32.html" href="32.html"><span class="n">32</span>Distributed Transactions</a>
+<a class="lk" data-file="33.html" href="33.html"><span class="n">33</span>Time, Clocks &amp; Ordering</a>
+<a class="lk" data-file="34.html" href="34.html"><span class="n">34</span>Anti-Entropy &amp; Gossip</a>
+<a class="lk" data-file="35.html" href="35.html"><span class="n">35</span>CRDTs</a>
+<a class="lk" data-file="36.html" href="36.html"><span class="n">36</span>Leader Election &amp; Coordination</a>
+</div>
+<div class="grp"><h5>Data-intensive systems</h5>
+<a class="lk" data-file="37.html" href="37.html"><span class="n">37</span>Replication Deep Dive</a>
+<a class="lk" data-file="38.html" href="38.html"><span class="n">38</span>Storage Engines: LSM vs B-Tree</a>
+<a class="lk" data-file="39.html" href="39.html"><span class="n">39</span>Kafka &amp; Log Messaging</a>
+<a class="lk" data-file="40.html" href="40.html"><span class="n">40</span>Stream Processing &amp; CDC</a>
+<a class="lk" data-file="41.html" href="41.html"><span class="n">41</span>Batch &amp; Big Data</a>
+<a class="lk" data-file="42.html" href="42.html"><span class="n">42</span>Probabilistic Data Structures</a>
+<a class="lk" data-file="43.html" href="43.html"><span class="n">43</span>Search &amp; Elasticsearch</a>
+</div>
+<div class="grp"><h5>Modern architecture</h5>
+<a class="lk" data-file="44.html" href="44.html"><span class="n">44</span>Microservices &amp; Service Mesh</a>
+<a class="lk" data-file="45.html" href="45.html"><span class="n">45</span>API Design</a>
+<a class="lk" data-file="46.html" href="46.html"><span class="n">46</span>Event-Driven Architecture</a>
+<a class="lk" data-file="47.html" href="47.html"><span class="n">47</span>Containers / K8s / Serverless</a>
+<a class="lk" data-file="48.html" href="48.html"><span class="n">48</span>Object Storage &amp; CDN</a>
+</div>
+<div class="grp"><h5>Reliability &amp; operations</h5>
+<a class="lk" data-file="49.html" href="49.html"><span class="n">49</span>SLI/SLO/SLA &amp; Error Budgets</a>
+<a class="lk" data-file="50.html" href="50.html"><span class="n">50</span>Observability</a>
+<a class="lk" data-file="51.html" href="51.html"><span class="n">51</span>Resilience Patterns</a>
+<a class="lk" data-file="52.html" href="52.html"><span class="n">52</span>Deployment Strategies</a>
+<a class="lk" data-file="53.html" href="53.html"><span class="n">53</span>Multi-Region &amp; DR</a>
+</div>
+<div class="grp"><h5>Security</h5>
+<a class="lk" data-file="54.html" href="54.html"><span class="n">54</span>Security in System Design</a>
+</div>
+<div class="grp"><h5>Advanced design problems</h5>
+<a class="lk" data-file="55.html" href="55.html"><span class="n">55</span>Distributed Cache</a>
+<a class="lk" data-file="56.html" href="56.html"><span class="n">56</span>Distributed Message Queue</a>
+<a class="lk" data-file="57.html" href="57.html"><span class="n">57</span>Key-Value Store</a>
+<a class="lk" data-file="58.html" href="58.html"><span class="n">58</span>Unique ID Generator</a>
+<a class="lk" data-file="59.html" href="59.html"><span class="n">59</span>Notification System</a>
+<a class="lk" data-file="60.html" href="60.html"><span class="n">60</span>Distributed Job Scheduler</a>
+<a class="lk" data-file="61.html" href="61.html"><span class="n">61</span>Payment System</a>
+<a class="lk" data-file="62.html" href="62.html"><span class="n">62</span>Collaborative Editing</a>
+<a class="lk" data-file="63.html" href="63.html"><span class="n">63</span>Ad Click Aggregation</a>
+<a class="lk" data-file="64.html" href="64.html"><span class="n">64</span>Distributed Locking</a>
+<a class="lk" data-file="65.html" href="65.html"><span class="n">65</span>Metrics &amp; Monitoring System</a>
+</div>
+<div class="grp"><h5>Architecture &amp; technology choices</h5>
+<a class="lk active" data-file="66.html" href="66.html"><span class="n">66</span>Architectural Styles &amp; How to Choose</a>
+<a class="lk" data-file="67.html" href="67.html"><span class="n">67</span>Choosing a Database</a>
+<a class="lk" data-file="68.html" href="68.html"><span class="n">68</span>Choosing a Message Broker</a>
+<a class="lk" data-file="69.html" href="69.html"><span class="n">69</span>Domain-Driven Design</a>
+</div>
+<div class="grp"><h5>Applied &amp; cross-cutting</h5>
+<a class="lk" data-file="70.html" href="70.html"><span class="n">70</span>Recommendation &amp; ML Systems</a>
+<a class="lk" data-file="71.html" href="71.html"><span class="n">71</span>Cost-Aware System Design</a>
+</div>
+<div class="grp"><h5>Self-assessment</h5>
+<a class="lk" data-file="72.html" href="72.html"><span class="n">72</span>Self-Assessment</a>
+</div>
+</nav>
+<div class="main">
+<div class="wrap">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Architecture &amp; Technology Choices &nbsp;&rsaquo;&nbsp; Architectural Styles and How to Choose</div>
+
+<h1>Architectural Styles and How to Choose</h1>
+<p class="sub"><em>A comparative menu of the major ways to structure a system &mdash; deciding what the components are and how they interact.</em></p>
+<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Operability.</b> <span>the shape of the whole system — each style trades coupling, scale, latency, and operability differently.</span></div>
+
+<div class="toc">
+<h4>In this lesson</h4>
+<ul>
+<li><a href="#framing">The core framing: what &amp; how</a></li>
+<li><a href="#client-server">1. Client&ndash;Server</a></li>
+<li><a href="#soa">2. Service-Oriented Architecture (SOA)</a></li>
+<li><a href="#monolith">3. Monolithic Architecture</a></li>
+<li><a href="#microservices">4. Microservice Architecture</a></li>
+<li><a href="#pubsub">5. Publisher&ndash;Subscriber</a></li>
+<li><a href="#distributed">6. Distributed Systems Architecture</a></li>
+<li><a href="#eda">7. Event-Driven Architecture</a></li>
+<li><a href="#streaming">8. Stream Processing Architecture</a></li>
+<li><a href="#batch">9. Batch Processing Architecture</a></li>
+<li><a href="#serverless">10. Serverless Computing</a></li>
+<li><a href="#compare">Comparison at a glance</a></li>
+<li><a href="#decide">A decision guide</a></li>
+<li><a href="#mastery">Principal-level mastery check</a></li>
+</ul>
+</div>
+
+<h2 id="framing">The core framing: what &amp; how</h2>
+<p>An <span class="key">architectural style</span> is not a technology &mdash; it is a decision about two things: <em>what the components are</em> (their granularity and ownership) and <em>how they communicate</em>. Almost every style in this lesson can be located along three axes:</p>
+<ul>
+<li><span class="key">Synchronous vs asynchronous:</span> does the caller block waiting for a reply (request/response), or does it fire a message and move on (messaging/events)?</li>
+<li><span class="key">Shared state vs message passing:</span> do components coordinate through a shared store (a database, shared memory) or by sending each other messages and owning their own data?</li>
+<li><span class="key">Centralized vs decentralized:</span> is there a single brain or hub (an ESB, an orchestrator, one process) or do peers coordinate autonomously?</li>
+</ul>
+<p>The styles below are not mutually exclusive. A real system is usually a <em>composition</em>: a client&ndash;server frontend talking to microservices, some of which publish events to a pub/sub bus consumed by a stream processor, with nightly batch jobs and a few serverless functions on the edges. Knowing each style in isolation is what lets you compose them deliberately rather than by accident.</p>
+
+<h2 id="client-server">1. Client&ndash;Server Architecture</h2>
+<p><span class="key">What it is.</span> The foundational model of networked software: a <em>client</em> initiates a request, a <em>server</em> holds shared resources and responds. It is inherently synchronous request/response. Everything from HTTP to SQL connections to RPC is a client&ndash;server interaction at its root.</p>
+<p><span class="key">Components &amp; interaction.</span> Two roles, asymmetric: the client knows the server's address; the server is passive until called. The split between <span class="key">thick (fat) clients</span> &mdash; logic and state on the client, e.g. a desktop app or a rich SPA &mdash; and <span class="key">thin clients</span> &mdash; a browser rendering server-computed views &mdash; decides where computation and trust live. Modern apps blur this with hybrid SPAs that do meaningful work client-side but defer authority to the server.</p>
+<p><span class="key">When to choose it.</span> It is the default whenever there is a clear authority/resource owner and clients that need it: virtually all web and mobile apps, internal tools, and APIs. It maps cleanly to security (the server is the trust boundary) and to operational control (you scale and patch the server).</p>
+<p><span class="key">When not to.</span> When peers are equal and there is no natural central authority (true peer-to-peer file sharing, mesh networks), or when the latency of a round-trip to a server is unacceptable and work must happen locally.</p>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Centralizing logic on the server simplifies trust and consistency but makes the server a scaling and availability bottleneck &mdash; every other style in this lesson is, in part, a strategy for relaxing that bottleneck.</div>
+
+<h2 id="soa">2. Service-Oriented Architecture (SOA)</h2>
+<p><span class="key">What it is.</span> An enterprise style (peak popularity in the 2000s) that decomposes a business into coarse-grained, reusable <em>services</em> exposed over a network through standardized contracts, classically SOAP/WSDL, often mediated by an <span class="key">Enterprise Service Bus (ESB)</span>.</p>
+<p><span class="key">Components &amp; interaction.</span> Services publish formal contracts; the ESB sits in the middle and handles routing, protocol translation, message transformation, and orchestration. This makes the ESB the integration brain &mdash; and a single point of coupling and failure.</p>
+<p><span class="key">When to choose it.</span> Large enterprises integrating heterogeneous legacy systems (mainframe, ERP, partner gateways) where a central governed integration layer and shared canonical schemas are genuinely valuable.</p>
+<p><span class="key">When not to.</span> Greenfield product teams that want independent deploy and fast iteration: the heavyweight ESB and centralized governance become the bottleneck SOA was meant to avoid.</p>
+<div class="callout note"><span class="lbl">SOA vs microservices</span>Kleppmann (<em>DDIA</em>, p.132) makes the point directly: <a href="44.html">microservices</a> are essentially a modern, finer-grained, <em>decentralized</em> take on SOA. Same goal &mdash; independently composable services &mdash; but smart endpoints and dumb pipes replace the heavy, intelligent ESB. The intelligence moves out of the bus and into the services.</div>
+
+<h2 id="monolith">3. Monolithic Architecture</h2>
+<p><span class="key">What it is.</span> The entire application is built and deployed as a <em>single unit</em> &mdash; one codebase, one process (or one cluster of identical processes), one deployable artifact.</p>
+<p><span class="key">Components &amp; interaction.</span> Modules call each other through in-process function calls. There is no network between components, so interactions are fast, transactional, and easy to debug end-to-end. The whole thing typically shares one database.</p>
+<p><span class="key">Pros.</span> Simplicity is the headline: one repo, one build, one deploy, one place to debug. In-process calls are nanoseconds, not milliseconds (no serialization, no network). A single database means real ACID <a href="32.html">transactions</a> across the whole domain &mdash; no sagas, no eventual consistency, no distributed-transaction pain.</p>
+<p><span class="key">Cons.</span> You must scale the whole thing even if only one module is hot. A bug or memory leak in any module can take down the process. Above a certain team size the single codebase couples teams &mdash; everyone deploys together, and one team's risky change blocks everyone's release.</p>
+<p>The <span class="key">modular monolith</span> is the sophisticated middle ground: enforce strong internal module boundaries (separate packages, no cross-module DB access, explicit internal APIs) inside a single deployable. You keep deployment simplicity and transactions while preserving the option to extract a module into a service later.</p>
+<div class="callout ok"><span class="lbl">When a monolith is the right default</span>For a new product, a small-to-medium team, and a domain you do not yet understand, a (modular) monolith is usually the <em>correct</em> starting point. You do not yet know your service boundaries, and premature decomposition bakes the wrong boundaries into expensive network calls. Earn microservices; don't start with them.</div>
+
+<h2 id="microservices">4. Microservice Architecture</h2>
+<p><span class="key">What it is.</span> Decompose the system into small, independently deployable services, each owning a slice of the domain and its own data store, communicating over the network.</p>
+<p><span class="key">Components &amp; interaction.</span> Many services, each with a single responsibility and a private database. They interact synchronously (REST/gRPC) or asynchronously (events). The defining property is <span class="key">independent deployability</span> &mdash; a team can ship its service without coordinating a global release. See <a href="44.html">43 &mdash; Microservices &amp; Service Mesh</a>.</p>
+<p><span class="key">When to choose it.</span> Large organizations where team autonomy and independent deploy cadence matter more than raw simplicity; domains with parts that have genuinely different scaling profiles (a CPU-heavy recommender vs a chatty user service); and where fault isolation is worth real operational cost.</p>
+<p><span class="key">When not to.</span> Small teams, early products, or unclear domain boundaries. The classic failure mode is the <span class="key">distributed monolith</span>: services that are deployed separately but so tightly coupled (synchronous chains, shared databases, lock-step releases) that you pay every cost of distribution and gain none of the independence. Getting boundaries right is a <a href="69.html">Domain-Driven Design</a> problem &mdash; align services with bounded contexts, not with technical layers.</p>
+<div class="callout warn"><span class="lbl">Watch out</span>Microservices trade in-process simplicity for network failure, partial failure, eventual consistency, distributed tracing, and deployment orchestration. They are an <em>organizational</em> scaling tool first and a technical one second. If your bottleneck isn't team coordination, you may be buying distribution problems you didn't need.</div>
+
+<h2 id="pubsub">5. Publisher&ndash;Subscriber Architecture</h2>
+<p><span class="key">What it is.</span> A messaging style where <em>publishers</em> emit messages to named <span class="key">topics</span> without knowing who (if anyone) consumes them, and <em>subscribers</em> register interest in topics. A broker in the middle does the matching and delivery.</p>
+<p><span class="key">Components &amp; interaction.</span> Publishers, a broker (topics/exchanges), and subscribers. The key property is <span class="key">decoupling in space, time, and synchronization</span>: the publisher need not know subscribers exist, they need not be online at the same moment, and neither blocks the other. One message can <span class="key">fan out</span> to many independent consumers.</p>
+<p><span class="key">When to choose it.</span> One event must trigger many independent reactions (an "order placed" message updating inventory, billing, email, and analytics); you want to add new consumers without touching producers; or you need to absorb load spikes by buffering. See <a href="46.html">Event-Driven Architecture</a> and <a href="39.html">Kafka &amp; Log-based Messaging</a>.</p>
+<p><span class="key">When not to.</span> When the caller genuinely needs an immediate, correlated answer (a synchronous query), or when strict end-to-end ordering and exactly-once delivery would make the broker more complex than a direct call.</p>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Pub/sub buys loose coupling and easy fan-out at the cost of <em>observability and reasoning</em>: no single place shows the end-to-end flow, debugging spans many consumers, and you inherit delivery semantics (at-least-once, ordering, dead-letters) you must design around.</div>
+
+<h2 id="distributed">6. Distributed Systems Architecture</h2>
+<p><span class="key">What it is.</span> Less a single style than the <em>condition</em> the styles above share once components run on multiple machines connected by an unreliable network. A system is distributed when its components fail independently and communicate over a network that can drop, delay, duplicate, or reorder messages.</p>
+<p><span class="key">Why it is harder.</span> The defining difficulty is <span class="key">partial failure</span>: in a monolith a component is either up or down with everything else; in a distributed system one node can be down, slow, or unreachable while the rest run &mdash; and a caller often <em>cannot tell which</em>. This is the heart of the FLP result and the reason consensus exists. See <a href="30.html">Consensus &amp; Raft</a> and <a href="31.html">Consistency Models &amp; PACELC</a>.</p>
+<p>The <span class="key">fallacies of distributed computing</span> (Deutsch/Gosling) are the canonical list of wrong assumptions engineers make: the network is reliable; latency is zero; bandwidth is infinite; the network is secure; topology doesn't change; there is one administrator; transport cost is zero; the network is homogeneous. Every one of these is false, and every one has produced a famous outage.</p>
+<div class="callout warn"><span class="lbl">Watch out</span>"Distributed" is a cost, not a feature. You go distributed when a single machine cannot meet your scale, availability, or geographic requirements &mdash; and then you pay for it forever in consistency, debugging, and operational complexity. The whole "distributed systems theory" section of this course exists because this cost is unavoidable once you cross the network.</div>
+
+<h2 id="eda">7. Event-Driven Architecture</h2>
+<p><span class="key">What it is.</span> Components communicate primarily by producing and reacting to <span class="key">events</span> &mdash; immutable facts about something that happened ("PaymentCaptured"). It generalizes pub/sub into an architectural philosophy where state changes propagate as a stream of events.</p>
+<p><span class="key">Events vs commands.</span> A <em>command</em> is an instruction to a known recipient ("CapturePayment") and expects an outcome; an <em>event</em> is a statement of fact broadcast to anyone interested ("PaymentCaptured") and expects nothing. Commands couple sender to receiver; events invert the dependency &mdash; the producer doesn't know or care who reacts.</p>
+<p><span class="key">Choreography vs orchestration.</span> In <span class="key">choreography</span>, each service reacts to events and emits its own, with no central coordinator &mdash; maximally decoupled but the overall workflow is implicit and hard to see. In <span class="key">orchestration</span>, a central orchestrator (or saga coordinator) issues commands and tracks the workflow &mdash; explicit and observable, but reintroduces a coordinating component. Most mature systems mix the two. See <a href="46.html">45 &mdash; Event-Driven Architecture</a>.</p>
+<p><span class="key">When to choose it.</span> Loosely coupled domains, audit/replay requirements (event sourcing), and workflows that naturally span many services.</p>
+<p><span class="key">When not to.</span> simple CRUD with strong transactional needs, where the indirection of events adds complexity without buying decoupling you need.</p>
+
+<h2 id="streaming">8. Stream Processing Architecture</h2>
+<p><span class="key">What it is.</span> Continuous processing of an <em>unbounded</em>, never-ending sequence of records as they arrive, maintaining state and emitting results incrementally &mdash; as opposed to processing a fixed, finite dataset.</p>
+<p><span class="key">Components &amp; interaction.</span> A durable log (Kafka/Kinesis) feeds stream processors (Flink, Kafka Streams, Spark Streaming) that apply windowed aggregations, joins, and transformations, writing results to sinks. Key concepts are <em>windowing</em> (grouping unbounded data into finite chunks by time or count), <em>event time vs processing time</em>, and <em>watermarks</em> for handling late data. See <a href="40.html">40 &mdash; Stream Processing &amp; CDC</a>.</p>
+<p><span class="key">When streaming wins.</span> When freshness matters &mdash; fraud detection, real-time dashboards, alerting, live recommendations &mdash; and you cannot wait for a nightly batch. It beats request/response when no single caller "owns" the computation (it's a continuous derived view), and beats batch when latency must be seconds, not hours.</p>
+<p><span class="key">When not to.</span> When results are only needed periodically and correctness over a complete dataset matters more than freshness &mdash; reprocessing a bounded set as a batch is simpler and easier to reason about than maintaining streaming state and handling late/out-of-order events.</p>
+
+<h2 id="batch">9. Batch Processing Architecture</h2>
+<p><span class="key">What it is.</span> Processing a <em>bounded</em>, large volume of data in scheduled jobs &mdash; read a fixed input, compute, write a fixed output, terminate. The oldest data-processing style and still the workhorse of analytics and ETL.</p>
+<p><span class="key">Components &amp; interaction.</span> A scheduler triggers jobs; a processing framework (MapReduce, Spark, classic ETL) reads from storage, runs a DAG of transformations across a cluster, and writes results. Jobs are typically idempotent and rerunnable &mdash; failure recovery is "just run it again." See <a href="41.html">41 &mdash; Batch &amp; Big Data Processing</a>.</p>
+<p><span class="key">Lambda vs Kappa.</span> The <span class="key">Lambda architecture</span> runs a batch layer (accurate, high-latency) <em>and</em> a speed/stream layer (fast, approximate) in parallel, merging their outputs &mdash; correctness plus freshness, at the cost of maintaining two code paths. The <span class="key">Kappa architecture</span> collapses both into a single stream-processing path and gets batch-like reprocessing by replaying the log &mdash; one codebase, but everything must fit the streaming model.</p>
+<div class="callout tradeoff"><span class="lbl">Trade-off</span>Batch maximizes throughput and simplicity (huge volumes, simple recovery, easy reasoning over a complete dataset) at the direct cost of latency &mdash; results are as stale as your schedule. The Lambda/Kappa debate is fundamentally about how much complexity you'll accept to buy back freshness.</div>
+
+<h2 id="serverless">10. Serverless Computing (FaaS)</h2>
+<p><span class="key">What it is.</span> You deploy individual functions; the platform (Lambda, Cloud Functions, Azure Functions) provisions, scales, and tears down execution on demand. You pay per invocation and execution time, scale to zero when idle, and never manage servers. See <a href="47.html">46 &mdash; Containers, Kubernetes &amp; Serverless</a>.</p>
+<p><span class="key">Components &amp; interaction.</span> Functions are stateless and event-triggered &mdash; by HTTP, a queue/topic message, a storage event, or a schedule. State must live in external stores (object storage, managed DBs). This makes serverless a natural fit on top of event-driven and pub/sub architectures.</p>
+<p><span class="key">When it wins.</span> Spiky, event-driven, or intermittent workloads where paying for idle servers is wasteful &mdash; webhooks, glue code, scheduled tasks, image processing on upload, low-traffic APIs, and burst workloads that need instant elastic scale.</p>
+<p><span class="key">Its limits.</span> <span class="key">Cold starts</span> add latency on the first call after idle; execution time and memory are capped; long-running, stateful, or sustained high-throughput workloads become more expensive and more constrained than a provisioned service. Local development, debugging, and vendor lock-in are real friction.</p>
+
+<h2 id="compare">Comparison at a glance</h2>
+<table>
+<tr><th>Style</th><th>Communication</th><th>Coupling</th><th>Best for</th><th>Main cost</th></tr>
+<tr><td>Client&ndash;Server</td><td>Sync request/response</td><td>Client&rarr;server</td><td>Almost all web/mobile apps</td><td>Server is the bottleneck</td></tr>
+<tr><td>SOA</td><td>Sync via ESB</td><td>Central (ESB)</td><td>Enterprise legacy integration</td><td>Heavy, centralized bus</td></tr>
+<tr><td>Monolith</td><td>In-process calls</td><td>Tight, one deploy</td><td>New products, small teams</td><td>Scales/deploys as one unit</td></tr>
+<tr><td>Microservices</td><td>Sync + async, per-service DB</td><td>Loose, independent deploy</td><td>Large orgs, team autonomy</td><td>Distribution &amp; ops cost</td></tr>
+<tr><td>Pub/Sub</td><td>Async via topics</td><td>Decoupled, fan-out</td><td>One event &rarr; many reactions</td><td>Hard end-to-end visibility</td></tr>
+<tr><td>Distributed</td><td>Over the network</td><td>Independent failure</td><td>Scale beyond one machine</td><td>Partial failure everywhere</td></tr>
+<tr><td>Event-Driven</td><td>Async events (facts)</td><td>Inverted dependency</td><td>Loose domains, audit/replay</td><td>Implicit, hard-to-trace flow</td></tr>
+<tr><td>Stream Processing</td><td>Continuous, unbounded</td><td>Log-centric</td><td>Real-time / low-latency derived views</td><td>Stateful, late-data complexity</td></tr>
+<tr><td>Batch</td><td>Scheduled, bounded jobs</td><td>Storage-centric</td><td>High-volume analytics/ETL</td><td>Latency &mdash; results are stale</td></tr>
+<tr><td>Serverless (FaaS)</td><td>Event-triggered functions</td><td>Stateless, ephemeral</td><td>Spiky/intermittent workloads</td><td>Cold starts, limits, lock-in</td></tr>
+</table>
+
+<h2 id="decide">A decision guide</h2>
+<p>No style is "best." The right choice falls out of a handful of forcing questions:</p>
+<ul>
+<li><span class="key">Team size &amp; coupling.</span> One small team, one product? Start with a (modular) monolith. Many teams blocked on each other's releases? That organizational pain is the real argument for microservices &mdash; not the technology.</li>
+<li><span class="key">Scale.</span> Does one machine still comfortably hold the load? Stay non-distributed as long as you can &mdash; you avoid the entire distributed-systems cost. Cross into distributed only when scale, geography, or availability genuinely demand it.</li>
+<li><span class="key">Latency vs throughput.</span> Need an answer <em>now</em>? Synchronous request/response (client&ndash;server, sync microservices). Need to move enormous volume where staleness is fine? Batch. Need fresh results continuously without a single owner? Streaming.</li>
+<li><span class="key">Consistency needs.</span> Need strong, multi-entity transactions? A monolith with one database is dramatically simpler than sagas. Can you tolerate eventual consistency? Event-driven and pub/sub become attractive and let you decouple.</li>
+<li><span class="key">Operational maturity.</span> Distributed, event-driven, and streaming architectures demand observability, tracing, CI/CD, and on-call discipline. If you don't have that muscle yet, a style that needs it will fail in operations regardless of how elegant the design looks on a whiteboard.</li>
+</ul>
+<div class="callout note"><span class="lbl">Key insight</span>The most senior move is to <em>compose</em> styles to fit forces, and to <em>defer</em> the expensive ones. Begin with a modular monolith behind a client&ndash;server API; extract a microservice only when a clear seam and a real scaling or team pressure appears; introduce pub/sub and streaming where decoupling and freshness pay for themselves; reach for serverless at the spiky edges. Let the architecture follow the constraints, not the fashion.</div>
+
+<h2 id="mastery">Principal-level mastery check</h2>
+<div class="callout ok"><span class="lbl">What strong engineers do</span>They never name a style without naming the <em>force</em> that justifies it. They default to the simplest thing that works (often a monolith), treat microservices and distribution as costs to be earned, and can articulate the exact failure mode of the wrong choice &mdash; e.g. that splitting a tightly coupled domain yields a distributed monolith with all the pain and none of the benefit.</div>
+<p>Probing questions to ask engineers:</p>
+<ul>
+<li>"You reached for microservices. What organizational or scaling pressure justifies that over a modular monolith, and what's your plan when a single business transaction now spans three services?"</li>
+<li>"This workflow is choreographed with events. Six months from now, how does an on-call engineer reconstruct what happened to a single failed order?"</li>
+<li>"You're computing this metric. Why streaming instead of a nightly batch &mdash; what does the freshness actually buy the business, and what does the streaming state cost you?"</li>
+<li>"Where exactly is the trust boundary and the consistency boundary in your client&ndash;server split, and what runs on a thick client vs the server?"</li>
+<li>"This is on serverless. What happens to p99 latency after an idle period, and at what sustained traffic does a provisioned service become cheaper?"</li>
+<li>"You've got a pub/sub bus fanning out to five consumers. What are your delivery semantics, and what happens when consumer three is down for an hour?"</li>
+</ul>
+
+<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
+<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (29).png" alt="Comparing and choosing among architectural styles" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A radial diagram of software architecture styles (CQRS, layered, microkernel, microservices, event-driven, DDD, space-based, etc.) with small sketches for each. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
+</div>
+<div class="navfoot"><a href="65.html">&lsaquo; Prev: Designing a Metrics and Monitoring System</a><a class="nx" href="67.html">Next: Choosing a Database &rsaquo;</a></div>
+</div>
+</div>
+</div>
+</body>
+</html>

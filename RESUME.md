@@ -13,8 +13,9 @@ CONTEXT
 - Live (public GitHub Pages): https://goyaldarwin.github.io/claude-system-design/
 - GitHub account that owns it: goyaldarwin (NOT darwingoyal). SSH key = id_rsa, loaded via my
   `ssh-add-darwin` shell alias. Remote is SSH: git@github.com:goyaldarwin/claude-system-design.git
-- It's a 72-lesson static HTML course (no build step): lesson files "NN Title.htm" at repo root,
-  index.html landing page, shared assets in _principal_files/ (lesson.css, nav.js, sidebar.html,
+- It's a 72-lesson static HTML course (no build step): lesson files are numeric slugs "NN.html"
+  (01.html ... 72.html) at repo root; the human-readable title lives in each page's <h1> and its
+  sidebar label, NOT the filename. index.html landing page, shared assets in _principal_files/ (lesson.css, nav.js, sidebar.html,
   favicon.svg, img/, bytebytego/). A .nojekyll file is required (GitHub Pages/Jekyll drops
   underscore folders without it — don't delete it).
 
@@ -25,10 +26,18 @@ STRUCTURE / CONVENTIONS (keep consistent if adding/editing)
   pages when lessons change.
 - New lessons use clean self-contained HTML linking ./_principal_files/lesson.css + nav.js + favicon.
   Callout classes: .callout note/warn/ok/tradeoff; deep dives use .pdeep; self-tests use .mastery.
+- DARK MODE: lesson.css defines all colors as CSS variables; a :root[data-theme="dark"] block
+  retunes them. nav.js injects a floating .theme-toggle and persists choice to localStorage
+  ('sd-theme'); default follows OS prefers-color-scheme. CRITICAL for new lessons: include the
+  no-flash inline <head> script (right after the lesson.css <link>) that sets data-theme before
+  paint — without it, dark-mode users get a white flash. Pages with INLINE <style> (.pdeep/.mastery)
+  must also append the ":root[data-theme=\"dark\"] .pdeep{...}" override block before </style>,
+  else those blocks stay light in dark mode. index.html is standalone and carries its own copies of
+  all three (head script, dark vars, toggle JS).
 - This is LEARNING material, not interview prep — never use "interview/candidate/interviewer/hiring"
   in visible text or filenames (technical terms like Raft "candidate" are fine).
-- Links: bare relative filenames with literal spaces (e.g. href="04 Caching.htm"). Two hubs index
-  every lesson: index.html and "63 Principal-Level Self-Assessment and Index.htm" — update both when
+- Links: bare numeric slugs (e.g. href="04.html"). Two hubs index
+  every lesson: index.html and 72.html (Self-Assessment & Index) — update both when
   adding lessons.
 
 HOW I WORK
@@ -42,7 +51,7 @@ HOW I WORK
 TODAY I WANT TO: <describe the change — e.g. "add a dark-mode toggle", "add lesson 73 on X",
 "rename files to clean URL slugs", "review lesson NN for depth">
 
-Start by reading _principal_files/sidebar.html and one recent lesson (e.g. "38 Storage Engines LSM vs B-Tree.htm")
+Start by reading _principal_files/sidebar.html and one recent lesson (e.g. 38.html, Storage Engines LSM vs B-Tree)
 to re-learn the exact template, then propose a plan before making changes.
 ```
 
@@ -57,5 +66,5 @@ to re-learn the exact template, then propose a plan before making changes.
   Storage & CDN (65).
 - **Edit → publish loop:** make changes → validate → `git add -A && git commit -m "..."` →
   `ssh-add-darwin` → `git push` → wait ~1 min → hard-refresh the live URL.
-- **Add a lesson checklist:** create the .htm in the page template; add it to `_principal_files/sidebar.html`;
-  re-push the sidebar into every page; add it to both hubs (index.html + lesson 63); validate; commit; push.
+- **Add a lesson checklist:** create NN.html in the page template; add it to `_principal_files/sidebar.html`;
+  re-push the sidebar into every page; add it to both hubs (index.html + 72.html); validate; commit; push.
