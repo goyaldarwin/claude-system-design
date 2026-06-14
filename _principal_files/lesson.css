@@ -135,18 +135,19 @@ blockquote a{word-break:break-all;}
 @media(min-width:861px){
   .sidebar{transition:width .2s ease, flex-basis .2s ease;}
   html.nav-collapsed .sidebar{width:0; flex-basis:0; overflow:hidden; border-right:0;}
-  /* shared edge-tab look */
+  /* shared edge-tab look (visual only — visibility is set per state below) */
   .collapse-btn, .sidebar-reopen{position:fixed; top:50%; transform:translateY(-50%);
-    z-index:40; width:22px; height:46px; display:flex; align-items:center; justify-content:center;
-    border:1px solid var(--side-line); background:var(--side-bg); color:var(--side-ink);
+    z-index:40; width:22px; height:46px; align-items:center; justify-content:center;
+    border:1px solid var(--side-line); border-left:0; border-radius:0 8px 8px 0;
+    background:var(--side-bg); color:var(--side-ink);
     cursor:pointer; font-size:15px; line-height:1; box-shadow:2px 0 8px rgba(0,0,0,.15);}
-  /* collapse tab rides the sidebar's right edge (tracks --side at both widths) */
-  .collapse-btn{display:flex; left:calc(var(--side) - 22px); border-left:0; border-radius:0 8px 8px 0;}
-  .collapse-btn:hover{background:var(--side-hover); color:var(--side-brand);}
+  .collapse-btn:hover, .sidebar-reopen:hover{background:var(--side-hover); color:var(--side-brand);}
+  /* expanded: show collapse tab on the sidebar's right edge, hide reopen */
+  .collapse-btn{display:flex; left:calc(var(--side) - 22px);}
+  .sidebar-reopen{display:none;}
+  /* collapsed: hide collapse tab, show reopen at the screen's left edge */
   html.nav-collapsed .collapse-btn{display:none;}
-  /* reopen tab sits at the screen's left edge when collapsed */
-  html.nav-collapsed .sidebar-reopen{display:flex; left:0; border-left:0; border-radius:0 8px 8px 0;}
-  html.nav-collapsed .sidebar-reopen:hover{color:var(--side-brand); background:var(--side-hover);}
+  html.nav-collapsed .sidebar-reopen{display:flex; left:0;}
 }
 
 /* ===== Responsive ===== */
