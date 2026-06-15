@@ -256,26 +256,16 @@
 
 <!-- ============ FLAGS ============ -->
 <h2 id="flags">Signs of shallow vs deep mastery</h2>
-<div class="callout warn"><span class="lbl">Tells that your understanding is still shallow</span>Catch these in your own designs and treat each as a study target:
-<ul>
-<li><strong>Over-engineering.</strong> Reaching for Kafka, Kubernetes, and a service mesh before establishing that a single Postgres won't do. A solution in search of a problem usually means pattern-matching instead of reasoning.</li>
-<li><strong>Cargo-culting microservices.</strong> Splitting into 15 services on the first diagram with no discussion of transaction boundaries or operational cost. (<a href="44.html">44</a>, <a href="66.html">66</a>)</li>
-<li><strong>Ignoring failure.</strong> The happy path is fully drawn; &ldquo;what if this node dies?&rdquo; produces a blank or &ldquo;we add a replica.&rdquo;</li>
-<li><strong>No numbers.</strong> You can't connect QPS to machines, bytes, or dollars. Every choice is vibes.</li>
-<li><strong>Can't de-scope.</strong> You try to build everything and end up shallow everywhere and deep nowhere.</li>
-<li><strong>Defending instead of adapting.</strong> When a flaw is pointed out, you argue rather than update. Deep understanding means changing your mind on evidence.</li>
-</ul>
-</div>
-<div class="callout ok"><span class="lbl">Tells that you've truly internalized the material</span>
-<ul>
-<li><strong>You drive the design.</strong> You set the agenda, manage scope, and decide what to skip and why &mdash; without waiting to be told.</li>
-<li><strong>You quantify.</strong> Every major decision is backed by a number that actually moved the design.</li>
-<li><strong>You name explicit trade-offs.</strong> &ldquo;Availability over consistency here because a stale like-count is fine; the opposite for the payment ledger.&rdquo; (<a href="11.html">11</a>, <a href="61.html">61</a>)</li>
-<li><strong>You design for failure and operability</strong> by default, not as an afterthought.</li>
-<li><strong>You consider migration/evolution</strong> &mdash; how this ships incrementally and how it changes in two years.</li>
-<li><strong>You know what you don't know.</strong> &ldquo;I haven't run this at that scale; here's how I'd de-risk it with a load test before committing.&rdquo;</li>
-</ul>
-</div>
+<p>The two failure modes are mirror images &mdash; the same dimension, gripped or fumbled. Read each row as a target: catch yourself on the left, and study toward the right.</p>
+<table>
+<tr><th>Dimension</th><th>Shallow tell</th><th>Deep tell</th></tr>
+<tr><td><b>Scope</b></td><td>Tries to build everything &mdash; ends up shallow everywhere, deep nowhere; waits to be told what to cut.</td><td><b>Drives the design</b> &mdash; sets the agenda, manages scope, and decides what to skip and <i>why</i>, unprompted.</td></tr>
+<tr><td><b>Quantification</b></td><td><b>No numbers.</b> Can't connect QPS to machines, bytes, or dollars &mdash; every choice is vibes.</td><td><b>Quantifies.</b> Every major decision is backed by a number that actually moved the design.</td></tr>
+<tr><td><b>Trade-offs</b></td><td><b>Over-engineers</b> &mdash; reaches for Kafka, Kubernetes, and a service mesh before establishing a single Postgres won't do. A solution in search of a problem.</td><td><b>Names explicit trade-offs.</b> &ldquo;Availability over consistency here because a stale like-count is fine; the opposite for the payment ledger.&rdquo; (<a href="11.html">11</a>, <a href="61.html">61</a>)</td></tr>
+<tr><td><b>Failure &amp; ops</b></td><td><b>Ignores failure.</b> The happy path is fully drawn; &ldquo;what if this node dies?&rdquo; produces a blank or &ldquo;we add a replica.&rdquo;</td><td><b>Designs for failure and operability</b> by default, not as an afterthought.</td></tr>
+<tr><td><b>Evolution</b></td><td><b>Cargo-cults patterns</b> &mdash; splits into 15 services on the first diagram with no transaction boundaries or operational cost. (<a href="44.html">44</a>, <a href="66.html">66</a>)</td><td><b>Considers migration/evolution</b> &mdash; how this ships incrementally and how it changes in two years.</td></tr>
+<tr><td><b>Intellectual honesty</b></td><td><b>Defends instead of adapting.</b> When a flaw is pointed out, argues rather than updates.</td><td><b>Knows what they don't know.</b> &ldquo;I haven't run this at that scale; here's how I'd de-risk it with a load test first&rdquo; &mdash; and changes their mind on evidence.</td></tr>
+</table>
 
 <!-- ============ MAPPING ============ -->
 <h2 id="mapping">Topic &rarr; design-problem coverage map</h2>
