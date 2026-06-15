@@ -111,115 +111,178 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; Object Storage and CDN</div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; Object Storage &amp; CDN</div>
+<h1>Object Storage &amp; CDN</h1>
+<p class="sub"><em>Big files &mdash; images, video, backups, model weights &mdash; don't belong in your database or on your app servers' disks. <b>Object storage</b> (S3 and friends) holds unlimited blobs cheaply and durably behind a simple HTTP API, and a <b>CDN</b> caches them at the network edge near users. Together they take the heaviest, highest-bandwidth traffic off your origin entirely &mdash; but only if you get the upload path, access control, and cache invalidation right.</em></p>
 
-<h1>Object Storage and CDN</h1>
-<p class="sub"><em>Object stores and CDNs &mdash; getting large and static content off your application's critical path.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; cost.</b> <span>getting large content off the app path, paid in CDN invalidation and consistency nuances.</span></div>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Cheap, near-infinite, durable storage and global low-latency delivery &mdash; in exchange for object (not file/block) semantics, eventual cache freshness, and the discipline of presigned access and invalidation.</b> <span>You offload bytes and bandwidth to systems built for it &mdash; 11-nines durability, edge caching worldwide. You give up filesystem semantics (no partial in-place edits), accept that cached content can be stale until invalidated, and must manage secure access and cache control yourself.</span></div>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#why">Why bytes don't belong in your app tier</a></li>
-<li><a href="#object">Object storage semantics</a></li>
-<li><a href="#durability">Durability, consistency &amp; the upload path</a></li>
-<li><a href="#classes">Storage classes, lifecycle &amp; versioning</a></li>
-<li><a href="#cdn">CDNs: edge caching mechanics</a></li>
-<li><a href="#invalidation">Cache control, invalidation &amp; private content</a></li>
-<li><a href="#patterns">Design patterns that compose them</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Object Storage &amp; CDN</b>
+│
+├─ <a href="#root"><b>Why bytes leave the app tier</b></a>  &mdash; object storage + edge
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>The 4 decisions that define the design</b></a>
+│   ├─ <a href="#d1">1. How do clients upload/download? (presigned, multipart)</a> fail → <a href="#proxy-trap">proxying bytes through your app</a>
+│   ├─ <a href="#d2">2. What durability/consistency do you get?</a> fail → <a href="#consistency-trap">assuming list-after-write</a>
+│   ├─ <a href="#d3">3. How does the CDN cache &amp; invalidate?</a> fail → <a href="#stale-trap">the stale-after-deploy cache</a>
+│   └─ <a href="#d4">4. How do you control cost &amp; access?</a>   fail → <a href="#blast-trap">one config taking down everything</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; storage classes &amp; cache patterns
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; object stores &amp; CDNs
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; stores &amp; CDNs
+│   ├─ <a href="#impl-s3">S3 / GCS / Blob</a>
+│   ├─ <a href="#impl-cdn">CloudFront / Cloudflare / Fastly</a>
+│   └─ <a href="#impl-patterns">Composed patterns</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-upload">Design a direct browser upload</a>
+    ├─ <a href="#ex-invalidate">Invalidate cached assets on deploy</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="why">Why bytes don't belong in your app tier</h2>
-<p>The single most common mistake in a media-heavy design is to stream a 4&nbsp;GB video, a 20&nbsp;MP photo, or a user's PDF <em>through</em> the application servers. A stateless app process that should be answering a request in single-digit milliseconds is instead held open for minutes, its memory and socket buffers consumed copying bytes it does nothing with. Concurrency collapses: an autoscaling group sized for 50,000 lightweight API calls per node now serves a few hundred uploads. Worse, you are paying premium compute prices to do a job that a purpose-built byte-mover does for a fraction of the cost.</p>
-<p>The principal-level instinct is to recognize two fundamentally different workloads and route them to two fundamentally different substrates. <span class="key">Metadata and transactions</span> &mdash; who owns the file, its name, its ACL, its version pointer &mdash; are small, mutable, queryable, and belong in a database. <span class="key">The blob itself</span> &mdash; large, write-once, read-many &mdash; belongs in an object store, and its delivery belongs to a CDN. Your app tier touches neither byte stream; it only mints the URLs that let clients talk to those systems directly.</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">Why bytes leave the app tier</h2>
+<p>Storing large files on app-server disks or in your <a href="10.html">database</a> is a trap: disks fill and aren't shared across servers, databases bloat and slow down, and serving big files ties up app threads and bandwidth. <b>Object storage</b> solves this: a flat namespace of <b>objects</b> (a blob of bytes + metadata, addressed by a key) in <b>buckets</b>, accessed over HTTP, with effectively unlimited capacity, very low cost, and extreme durability (e.g. S3's "11 nines"). It's not a filesystem &mdash; you <b>PUT/GET/DELETE whole objects</b>; there's no partial in-place edit, no real directories (just key prefixes).</p>
+<p>A <b>CDN</b> (Content Delivery Network) then caches those objects (and other cacheable responses) at <span class="gl" data-def="PoP &mdash; Point of Presence; a CDN's edge location, a cluster of cache servers in a city/region close to users, so content is served from nearby instead of from the distant origin.">edge PoPs</span> around the world, so a user in Tokyo is served from Tokyo, not your origin in Virginia &mdash; cutting latency and offloading the vast majority of read traffic from your origin.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Object storage + CDN trade <b>filesystem semantics and instant freshness</b> for <b>near-infinite cheap durable storage and global low-latency delivery</b>. You move the heaviest bytes and bandwidth out of your app entirely; in return you work with whole-object operations, manage secure access (presigned URLs), and accept that the edge can serve stale content until you invalidate or version it.</div>
 
-<h2 id="object">Object storage semantics</h2>
-<p><span class="key">Object storage</span> (S3, GCS, Azure Blob) is not a filesystem and not a block device. It is a flat namespace of <span class="key">objects</span> &mdash; an opaque blob of bytes plus a key (the full path string), plus metadata and a version. There are no directories; the slashes in <code>users/42/avatar.png</code> are just characters in the key, and the "folder" view your console shows is a prefix-listing illusion. This flatness is what makes object stores scale to trillions of objects across a fleet without a central inode table to bottleneck on.</p>
-<p>Contrast the three storage models, because the boundaries are easy to get wrong:</p>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the upload that melts the app servers</span>
+Users upload large videos. Each upload streams <i>through</i> your app servers to object storage &mdash; so your app tier's CPU, memory, and bandwidth are consumed proxying bytes, and a burst of uploads knocks the API over. <b>How should the bytes get from the user's browser to object storage <i>without</i> passing through your servers, and how do you keep that secure?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; Fastly, 8 June 2021 (real incident)</span>
+A <b>single Fastly customer</b> changed their CDN configuration. That change tripped a latent bug, crashed an edge node, and &mdash; because edges shared one global config service &mdash; the failure spread across the network. Within minutes <b>~85% of Fastly's traffic dropped</b>; Reddit, Spotify, Amazon, and major news sites returned errors. <b>What property of the CDN's design turned one customer's config change into a global outage, and what's the architectural lesson?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the deploy users can't see</span>
+You ship a new version of your site's JavaScript and CSS. Users keep getting the <i>old</i> files for hours &mdash; the CDN cached them with a long TTL and doesn't know they changed. Forcing a purge of everything is slow and hammers your origin. <b>How do you make new asset versions appear instantly without purging the cache or shortening TTLs?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#proxy-trap">presigned/direct uploads</a>. Scenario 2 is <a href="#blast-trap">cost/access &amp; blast radius</a>. Scenario 3 is <a href="#stale-trap">cache invalidation</a>. Each maps to a decision below.</i></p>
+
+<!-- ============ BRANCH 1: THE DECISIONS ============ -->
+<h2 id="decisions">The four decisions that define the design</h2>
+<p>Designing object-storage + CDN delivery is these four choices. Each has a named failure nested under it.</p>
+
+<h3 id="d1">Decision 1 &mdash; How do clients upload and download? (presigned URLs, multipart)</h3>
+<p>The right pattern is to keep your app <b>out of the byte path</b>. For uploads/downloads, your app issues a <b>presigned URL</b> &mdash; a time-limited, permission-scoped URL the client uses to talk to object storage <i>directly</i>. The client uploads straight to the bucket; your app only mints the URL and records metadata. For large files, <b>multipart upload</b> splits the object into parts uploaded in parallel and reassembled, with retries of failed parts &mdash; resilient and fast.</p>
+<div class="callout warn"><span class="lbl" id="proxy-trap">The failure that happens when you get this wrong &mdash; proxying bytes through your app</span>
+This is <b>Scenario 1</b>. Routing uploads/downloads <i>through</i> your application tier means every byte consumes your servers' CPU, memory, bandwidth, and request threads &mdash; a few large concurrent uploads can exhaust the pool and take down your API, and you pay to move bytes your app doesn't even process. <b>Presigned URLs</b> eliminate this: the client transfers bytes directly to/from object storage (secured by the URL's scope and expiry), and your app handles only the lightweight metadata. Combine with <b>multipart upload</b> for big files (parallel parts, resumable) and you've removed the heavy traffic from your servers entirely.</div>
+
+<h3 id="d2">Decision 2 &mdash; What durability and consistency do you actually get?</h3>
+<p>Object storage is built for <b>durability</b> (many redundant copies; S3 advertises 99.999999999% &mdash; 11 nines &mdash; so you effectively never lose an object) and high availability. Consistency has improved: S3 now offers <b>strong read-after-write</b> consistency for new objects (a GET right after a PUT sees the data). But you should still understand the model &mdash; overwrites and listings, and other stores' models, may behave differently, and you design around what's <i>guaranteed</i>, not what usually happens.</p>
+<div class="callout warn"><span class="lbl" id="consistency-trap">The failure that happens when you get this wrong &mdash; assuming a consistency you don't have</span>
+Historically S3 was eventually consistent for some operations, and code that did "write an object, then immediately list the bucket and expect to see it" could intermittently miss it &mdash; a flaky bug that's hard to reproduce. S3's read-after-write for new objects fixed the common case, but the lesson stands: <b>know your store's exact consistency guarantees</b> (read-after-write? list-after-write? overwrite visibility?) and don't build logic that assumes stronger consistency than documented. When in doubt, drive workflows off an explicit event/metadata record you control rather than off listing the bucket.</div>
+
+<h3 id="d3">Decision 3 &mdash; How does the CDN cache, and how do you invalidate?</h3>
+<p>A CDN caches responses at the edge keyed by URL, for a duration set by <b>cache-control headers</b> (TTL). A cache <b>hit</b> serves from the nearby PoP (fast, offloads origin); a <b>miss</b> fetches from origin and caches it. The hard part is <b>invalidation</b> &mdash; when content changes, the edge still holds the old copy until its TTL expires. Two approaches: explicit <b>purge</b> (tell the CDN to drop a URL &mdash; slow, can stampede the origin) or, far better, <b>content versioning</b> (change the URL when the content changes).</p>
+<div class="callout warn"><span class="lbl" id="stale-trap">The failure that happens when you get this wrong &mdash; the stale-after-deploy cache</span>
+This is <b>Scenario 3</b>. Long TTLs give great cache hit rates but mean a deploy's new assets are invisible &mdash; users get old JS/CSS until the TTL lapses. Purging everything on each deploy is slow and triggers a <a href="04.html">stampede</a> of misses onto your origin. The clean fix is <b>cache-busting via versioned URLs / content hashing</b>: name each asset by a hash of its content (<code>app.9f2c1a.js</code>) and set a very long TTL (immutable). A new build produces a new filename &rarr; a new URL &rarr; an automatic cache miss &rarr; instant freshness, with no purge and maximal caching of unchanged files. (Invalidation is famously "one of the two hard things in computer science" &mdash; versioning sidesteps it.)</div>
+
+<h3 id="d4">Decision 4 &mdash; How do you control cost, access, and blast radius?</h3>
+<p>Two more levers. <b>Cost:</b> <a href="#decision-table">storage classes</a> (hot/standard vs infrequent-access vs archival/Glacier) and <b>lifecycle policies</b> move objects to cheaper tiers or delete them by age &mdash; you pay for access speed you actually need. <b>Access &amp; safety:</b> keep buckets private by default (presigned URLs or signed CDN URLs for private content), and treat configuration changes as dangerous &mdash; the CDN/edge config is a global control plane.</p>
+<div class="callout warn"><span class="lbl" id="blast-trap">The failure that happens when you get this wrong &mdash; one change taking down everything</span>
+This is <b>Scenario 2</b>. Fastly's edges shared a <i>single global configuration domain</i>, so one customer's config change could activate a latent bug and cascade across the entire network &mdash; 85% of traffic gone in minutes. The architectural lesson is about <b>blast radius</b>: a global, instantly-propagating control plane means a single bad change (or bug) is a single point of failure for everyone. Mitigations are the same ones you'd apply to any config system &mdash; <b>staged/canary config rollout</b> (don't push to all edges at once), validation before propagation, fast rollback, and isolating tenants/cells so one customer's change can't take down others. (Public-facing note: a CDN is also your DDoS/edge security layer &mdash; another reason the edge config is high-stakes.)</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; storage classes &amp; cache patterns</h2>
 <table>
-<tr><th>Model</th><th>Unit / API</th><th>Mutability</th><th>Use case</th></tr>
-<tr><td><span class="key">Block</span> (EBS)</td><td>Fixed-size blocks, read/write offsets</td><td>Random in-place writes</td><td>Database volumes, raw disks for a single attached host</td></tr>
-<tr><td><span class="key">File</span> (NFS/EFS)</td><td>POSIX paths, directories, locks</td><td>Partial in-place edits</td><td>Shared mounts, legacy apps expecting a filesystem</td></tr>
-<tr><td><span class="key">Object</span> (S3)</td><td><code>PUT</code>/<code>GET</code>/<code>DELETE</code> by key over HTTP</td><td>Whole-object replace; no append/edit-in-place</td><td>Media, backups, static assets, data-lake files</td></tr>
+<tr><th>Lever</th><th>Options</th><th>Use</th></tr>
+<tr><td>Storage class</td><td>Standard / Infrequent-Access / Archive (Glacier)</td><td>Match retrieval speed &amp; frequency to cost; lifecycle-transition by age</td></tr>
+<tr><td>Upload path</td><td>Presigned URL + multipart</td><td>Direct client&harr;bucket; keep app out of the byte path</td></tr>
+<tr><td>Cache freshness</td><td>Versioned URLs (best) / purge / short TTL</td><td>Hash-named immutable assets &rarr; instant freshness + long TTL</td></tr>
+<tr><td>Private content</td><td>Signed URLs / signed cookies</td><td>Time-limited access to private objects via the CDN</td></tr>
+<tr><td>Config safety</td><td>Staged/canary rollout + rollback</td><td>Limit blast radius of edge/bucket config changes</td></tr>
 </table>
-<p>The key semantic consequence: objects are effectively <span class="key">immutable</span>. You cannot patch byte 5,000 of an object &mdash; you overwrite the whole key with a new version. This write-once, read-many shape is exactly what allows the aggressive caching and replication that give object stores their durability and CDN-friendliness. It also means object storage is the wrong home for anything needing frequent small mutations, like a hot counter or a transactional row.</p>
+<div class="callout note"><span class="lbl">The rule in one line</span>Put big bytes in object storage, serve them through a CDN, upload/download via <b>presigned URLs</b> (never proxy through your app), make assets fresh by <b>versioning the URL</b> (not purging), tier storage by access pattern for cost, and treat edge/config changes as high-blast-radius (stage them).</div>
 
-<h2 id="durability">Durability, consistency &amp; the upload path</h2>
-<p>Object stores advertise <span class="key">eleven nines of durability</span> (99.999999999%) &mdash; the expected probability that a stored object survives a year. That is not a slogan; it is engineered. Each object is split and stored with redundancy, classically via <span class="key">erasure coding</span>: an object is chopped into <em>k</em> data fragments plus <em>m</em> parity fragments (say 10+4), spread across independent disks, racks, and availability zones, so any 4 of the 14 fragments can be lost and the object still reconstructs. Erasure coding tolerates more simultaneous failures than 3&times; replication (any 4 of 14 fragments here vs. 2 lost copies) at roughly 1.4&times; the storage cost instead of 3&times; &mdash; the reason it dominates at scale.</p>
-
-<h3>Consistency model</h3>
-<p>For years S3 was famously <span class="key">eventually consistent</span> for overwrites and list operations, which forced ugly workarounds (read-after-write retries, external manifests). Since December 2020, S3 provides <span class="key">strong read-after-write consistency</span> for all operations. Concretely: the moment a <code>PUT</code> returns 200, any subsequent <code>GET</code> from any client, in any AZ of that region, is guaranteed to return the new bytes &mdash; never a stale version, never a 404 for an object that was just written. The same now holds for overwrites and for <code>LIST</code> reflecting newly added keys. This eliminates an entire class of "I just wrote it but the next service can't see it" race bugs. Note this is per-object; it is <em>not</em> a multi-object transaction &mdash; there is no atomic "rename" across two keys.</p>
-
-<h3>Multipart upload</h3>
-<p>A single <code>PUT</code> tops out around 5&nbsp;GB and risks restarting the whole transfer if the connection drops at 99%. <span class="key">Multipart upload</span> solves both: the client initiates an upload, sends parts (5&nbsp;MB&ndash;5&nbsp;GB each, up to 10,000 parts) in parallel, each retryable independently, then sends a <code>CompleteMultipartUpload</code> that stitches them server-side into one object. This is how you upload terabyte-scale objects, saturate bandwidth with parallelism, and resume after a flaky mobile connection drops.</p>
-
-<h3>Presigned URLs</h3>
-<p>The mechanism that gets the app server off the byte path is the <span class="key">presigned URL</span>. Your backend, holding the real credentials, computes a signed URL that grants a <em>specific</em> operation (<code>PUT</code> to one key, or <code>GET</code> of one object) for a <em>bounded</em> time. The client then talks straight to the object store. The app never sees the bytes; it only authorizes.</p>
-<pre><code>// Backend: mint a 15-minute upload grant, then hand the URL to the client
-url = s3.presign(
-    method   = "PUT",
-    bucket   = "user-uploads",
-    key      = "u/42/" + uuid() + ".jpg",
-    expires  = 900,                      // seconds
-    conditions = { "content-length-range": [0, 10_000_000],
-                   "Content-Type": "image/jpeg" }
-);
-// Client uploads directly to S3 with this URL; app tier never touches the blob.</code></pre>
-
-<div class="callout note"><span class="lbl">Key insight</span>Durability (will the bytes survive?) is not availability (can I reach them right now?). Eleven nines of durability still sits behind a regional service with its own availability SLA &mdash; and a single-region bucket is a single-region failure domain. If the object data is business-critical, cross-region replication is a separate, deliberate decision. See <a href="53.html">Multi-Region &amp; DR</a>.</div>
-
-<h2 id="classes">Storage classes, lifecycle &amp; versioning</h2>
-<p>Not all objects are accessed equally, and storage cost dominates the bill for large archives. Object stores expose <span class="key">storage classes</span> that trade retrieval latency and cost: a hot Standard tier for frequently read objects; Infrequent-Access tiers that are cheaper to store but charge a retrieval fee; and cold archive tiers (Glacier-style) where storage is nearly free but a restore can take minutes to hours. An Intelligent-Tiering option moves objects between tiers automatically based on observed access.</p>
-<p><span class="key">Lifecycle policies</span> automate this: "transition objects to Infrequent-Access after 30 days, to archive after 90, expire after 365." This is the difference between a log/media archive that costs sane money and one that bankrupts the team a year in. <span class="key">Versioning</span>, when enabled, keeps every overwrite and delete as a prior version (a delete just writes a delete-marker), giving you accidental-deletion recovery and an audit trail &mdash; at the cost of storing every revision, which is precisely why lifecycle rules to expire old non-current versions matter.</p>
-
-<h2 id="cdn">CDNs: edge caching mechanics</h2>
-<p>A <span class="key">Content Delivery Network</span> is a globally distributed fleet of cache servers (<span class="key">edge PoPs</span>) that sit between users and your origin. The win is twofold: <em>latency</em> &mdash; serving from a PoP 10&nbsp;ms away instead of an origin 150&nbsp;ms across an ocean &mdash; and <em>offload</em> &mdash; the origin (your object store or app) sees a tiny fraction of total traffic because the edge absorbs the rest.</p>
-<p>Requests are steered to the nearest healthy PoP by <span class="key">anycast</span> routing: the same IP is announced from every PoP, and BGP delivers the packet to the topologically closest one. This is conceptually the geographic sibling of the load balancing you do inside a region &mdash; see <a href="03.html">Load Balancing</a>. On a request, the edge checks its local cache:</p>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">Cache hit</span> &mdash; the object is present and fresh; served immediately from the edge. No origin contact.</li>
-<li><span class="key">Cache miss</span> &mdash; not present (or stale); the edge fetches from origin, stores a copy, and serves it. Subsequent requests for that key in that PoP hit.</li>
+<li><b>Scenario 1 (uploads melt servers):</b> Why is proxying bytes through your app bad, and how do presigned URLs + multipart fix it securely?</li>
+<li><b>Scenario 2 (Fastly):</b> What property of the CDN turned one config change into a global outage, and what limits blast radius?</li>
+<li><b>Scenario 3 (stale deploy):</b> Why is the new asset invisible, and how does content-hashed versioning give instant freshness without purging?</li>
+<li>What durability and consistency does object storage guarantee, and why design to the guarantee not the typical behavior?</li>
+<li>How do storage classes + lifecycle policies control cost?</li>
 </ul>
-<p>A subtle but critical optimization is <span class="key">origin shielding</span> (a.k.a. a mid-tier or "shield" cache): rather than every one of hundreds of PoPs independently missing and hammering the origin on a cold object, misses funnel through a designated regional shield PoP. The origin sees at most one fetch per object instead of one per PoP &mdash; this is what prevents a viral video or a fresh deploy of static assets from creating a <span class="key">thundering herd</span> against your bucket. It is the same dogpile/stampede problem covered in <a href="04.html">Caching</a>, solved at the network edge.</p>
-<p>Two delivery models exist. A <span class="key">pull CDN</span> (the default and overwhelmingly common one) lazily fetches from origin on the first miss &mdash; zero pre-work, ideal for large catalogs where you don't know what will be hot. A <span class="key">push CDN</span> has you proactively upload content to the edge ahead of demand &mdash; useful for a small set of guaranteed-hot assets (a launch-day video, a software release) where you can't afford the cold-miss latency for the first viewer.</p>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>4 decisions</b> &mdash; <a href="#d1">upload/download path (presigned/multipart)</a>, <a href="#d2">durability/consistency</a>, <a href="#d3">cache &amp; invalidation</a>, <a href="#d4">cost/access/blast-radius</a> &mdash; each with a nested failure: proxying bytes, false consistency assumption, stale cache, global-config blast.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="04.html">Caching</a>, <a href="03.html">Load Balancing</a>, <a href="07.html">Proxies</a>, <a href="18.html">Dropbox (design)</a>, <a href="21.html">YouTube/Netflix (design)</a>, <a href="71.html">Cost-Aware System Design</a>.</p>
 
-<h2 id="invalidation">Cache control, invalidation &amp; private content</h2>
-<p>Freshness is governed by HTTP headers the origin sets, and getting these right is most of the skill:</p>
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<table>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Object storage</td><td>S3</td><td>Cloud Storage (GCS)</td><td>Blob Storage</td></tr>
+<tr><td>CDN</td><td>CloudFront</td><td>Cloud CDN</td><td>Azure Front Door / CDN</td></tr>
+<tr><td>Archival tier</td><td>S3 Glacier</td><td>Coldline / Archive</td><td>Cool / Archive tier</td></tr>
+<tr><td>Independent CDNs</td><td colspan="3">Cloudflare, Fastly, Akamai (multi-cloud edge + security)</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>The canonical web architecture is <b>object store as origin + CDN in front</b>: static assets and media live in S3/GCS/Blob, the CDN caches them at the edge, clients upload directly via presigned URLs, and assets are content-hashed for instant cache busting. Independent CDNs (Cloudflare, Fastly, Akamai) add edge compute, WAF, and DDoS protection &mdash; and, as Fastly 2021 showed, become a critical dependency whose config changes carry global blast radius.</div>
+
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The stores and CDNs made concrete. Same facets &mdash; what it is, the model, and the failure to watch.</p>
+
+<h3 id="impl-s3">S3 / Google Cloud Storage / Azure Blob</h3>
 <ul>
-<li><span class="key"><code>Cache-Control: max-age=N</code></span> &mdash; the TTL. For how many seconds may the edge (and browser) serve this without re-checking origin? <code>public</code> allows shared caches to store it; <code>private</code> restricts to the browser; <code>no-store</code> forbids caching entirely.</li>
-<li><span class="key"><code>ETag</code></span> &mdash; an opaque content fingerprint. After TTL expires, the edge sends a conditional <code>If-None-Match</code>; if unchanged the origin replies <code>304 Not Modified</code> with no body, revalidating cheaply instead of re-shipping the bytes.</li>
-<li><span class="key"><code>stale-while-revalidate=N</code></span> &mdash; serve the stale copy <em>instantly</em> while asynchronously refreshing it in the background. The user never waits on a revalidation round-trip; the cache self-heals. Pair with <code>stale-if-error</code> to keep serving stale content when the origin is down &mdash; a free resilience win.</li>
+<li><b>What it is.</b> Massively-durable object stores; flat buckets of key-addressed objects over HTTP.</li>
+<li><b>Model.</b> PUT/GET/DELETE whole objects; 11-nines durability; read-after-write consistency for new objects; presigned URLs, multipart upload, storage classes, lifecycle, versioning.</li>
+<li><b>The failure to watch.</b> Treating it like a filesystem (no partial edits, no real dirs); assuming stronger consistency than documented; accidental public buckets.</li>
 </ul>
 
-<div class="callout warn"><span class="lbl">Cache invalidation is hard</span>"There are only two hard things in computer science." Once an object is replicated across hundreds of PoPs, <em>recalling</em> it is slow and expensive &mdash; explicit purges can take seconds to minutes to propagate globally, and aggressive purging defeats the point of the cache. The robust answer is to avoid invalidation entirely: treat URLs as immutable via <span class="key">content-hashed / versioned filenames</span> (<code>app.9f3c1a.js</code>, <code>logo.v2.png</code>). New content gets a new URL, so there is nothing to invalidate; old URLs simply age out. Reserve explicit purges for emergencies (leaked content, legal takedown).</div>
-
-<p>For <span class="key">private content</span> &mdash; a paid video, a user's private document &mdash; you cannot rely on an unguessable URL. CDNs support <span class="key">signed URLs / signed cookies</span>: the edge itself validates a cryptographic signature (and expiry, and optionally source-IP) before serving. This pushes authorization to the edge so the byte path still never touches your app, while a leaked link stops working after its short expiry. This is the same presigned-URL idea from the object store, enforced one layer further out at the CDN.</p>
-
-<h2 id="patterns">Design patterns that compose them</h2>
-<p>These primitives combine into three patterns you should reach for reflexively:</p>
-<ol>
-<li><span class="key">Direct-to-S3 upload via presigned URL.</span> Client asks the app for an upload grant; app returns a presigned <code>PUT</code> URL and records intended metadata as <em>pending</em>; client uploads straight to the bucket; an S3 event notification (or the client's completion callback) flips the metadata to <em>ready</em>. The app tier handled two tiny JSON requests and zero bytes. This is the backbone of file upload in <a href="18.html">Dropbox</a> and avatar/photo upload in any social product.</li>
-<li><span class="key">CDN-in-front-of-object-store for static assets.</span> Point the CDN's origin at the bucket, set long <code>max-age</code> on versioned filenames, and serve all images, JS/CSS bundles, and downloads from the edge. The origin bucket sees near-zero traffic after warm-up; the app tier serves only dynamic API calls.</li>
-<li><span class="key">Metadata-in-DB + blob-in-store split.</span> The relational/NoSQL row holds the small queryable truth (owner, title, ACL, <code>storage_key</code>, version, size, checksum); the object store holds the bytes. Queries, joins, permission checks, and feeds all run against the cheap, indexable database; the heavy bytes live where bytes are cheap. This split is the data-modeling heart of <a href="21.html">YouTube / Netflix</a> (catalog and watch-history in databases, transcoded video renditions in the object store, delivered via CDN) and of essentially every media product.</li>
-</ol>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>The DB-plus-store split introduces a two-system consistency gap: the row and the blob are written separately and can diverge (an orphaned blob whose row never committed, or a row pointing at a key that failed to upload). You reconcile this with the <em>pending&rarr;ready</em> state machine plus an async sweeper that garbage-collects orphaned objects and retries or expires stuck-pending rows. You are trading a clean single-system transaction for scale and cost &mdash; a trade worth making, but only if you actually build the reconciliation.</div>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They get bytes off the app tier in the first two minutes &mdash; presigned upload, CDN in front of the store &mdash; without being prompted, and they reason explicitly about the metadata/blob split and the consistency gap it creates. They reach for versioned-URL caching over purge-based invalidation, and they distinguish durability from availability and from access control rather than treating "we'll use S3" as a complete answer.</div>
-<p>Probing questions to ask engineers:</p>
+<h3 id="impl-cdn">CloudFront / Cloudflare / Fastly / Akamai</h3>
 <ul>
-<li>"A user uploads a 3&nbsp;GB video from a phone on a flaky connection. Walk me through every hop &mdash; what touches the bytes, and what happens when the connection drops at 80%?"</li>
-<li>"You're caching avatars at the edge with a one-year TTL. A user changes their avatar. How does anyone ever see the new one?"</li>
-<li>"How do you serve a paid movie so a leaked link can't be shared, without your app tier ever streaming the bytes?"</li>
-<li>"Your DB row says the file exists but the <code>GET</code> 404s. How did that happen and how does your design prevent or repair it?"</li>
-<li>"Eleven nines of durability &mdash; does that mean the data is highly available? What's the difference, and what would you add for a region-failure scenario?"</li>
-<li>"Why erasure coding instead of three full copies, and what does that buy you in storage cost versus rebuild time?"</li>
+<li><b>What it is.</b> Global edge cache + delivery networks; many also offer edge compute, WAF, and DDoS protection.</li>
+<li><b>Model.</b> Cache by URL at PoPs with TTL/cache-control; origin pull on miss; purge or (better) versioned URLs for freshness; signed URLs for private content.</li>
+<li><b>The failure to watch.</b> Global config blast radius (Fastly 2021); cache-key/invalidation mistakes serving stale or wrong content; becoming a critical single dependency.</li>
 </ul>
 
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Object storage</td><td>S3</td><td>Cloud Storage</td><td>Blob Storage</td></tr><tr><td>CDN</td><td>CloudFront</td><td>Cloud CDN</td><td>Azure CDN / Front Door</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="47.html">&lsaquo; Prev: Containers Kubernetes and Serverless</a><a class="nx" href="49.html">Next: SLI SLO SLA and Error Budgets &rsaquo;</a></div>
+<h3 id="impl-patterns">Composed patterns (static site, media pipeline)</h3>
+<ul>
+<li><b>What it is.</b> The standard compositions &mdash; static-site hosting (S3+CloudFront), user-upload pipelines (presigned PUT &rarr; processing &rarr; CDN delivery), and video (object store + transcode + CDN, see <a href="21.html">YouTube</a>).</li>
+<li><b>Model.</b> Object store as the durable origin; CDN as the read-scaling edge; app only on the control/metadata path.</li>
+<li><b>The failure to watch.</b> Forgetting cache-busting (stale deploys); proxying bytes through the app; unbounded storage cost without lifecycle policies.</li>
+</ul>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you design the byte path. Work each before opening the approach.</p>
+
+<h3 id="ex-upload">Design a direct browser upload for large files</h3>
+<p>Users upload multi-GB videos from the browser. Design the flow so bytes never touch your app servers, uploads are resumable, and only authorized users can upload.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>(1) Browser asks your app to start an upload; your app authenticates the user, decides the object key, and returns <b>presigned URLs</b> for a <b>multipart upload</b> (one presigned URL per part, plus an upload id). (2) The browser uploads parts <b>directly to the bucket</b> in parallel using those URLs &mdash; resumable (retry just the failed part), and your servers never see the bytes. (3) The browser tells your app the upload is complete; your app finalizes the multipart upload and records metadata (and may emit an "upload complete" <a href="46.html">event</a> to kick off transcoding/virus-scan). Security: presigned URLs are scoped to the exact key+operation and expire quickly, so they can't be reused or abused. This removes the byte traffic from your app (Scenario 1's fix) and handles huge files robustly.</p>
+</div></details>
+
+<h3 id="ex-invalidate">Make a deploy's new assets appear instantly</h3>
+<p>Your site's JS/CSS is cached at the CDN with a 1-year TTL for performance, but deploys must take effect immediately. Design the freshness scheme without purging or shortening TTLs.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Use <b>content-hashed filenames</b>: the build names each asset by a hash of its contents (<code>app.9f2c1a.js</code>, <code>styles.4be0.css</code>) and marks them <code>Cache-Control: immutable, max-age=31536000</code>. The HTML (or a small manifest) references the current hashed filenames and is served with a <i>short</i>/no-cache TTL. On deploy, changed files get new hashes &rarr; new URLs the CDN has never seen &rarr; automatic cache miss &rarr; fetched fresh; unchanged files keep their old hashed URL and stay cached. Result: instant freshness for what changed, maximal caching for what didn't, <b>no purge</b> (so no origin stampede), and no risk of users mixing old and new files. This sidesteps cache invalidation entirely &mdash; you change the key instead of expiring the value (Scenario 3).</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Serve private user media via a CDN.</b> Photos must be CDN-fast but only viewable by authorized users. Design signed URLs/cookies and expiry. &rarr; <a href="17.html">Instagram</a>, <a href="54.html">Security</a>.</li>
+<li><b>Build a cost-tiered backup store.</b> Backups are written daily, read rarely, kept 7 years. Design storage classes + lifecycle transitions to minimize cost. &rarr; <a href="71.html">Cost-Aware System Design</a>.</li>
+<li><b>Limit a CDN/config blast radius.</b> Drawing on Fastly 2021, design how config changes roll out to the edge so one bad change can't take everything down. &rarr; <a href="52.html">Deployment Strategies</a>, <a href="51.html">Resilience Patterns</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="47.html">&lsaquo; Prev: Containers / K8s / Serverless</a><a class="nx" href="49.html">Next: SLI/SLO/SLA &amp; Error Budgets &rsaquo;</a></div>
 </div>
 </div>
 </div>

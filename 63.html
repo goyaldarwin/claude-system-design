@@ -111,227 +111,193 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing Ad Click Aggregation</div>
-
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Ad Click Aggregation</div>
 <h1>Designing Ad Click Aggregation</h1>
-<p class="sub"><em>A money-correct, near-real-time pipeline that ingests billions of click events a day, tolerates late and duplicate events, and serves both sub-minute dashboards and audited billing totals.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Finite capacity &amp; latency.</b> <span>huge write volume + near-real-time counts, paid in streaming + batch + probabilistic structures.</span></div>
+<p class="sub"><em>Count ad clicks &mdash; billions per day &mdash; and aggregate them into near-real-time dashboards and exact billing. Two things make this hard and high-stakes: the <b>scale</b> (a firehose of events that no single database can ingest) and the fact that <b>clicks are money</b> &mdash; a few percent of miscounted clicks is millions of dollars, so duplicates and lost events are unacceptable. It's the canonical <a href="40.html">stream-processing</a> design with an exactly-once requirement.</em></p>
 
-<div class="toc"><h4>In this lesson</h4>
-<ul>
-<li><a href="#problem">Problem framing &amp; why it&rsquo;s hard</a></li>
-<li><a href="#requirements">Requirements &amp; scale estimation</a></li>
-<li><a href="#api">Event schema &amp; query API</a></li>
-<li><a href="#arch">High-level architecture</a></li>
-<li><a href="#ingest">Ingestion: Kafka as the source of truth</a></li>
-<li><a href="#stream">Stream processing: windows &amp; watermarks</a></li>
-<li><a href="#dedup">Exactly-once &amp; the duplicate-click problem</a></li>
-<li><a href="#probabilistic">Distinct counts &amp; heavy hitters</a></li>
-<li><a href="#storage">Time-series storage &amp; rollups</a></li>
-<li><a href="#lambda">Lambda vs Kappa: reconciliation for billing</a></li>
-<li><a href="#skew">Hot partitions &amp; skew</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Fast, accurate aggregation of a massive event firehose &mdash; in exchange for solving exactly-once counting (dedup), the event-time vs processing-time problem, and the fast-but-approximate vs slow-but-exact tension.</b> <span>You get live metrics and correct billing over billions of events. You pay by deduplicating to count each click once (money), handling late/out-of-order events with event-time windows, and reconciling a fast approximate path against a slow exact one.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; we walk the design top to bottom, then deep-dive the hard parts</div>
+<pre class="tree">
+<b>Designing Ad Click Aggregation</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>
+├─ <a href="#api"><b>3. The API</b></a>  &mdash; ingest / query
+├─ <a href="#highlevel"><b>4. High-level design</b></a>  &mdash; log + stream processor + store
+├─ <a href="#datamodel"><b>5. Data model</b></a>  &mdash; raw events + rollups
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+│
+├─ <a href="#subproblems"><b>The 4 hard sub-problems</b></a>
+│   ├─ <a href="#s1">1. Ingesting the firehose</a>            fail → <a href="#overwhelm">overwhelming the store</a>
+│   ├─ <a href="#s2">2. Exactly-once counting (dedup)</a>     fail → <a href="#double-count">miscounting = money lost</a>
+│   ├─ <a href="#s3">3. Event time &amp; late clicks</a>          fail → <a href="#late">wrong-window counts</a>
+│   └─ <a href="#s4">4. Fast vs exact (Lambda/Kappa)</a>      fail → <a href="#drift">approximate ≠ billed</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
 </div>
 
-<h2 id="problem">Problem framing &amp; why it&rsquo;s hard</h2>
-<p>An ad click aggregation system sits between two unforgiving consumers. <span class="key">Advertisers and dashboards</span> want fresh numbers &mdash; clicks, impressions, click-through rate, spend &mdash; with sub-minute latency so they can pause a campaign before it burns budget. <span class="key">Billing and finance</span> want the <em>same</em> numbers to be exactly right, auditable, and stable months later. Those two goals pull in opposite directions: speed favors approximate, in-memory, eventually-consistent aggregation; correctness favors deterministic, replayable batch computation.</p>
-<p>This is the canonical problem for understanding <span class="key">stream/batch duality</span>. A weak answer reaches for &ldquo;just count in Redis.&rdquo; A strong answer treats the raw event log as the source of truth, builds fast approximate views on top, and keeps a slower authoritative recompute path for the money.</p>
+<!-- ============ 1. REQUIREMENTS ============ -->
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> ingest ad-click events (adId, userId, timestamp, context); aggregate counts (and spend) per ad / campaign / time-window; serve <b>near-real-time</b> dashboards (clicks in the last minute/hour) and <b>exact</b> aggregates for billing; support filtering (by region, etc.).</p>
+<p><b>Non-functional:</b> <b>massive scale</b> (billions of clicks/day &mdash; a firehose), <b>accuracy</b> (each click counted <b>exactly once</b> &mdash; it's money), <b>low query latency</b> for dashboards, <b>fault-tolerant</b> (no lost events), <b>handles late/out-of-order events</b> (mobile clicks arrive late).</p>
 
-<div class="callout note"><span class="lbl">Key insight</span> The hard part is not throughput &mdash; Kafka and a stream processor handle billions of events trivially. The hard part is <strong>correctness under failure</strong>: events arrive late, out of order, and duplicated, and the billing total must still tie out to the penny.</div>
-
-<h2 id="requirements">Requirements &amp; scale estimation</h2>
-<h3>Functional</h3>
+<!-- ============ 2. CAPACITY ============ -->
+<h2 id="capacity">2. Capacity estimate</h2>
+<p>Say <b>10 billion clicks/day</b>, each event ~<b>100 bytes</b>, with bursty peaks. Work it:</p>
 <ul>
-<li>Ingest click (and impression) events: <code>{ad_id, campaign_id, advertiser_id, user_id, click_id, ts, ip, country, device}</code>.</li>
-<li>Serve aggregated metrics by dimension (ad, campaign, advertiser, country) over time buckets (per-minute, per-hour, per-day).</li>
-<li>Return top-N ads/campaigns by clicks (heavy hitters) and unique-user counts (distinct).</li>
-<li>Near-real-time dashboards: freshness target ~1 minute.</li>
-<li>Authoritative billing totals: recomputed and reconciled, correct to the exact count.</li>
-</ul>
-<h3>Non-functional</h3>
-<ul>
-<li><span class="key">High write volume, low read volume.</span> Writes dominate by orders of magnitude.</li>
-<li>Tolerate late events (mobile devices offline for hours) and duplicates (client retries, at-least-once delivery).</li>
-<li>Durable: no event silently dropped. Replayable: any time window can be recomputed from raw.</li>
-<li>Available for reads even during a region failure.</li>
+<li><b>Average rate:</b> 10B / 86,400s &asymp; <b>~115,000 clicks/sec</b> average; peak (prime time) maybe 3&ndash;5&times; &rarr; <b>~500,000/sec</b>. <b>Consequence: no single database can ingest this directly &mdash; you need a buffer (a log) and a parallel stream processor.</b></li>
+<li><b>Raw volume:</b> 10B &times; 100 B = <b>1 TB/day</b> of raw events. You keep raw events (for re-aggregation / exact recompute / audit) in cheap <a href="48.html">object storage</a>, but you don't <i>query</i> raw &mdash; you query pre-aggregated rollups. <b>Consequence: store raw cheaply, serve from rollups.</b></li>
+<li><b>Query shape:</b> dashboards want "clicks per ad per minute" &mdash; tiny compared to raw. Pre-aggregating into per-minute (and per-hour/day) <b>rollups</b> turns a billion-row scan into a handful of rows. <b>Consequence: aggregate on write (streaming), not on read.</b></li>
+<li><b>The money constraint:</b> at this scale, a 1% counting error = ~100M miscounted clicks/day = potentially millions in mis-billing. <b>Consequence: exactly-once is a hard requirement, not a nicety &mdash; it drives the whole design.</b></li>
 </ul>
 
-<h3>Back-of-envelope</h3>
+<!-- ============ 3. API ============ -->
+<h2 id="api">3. The API</h2>
+<pre class="tree" style="border:none;background:var(--code-bg,#f6f8fa);padding:12px;border-radius:8px">
+ingest({ clickId, adId, userId, eventTime, context })   // clickId = dedup key
+query({ adId | campaignId, from, to, granularity })      -> [{ window, clicks, spend }]
+</pre>
+<p><code>ingest</code> is high-throughput, fire-and-forget into the <a href="40.html">stream</a>. The <code>clickId</code> is the <b>idempotency/dedup key</b> &mdash; the linchpin of exactly-once counting (<a href="#s2">sub-problem 2</a>). <code>eventTime</code> is the time the click <i>happened</i> (not when ingested), driving <a href="#s3">event-time windowing</a>. <code>query</code> reads pre-aggregated rollups, not raw events.</p>
+
+<!-- ============ 4. HIGH-LEVEL ============ -->
+<h2 id="highlevel">4. High-level design</h2>
+<p>The classic streaming pipeline: <b>(1)</b> click events are written to a durable <a href="39.html">log</a> (Kafka/Kinesis) &mdash; this absorbs the firehose and decouples ingest from processing. <b>(2)</b> A <a href="40.html">stream processor</a> (Flink/Spark Streaming) consumes the log, <b>deduplicates</b> by clickId, and aggregates clicks into <b>time-windowed rollups</b> (per ad, per minute), writing them to a fast query store. <b>(3)</b> Dashboards query the rollup store; raw events are also archived to <a href="48.html">object storage</a> for exact re-aggregation/audit. The stream processor checkpoints its state so a crash doesn't lose or double-count in-flight aggregates (<a href="40.html">exactly-once stream state</a>).</p>
+
+<!-- ============ 5. DATA MODEL ============ -->
+<h2 id="datamodel">5. Data model &mdash; raw events + rollups</h2>
 <table>
-<thead><tr><th>Quantity</th><th>Estimate</th><th>Derivation</th></tr></thead>
-<tbody>
-<tr><td>Click events/day</td><td>~1 billion</td><td>Given baseline</td></tr>
-<tr><td>Average write QPS</td><td>~11.5 K/s</td><td>1e9 / 86400</td></tr>
-<tr><td>Peak write QPS</td><td>~50&ndash;100 K/s</td><td>5&ndash;10&times; diurnal/event spikes</td></tr>
-<tr><td>Event size on wire</td><td>~200&ndash;400 B</td><td>Compact Avro/Protobuf</td></tr>
-<tr><td>Raw ingest/day</td><td>~300 GB&ndash;1 TB/day</td><td>1e9 &times; ~0.3 KB</td></tr>
-<tr><td>Impressions:clicks</td><td>~100:1</td><td>If impressions counted too, multiply ingest by ~100 &rArr; 100 B events/day</td></tr>
-<tr><td>Dashboard read QPS</td><td>~hundreds</td><td>Aggregates fan out from a small number of dashboards</td></tr>
-</tbody>
+<tr><th>Store</th><th>Holds</th><th>Used for</th></tr>
+<tr><td><b>Event log</b> (Kafka)</td><td>Raw click events, partitioned by adId, retained days</td><td>Buffer + replay/reprocess</td></tr>
+<tr><td><b>Rollup store</b> (time-series / OLAP)</td><td>Pre-aggregated counts per (adId, window) at minute/hour/day granularity</td><td>Fast dashboard &amp; billing queries</td></tr>
+<tr><td><b>Raw archive</b> (object storage)</td><td>All raw events, columnar (Parquet)</td><td>Exact batch re-aggregation, audit</td></tr>
+<tr><td><b>Dedup store</b></td><td>Seen clickIds (windowed/Bloom)</td><td>Exactly-once counting</td></tr>
 </table>
-<p>The 100:1 impression ratio matters: if impressions are in scope you are at <strong>100 billion events/day</strong>, ~1.2 M events/sec average (and ~6&ndash;12 M/s at peak). That changes the storage tier and forces aggressive pre-aggregation rather than retaining raw impressions forever. State the assumption explicitly. Capacity math borrows directly from <a href="14.html">the estimation guide</a>.</p>
+<p>Rollups are typically stored hierarchically (minute &rarr; hour &rarr; day) so a query for a day reads daily rollups, not 1,440 minutes &mdash; query cost stays flat regardless of range.</p>
 
-<h2 id="api">Event schema &amp; query API</h2>
-<p>The producer-supplied <code>click_id</code> is the linchpin of dedup &mdash; it must be generated once at click time (see <a href="58.html">Unique ID Generator</a>) and carried through retries unchanged.</p>
-<pre><code>// Ingested event (Avro)
-ClickEvent {
-  click_id:    string   // idempotency key, stable across retries
-  ad_id:       long
-  campaign_id: long
-  advertiser_id: long
-  user_id:     long      // hashed
-  event_ts:    long      // EVENT time (when click happened, ms)
-  ingest_ts:   long      // PROCESSING time (when we received it)
-  country:     string
-  device:      string
-  ip:          string
-}
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the same click counted twice = a wrong bill</span>
+A client retries a click event after a network blip, and the stream processor reprocesses a redelivered message after a restart &mdash; so one real click is counted as two or three. Multiply by billions and a 1% error is millions in over-billing. <b>Why are duplicates inevitable in this pipeline, and how do you count each click exactly once at this scale?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the mobile click that arrives 5 minutes late</span>
+A user clicks an ad at 10:00:30 on their phone, which is offline; the event reaches your pipeline at 10:05. If you bucket it by arrival time, the 10:00 minute is undercounted and 10:05 is overcounted &mdash; and advertiser reports are wrong. <b>Which notion of time should you bucket by, and how do you know when a minute's count is final?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the dashboard says 1.2M, the bill says 1.18M</span>
+Your real-time dashboard (fast, approximate) shows 1.2M clicks for an ad; the billing system (slow, exact) computes 1.18M. They disagree, and advertisers see both. <b>Why do the fast and exact paths differ, what architecture deliberately runs both, and which one do you bill on?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#double-count">exactly-once counting</a>. Scenario 2 is <a href="#late">event time &amp; late clicks</a>. Scenario 3 is <a href="#drift">fast vs exact (Lambda/Kappa)</a>. Each maps to a sub-problem.</i></p>
 
-// Read API
-GET /v1/metrics?dimension=campaign&amp;id=42
-     &amp;metric=clicks&amp;from=2026-06-12T00:00&amp;to=2026-06-12T23:59&amp;granularity=1h
-GET /v1/topn?dimension=ad&amp;metric=clicks&amp;window=1h&amp;n=100
-GET /v1/distinct?dimension=campaign&amp;id=42&amp;metric=unique_users&amp;window=1d
-</code></pre>
-<div class="callout warn"><span class="lbl">Pitfall</span> Distinguish <strong>event time</strong> (when the click physically happened) from <strong>processing time</strong> (when your pipeline saw it). Aggregating by processing time is trivial but wrong for billing &mdash; an event that arrives 3 hours late must land in the hour it <em>occurred</em>, not the hour it arrived. Everything downstream keys on <code>event_ts</code>.</div>
+<!-- ============ SUB-PROBLEMS ============ -->
+<h2 id="subproblems">The four hard sub-problems</h2>
+<p>The pipeline shape is standard streaming. These four are where ad aggregation is hard (and where money rides) &mdash; each with a nested failure.</p>
 
-<h2 id="arch">High-level architecture</h2>
-<p>The shape is a textbook ingest &rarr; log &rarr; dual-path-process &rarr; serve pipeline:</p>
-<pre><code>  Ad servers / SDKs
-        |  (HTTP/UDP beacon)
-        v
-  +-----------+      +-------------------+
-  | Collector |----&gt;|  Kafka (raw_clicks)|----+----&gt; Cold store (S3/HDFS, partitioned by hour)
-  | (stateless)|     |  partitioned by    |    |        ^ authoritative raw log
-  +-----------+      |  ad_id/key, RF=3   |    |
-                     +-------------------+    |
-                              |               |
-                  (speed path)|               |(batch path, nightly + on-demand)
-                              v               v
-                  +---------------------+   +--------------------+
-                  | Stream processor    |   | Batch recompute    |
-                  | (Flink): windowed   |   | (Spark): exact     |
-                  | aggregates, dedup,  |   | re-aggregation     |
-                  | HLL / Count-Min     |   | over raw log       |
-                  +---------------------+   +--------------------+
-                              |               |
-                              v               v
-                  +-------------------------------------+
-                  | Time-series / OLAP store            |
-                  | (Druid / ClickHouse / Pinot)        |
-                  | minute -> hour -> day rollups        |
-                  +-------------------------------------+
-                              |
-                              v
-                       Dashboard / Query API
-</code></pre>
+<h3 id="s1">Sub-problem 1 &mdash; Ingesting the firehose</h3>
+<p>500k events/sec can't go straight into a database &mdash; you'd overwhelm it and couple ingest to processing speed. The fix is a durable <a href="39.html">log</a> in front: it accepts writes at firehose rate (sequential appends, partitioned), buffers bursts, and lets the stream processor consume at its own pace &mdash; with replay if the processor falls behind or needs reprocessing.</p>
+<div class="callout warn"><span class="lbl" id="overwhelm">The failure that happens when you get this wrong &mdash; overwhelming the store</span>
+Writing clicks directly to your aggregate database (or even your stream store synchronously from the ad server) means a traffic spike either drops events (lost money) or backs up and stalls the ad-serving path. The <a href="39.html">log</a> decouples them: ad servers fire events into Kafka/Kinesis (which is built for this throughput and buffers durably), and the aggregation runs asynchronously downstream. Partition the log by <code>adId</code> so per-ad events are ordered and the load spreads. If the processor lags, events wait safely in the log (retained for days) rather than being lost &mdash; and you can replay to reprocess. Direct-to-database ingest is the scale failure; the durable log is the absorber.</div>
 
-<h2 id="ingest">Ingestion: Kafka as the source of truth</h2>
-<p>Collectors are thin, stateless, horizontally scaled behind a <a href="03.html">load balancer</a>. Their only job: validate, enrich (geo from IP), serialize, and produce to <a href="39.html">Kafka</a>. Kafka is deliberately the <span class="key">durable, replayable source of truth</span> &mdash; not the collector&rsquo;s memory, not the database. Retain raw events 7&ndash;30 days in Kafka and indefinitely in cold object storage (S3/HDFS) partitioned by <code>event_hour</code>.</p>
-<ul>
-<li><strong>Partitioning:</strong> partition by a key that spreads load and co-locates aggregation. Keying by <code>ad_id</code> lets a single stream task own all clicks for an ad (cheap local aggregation) but invites <a href="05.html">skew</a> when one ad goes viral (see <a href="#skew">below</a>). A common compromise: partition by <code>hash(ad_id)</code> for spread, accept that a stream operator must shuffle/rekey before aggregating.</li>
-<li><strong>Replication factor 3, acks=all</strong> so a broker loss never drops an event. For billing, durability beats latency on the write path.</li>
-<li><strong>Producer idempotence + transactional writes</strong> (Kafka <code>enable.idempotence=true</code>, transactional producer) eliminate <em>broker-side</em> duplicates from producer retries &mdash; but not application-level duplicate clicks. Those are handled later.</li>
-</ul>
-<div class="callout note"><span class="lbl">Key insight</span> Persisting raw events to a log <em>before</em> any aggregation is the single most important decision. It decouples ingest from processing, absorbs spikes, lets you replay to fix bugs, and gives the batch path an authoritative input. This is the same log-as-source-of-truth principle from <a href="40.html">Stream Processing and CDC</a>.</div>
+<h3 id="s2">Sub-problem 2 &mdash; Exactly-once counting (deduplication)</h3>
+<p>Duplicates come from everywhere: the ad client retries, the log delivers at-least-once, the stream processor reprocesses after a crash. Since clicks are money, each must be counted <b>once</b>. The mechanism: each click carries a unique <code>clickId</code>; before counting, check it against a <b>dedup store</b> &mdash; if seen, drop it. At billions/day, the dedup store uses a windowed approach (recent clickIds) often fronted by a <a href="42.html">Bloom filter</a> for a cheap "definitely new?" check.</p>
+<div class="callout warn"><span class="lbl" id="double-count">The failure that happens when you get this wrong &mdash; miscounting = money lost</span>
+This is <b>Scenario 1</b>. Without dedup, the inevitable duplicates inflate counts &mdash; and at this scale a small duplicate rate is a large mis-billing (advertisers over-charged, or you under-counting and losing revenue). "Exactly-once <i>delivery</i>" is <a href="39.html">impossible</a>, so you build exactly-once <i>counting</i>: dedup on <code>clickId</code>. At billions/day you can't keep every id forever, so use a <b>time-windowed dedup</b> (most duplicates arrive close together &mdash; keep ids for a window like 24h) backed by a <a href="42.html">Bloom filter</a> (a fast "probably seen?" check; on "maybe seen" do an exact check) and the stream processor's <a href="40.html">exactly-once state</a> (checkpoints so a restart doesn't re-aggregate already-counted events). The combination &mdash; dedup key + windowed store + Bloom + checkpointed processing &mdash; gives exactly-once counting without storing every id forever. This is the single highest-stakes sub-problem.</div>
 
-<h2 id="stream">Stream processing: windows &amp; watermarks</h2>
-<p>The speed path uses a stream processor (Flink is the reference; Kafka Streams or Spark Structured Streaming work too) to maintain windowed aggregates keyed by dimension. Three concepts do the heavy lifting:</p>
-<h3>Tumbling event-time windows</h3>
-<p>Aggregate into fixed, non-overlapping buckets keyed on <code>event_ts</code> &mdash; e.g. 1-minute tumbling windows per <code>(campaign_id, country)</code>. Output incremental counts as windows fire.</p>
-<h3>Watermarks</h3>
-<p>A <span class="key">watermark</span> is the processor&rsquo;s assertion that &ldquo;I believe I have seen all events with <code>event_ts &le; W</code>.&rdquo; It is computed as <code>max(event_ts seen) &minus; allowedLateness</code>. When the watermark passes a window&rsquo;s end, the window <em>fires</em> and emits its result. Watermarks are how a stream system reasons about completeness in the face of out-of-order arrival.</p>
-<pre><code>stream
-  .assignTimestampsAndWatermarks(
-     forBoundedOutOfOrderness(Duration.ofMinutes(2)))   // tolerate 2 min lateness
-  .keyBy(e -&gt; e.campaign_id)
-  .window(TumblingEventTimeWindows.of(Time.minutes(1)))
-  .allowedLateness(Time.hours(1))      // late events still update the bucket
-  .sideOutputLateData(lateTag)          // VERY late events -&gt; correction stream
-  .aggregate(new CountAggregator());
-</code></pre>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> Watermark lateness is a <strong>latency-vs-completeness dial</strong>. A 2-minute bound means windows fire 2 minutes after their end &mdash; fresh, but events later than 2 min are &ldquo;late.&rdquo; A larger bound captures more stragglers but delays every result. There is no setting that is both perfectly fresh and perfectly complete; that gap is exactly why the batch path exists.</div>
-<p>Mobile clients buffered offline can deliver clicks <em>hours</em> late. You cannot hold a window open for hours. Practical answer: emit a best-effort result at watermark time, route very-late events to a <em>correction stream</em> that issues delta updates to the store, and rely on the nightly batch recompute to make the final number authoritative. The deeper treatment of windowing, watermarks, and late-data handling lives in <a href="40.html">Stream Processing and CDC</a>.</p>
+<h3 id="s3">Sub-problem 3 &mdash; Event time &amp; late clicks</h3>
+<p>Aggregating "clicks per minute" requires deciding <i>which</i> minute &mdash; and the answer must be <b><a href="40.html">event time</a></b> (when the click happened, stamped at the source) not processing time (when you got it). Late and out-of-order events (mobile, retries) are normal, so you use event-time windows with a <a href="40.html">watermark</a> to decide when a window is "done enough" to emit, plus an allowed-lateness grace.</p>
+<div class="callout warn"><span class="lbl" id="late">The failure that happens when you get this wrong &mdash; wrong-window counts</span>
+This is <b>Scenario 2</b>. If you bucket by <i>processing</i> time, the 10:00:30 click that arrives at 10:05 lands in the 10:05 minute &mdash; so the 10:00 minute is undercounted and 10:05 overcounted, and a replay or backlog scrambles every number (advertiser reports become untrustworthy). Bucketing by <b>event time</b> puts the click in the 10:00 window regardless of arrival &mdash; correct and replay-stable. The cost: you can't finalize the 10:00 window the instant the clock hits 10:01, because late clicks may still arrive. A <span class="gl" data-def="Watermark &mdash; a moving marker asserting event time has reached T, letting windows before T finalize while allowing a bounded grace for late events.">watermark</span> ("event time has advanced to T") plus an <b>allowed-lateness</b> window (e.g. accept clicks up to a few minutes late, emit corrections) resolves it &mdash; finalize after the grace period, send very-late stragglers to a correction path. Event time + watermarks is non-negotiable for correct time-series counts.</div>
 
-<h2 id="dedup">Exactly-once &amp; the duplicate-click problem</h2>
-<p>Two distinct duplication sources, two distinct mechanisms:</p>
-<h3>1. Pipeline-internal exactly-once</h3>
-<p>If a stream task crashes and restarts, will it double-count? Flink&rsquo;s <span class="key">checkpoint + two-phase-commit sink</span> gives end-to-end exactly-once <em>for the pipeline</em>: operator state and Kafka offsets are checkpointed atomically; on recovery the processor rewinds to the last checkpoint and replays, and the transactional sink ensures emitted results are committed exactly once. Combined with Kafka transactional reads/writes this closes the internal gap.</p>
-<h3>2. Application-level duplicate clicks</h3>
-<p>The user&rsquo;s device retried the beacon; the same physical click arrives as N events. Exactly-once processing will faithfully count all N &mdash; they are genuinely distinct messages. The defense is <span class="key">idempotency on <code>click_id</code></span>:</p>
-<ul>
-<li><strong>Streaming dedup window:</strong> keep a set of recently-seen <code>click_id</code>s in operator state (RocksDB-backed, keyed, TTL&rsquo;d to e.g. 24h). First sighting counts; later sightings are dropped. Bounded memory because state is TTL&rsquo;d.</li>
-<li><strong>Probabilistic pre-filter:</strong> front the exact set with a Bloom filter to cheaply reject definite-new IDs without a state lookup. A Bloom filter never yields false negatives, so a &ldquo;not seen&rdquo; answer is trustworthy; only &ldquo;maybe seen&rdquo; needs the exact check. (See <a href="42.html">Probabilistic Data Structures</a>.)</li>
-<li><strong>Batch dedup:</strong> the recompute path deduplicates by <code>GROUP BY click_id</code> (or <code>DISTINCT click_id</code>) over the full raw log &mdash; exact and immune to window-boundary edge cases. This is the authoritative dedup; the streaming filter is best-effort for freshness.</li>
-</ul>
-<div class="callout warn"><span class="lbl">Pitfall</span> A duplicate that arrives <em>after</em> the streaming dedup window has expired (e.g. the same <code>click_id</code> 26 hours later) will slip past the stream filter. This is acceptable <em>only</em> because the nightly batch recompute over the immutable raw log is the source of truth for billing. Never bill directly off streaming counts.</div>
+<h3 id="s4">Sub-problem 4 &mdash; Fast vs exact (the Lambda/Kappa decision)</h3>
+<p>You want both a <b>real-time approximate</b> count (dashboards, in seconds) and an <b>exact</b> count (billing, can be minutes-to-hours late). These have different correctness/latency needs, which is the classic <a href="41.html">Lambda vs Kappa</a> choice: run two layers (speed + batch) or one replayable stream that you reprocess for exactness.</p>
+<div class="callout warn"><span class="lbl" id="drift">The failure that happens when you get this wrong &mdash; the approximate becomes the billed number</span>
+This is <b>Scenario 3</b>. The fast path (streaming, maybe with approximate counts / not-yet-final windows) and the exact path (full reprocessing of raw events with all late data and dedup) legitimately differ &mdash; the fast number is provisional. The danger is treating the <b>approximate dashboard number as the billing number</b>, or having two pipelines (<a href="41.html">Lambda</a>'s speed + batch layers) that <i>drift</i> because they're separate codebases. Resolution: be explicit that dashboards are <b>provisional</b> (live, approximate) and billing uses the <b>exact reprocessed</b> figure (after all late data + dedup), computed from the raw archive. Prefer <b><a href="41.html">Kappa</a></b> where you can &mdash; one replayable stream + reprocessing &mdash; so the "exact" path is just the same code replayed over the durable log, eliminating the two-codebase drift. Bill on the exact, reconciled number; show the approximate one clearly labeled as live. Never bill on the provisional count.</div>
 
-<h2 id="probabilistic">Distinct counts &amp; heavy hitters</h2>
-<p>Two metrics are infeasible to compute exactly at scale in real time, so we use sketches:</p>
-<h3>Unique users &mdash; HyperLogLog</h3>
-<p>Counting distinct users per campaign exactly would require holding every user_id in a set &mdash; gigabytes per high-traffic campaign. <span class="key">HyperLogLog</span> estimates cardinality in ~1&ndash;2 KB with a few-percent error, and crucially HLL sketches are <strong>mergeable</strong>: per-minute sketches union into per-hour and per-day sketches without re-reading raw data. Store the sketch in each rollup bucket, not just the scalar count.</p>
-<h3>Top-N ads &mdash; Count-Min Sketch</h3>
-<p>Top-N by clicks over a sliding window is a heavy-hitters problem. A <span class="key">Count-Min sketch</span> tracks approximate per-key frequencies in fixed memory (it over-counts, never under-counts), paired with a small heap of current top-N candidates to surface the top-N. Exact top-N would need a counter per ad_id &mdash; fine for thousands of ads, prohibitive when there are tens of millions of long-tail creatives.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> Sketches trade <strong>bounded memory and mergeability</strong> for <strong>bounded error</strong>. That is the right trade for dashboards and trend detection. It is the <em>wrong</em> trade for billing, where ~2% error on spend is unacceptable &mdash; billing-critical counts (total clicks) are kept exact via the batch path. Know which metrics tolerate approximation and which do not.</div>
-
-<h2 id="storage">Time-series storage &amp; rollups</h2>
-<p>Serve queries from a columnar OLAP / time-series store &mdash; <span class="pill">Apache Druid</span>, <span class="pill">ClickHouse</span>, or <span class="pill">Apache Pinot</span> &mdash; not from the operational database. These engines are built for exactly this access pattern: high-cardinality dimensional filters over time ranges, columnar compression, and ingestion-time rollup.</p>
-<ul>
-<li><strong>Pre-aggregation / rollups:</strong> the stream writes per-minute granules; a rollup job (or the store&rsquo;s native rollup) folds minute &rarr; hour &rarr; day. A &ldquo;clicks last 30 days&rdquo; query reads ~30 day-granules, not ~43 K minute-rows.</li>
-<li><strong>Retention tiers:</strong> minute granularity for ~7 days, hour for ~90 days, day forever. Raw events live only in the cold log.</li>
-<li><strong>Store sketches alongside scalars</strong> so distinct-count and top-N queries remain mergeable across the rollup hierarchy.</li>
-</ul>
-<p>Why not a generic <a href="10.html">SQL or NoSQL</a> store? An RDBMS chokes on this write rate and full-scan aggregation; a plain KV store can hold pre-aggregated counters but can&rsquo;t answer ad-hoc dimensional roll-ups efficiently. A purpose-built OLAP engine with <a href="06.html">columnar indexing</a> wins decisively.</p>
-
-<h2 id="lambda">Lambda vs Kappa: reconciliation for billing</h2>
-<p>This is the architectural crux. Two patterns:</p>
+<!-- ============ AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the design decisions</h2>
 <table>
-<thead><tr><th></th><th>Lambda</th><th>Kappa</th></tr></thead>
-<tbody>
-<tr><td>Paths</td><td>Speed (stream) + Batch (recompute)</td><td>Stream only; recompute by replaying the log</td></tr>
-<tr><td>Correctness fix</td><td>Nightly batch overwrites approximate streaming results</td><td>Re-run the stream job over historical log offsets</td></tr>
-<tr><td>Cost</td><td>Two codebases / engines to maintain</td><td>One engine; reprocessing is just replay</td></tr>
-<tr><td>Best when</td><td>Strict audited correctness needed (billing)</td><td>Logic is purely stream-expressible; ops simplicity prized</td></tr>
-</tbody>
+<tr><th>Concern</th><th>Mechanism</th></tr>
+<tr><td>Absorb the firehose</td><td>Durable <a href="39.html">log</a> (Kafka/Kinesis), partitioned by adId</td></tr>
+<tr><td>Count once (money)</td><td>clickId dedup + windowed store + <a href="42.html">Bloom filter</a> + checkpointed exactly-once state</td></tr>
+<tr><td>Correct time buckets</td><td><a href="40.html">Event time</a> + watermarks + allowed lateness</td></tr>
+<tr><td>Fast + exact</td><td>Provisional streaming dashboards; exact billing from reprocessed raw (prefer <a href="41.html">Kappa</a>)</td></tr>
+<tr><td>Cheap fast queries</td><td>Pre-aggregated hierarchical rollups (min/hr/day)</td></tr>
 </table>
-<p>For ad billing the pragmatic answer is <span class="key">Lambda, or Kappa-with-replay</span>. The speed path serves dashboards within a minute (approximate, dedup best-effort, sketch-based distincts). A <a href="41.html">batch recompute</a> (Spark over the raw S3/HDFS log, partitioned by hour) runs on a schedule and produces the <strong>authoritative, exact, fully-deduplicated</strong> totals. Reconciliation overwrites the streaming numbers for closed time windows; billing reads only reconciled buckets.</p>
-<pre><code>-- Batch recompute (authoritative), run hourly/nightly over raw log
-SELECT campaign_id, date_trunc('hour', event_ts) AS bucket,
-       COUNT(DISTINCT click_id)        AS exact_clicks,   -- dedup is exact here
-       approx_count_distinct(user_id)  AS unique_users
-FROM   raw_clicks
-WHERE  event_ts &gt;= :window_start AND event_ts &lt; :window_end
-GROUP  BY campaign_id, bucket;
--- result UPSERTs into the serving store, marking bucket = FINALIZED
-</code></pre>
-<div class="callout note"><span class="lbl">Key insight</span> Modern practice trends toward Kappa: keep one streaming codebase, and when you need a correctness recompute, replay the immutable Kafka/object-store log through the same job with relaxed (or infinite) lateness. You get a single source of truth for logic. Whether you call it Lambda or Kappa, the non-negotiable is: <strong>billing reads reconciled results derived from the immutable raw log, never live streaming state.</strong></p></div>
+<div class="callout note"><span class="lbl">The rule in one line</span>Absorb the firehose in a <b>log</b>, aggregate with a <b>stream processor</b> into <b>rollups</b>, count <b>exactly once</b> via clickId dedup (+ Bloom + checkpoints) because clicks are money, bucket by <b>event time</b> with watermarks, and keep dashboards <b>provisional</b> while billing on the <b>exact reprocessed</b> figure &mdash; ideally one replayable pipeline (Kappa) to avoid two-codebase drift.</div>
 
-<h2 id="skew">Hot partitions &amp; skew</h2>
-<p>A Super Bowl ad or a celebrity tweet drives one <code>ad_id</code> to a huge fraction of total traffic. If you partition by <code>ad_id</code>, one Kafka partition and one stream task melt while the rest idle &mdash; the classic <a href="05.html">hot-partition</a> problem.</p>
+<!-- ============ SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><strong>Key salting:</strong> partition on <code>(ad_id, salt)</code> where <code>salt &isin; [0, N)</code>, spreading a hot ad across N partitions, then sum the N partial counts in a second aggregation stage. Use a small N only for detected hot keys to avoid blowing up cardinality everywhere.</li>
-<li><strong>Two-phase (combine then reduce) aggregation:</strong> pre-aggregate locally per task (a local combiner cuts the shuffle volume by orders of magnitude), then merge partials by key. Skew on the final merge for one key is small because the input is already partial sums, not raw events.</li>
-<li><strong>Adaptive rebalancing:</strong> detect hot keys at runtime (a Count-Min sketch of key frequencies works) and dynamically increase their salt fan-out.</li>
-<li><strong>Backpressure:</strong> Kafka&rsquo;s durable buffer plus the processor&rsquo;s backpressure absorb spikes so the collector never has to drop &mdash; the log is the shock absorber. See <a href="51.html">Resilience Patterns</a>.</li>
+<li><b>Scenario 1 (double count):</b> Why are duplicates inevitable, and how do clickId dedup + windowed store + Bloom + checkpoints give exactly-once counting at billions/day?</li>
+<li><b>Scenario 2 (late click):</b> Why bucket by event time, and how do watermarks + allowed lateness decide when a window is final?</li>
+<li><b>Scenario 3 (dashboard ≠ bill):</b> Why do fast and exact differ, what's Lambda vs Kappa, and which number do you bill on?</li>
+<li>Why can't you ingest directly into the aggregate database, and what does the log buy?</li>
+<li>Why pre-aggregate into hierarchical rollups instead of querying raw?</li>
 </ul>
-<div class="callout warn"><span class="lbl">Pitfall</span> Consistent-hash partitioning (<a href="12.html">Consistent Hashing</a>) spreads keys evenly but does <em>not</em> save you from a single hot key &mdash; all events for one key still hash to one partition. Skew on a single key needs salting or two-phase aggregation, not just a better hash function.</div>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> 4 sub-problems &mdash; <a href="#s1">ingest firehose (log)</a>, <a href="#s2">exactly-once counting (dedup)</a>, <a href="#s3">event time (watermarks)</a>, <a href="#s4">fast vs exact (Lambda/Kappa)</a>.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="40.html">Stream Processing &amp; CDC</a>, <a href="41.html">Batch &amp; Big Data (Lambda/Kappa)</a>, <a href="39.html">Kafka</a>, <a href="42.html">Probabilistic (Bloom/HLL)</a>, <a href="65.html">Metrics &amp; Monitoring</a>.</p>
 
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They immediately separate the <strong>fast-approximate</strong> path from the <strong>slow-exact</strong> path and explain why billing cannot trust streaming counts. They reason in <strong>event time vs processing time</strong> and name watermarks as the completeness mechanism. They distinguish pipeline-exactly-once (checkpoints + transactional sinks) from application-level duplicate clicks (idempotency on <code>click_id</code>). They reach for HLL/Count-Min only where approximation is acceptable and keep billing counts exact. They anticipate hot partitions and propose salting / two-phase aggregation before being prompted. They treat the raw log as the immutable source of truth that makes every correction a replay.</div>
+<!-- ============ CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<table>
+<tr><th>Stage</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Ingest log</td><td>Kinesis / MSK</td><td>Pub/Sub</td><td>Event Hubs</td></tr>
+<tr><td>Stream processing</td><td>Managed Flink / Kinesis Analytics</td><td>Dataflow</td><td>Stream Analytics</td></tr>
+<tr><td>Rollup / OLAP store</td><td>Timestream / Redshift</td><td>BigQuery</td><td>Synapse / Data Explorer</td></tr>
+<tr><td>Raw archive</td><td>S3 (Parquet)</td><td>Cloud Storage</td><td>ADLS</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>The whole pipeline maps to managed services &mdash; a log, a stream processor with event-time + exactly-once support, an OLAP/time-series rollup store, and cheap object storage for raw. The cloud handles throughput and checkpointing; <i>you</i> own the correctness decisions: the clickId dedup strategy, event-time windowing config, and the explicit separation of provisional dashboards from exact billing.</div>
+
+<!-- ============ IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>Same facets &mdash; what it is, the model, and the failure to watch.</p>
+<h3 id="impl-flink">Flink (exactly-once streaming)</h3>
 <ul>
-<li>Your dashboard shows 1,000,000 clicks for a campaign at 11:59; the nightly batch recompute says 985,000. Walk me through every reason the numbers differ, and which one is correct for billing &mdash; and why.</li>
-<li>A mobile SDK buffers clicks offline and flushes them 6 hours later. Trace one such event through your pipeline. Where does it land, what fires, and what gets corrected?</li>
-<li>How do you guarantee a click retried 4 times is counted once in real time? Once in billing? Are those the same mechanism &mdash; and what happens if the retry arrives after your dedup window expires?</li>
-<li>One ad gets 40% of all traffic during a live event. Show me exactly where the system buckles and how you keep aggregation balanced without losing per-ad accuracy.</li>
-<li>You found a bug that mis-attributed clicks for the last 3 days. How do you recompute correct totals, and what does your architecture need for that to be cheap and safe?</li>
-<li>Why not skip the stream processor and just batch every 5 minutes? Why not skip batch and serve billing straight off the stream? Defend the dual path on cost.</li>
+<li><b>What it is.</b> The go-to stream processor for exactly-once, event-time aggregation.</li>
+<li><b>Model.</b> Event-time windows + watermarks; distributed checkpoints give exactly-once state; keyed aggregation per adId.</li>
+<li><b>The failure to watch.</b> Large dedup/window state needs tuning; exactly-once <i>within</i> Flink + idempotent sink, but external dedup (clickId) is still your design.</li>
+</ul>
+<h3 id="impl-kappa">Kappa pipelines</h3>
+<ul>
+<li><b>What it is.</b> A single replayable streaming pipeline serving both live and (by reprocessing) exact results.</li>
+<li><b>Model.</b> One codebase over a durable <a href="39.html">log</a>; "recompute exactly" = replay the log through the same processor.</li>
+<li><b>The failure to watch.</b> Requires the log to retain enough history to reprocess; if exact needs a fundamentally different engine, Lambda may still be warranted.</li>
+</ul>
+<h3 id="impl-olap">OLAP rollup stores (Druid / ClickHouse / BigQuery)</h3>
+<ul>
+<li><b>What it is.</b> Columnar stores built for fast aggregate queries over huge event volumes.</li>
+<li><b>Model.</b> Ingest pre-aggregated (or raw) rollups; serve dashboard queries in ms via columnar + pre-rollup.</li>
+<li><b>The failure to watch.</b> Querying raw at billions of rows is slow/costly &mdash; pre-aggregate into hierarchical rollups; mind cardinality of group-by dimensions.</li>
 </ul>
 
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Streaming ingestion</td><td>Kinesis</td><td>Pub/Sub + Dataflow</td><td>Event Hubs + Stream Analytics</td></tr><tr><td>Analytics warehouse</td><td>Redshift, Athena</td><td>BigQuery</td><td>Synapse Analytics</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="62.html">&lsaquo; Prev: Designing Collaborative Editing</a><a class="nx" href="64.html">Next: Designing a Distributed Locking Service &rsaquo;</a></div>
+<!-- ============ BUILD ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Work each before opening the approach.</p>
+<h3 id="ex-dedup">Count each click exactly once at billions/day</h3>
+<p>Duplicates arrive from client retries and stream reprocessing. Design dedup that counts each clickId once without storing every id forever.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Use the <b>clickId</b> as the dedup key. Most duplicates arrive within a short window of the original (retries, redelivery), so keep a <b>time-windowed</b> set of seen ids (e.g. last 24h) rather than all-time. Front it with a <a href="42.html">Bloom filter</a>: check the filter first &mdash; "definitely not seen" &rarr; it's new, count it and add it; "maybe seen" &rarr; do an exact lookup in the windowed store to confirm. The Bloom filter makes the common "new click" path cheap (one in-memory check) and bounds memory; the exact store resolves the rare "maybe." Combine with the stream processor's <a href="40.html">checkpointed exactly-once state</a> so a restart doesn't re-count events between the last checkpoint and the crash. For the <i>exact</i> billing recompute, dedup over the full raw archive (a batch job can afford an exact all-ids dedup). Result: exactly-once counting on the live path (windowed dedup) and provably-exact on the billing path (full dedup) &mdash; without storing every id forever in the hot path.</p>
+</div></details>
+<h3 id="ex-window">Aggregate per-minute by event time with late data</h3>
+<p>Clicks can arrive minutes late. Build a per-minute count keyed by event time that's correct and knows when a minute is final.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Window by <b>event time</b> (the click's source timestamp) into 1-minute tumbling windows &mdash; so a click at 10:00:30 always lands in the 10:00 window no matter when it arrives (Scenario 2). Track a <b>watermark</b> = max-seen-event-time minus an allowed-lateness slack (sized to your real tail, say 2&ndash;5 min). Emit a minute's count when the watermark passes the minute's end; keep accepting late clicks within the allowed-lateness window and emit updated corrections; route very-late stragglers (beyond the window) to a separate correction/late-data path that adjusts the rollup. So the per-minute count is provisionally available quickly and finalized after the grace period &mdash; correct, replay-stable, and explicit about finality. The billing recompute over the raw archive captures all late data exactly. This is the event-time + watermark pattern (<a href="40.html">40</a>) applied to clicks.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<ul>
+<li><b>Lambda vs Kappa for billing.</b> Decide whether to run separate speed + batch layers or one replayable stream for the exact billing figure, and justify. &rarr; <a href="41.html">Batch &amp; Big Data</a>.</li>
+<li><b>Detect click fraud.</b> Add real-time detection of fraudulent click patterns (one user, thousands of clicks) without slowing ingest. &rarr; <a href="42.html">Count-Min Sketch (heavy hitters)</a>.</li>
+<li><b>Add high-cardinality dimensions.</b> Support "clicks per ad per region per device" without exploding rollup cardinality or cost. &rarr; <a href="50.html">Observability (cardinality)</a>.</li>
+</ul>
 
+<div class="navfoot"><a href="62.html">&lsaquo; Prev: Collaborative Editing</a><a class="nx" href="64.html">Next: Distributed Locking &rsaquo;</a></div>
 </div>
 </div>
 </div>

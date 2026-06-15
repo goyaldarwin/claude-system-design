@@ -111,199 +111,184 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; API Design: REST, gRPC, GraphQL</div>
-
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; API Design</div>
 <h1>API Design: REST, gRPC, GraphQL</h1>
-<p class="sub">The contract is the product &mdash; how to model resources, evolve schemas without breaking callers, pick the right protocol, and make retries safe.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; operability.</b> <span>the interface contract — efficiency vs flexibility vs evolvability, you pick the trade.</span></div>
+<p class="sub"><em>An API is a contract you can almost never take back &mdash; once clients depend on it, every change risks breaking someone. The three dominant styles (REST, gRPC, GraphQL) make different bets about who controls the response shape, how data is encoded, and how change is managed. The principal-level skill isn't picking one; it's designing any of them to be idempotent, paginated, and evolvable from day one.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#why">Why API design is a principal-level concern</a></li>
-<li><a href="#rest">REST and the Richardson maturity model</a></li>
-<li><a href="#idempotency">Idempotency, methods, and idempotency keys</a></li>
-<li><a href="#pagination">Pagination, filtering, and versioning</a></li>
-<li><a href="#grpc">gRPC and Protocol Buffers</a></li>
-<li><a href="#graphql">GraphQL: over/under-fetching, N+1, cost limiting</a></li>
-<li><a href="#compat">Backward and forward compatibility</a></li>
-<li><a href="#gateway">API gateways and the BFF pattern</a></li>
-<li><a href="#choosing">Choosing among the three</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>A stable, evolvable contract many clients can build on &mdash; in exchange for the discipline of versioning, compatibility, and never being able to silently change a shape clients rely on.</b> <span>A good API lets clients integrate once and keep working for years, and lets you add features freely. You pay by committing to backward compatibility, idempotency, and pagination up front &mdash; retrofitting them after launch is painful or impossible.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>API Design: REST, gRPC, GraphQL</b>
+│
+├─ <a href="#root"><b>What an API contract is</b></a>  &mdash; and why it's hard to take back
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>The 4 decisions that define an API design</b></a>
+│   ├─ <a href="#d1">1. Which style? (REST / gRPC / GraphQL)</a> fail → <a href="#wrong-style">style/use-case mismatch</a>
+│   ├─ <a href="#d2">2. How do you handle retries? (idempotency)</a> fail → <a href="#double-effect">the duplicate side-effect</a>
+│   ├─ <a href="#d3">3. How do clients page large results?</a>    fail → <a href="#offset-drift">offset pagination drift</a>
+│   └─ <a href="#d4">4. How do you evolve without breaking?</a>     fail → <a href="#breaking-change">the unannounced breaking change</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; REST vs gRPC vs GraphQL
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; gateways &amp; schema tools
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; the three styles in practice
+│   ├─ <a href="#impl-rest">REST (Stripe)</a>
+│   ├─ <a href="#impl-grpc">gRPC + Protobuf</a>
+│   └─ <a href="#impl-graphql">GraphQL</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-idem">Design an idempotent POST</a>
+    ├─ <a href="#ex-evolve">Evolve a schema without breaking clients</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="why">Why API design is a principal-level concern</h2>
-<p>An API is the most expensive thing your team will ship, because it is the hardest to take back. Internal code can be refactored freely; a published interface is a <span class="key">promise to every caller you do not control</span>. Mobile clients sit in app stores for years. Partner integrations are written once and never touched. A poorly modeled or non-evolvable API becomes a permanent cost: every future change requires coordination across teams, versioned shims, and migration windows that drag for quarters.</p>
-<p>The principal-level skill is not knowing REST verbs &mdash; it is designing a contract that can <span class="key">evolve under load without breaking callers</span>, that makes safe retries trivial, and that does not leak your internal data model. Protocol choice (REST vs gRPC vs GraphQL) is downstream of those concerns. This lesson treats them as a toolkit, not a religion.</p>
-<div class="callout note"><span class="lbl">Key insight</span>The three styles are not competitors so much as fits for different boundaries: <span class="key">REST</span> for public/partner edges and resource CRUD, <span class="key">gRPC</span> for high-throughput service-to-service inside the mesh (see <a href="44.html">Microservices and Service Mesh</a>), and <span class="key">GraphQL</span> for client-facing aggregation across many backends. Large systems run all three at once.</div>
-
-<h2 id="rest">REST and the Richardson maturity model</h2>
-<p>REST is an architectural style, not a protocol. Its leverage comes from a few constraints: resources identified by URIs, a uniform interface (the HTTP methods), statelessness, and cacheability. The <span class="key">Richardson Maturity Model</span> grades how much of that you actually use:</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What an API contract is &mdash; and why it's hard to take back</h2>
+<p>An <b>API</b> is the published contract through which clients use your service: the operations, the request and response shapes, the error semantics. The thing that makes API design a senior concern is <b>irreversibility</b>: the moment external (or even internal, cross-team) clients depend on a field or behavior, you can't change it without breaking them &mdash; and you often can't force them to upgrade. So decisions you make at launch (how retries work, how results paginate, how the response is shaped) are effectively permanent.</p>
+<p>The three dominant styles, in one line each:</p>
 <ul>
-<li><span class="key">Level 0</span> &mdash; one endpoint, RPC-over-HTTP (SOAP-style POST to <code>/api</code>). HTTP is just a tunnel.</li>
-<li><span class="key">Level 1</span> &mdash; multiple resources (<code>/orders</code>, <code>/customers</code>) but verbs encoded in the body or URL.</li>
-<li><span class="key">Level 2</span> &mdash; proper use of HTTP methods and status codes (<code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>DELETE</code>; 200/201/404/409). <span class="key">This is where almost all good production APIs live.</span></li>
-<li><span class="key">Level 3</span> &mdash; HATEOAS: responses embed links to next actions. Powerful in theory, rarely worth the cost in practice because clients hardcode flows anyway.</li>
+<li><b>REST</b> &mdash; resources addressed by URLs, manipulated with HTTP verbs (GET/POST/PUT/DELETE); the server defines the response shape. Ubiquitous, cacheable, human-readable.</li>
+<li><b>gRPC</b> &mdash; typed remote procedure calls over HTTP/2 with <span class="gl" data-def="Protocol Buffers (Protobuf) &mdash; Google's compact, schema-defined binary serialization format; fields are numbered for forward/backward-compatible evolution.">Protocol Buffers</span> (compact binary); fast, strongly-typed, great for service-to-service.</li>
+<li><b>GraphQL</b> &mdash; the <i>client</i> specifies exactly the fields it wants in one query; eliminates over/under-fetching, at the cost of server complexity.</li>
 </ul>
-<h3>Resource modeling</h3>
-<p>Model <span class="key">nouns, not verbs</span>. <code>POST /orders/123/cancel</code> is pragmatic and common, but the purer form is to make cancellation a state transition on a sub-resource: <code>POST /orders/123/cancellation</code> creating a cancellation record. The test for a good resource model: can you express the operation as create/read/update/delete on a thing? When you cannot &mdash; "search", "transcode", "rebalance" &mdash; do not contort REST; model it as an action resource or a job (<code>POST /transcoding-jobs</code> returning <code>202 Accepted</code> with a status URL). That async-job pattern is the standard way to expose long-running work over a request/response protocol.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>Leaking your database schema as your API is the most common and most damaging mistake. Your tables normalize for storage; your API should denormalize for clients. Coupling them means every schema migration is now a breaking API change, and vice versa.</div>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>API design trades <b>the freedom to change things later</b> for <b>a contract clients can build on</b>. The style choice matters, but the durable skill is baking in <a href="#d2">idempotency</a>, <a href="#d3">cursor pagination</a>, and <a href="#d4">backward-compatible evolution</a> from the start &mdash; because retrofitting them onto a live API with real clients ranges from painful to impossible.</div>
 
-<h2 id="idempotency">Idempotency, methods, and idempotency keys</h2>
-<p><span class="key">Idempotency</span> means applying an operation N times has the same effect as applying it once. It is the property that makes retries &mdash; the cornerstone of distributed resilience &mdash; safe. HTTP method semantics encode this:</p>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the timeout that charged twice</span>
+A client calls <code>POST /charges</code> to charge a card $50. The network times out before the response arrives &mdash; the client doesn't know if it worked, so it retries. The charge actually succeeded both times. <b>What single mechanism lets the client safely retry without double-charging, and why can't you rely on "exactly-once delivery" instead?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the page that skips and repeats rows</span>
+Your API paginates with <code>?offset=40&amp;limit=20</code>. A client reads page 3, but between requests new rows are inserted near the top. Page 4 now repeats some rows from page 3 and skips others. <b>Why does offset pagination break on changing data, and what pagination scheme is stable under inserts?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; Stripe vs GitHub on breaking changes (real contrast)</span>
+Stripe has kept <i>every</i> API version working since 2011 &mdash; a 7-year-old integration still runs &mdash; using pinned versions and internal transform layers. GitHub once shipped a change to <code>workflow_dispatch</code> with no warning and <b>broke production systems</b> that depended on the old behavior. <b>What's the discipline that lets Stripe evolve constantly without breaking anyone, and what counts as a backward-compatible change?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#double-effect">idempotency</a>. Scenario 2 is <a href="#offset-drift">pagination</a>. Scenario 3 is <a href="#breaking-change">compatibility &amp; versioning</a>. Each maps to a decision below.</i></p>
+
+<!-- ============ BRANCH 1: THE DECISIONS ============ -->
+<h2 id="decisions">The four decisions that define an API design</h2>
+<p>Designing any API is these four choices. Each has a named failure nested under it.</p>
+
+<h3 id="d1">Decision 1 &mdash; Which style? (REST / gRPC / GraphQL)</h3>
+<p>Match the style to the consumer and traffic shape. <b>REST</b> for public/web APIs and CRUD-shaped resources &mdash; cacheable, universally supported, easy to debug. <b>gRPC</b> for internal service-to-service calls where latency and type-safety matter &mdash; binary Protobuf over HTTP/2, with code-generated clients and streaming. <b>GraphQL</b> when many diverse clients (mobile, web) need different subsets of a rich, interconnected data graph and you want to avoid maintaining dozens of bespoke endpoints.</p>
+<div class="callout warn"><span class="lbl" id="wrong-style">The failure that happens when you get this wrong &mdash; style/use-case mismatch</span>
+Each style is wrong somewhere. <b>GraphQL for a simple CRUD service</b> adds a resolver layer, query-cost concerns, and caching headaches you didn't need. <b>gRPC for a public browser API</b> fights the web (limited browser support, not human-readable, needs a proxy). <b>REST for a chatty mobile screen</b> causes over-fetching (downloading fields you ignore) or under-fetching (many round-trips) &mdash; the exact pain GraphQL exists to solve. Pick by consumer: public+web &rarr; REST, internal+performance &rarr; gRPC, many clients+flexible shape &rarr; GraphQL.</div>
+
+<h3 id="d2">Decision 2 &mdash; How do you handle retries? (idempotency)</h3>
+<p>In any networked API, clients <i>will</i> retry &mdash; timeouts make "did my request succeed?" unanswerable. An operation is <b>idempotent</b> if doing it twice has the same effect as once. GET/PUT/DELETE are naturally idempotent; <b>POST is not</b> (each creates/charges again). The fix is an <b><a href="32.html">idempotency key</a></b>: the client sends a unique key with the request; the server records the key and its result, and a retry with the same key returns the original result instead of re-executing.</p>
+<div class="callout warn"><span class="lbl" id="double-effect">The failure that happens when you get this wrong &mdash; the duplicate side-effect</span>
+This is <b>Scenario 1</b>. Without idempotency keys, a retried <code>POST /charges</code> charges twice &mdash; and you cannot solve this with "exactly-once delivery," which is <a href="39.html">impossible</a> across a network. The client attaches a unique idempotency key (a UUID); the server, on first receipt, processes and stores <code>(key &rarr; result)</code>; on any retry with that key it returns the stored result without re-charging. Stripe scopes keys to the account and remembers them for ~24h&ndash;30 days. <b>Every mutating endpoint that has a real side-effect needs this</b> &mdash; design it in from the start, because clients retry whether you planned for it or not.</div>
+
+<h3 id="d3">Decision 3 &mdash; How do clients page large result sets?</h3>
+<p>You can't return a million rows in one response. Two schemes: <b>offset pagination</b> (<code>?offset=N&amp;limit=M</code> &mdash; simple, supports jump-to-page, but unstable on changing data and slow for deep offsets) and <b>cursor pagination</b> (<code>?after=&lt;opaque-cursor&gt;</code> &mdash; the cursor encodes "where you left off," typically a stable sort key like an id/timestamp; stable under inserts and efficient at any depth). Cursor is the right default for feeds and large/changing datasets.</p>
+<div class="callout warn"><span class="lbl" id="offset-drift">The failure that happens when you get this wrong &mdash; offset pagination drift</span>
+This is <b>Scenario 2</b>. <code>offset</code> means "skip the first N rows," but "the first N" shifts when rows are inserted or deleted between page requests &mdash; so a client paging a live feed <b>repeats and skips rows</b>, and deep offsets force the database to scan-and-discard N rows (slow). <b>Cursor pagination</b> fixes both: the cursor points to a stable position ("everything after id X"), so new inserts don't shift it, and the query is an indexed range scan regardless of depth. Use cursors for anything ordered, large, or changing; reserve offset for small, static, jump-to-page admin tables.</div>
+
+<h3 id="d4">Decision 4 &mdash; How do you evolve the API without breaking clients?</h3>
+<p>The contract must change &mdash; new fields, new behavior &mdash; without breaking existing integrations. The discipline: <b>only make additive (backward-compatible) changes</b> in place, and version when you must break. <b>Backward-compatible</b> = adding a new optional field, a new endpoint, a new optional parameter, a new enum value clients can ignore. <b>Breaking</b> = removing/renaming a field, changing a type, making an optional field required, changing semantics. For breaking changes, version (URL <code>/v2</code>, header, or pinned-version-per-account) and support old versions for a long, announced window.</p>
+<div class="callout warn"><span class="lbl" id="breaking-change">The failure that happens when you get this wrong &mdash; the unannounced breaking change</span>
+This is <b>Scenario 3</b>. GitHub's silent change to <code>workflow_dispatch</code> broke clients that had no warning &mdash; the cardinal API sin. Stripe's opposite approach: <b>pinned versions + internal transform layers</b> &mdash; each account is pinned to the API version it integrated against, and Stripe translates between the latest internal model and each pinned version, so a 2011 integration keeps working while the API evolves daily. The rules: never remove or repurpose a field clients use; add, don't mutate; if you must break, ship a new version and keep the old one alive for an announced deprecation window (GitHub now promises ≥24 months). Treat "would this break a client who ignores the change?" as the test for every modification.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; REST vs gRPC vs GraphQL</h2>
 <table>
-<tr><th>Method</th><th>Safe (no side effects)</th><th>Idempotent</th><th>Typical use</th></tr>
-<tr><td><code>GET</code></td><td>Yes</td><td>Yes</td><td>Read a resource</td></tr>
-<tr><td><code>PUT</code></td><td>No</td><td>Yes</td><td>Replace at a known URI</td></tr>
-<tr><td><code>DELETE</code></td><td>No</td><td>Yes</td><td>Remove a resource</td></tr>
-<tr><td><code>POST</code></td><td>No</td><td><span class="key">No</span></td><td>Create under a collection</td></tr>
-<tr><td><code>PATCH</code></td><td>No</td><td>Not inherently</td><td>Partial update</td></tr>
+<tr><th>Facet</th><th>REST</th><th>gRPC</th><th>GraphQL</th></tr>
+<tr><td>Shape control</td><td>Server defines</td><td>Server defines (typed)</td><td><b>Client picks fields</b></td></tr>
+<tr><td>Encoding</td><td>JSON (text)</td><td>Protobuf (binary)</td><td>JSON</td></tr>
+<tr><td>Transport</td><td>HTTP/1.1+</td><td>HTTP/2 (streaming)</td><td>HTTP (usually POST)</td></tr>
+<tr><td>Best for</td><td>Public/web, CRUD</td><td>Internal service-to-service</td><td>Many clients, varied data needs</td></tr>
+<tr><td>Caching</td><td>Easy (HTTP caching)</td><td>Harder</td><td>Hard (one endpoint)</td></tr>
+<tr><td>Main pitfall</td><td>Over/under-fetching</td><td>Browser support, opacity</td><td>N+1, query-cost abuse</td></tr>
 </table>
-<p><code>PUT /accounts/42</code> with the same body twice yields one account in one state &mdash; idempotent. <code>POST /accounts</code> twice creates <span class="key">two</span> accounts. That asymmetry is exactly the problem when a client times out and retries a payment: did the first <code>POST</code> succeed before the connection dropped?</p>
-<h3>Idempotency keys</h3>
-<p>The fix, popularized by Stripe, is a client-supplied <span class="key">idempotency key</span> &mdash; a UUID the caller generates per logical operation and sends in a header. The server records <code>(key &rarr; result)</code> and replays the stored response on any retry with the same key.</p>
-<pre><code>POST /v1/charges HTTP/1.1
-Idempotency-Key: 7f3c1e9a-...-d21
-Content-Type: application/json
+<div class="callout note"><span class="lbl">The rule in one line</span>Choose REST for public/web CRUD, gRPC for internal performance-critical calls, GraphQL for many clients needing flexible data &mdash; then, whatever you pick, make it <b>idempotent</b>, <b>cursor-paginated</b>, and <b>backward-compatible</b> from day one. The style is reversible-ish; those three properties are not.</div>
 
-{ "amount": 4999, "currency": "usd", "source": "tok_visa" }
-</code></pre>
-<pre><code>// Server-side, atomically
-key = request.header["Idempotency-Key"]
-row = INSERT INTO idem_keys(key, status) VALUES(key,'PENDING')
-        ON CONFLICT(key) DO NOTHING RETURNING *
-if row is null:                       // key seen before
-    existing = SELECT * FROM idem_keys WHERE key = ?
-    if existing.status == 'DONE':  return existing.response
-    else:                          return 409 Conflict  // still in flight (or block-and-replay; either way never lose/duplicate the result)
-result = do_charge(...)                // the real, non-idempotent work
-UPDATE idem_keys SET status='DONE', response=result WHERE key=?
-return result
-</code></pre>
-<div class="callout note"><span class="lbl">Key insight</span>Idempotency keys must be scoped (per-endpoint, per-account), have a TTL (Stripe keeps 24h), and the lookup-or-insert must be atomic to handle two concurrent retries racing. This is the linchpin of any <a href="61.html">payment system</a> and pairs directly with the retry guidance in <a href="51.html">Resilience Patterns</a>.</div>
-
-<h2 id="pagination">Pagination, filtering, and versioning</h2>
-<h3>Offset vs cursor pagination</h3>
-<p><span class="key">Offset pagination</span> (<code>?limit=20&amp;offset=40</code>) is simple and supports jumping to arbitrary pages, but has two fatal flaws at scale. First, <code>OFFSET 100000 LIMIT 20</code> forces the database to scan and discard 100k rows &mdash; O(offset) cost. Second, if rows are inserted or deleted between page fetches, the window <span class="key">shifts</span> and the client sees duplicates or skips items.</p>
-<p><span class="key">Cursor (keyset) pagination</span> encodes the position as an opaque token built from the last row's sort key: <code>WHERE (created_at, id) &gt; (:last_ts, :last_id) ORDER BY created_at, id LIMIT 20</code>. This is O(limit) regardless of depth (it rides an index) and is stable under concurrent writes. The trade-off: no random page access and the sort columns must be unique and immutable enough to anchor on.</p>
-<pre><code>GET /events?limit=20
-&rarr; { "data": [...], "next_cursor": "eyJ0cyI6MTcwMCwiaWQiOjk5fQ" }
-GET /events?limit=20&cursor=eyJ0cyI6MTcwMCwiaWQiOjk5fQ
-</code></pre>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Offset wins on UX affordances (page numbers, "jump to last") and developer familiarity. Cursor wins on performance and correctness for large or live datasets &mdash; feeds, logs, infinite scroll. Default to cursor for anything that grows unboundedly; offset is acceptable for small, admin-style tables.</div>
-<h3>Versioning strategies</h3>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">URI versioning</span> (<code>/v1/orders</code>) &mdash; explicit, cache-friendly, trivially routable at the <a href="07.html">proxy</a>/gateway. The pragmatic default for public APIs (Stripe, GitHub, Twitter all use it).</li>
-<li><span class="key">Header versioning</span> (<code>Accept: application/vnd.acme.v2+json</code>) &mdash; cleaner URIs, content-negotiation purity, but harder to test in a browser and easy to forget.</li>
-<li><span class="key">Query-param versioning</span> (<code>?version=2</code>) &mdash; easy but pollutes caching and feels bolted on.</li>
+<li><b>Scenario 1 (double charge):</b> How does an idempotency key make a retried POST safe, and why can't "exactly-once delivery" replace it?</li>
+<li><b>Scenario 2 (skipping rows):</b> Why does offset pagination drift on changing data, and how does a cursor stay stable and fast at depth?</li>
+<li><b>Scenario 3 (Stripe vs GitHub):</b> What's a backward-compatible change vs a breaking one, and how do pinned versions + transform layers let Stripe evolve safely?</li>
+<li>For each style (REST/gRPC/GraphQL), name its sweet spot and its main pitfall.</li>
+<li>Which HTTP methods are naturally idempotent, and which isn't?</li>
 </ul>
-<p>The deeper move is to <span class="key">version as little as possible</span>. A v1&rarr;v2 cutover means you now run two stacks and must migrate every caller. Prefer additive, non-breaking evolution (next section) so a single version lasts for years. Stripe famously pins each account to the API version active at signup and transforms responses internally &mdash; callers never have to migrate, which is a powerful (if expensive) strategy.</p>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> API design is <b>4 decisions</b> &mdash; <a href="#d1">style</a>, <a href="#d2">idempotency</a>, <a href="#d3">pagination</a>, <a href="#d4">evolution/compatibility</a> &mdash; each with a nested failure: wrong-style fit, duplicate side-effect, offset drift, unannounced breaking change.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="32.html">Distributed Transactions (idempotency)</a>, <a href="44.html">Microservices</a>, <a href="07.html">Proxies (gateways)</a>, <a href="46.html">Event-Driven Architecture</a>, <a href="61.html">Payment System</a>.</p>
 
-<h2 id="grpc">gRPC and Protocol Buffers</h2>
-<p><span class="key">gRPC</span> is a binary RPC framework over HTTP/2 with <span class="key">Protocol Buffers</span> as the IDL and wire format. You define the service contract once; codegen produces strongly-typed clients and servers in every language. Where it wins:</p>
-<ul>
-<li><span class="key">Compactness and speed.</span> Protobuf encodes integers as varints and uses field tags instead of field names, so payloads are a fraction of equivalent JSON and parsing skips reflection. For chatty service-to-service traffic this materially cuts CPU and bandwidth.</li>
-<li><span class="key">HTTP/2 multiplexing.</span> Many concurrent calls share one connection without head-of-line blocking at the application layer, avoiding the connection-per-request overhead of HTTP/1.1.</li>
-<li><span class="key">Streaming.</span> First-class server-streaming, client-streaming, and bidirectional streaming &mdash; ideal for telemetry, large result sets, and live updates (contrast with <a href="13.html">long-polling/WebSockets/SSE</a> on the browser edge).</li>
-<li><span class="key">Contract-first discipline.</span> The <code>.proto</code> is the single source of truth, generating consistent clients and enabling compile-time breakage detection.</li>
-</ul>
-<pre><code>syntax = "proto3";
-package orders.v1;
-
-service OrderService {
-  rpc GetOrder(GetOrderRequest) returns (Order);
-  rpc WatchOrders(WatchRequest) returns (stream OrderEvent);   // server stream
-}
-
-message Order {
-  string id        = 1;
-  int64  amount    = 2;
-  Status status    = 3;
-  // field 4 reserved for a future field; never reuse a retired tag
-}
-</code></pre>
-<h3>Schema evolution in protobuf</h3>
-<p>The wire format keys fields by their <span class="key">numeric tag</span>, not name, which gives clean evolution rules: you may add new fields (old code ignores unknown tags), rename fields freely (the name is cosmetic), and remove fields &mdash; but you must <span class="key">never reuse a tag number</span> and must mark removed numbers/names <code>reserved</code>. Changing a field's type or its tag is a breaking change. proto3 makes all scalars optional-with-defaults, which removes "required" footguns but means you cannot distinguish "absent" from "zero" without wrapper types or <code>optional</code>.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>gRPC is awkward at the browser edge &mdash; browsers cannot speak raw gRPC, so you need gRPC-Web plus a proxy (Envoy) to translate. It is also harder to debug than text JSON (no <code>curl</code> + eyeball). Keep gRPC for east-west internal traffic; expose REST or GraphQL north-south to external clients.</div>
-
-<h2 id="graphql">GraphQL: over/under-fetching, N+1, cost limiting</h2>
-<p>GraphQL exists to solve a client problem: with REST, a mobile screen often needs data from several endpoints, causing <span class="key">under-fetching</span> (many round trips) or, when the server pads responses, <span class="key">over-fetching</span> (downloading fields the screen ignores). GraphQL lets the client send one query describing exactly the graph of fields it wants:</p>
-<pre><code>query {
-  user(id: "42") {
-    name
-    orders(last: 3) { id total items { sku qty } }
-  }
-}
-</code></pre>
-<p>One request, exactly the requested shape, resolved server-side across whatever backends own each field. This is genuinely powerful for client-driven aggregation and is why it often sits in front of a microservice fleet as a federation layer.</p>
-<h3>The N+1 problem</h3>
-<p>The flexibility has a sharp edge. The query above resolves <code>user</code>, then for each order resolves <code>items</code> &mdash; naively, one DB call per order, the classic <span class="key">N+1 query</span> explosion. The standard fix is <span class="key">DataLoader</span>-style batching: within a single request tick, resolvers register the keys they need, and a batch function coalesces them into one query (<code>SELECT * FROM items WHERE order_id IN (...)</code>) with per-request caching. Without DataLoader, GraphQL will quietly hammer your databases.</p>
-<h3>Cost and complexity limiting</h3>
-<p>Because the client controls the query shape, a single request can ask for a deeply nested, expensive graph &mdash; an accidental or malicious denial of service. You cannot rate-limit by counting requests the way you would for REST (see <a href="23.html">Designing an API Rate Limiter</a>); one request is unbounded work. Defenses:</p>
-<ul>
-<li><span class="key">Query depth limiting</span> &mdash; reject queries nested beyond N levels.</li>
-<li><span class="key">Complexity/cost analysis</span> &mdash; assign each field a cost, multiply by requested list sizes, and budget per caller. Rate-limit on accumulated cost, not request count.</li>
-<li><span class="key">Persisted queries</span> &mdash; clients register approved queries by hash; the server only executes known-good shapes, killing arbitrary-query risk and shrinking payloads.</li>
-</ul>
-<div class="callout warn"><span class="lbl">Pitfall</span><span class="key">When NOT to use GraphQL:</span> simple CRUD with one backend (REST is less machinery), high-throughput internal RPC (gRPC is faster and type-safe), and when HTTP caching matters &mdash; GraphQL typically POSTs to a single <code>/graphql</code> endpoint, so CDN and proxy caching by URL evaporates. You also inherit a complex server runtime, a harder authorization story (per-field, not per-endpoint), and opaque performance.</div>
-
-<h2 id="compat">Backward and forward compatibility</h2>
-<p>The discipline that lets an API live for years is treating every change as either <span class="key">backward-compatible</span> (old clients keep working against the new server) or <span class="key">forward-compatible</span> (new clients work against an old server, vital during rolling deploys when both versions run at once &mdash; see <a href="52.html">Deployment Strategies</a>).</p>
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
 <table>
-<tr><th>Safe (additive)</th><th>Breaking (avoid / version)</th></tr>
-<tr><td>Add a new optional field</td><td>Remove or rename a field</td></tr>
-<tr><td>Add a new endpoint / RPC</td><td>Change a field's type or units</td></tr>
-<tr><td>Add a new enum value <em>(if clients tolerate unknowns)</em></td><td>Make an optional field required</td></tr>
-<tr><td>Relax a validation constraint</td><td>Tighten validation / shrink ranges</td></tr>
-<tr><td>Add a new optional request parameter</td><td>Change default behavior / error codes</td></tr>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>API gateway (REST/HTTP)</td><td>API Gateway</td><td>API Gateway / Apigee</td><td>API Management</td></tr>
+<tr><td>GraphQL managed</td><td>AppSync</td><td>(Apollo on Cloud Run)</td><td>(self-host)</td></tr>
+<tr><td>gRPC support</td><td>ALB / API Gateway (HTTP/2)</td><td>Cloud Endpoints / Run</td><td>API Management</td></tr>
+<tr><td>Schema / contract</td><td colspan="3">OpenAPI (REST), Protobuf (gRPC), GraphQL SDL; schema registries for evolution</td></tr>
 </table>
-<p>Two rules carry most of the weight. First, <span class="key">tolerant reader</span>: clients must ignore unknown fields rather than reject them &mdash; this is what makes additive evolution safe and is built into protobuf's wire format and good JSON parsers. Second, <span class="key">never repurpose a field</span>: a field's meaning and units are frozen for life; if semantics change, add a new field and deprecate the old. Adding a new enum value is the classic trap &mdash; it is only safe if every existing client has a sane default branch for unknown values, so design enums with a <code>UNKNOWN = 0</code> sentinel from day one.</p>
+<div class="callout note"><span class="lbl">The takeaway</span>An <a href="07.html">API gateway</a> (or the <span class="gl" data-def="BFF &mdash; Backend-for-Frontend; a dedicated API layer tailored to one client type (web, mobile), aggregating and shaping downstream service calls so each frontend gets exactly what it needs.">BFF (Backend-for-Frontend)</span> pattern, a tailored API per client type) is where you centralize auth, rate-limiting, and request shaping in front of your services. Managed GraphQL (AppSync) and gateways handle the plumbing, but idempotency keys, cursor pagination, and versioning are <i>your</i> design responsibility &mdash; the platform won't add them for you.</div>
 
-<h2 id="gateway">API gateways and the BFF pattern</h2>
-<p>An <span class="key">API gateway</span> is the single entry point that sits between external clients and your internal services, consolidating cross-cutting concerns so each service does not re-implement them:</p>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The three styles made concrete. Same facets &mdash; what it is, the strength, and the failure to watch.</p>
+
+<h3 id="impl-rest">REST &mdash; Stripe (the gold standard)</h3>
 <ul>
-<li><span class="key">Routing</span> &mdash; path/host-based dispatch to backend services; protocol translation (REST&harr;gRPC, gRPC-Web).</li>
-<li><span class="key">AuthN/AuthZ</span> &mdash; validate JWT/OAuth tokens at the edge so services trust a verified identity (see <a href="54.html">Security in System Design</a>).</li>
-<li><span class="key">Rate limiting and quotas</span> &mdash; per-API-key throttling enforced centrally.</li>
-<li><span class="key">Aggregation</span> &mdash; fan out one client call to several services and compose the result (the lightweight cousin of GraphQL).</li>
-<li><span class="key">Observability and resilience</span> &mdash; centralized logging, metrics, request IDs, and circuit breaking.</li>
-</ul>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Be deliberate about what lives in the gateway. It is a shared component, so business logic there becomes a coupling chokepoint and a deployment bottleneck &mdash; the gateway should do generic edge concerns, not domain logic. The mesh and gateway overlap: a <a href="44.html">service mesh</a> handles east-west service-to-service policy (mTLS, retries) while the gateway handles north-south client traffic.</div>
-<p>The <span class="key">Backend-for-Frontend (BFF)</span> pattern goes further: rather than one gateway for all clients, give each client type (web, iOS, Android, partner) its own thin aggregation layer tuned to that client's needs. This avoids a single API trying to please every consumer and lets the mobile team optimize payloads without negotiating with the web team. GraphQL is one common way to implement a BFF.</p>
-
-<h2 id="choosing">Choosing among the three</h2>
-<table>
-<tr><th>Dimension</th><th>REST</th><th>gRPC</th><th>GraphQL</th></tr>
-<tr><td>Best for</td><td>Public/partner edge, CRUD</td><td>Internal east-west, high QPS</td><td>Client aggregation, BFF</td></tr>
-<tr><td>Wire format</td><td>JSON (text)</td><td>Protobuf (binary)</td><td>JSON over POST</td></tr>
-<tr><td>Transport</td><td>HTTP/1.1 or 2</td><td>HTTP/2 (streaming)</td><td>HTTP, usually POST</td></tr>
-<tr><td>Schema/typing</td><td>OpenAPI (optional)</td><td>Strong (.proto, codegen)</td><td>Strong (SDL)</td></tr>
-<tr><td>HTTP caching</td><td>Excellent (GET)</td><td>Poor</td><td>Poor (single endpoint)</td></tr>
-<tr><td>Browser support</td><td>Native</td><td>Needs gRPC-Web + proxy</td><td>Native</td></tr>
-<tr><td>Main risk</td><td>Over/under-fetching</td><td>Debuggability, edge</td><td>N+1, query cost, complexity</td></tr>
-</table>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They refuse the false binary. A mature design uses REST for the public API and partner integrations, gRPC for the chatty internal call graph behind the gateway, and a GraphQL/BFF layer for rich clients &mdash; with one shared idempotency, error, and pagination convention across all of them so the org doesn't relearn the rules per protocol.</div>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They lead with the evolution and idempotency story before naming a protocol. They reach for idempotency keys unprompted when discussing payments or any non-idempotent write over an unreliable network, default to cursor pagination for unbounded data, and treat the API contract as decoupled from the storage schema. They know GraphQL's N+1 and cost-limiting traps cold and can say crisply when <em>not</em> to use it. They distinguish north-south (gateway) from east-west (mesh) traffic and place each protocol accordingly.</div>
-<ul>
-<li>A client <code>POST</code>s a charge, the request times out, and it retries. Walk me through making this safe end-to-end &mdash; what does the server store, and how do you handle two retries racing concurrently?</li>
-<li>Your feed API uses <code>offset/limit</code>. At page 5,000 latency spikes and users report seeing duplicate items. Diagnose both symptoms and design the fix, including the cursor token's contents.</li>
-<li>A team wants to add a field to a protobuf message consumed by 40 services on independent deploy cadences. What are the rules, and what is the one operation that will silently corrupt old readers?</li>
-<li>You expose GraphQL publicly. How do you stop a single query from taking down your databases, and how does rate limiting differ from the REST case?</li>
-<li>When would you choose gRPC over REST for an internal service, and what do you lose at the browser edge and in debuggability by doing so?</li>
-<li>Marketing wants to repurpose an existing <code>discount</code> field to mean something new in v2. Talk me through why that's dangerous and what you'd do instead, given mobile clients in the wild for 2+ years.</li>
+<li><b>What it is.</b> Resource-oriented HTTP/JSON API; the widely-cited reference for API design.</li>
+<li><b>Strength.</b> Idempotency keys on all mutating calls, cursor pagination, and rock-solid versioning (pinned per account, transform layers) &mdash; every integration since 2011 still works.</li>
+<li><b>The failure to watch.</b> REST's inherent over/under-fetching on rich screens; Stripe mitigates with expandable fields rather than switching styles.</li>
 </ul>
 
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (1).png" alt="API design paradigms and when to use each style" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A table comparing API architecture styles (SOAP, RESTful, GraphQL, gRPC, WebSocket, Webhook) with illustrations and use cases. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (14).png" alt="RPC vs REST API trade-offs" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A detailed comparison table of RPC vs RESTful across coupling, data format, protocol, performance, IDL, code generation, and developer friendliness. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (21).png" alt="gRPC remote procedure call mechanics" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Explains gRPC with a local-vs-remote procedure call analogy and the full client/server stub/encoding/runtime flow over HTTP/2. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>API gateway</td><td>API Gateway</td><td>API Gateway / Apigee</td><td>API Management</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="44.html">&lsaquo; Prev: Microservices and Service Mesh</a><a class="nx" href="46.html">Next: Event-Driven Architecture &rsaquo;</a></div>
+<h3 id="impl-grpc">gRPC + Protocol Buffers</h3>
+<ul>
+<li><b>What it is.</b> Typed RPC over HTTP/2 with Protobuf binary encoding; generated clients in many languages; supports streaming.</li>
+<li><b>Strength.</b> Low latency, small payloads, strong typing, and <b>schema evolution</b> via numbered fields &mdash; add fields by new number, never reuse a number, and old/new clients interoperate.</li>
+<li><b>The failure to watch.</b> Poor browser support (needs grpc-web/a proxy) and opacity (binary, harder to debug); reusing or renumbering a Protobuf field number silently corrupts compatibility.</li>
+</ul>
+
+<h3 id="impl-graphql">GraphQL</h3>
+<ul>
+<li><b>What it is.</b> A single endpoint where clients send queries specifying exactly the fields/graph they want.</li>
+<li><b>Strength.</b> Eliminates over/under-fetching; one flexible API serves diverse clients without bespoke endpoints; strongly-typed schema.</li>
+<li><b>The failure to watch.</b> The <b>N+1 problem</b> (a query for 100 items naively fires 100 sub-queries &mdash; fix with batching/DataLoader) and <b>query-cost abuse</b> (a malicious/expensive nested query &mdash; fix with depth/cost limits). Caching is harder than REST's HTTP caching.</li>
+</ul>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you design the contract. Work each before opening the approach.</p>
+
+<h3 id="ex-idem">Design an idempotent POST for payments</h3>
+<p>Design <code>POST /charges</code> so a client can safely retry after a timeout without ever double-charging. Specify what the client sends and what the server stores and returns.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Require an <code>Idempotency-Key</code> header (client-generated UUID, one per logical charge attempt). On receipt, the server looks up the key: <b>if unseen</b>, it begins processing, records the key with a "pending" then final result atomically (e.g. a unique constraint on the key in the same transaction as the charge), and returns the result; <b>if seen and complete</b>, it returns the <i>stored</i> response without re-charging; <b>if seen and still pending</b> (a concurrent retry), it returns a "request in progress" or waits. Scope keys to the account and expire them after a window (Stripe: ~24h&ndash;30d). Now a timeout-driven retry with the same key is a safe no-op. Note this gives exactly-once <i>effect</i> via idempotency &mdash; not via delivery guarantees, which are impossible (<a href="32.html">32</a>, <a href="61.html">61</a>).</p>
+</div></details>
+
+<h3 id="ex-evolve">Evolve a response schema without breaking clients</h3>
+<p>You need to rename a field <code>name</code> to <code>full_name</code> and split it into <code>first_name</code>/<code>last_name</code>, on a live API with thousands of integrations. Do it without breaking anyone.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Never rename in place &mdash; that's a breaking change. Instead: <b>add</b> the new fields (<code>first_name</code>, <code>last_name</code>, <code>full_name</code>) alongside the old <code>name</code>, populating all of them. Old clients keep reading <code>name</code>; new clients read the new fields. Announce <code>name</code> as deprecated with a long sunset window. Only after telemetry shows no client reads <code>name</code> (or after the announced window for a major version bump) do you remove it &mdash; in a new API version, with the old version still served. For gRPC you'd add new numbered fields and leave the old number reserved forever. The principle: additive changes are safe; removals/renames require versioning + a deprecation window (the Stripe discipline, not the GitHub mistake).</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Pick a style for a mobile + web + partner API.</b> One backend serves a React web app, a mobile app, and third-party partners. Decide REST/gRPC/GraphQL (possibly a mix + BFF) and justify each. &rarr; <a href="44.html">Microservices</a>.</li>
+<li><b>Design a public API's rate limiting &amp; auth.</b> At the gateway, design how you authenticate, rate-limit per client, and version &mdash; the cross-cutting contract concerns. &rarr; <a href="23.html">Rate Limiter</a>, <a href="54.html">Security</a>.</li>
+<li><b>Kill the GraphQL N+1.</b> A query for a list of posts each with their author fires one author query per post. Design batching so it's one query for all authors. &rarr; <a href="06.html">Indexes</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="44.html">&lsaquo; Prev: Microservices &amp; Service Mesh</a><a class="nx" href="46.html">Next: Event-Driven Architecture &rsaquo;</a></div>
 </div>
 </div>
 </div>

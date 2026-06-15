@@ -111,114 +111,166 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Architecture &amp; Technology Choices &nbsp;&rsaquo;&nbsp; Choosing a Message Broker</div>
-
 <h1>Choosing a Message Broker</h1>
-<p class="sub"><em>How to pick between queues and logs &mdash; SQS, RabbitMQ, Kafka, Kinesis, Pulsar &mdash; by ordering, replay, throughput, and delivery needs.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Method.</b> <span>choosing queue vs log by which bottleneck dominates — ordering, replay, throughput, delivery.</span></div>
+<p class="sub"><em>SQS, RabbitMQ, Kafka, Kinesis, Pulsar, Redis Streams &mdash; they all "move messages," but choosing wrong means either a queue that can't replay when you need history, or a log you're operating like a pyramid when a managed queue would do. The decision turns on one core dichotomy (<b>queue vs log</b>) and a handful of dimensions; get those right and the specific broker almost picks itself.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#dichotomy">The core dichotomy: queue vs log</a></li>
-<li><a href="#dimensions">Decision dimensions that actually matter</a></li>
-<li><a href="#brokers">Broker by broker: sweet spots &amp; when to avoid</a></li>
-<li><a href="#guide">A decision guide in prose</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>A broker that matches your messaging pattern &mdash; in exchange for resisting "just use Kafka" reflexes and accepting each broker's operational and semantic constraints.</b> <span>The right broker fits how your messages flow (one-time work vs replayable stream, ordering, fan-out). The cost: Kafka's power comes with real operational weight; a simple queue can't replay; managed options trade control for convenience.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; a how-to-choose guide: the core dichotomy, dimensions, then the broker-by-broker guide</div>
+<pre class="tree">
+<b>Choosing a Message Broker</b>
+│
+├─ <a href="#root"><b>The core dichotomy</b></a>  &mdash; queue vs log
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+│
+├─ <a href="#dimensions"><b>The decision dimensions (resolved in order)</b></a>
+│   ├─ <a href="#d1">1. Queue or log? (eliminate)</a>
+│   ├─ <a href="#d2">2. Ordering &amp; delivery needs (narrow)</a>
+│   ├─ <a href="#d3">3. Throughput &amp; retention/replay (narrow)</a>
+│   └─ <a href="#d4">4. Managed vs self-hosted / ops appetite (tie-break)</a>
+│
+├─ <a href="#failure"><b>The failure: defaulting to Kafka</b></a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; the brokers compared
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; the broker-by-broker guide
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+</pre>
 </div>
 
-<h2 id="dichotomy">The core dichotomy: queue vs log</h2>
-<p>Almost every "which message broker?" decision collapses to one question first: do you want a <span class="key">queue</span> or a <span class="key">log</span>? They look similar &mdash; producers write messages, consumers read them &mdash; but their storage model and consumption semantics are fundamentally different, and that difference dictates what they are good at.</p>
-<p>A <span class="key">queue</span> treats a message as a unit of work that is <em>consumed and destroyed</em>. The broker holds the message, hands it to a consumer, waits for an acknowledgement, and then deletes it. Each message is delivered to one consumer in a group; the broker tracks per-message state (in-flight, acked, redelivered). This is the model of <span class="key">SQS</span> and <span class="key">RabbitMQ</span>. It gives you per-message acknowledgement, dead-letter handling, and trivially elastic competing consumers &mdash; but there is <em>no replay</em>: once acked, the message is gone.</p>
-<p>A <span class="key">log</span> treats a message as an <em>immutable, ordered event appended to a file</em> and retained for a configured window (or forever). Consumers are not handed messages; they pull from a position and track their own <span class="key">offset</span>. Multiple independent consumer groups read the same data at their own pace, and any of them can rewind and replay. This is the model of <span class="key">Kafka</span>, <span class="key">Kinesis</span>, and <span class="key">Pulsar</span>. The broker is "dumb" (it just stores and serves bytes by offset); the intelligence lives in the consumer. See <a href="08.html">Queues</a>, <a href="39.html">Kafka &amp; Log Messaging</a>, and <a href="56.html">Designing a Distributed Message Queue</a> for the internals.</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">The core dichotomy &mdash; queue vs log</h2>
+<p>Every broker is fundamentally one of two things, and this is the first and most decisive split:</p>
+<ul>
+<li><b>Traditional queue</b> (SQS, RabbitMQ) &mdash; a message is <span class="gl" data-def="Consume-and-delete &mdash; a traditional queue removes a message once a consumer acknowledges it; one worker does the work once and it is gone (no replay, no second reader) — the opposite of a retained log.">consumed and deleted</span>; it's a unit of <i>work</i> to be done once by one worker. Great for distributing tasks. No replay, no multiple independent readers.</li>
+<li><b>Log</b> (<a href="39.html">Kafka</a>, Kinesis, Pulsar) &mdash; messages are an <b>append-only, retained, replayable</b> sequence; many independent consumer groups read it, and you can rewind. Great for event streaming, fan-out, and reprocessing.</li>
+</ul>
+<p>Almost every other property (ordering, throughput, fan-out, replay) flows from this choice. (This is the same distinction as <a href="56.html">designing a message queue</a> &mdash; here we're <i>choosing</i> one.)</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Choosing a broker trades <b>operational simplicity and convenience</b> for <b>fit to your messaging pattern</b>. The core question &mdash; <b>queue (consume-and-delete work) or log (retained, replayable, multi-consumer stream)?</b> &mdash; eliminates half the options instantly. Get it wrong and you either can't replay/fan-out (queue when you needed a log) or you're operating a heavyweight log for simple task distribution (log when a queue would do).</div>
+
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the task queue that became a Kafka cluster</span>
+A team needs to distribute background jobs (resize an image, send an email) &mdash; simple "do this once" work. They reach for <a href="39.html">Kafka</a> "because it's what real companies use," and now run a multi-broker cluster, manage partitions and consumer-group <a href="39.html">rebalancing</a>, and still don't use replay. <b>What broker would have done this with near-zero ops, and what signal indicates a queue suffices?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the analytics team that can't replay</span>
+Events go through SQS (consume-and-delete). Now three new teams want to consume the same event stream for different purposes, and one wants to reprocess last month's events to build a new model. <b>Why can't SQS do this, and what broker property do they actually need?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; "just use Kafka for everything"</span>
+An architect mandates Kafka for all messaging &mdash; including a low-volume internal RPC-ish workflow and a tiny notification fan-out. The team now operates Kafka's full weight for use cases that a managed queue or even Redis would handle trivially. <b>When is Kafka genuinely the right call, and when is it overkill?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#d1">queue vs log</a> + <a href="#d4">ops appetite</a>. Scenario 2 is <a href="#d3">retention/replay + fan-out</a>. Scenario 3 is <a href="#failure">the default-to-Kafka failure</a>. Each maps to a dimension.</i></p>
+
+<!-- ============ DIMENSIONS ============ -->
+<h2 id="dimensions">The decision dimensions, resolved in order</h2>
+<p><b>Eliminate</b> on queue-vs-log, <b>narrow</b> on ordering/delivery and throughput/replay, <b>tie-break</b> on managed-vs-self-hosted.</p>
+
+<h3 id="d1">Dimension 1 &mdash; Queue or log? (eliminate first)</h3>
+<p>The dichotomy above. Ask: is each message <b>work to be done once and discarded</b> (&rarr; <b>queue</b>: SQS, RabbitMQ), or an <b>event many consumers care about and you may replay</b> (&rarr; <b>log</b>: Kafka, Kinesis, Pulsar)? This eliminates half the field before any other consideration. If you'll never replay and only one consumer does each message once, you want a queue &mdash; full stop.</p>
+
+<h3 id="d2">Dimension 2 &mdash; Ordering &amp; delivery semantics (narrow)</h3>
+<p>How much <b>ordering</b> do you need (none / per-key / strict), and what <b>delivery</b> guarantee (at-most / at-least / exactly-once-effect)? Logs give per-partition order; standard SQS gives best-effort order (FIFO mode for strict); RabbitMQ gives per-queue order with flexible routing. Almost everything is at-least-once (so consumers must be <a href="32.html">idempotent</a>); "exactly-once" is always exactly-once <i>effect</i> via idempotency, never true exactly-once delivery.</p>
+
+<h3 id="d3">Dimension 3 &mdash; Throughput &amp; retention/replay (narrow)</h3>
+<p>How much volume (thousands/sec vs millions/sec), and do you need <b>retention</b> (keep messages after consumption) and <b>replay</b> (reprocess history)? Very high throughput + replay + multi-consumer fan-out &rarr; a <b>log</b> (Kafka/Pulsar/Kinesis). Modest throughput, no replay needed &rarr; a <b>queue</b> is simpler and cheaper. Retention/replay is often the deciding feature &mdash; if a new consumer must be able to read past events, you need a log.</p>
+
+<h3 id="d4">Dimension 4 &mdash; Managed vs self-hosted / ops appetite (tie-break)</h3>
+<p>Once the type is fixed, tie-break on operations. <b>Managed</b> (SQS, Kinesis, managed Kafka/MSK, Confluent Cloud) for minimal ops; <b>self-hosted</b> (Kafka, RabbitMQ, Pulsar on your own infra) for control/cost at scale or specific features. Self-hosted Kafka is genuinely heavyweight to run (brokers, partitions, rebalancing, monitoring) &mdash; only worth it when its throughput/replay capabilities are needed and you can operate it (or pay for managed).</p>
+
+<!-- ============ FAILURE BRANCH ============ -->
+<h2 id="failure">The failure &mdash; defaulting to Kafka</h2>
+<div class="callout warn"><span class="lbl">The mistake that dominates broker decisions</span>
+The recurring failure (Scenarios 1 &amp; 3) is treating <b>Kafka as the default for all messaging</b>. Kafka is superb for high-throughput, replayable, multi-consumer event streaming &mdash; but it's <b>operationally heavy</b> (a cluster to run, partitions to size, consumer-group <a href="39.html">rebalancing</a> to tune), and using it for simple "do this task once" work means you pay all that cost for capabilities you don't use. The reverse mistake is rarer but real: using a delete-on-consume queue (SQS/RabbitMQ) when you actually need replay or multi-consumer fan-out (Scenario 2), then discovering you can't add a new consumer of past events. The discipline: <b>let the queue-vs-log dichotomy and the replay requirement drive the choice</b>, not Kafka's popularity. For most task distribution, a managed queue (SQS) is the boring, correct answer.</div>
+
+<!-- ============ AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the brokers compared</h2>
 <table>
-<tr><th>Property</th><th>Queue (SQS, RabbitMQ)</th><th>Log (Kafka, Kinesis, Pulsar)</th></tr>
-<tr><td>Message lifecycle</td><td>Deleted on ack</td><td>Retained for a window; offset-tracked</td></tr>
-<tr><td>Replay / re-read</td><td>No</td><td>Yes &mdash; rewind the offset</td></tr>
-<tr><td>State owner</td><td>Broker (per-message)</td><td>Consumer (per-offset)</td></tr>
-<tr><td>Fan-out to N consumers</td><td>Needs N queues / exchange routing</td><td>Native &mdash; N consumer groups, same log</td></tr>
-<tr><td>Ordering</td><td>Best-effort or per-FIFO-group</td><td>Strict per partition</td></tr>
-<tr><td>Per-message ack / retry</td><td>First-class</td><td>Coarse (offset commit); manual DLQ</td></tr>
-<tr><td>Typical use</td><td>Task/work distribution, RPC-style jobs</td><td>Event streaming, CDC, analytics, audit</td></tr>
+<tr><th>Broker</th><th>Type</th><th>Ordering</th><th>Replay</th><th>Ops</th><th>Sweet spot</th></tr>
+<tr><td><b>SQS</b></td><td>Queue</td><td>Best-effort (FIFO mode)</td><td>No</td><td>None (managed)</td><td>Task distribution, the default queue</td></tr>
+<tr><td><b>RabbitMQ</b></td><td>Queue</td><td>Per-queue</td><td>No</td><td>Medium</td><td>Flexible routing, smart broker logic</td></tr>
+<tr><td><b>Kafka</b></td><td>Log</td><td>Per-partition</td><td>Yes</td><td>High (managed eases it)</td><td>High-throughput streaming, fan-out, replay</td></tr>
+<tr><td><b>Kinesis</b></td><td>Log</td><td>Per-shard</td><td>Yes (retention)</td><td>Low (managed)</td><td>Kafka-like on AWS, no cluster</td></tr>
+<tr><td><b>Pulsar</b></td><td>Log (+queue)</td><td>Per-partition</td><td>Yes</td><td>High</td><td>Multi-tenant, geo, storage/compute split</td></tr>
+<tr><td><b>Redis Streams</b></td><td>Lightweight log</td><td>Per-stream</td><td>Limited</td><td>Low</td><td>Simple, low-latency, already using Redis</td></tr>
 </table>
-<div class="callout note"><span class="lbl">Mental model</span>A queue answers <em>"who does this work?"</em> A log answers <em>"what happened, in what order, and who needs to know?"</em> When you find yourself wanting <em>both</em> per-message retry semantics <em>and</em> replay across many consumers, that tension is exactly what Pulsar and Kafka-with-DLQ patterns try to resolve.</div>
+<div class="callout note"><span class="lbl">The rule in one line</span>Decide <b>queue vs log first</b> (work-once vs replayable-stream), narrow on <b>ordering/delivery</b> and <b>throughput/replay</b>, tie-break on <b>managed vs self-hosted</b>. Default to a <b>managed queue (SQS)</b> for task distribution and <b>Kafka/Kinesis</b> for streaming+replay+fan-out &mdash; don't reach for Kafka by reflex.</div>
 
-<h2 id="dimensions">Decision dimensions that actually matter</h2>
-<p>Once you know whether you lean queue or log, the choice between specific brokers is driven by a handful of dimensions. A principal engineer names the two or three that dominate <em>their</em> workload rather than reciting all of them.</p>
+<!-- ============ SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">Ordering guarantees.</span> None / best-effort, per-key (partition), or strict global? Global ordering across a whole topic is rare and expensive &mdash; it forces a single partition and caps throughput. Almost always you want <em>per-key</em> ordering (same user, same account) and partition by that key.</li>
-<li><span class="key">Replay &amp; retention.</span> Do downstream consumers need to reprocess history &mdash; rebuild a search index, backfill a new service, recover from a bad deploy? If yes, you need a log. If a message is a one-shot command, retention is wasted cost.</li>
-<li><span class="key">Throughput.</span> Thousands/sec is comfortable for any broker. Hundreds of thousands to millions/sec per topic pushes you to partitioned logs (Kafka, Pulsar) where parallelism scales with partition count.</li>
-<li><span class="key">Delivery semantics.</span> <span class="key">At-least-once</span> is the default everywhere and demands <em>idempotent consumers</em>. <span class="key">Exactly-once</span> exists (Kafka transactions, idempotent producer) but only end-to-end within a single broker ecosystem (Kafka, and also Pulsar) and at a latency/complexity cost. Treat "exactly-once" claims skeptically.</li>
-<li><span class="key">Partitioning &amp; parallelism.</span> In logs, the partition is the unit of both ordering and parallelism &mdash; consumer concurrency is capped at the partition count. In queues, you scale consumers freely but lose ordering.</li>
-<li><span class="key">Fan-out model.</span> One message to one worker (competing consumers) vs one event to many independent subscribers (pub/sub). Logs make multi-subscriber fan-out free; queues need routing or duplicate queues.</li>
-<li><span class="key">Latency.</span> RabbitMQ and Redis Streams offer sub-millisecond hops; Kafka favors throughput and sits in the low single-digit to low double-digit ms (depending on batching/linger config); SQS standard adds tens of ms and is variable.</li>
-<li><span class="key">Operational cost.</span> Managed (SQS, Kinesis) means no brokers to babysit but per-request/shard pricing and vendor lock-in. Self-hosted Kafka/RabbitMQ means clusters, rebalancing, and on-call &mdash; real headcount cost.</li>
-<li><span class="key">Ecosystem.</span> Kafka Connect, Streams, ksqlDB, Schema Registry; RabbitMQ plugins; cloud-native triggers (Lambda from SQS/Kinesis). The surrounding tooling often decides the pick more than the core broker. See <a href="46.html">Event-Driven Architecture</a>.</li>
+<li><b>Scenario 1 (task queue → Kafka):</b> What broker does simple task distribution with near-zero ops, and what signal says "a queue suffices"?</li>
+<li><b>Scenario 2 (can't replay):</b> Why can't SQS serve multiple consumers + reprocessing, and what log property is needed?</li>
+<li><b>Scenario 3 (Kafka for everything):</b> When is Kafka genuinely right, and when is it overkill?</li>
+<li>State the queue-vs-log dichotomy and why it eliminates half the options first.</li>
+<li>Why is "exactly-once" always exactly-once <i>effect</i>, and what does that require of consumers?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> 4 dimensions in order &mdash; <a href="#d1">queue vs log (eliminate)</a>, <a href="#d2">ordering/delivery</a>, <a href="#d3">throughput/replay</a>, <a href="#d4">managed vs self-hosted (tie-break)</a> &mdash; guarded by the <a href="#failure">default-to-Kafka failure</a>.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="39.html">Kafka &amp; Log Messaging</a>, <a href="08.html">Queues</a>, <a href="56.html">Designing a Message Queue</a>, <a href="46.html">Event-Driven Architecture</a>, <a href="40.html">Stream Processing</a>.</p>
+
+<!-- ============ CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<table>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Managed queue</td><td>SQS (+ DLQ)</td><td>Pub/Sub</td><td>Service Bus</td></tr>
+<tr><td>Managed log/stream</td><td>Kinesis / MSK</td><td>Pub/Sub / Managed Kafka</td><td>Event Hubs</td></tr>
+<tr><td>Fully-hosted Kafka</td><td colspan="3">Confluent Cloud, Redpanda Cloud, Aiven (multi-cloud)</td></tr>
+<tr><td>Lightweight / already-have-it</td><td colspan="3">Redis Streams; NATS (lightweight messaging)</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>Managed options remove most of the ops tie-breaker: <b>SQS</b> (and Pub/Sub) make a queue near-zero-ops; <b>Kinesis / MSK / Confluent</b> give you a log without running brokers. So the decision collapses mostly to the <i>type</i> (queue vs log) and your <i>replay/fan-out</i> need &mdash; the cloud takes the operational weight off the table, which is exactly why "default to Kafka for the ops cred" makes even less sense.</div>
+
+<!-- ============ IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations &mdash; the broker-by-broker guide</h2>
+<p>Each broker as a concrete option. Same facets &mdash; what it is, sweet spot, when to avoid.</p>
+<h3 id="impl-sqs">Amazon SQS &mdash; the managed default queue</h3>
+<ul>
+<li><b>What it is.</b> Fully-managed queue; consume-and-delete; built-in DLQ; standard (best-effort order, at-least-once) or FIFO (ordered, dedup).</li>
+<li><b>Sweet spot.</b> Task/work distribution with zero ops &mdash; the boring correct default for "do this once."</li>
+<li><b>When to avoid.</b> You need replay, multiple independent consumers of the same messages, or very high ordered throughput &mdash; that's a log.</li>
+</ul>
+<h3 id="impl-rabbit">RabbitMQ &mdash; the flexible smart broker</h3>
+<ul>
+<li><b>What it is.</b> Traditional broker with rich routing (exchanges/bindings), per-queue order, publisher confirms.</li>
+<li><b>Sweet spot.</b> Complex routing logic, RPC-style patterns, when you want the broker to do smart message routing.</li>
+<li><b>When to avoid.</b> Very high throughput or replay (it's not a log); a backed-up queue consumes broker memory.</li>
+</ul>
+<h3 id="impl-kafka">Apache Kafka / Kinesis &mdash; the high-throughput log</h3>
+<ul>
+<li><b>What it is.</b> Partitioned, replicated, retained log; many consumer groups; replay. Kinesis is the managed AWS-native equivalent (shards = partitions).</li>
+<li><b>Sweet spot.</b> Event streaming, log aggregation, CDC, fan-out to many consumers, reprocessing history, millions/sec.</li>
+<li><b>When to avoid.</b> Simple task distribution (operational overkill, Scenario 1/3); use a managed queue instead.</li>
+</ul>
+<h3 id="impl-pulsar">Pulsar / Redis Streams</h3>
+<ul>
+<li><b>What it is.</b> <b>Pulsar</b> = log with storage/compute separation, multi-tenancy, queue+stream modes, geo-replication. <b>Redis Streams</b> = a lightweight log inside Redis.</li>
+<li><b>Sweet spot.</b> Pulsar: multi-tenant/geo at scale with easier elasticity. Redis Streams: simple, low-latency streaming when you already run Redis.</li>
+<li><b>When to avoid.</b> Pulsar: small/simple needs (more components to operate). Redis Streams: large-scale durable streaming (Kafka territory).</li>
 </ul>
 
-<h2 id="brokers">Broker by broker: sweet spots &amp; when to avoid</h2>
-
-<h3>Amazon SQS &mdash; the managed default queue</h3>
-<p>Fully managed, effectively infinitely scalable, pay-per-request. <span class="key">Standard</span> queues give at-least-once delivery with no ordering and possible duplicates; <span class="key">FIFO</span> queues give exactly-once processing and strict ordering within a <em>message group</em>, capped around 3,000 msg/s with batching. Visibility timeout + DLQ handle retries cleanly.</p>
-<p><strong>Sweet spot:</strong> decoupling AWS services, background jobs, task buffering, smoothing spiky load &mdash; when you want zero operational burden and don't need replay or high ordered throughput.</p>
-<p><strong>Avoid when:</strong> you need to replay history, fan a stream out to many independent consumers, or push millions/sec through one ordered stream.</p>
-
-<h3>RabbitMQ &mdash; the flexible smart broker</h3>
-<p>A mature <span class="key">AMQP</span> broker with rich routing: exchanges (direct, topic, fanout, headers) decide which queues a message lands in. It is a "smart broker, dumb consumer" design &mdash; routing logic lives in the broker. Excellent per-message control, priorities, TTLs, and low latency.</p>
-<p><strong>Sweet spot:</strong> complex routing topologies, RPC-style request/reply, work queues where you want fine-grained acks and per-message priorities, and moderate throughput (tens of thousands/sec).</p>
-<p><strong>Avoid when:</strong> you need event replay, very high sustained throughput, or long retention &mdash; RabbitMQ is a queue, not a log, and deep queues degrade performance.</p>
-
-<h3>Apache Kafka &mdash; the high-throughput log</h3>
-<p>The de facto standard distributed commit log. Topics split into <span class="key">partitions</span> replicated across brokers; ordering is guaranteed per partition; retention is time- or size-based (or compacted to keep the latest value per key). Scales to millions of messages/sec and petabytes retained. Rich ecosystem: Connect, Streams, Schema Registry, exactly-once via transactions.</p>
-<p><strong>Sweet spot:</strong> event streaming, the central event backbone/log, CDC (see <a href="40.html">Stream Processing &amp; CDC</a>), metrics/log pipelines, and any case needing replay plus high throughput plus many consumer groups.</p>
-<p><strong>Avoid when:</strong> you have a handful of messages/sec, need complex per-message routing, or lack the operational maturity to run a cluster (or budget a managed offering like MSK/Confluent).</p>
-
-<h3>Amazon Kinesis &mdash; managed Kafka-like on AWS</h3>
-<p>A managed log with the same shard/partition + offset model. Capacity is provisioned in <span class="key">shards</span> (1 MB/s in, 2 MB/s out each); ordering is per shard; retention up to 365 days. Tight integration with Lambda, Firehose, and Analytics.</p>
-<p><strong>Sweet spot:</strong> AWS-native streaming where you want log semantics and replay without operating Kafka &mdash; clickstreams, IoT telemetry, real-time analytics feeding S3/Redshift.</p>
-<p><strong>Avoid when:</strong> you need Kafka's ecosystem/portability, very large fan-out (read throughput per shard is limited without enhanced fan-out), or you object to shard-based provisioning and AWS lock-in.</p>
-
-<h3>Apache Pulsar &mdash; segmented storage &amp; multi-tenancy</h3>
-<p>A log that <span class="key">separates serving (brokers) from storage (BookKeeper)</span>, so you scale them independently and rebalance without copying data. Natively supports both queue and streaming subscription modes (exclusive, shared, failover, key-shared), tiered storage to object stores, and first-class multi-tenancy with namespaces.</p>
-<p><strong>Sweet spot:</strong> platform/multi-tenant environments needing both queue and log semantics in one system, geo-replication, and independent compute/storage scaling.</p>
-<p><strong>Avoid when:</strong> you want the largest community/ecosystem and operational know-how (Kafka still wins there), or the extra moving part (BookKeeper) outweighs the flexibility for your scale.</p>
-
-<h3>Redis Streams &mdash; the lightweight log</h3>
-<p>An append-only log data type inside Redis with consumer groups and offset tracking. Sub-millisecond latency, trivial to run if you already operate Redis. Durability is bounded by Redis persistence and memory.</p>
-<p><strong>Sweet spot:</strong> low-latency, modest-volume streaming where Redis is already in the stack &mdash; real-time notifications, ephemeral event fan-out, simple job streams.</p>
-<p><strong>Avoid when:</strong> you need durable long-term retention, very large datasets that exceed memory economics, or strong cross-broker replication guarantees.</p>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>The recurring tension is <em>broker-managed per-message state</em> (queues: easy retries, easy elastic consumers, no replay) versus <em>consumer-managed offsets</em> (logs: replay and free fan-out, but you own idempotency, DLQ, and partition-bounded parallelism). Picking the wrong side means either bolting replay onto a queue or hand-rolling per-message retry on a log &mdash; both are painful. Choose the model that matches your dominant access pattern.</div>
-
-<h2 id="guide">A decision guide in prose</h2>
-<p>Walk it top-down, stopping at the first constraint that binds:</p>
-<ol>
-<li><span class="key">Do you need replay or multiple independent consumers of the same data?</span> If yes &rarr; a <strong>log</strong> (Kafka / Kinesis / Pulsar / Redis Streams). If a message is a one-shot command consumed once and discarded &rarr; a <strong>queue</strong> (SQS / RabbitMQ).</li>
-<li><span class="key">Do you need strict ordering per key?</span> Logs give it per partition for free &mdash; partition by your ordering key. With queues, use SQS FIFO message groups or RabbitMQ single-consumer-per-key; accept the throughput cap that ordering imposes.</li>
-<li><span class="key">What is the throughput target?</span> Up to ~tens of thousands/sec &rarr; any broker works; pick on ergonomics. Hundreds of thousands to millions/sec &rarr; a partitioned log (Kafka or Pulsar), and your parallelism is bounded by partition count, so size partitions for peak consumer concurrency.</li>
-<li><span class="key">Managed or self-hosted?</span> On AWS with no platform team &rarr; SQS for queues, Kinesis (or MSK) for logs. Willing to operate or running multi-cloud &rarr; RabbitMQ for routing-heavy queues, Kafka for the event backbone, Pulsar when you need both models and multi-tenancy.</li>
-<li><span class="key">Any special needs?</span> Complex routing &rarr; RabbitMQ. Sub-ms latency on an existing Redis stack &rarr; Redis Streams. Independent storage/compute scaling and geo-replication &rarr; Pulsar. A rich streaming ecosystem (Connect, Streams, schema governance) &rarr; Kafka.</li>
-</ol>
-<p>A common, defensible end state at scale: <strong>Kafka as the durable event backbone</strong> (replay, fan-out, CDC, analytics) with <strong>SQS/RabbitMQ at the edges</strong> for command-style work queues that need per-message retry and elastic workers. Don't force one broker to do both jobs.</p>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They start by classifying the workload as queue-shaped or log-shaped <em>before</em> naming a product, and they justify the choice from the dominant dimension (replay, ordering, throughput) rather than personal familiarity. They are explicit that "exactly-once" almost always means "at-least-once + idempotent consumer," and they bound parallelism by partition count out loud.</div>
-<p>Probing questions to ask engineers:</p>
+<!-- ============ BUILD ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Work each before opening the approach.</p>
+<h3 id="ex-pick">Pick a broker for three needs</h3>
+<p>Choose a broker for: (a) resizing uploaded images in the background, (b) an event stream feeding 5 teams + ad-hoc reprocessing, (c) low-latency notifications in a system that already runs Redis. Justify via the dimensions.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p><b>(a) Image resize:</b> <b>SQS</b> &mdash; dimension 1 says queue (do-once work, no replay, one consumer), dimension 4 says managed (zero ops). A Kafka cluster here is Scenario 1's mistake. <b>(b) Event stream for 5 teams + reprocessing:</b> <b>Kafka (or Kinesis if on AWS)</b> &mdash; dimension 1 says log (multiple independent consumer groups), dimension 3 nails it (retention + replay to reprocess history). This is exactly what a log is for and a queue can't do (Scenario 2). <b>(c) Low-latency notifications, already on Redis:</b> <b>Redis Streams</b> &mdash; dimension 3 (modest volume, low latency) + dimension 4 (you already operate Redis, no new system) make it the pragmatic choice over standing up Kafka. The method: queue-vs-log eliminates first, replay/fan-out and throughput narrow, ops/existing-stack tie-break.</p>
+</div></details>
+<h3 id="ex-resist">Resist the "Kafka for everything" mandate</h3>
+<p>An architect wants Kafka for all messaging, including simple task queues. Build the case for choosing per-use-case.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Acknowledge where Kafka is right &mdash; high-throughput event streaming, fan-out to many consumers, replay/reprocessing &mdash; and show those use cases should indeed use it. Then make the cost explicit for the use cases that <i>don't</i> fit: a simple task queue on Kafka means operating a cluster, sizing partitions, and tuning consumer-group <a href="39.html">rebalancing</a> (which causes its own outages) for "do this once" work that <b>SQS</b> handles with zero ops and a built-in DLQ. Standardizing on one broker has a real benefit (less to learn/operate), so the compromise is often: <b>use a managed log (MSK/Confluent) for streaming AND a managed queue (SQS) for task distribution</b> &mdash; both managed, minimal ops, each fitting its pattern. The principle: the queue-vs-log dichotomy is real and ignoring it costs you either capability (no replay) or operational burden (Kafka for trivial work) &mdash; match the broker to the pattern, not to a mandate.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
 <ul>
-<li>"You picked Kafka. A new service needs to backfill from six months ago &mdash; walk me through what changes versus if you'd chosen SQS."</li>
-<li>"Your consumer needs strict per-user ordering but also 500k msg/s. How do partitioning and consumer concurrency interact here?"</li>
-<li>"You said 'exactly-once.' Define precisely where the boundary is and what happens on a consumer crash mid-batch."</li>
-<li>"When would you deliberately choose RabbitMQ over Kafka, and when is that choice a mistake?"</li>
-<li>"This is a one-shot 'send welcome email' command. Why might a log be the wrong tool, and what does it cost you if you use one anyway?"</li>
-<li>"How would you handle a poison message in Kafka versus in SQS, and which gives cleaner semantics?"</li>
+<li><b>Migrate a queue to a log.</b> You started on SQS and now need replay + fan-out. Plan the migration to Kafka/Kinesis without dropping messages. &rarr; <a href="56.html">Designing a Message Queue</a>.</li>
+<li><b>Design exactly-once-effect across the broker.</b> Whatever broker you pick is at-least-once. Design idempotent consumers so the effect happens once. &rarr; <a href="32.html">Idempotency / outbox</a>.</li>
+<li><b>Choose ordering granularity.</b> For an order-events stream needing per-order ordering at scale, pick the broker and partition key. &rarr; <a href="39.html">Kafka</a>.</li>
 </ul>
 
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2024-12-04 at 9.01.25 AM.jpg" alt="Message broker landscape and trade-offs" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Diagram showing message queue evolution across IBM MQ, RabbitMQ, Kafka, and Pulsar with their internal architectures. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
 <div class="navfoot"><a href="67.html">&lsaquo; Prev: Choosing a Database</a><a class="nx" href="69.html">Next: Domain-Driven Design &rsaquo;</a></div>
 </div>
 </div>

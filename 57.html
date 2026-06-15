@@ -111,197 +111,184 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing a Key-Value Store</div>
-
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Key-Value Store</div>
 <h1>Designing a Key-Value Store</h1>
-<p class="sub"><em>Build a Dynamo-class distributed key-value store from first principles: consistent hashing, quorum replication, vector clocks, anti-entropy, and an LSM storage engine — the canonical problem that exercises every distributed-systems primitive at once.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Finite capacity &amp; no shared truth.</b> <span>building Dynamo — partitioning + tunable-quorum consistency + conflict resolution.</span></div>
+<p class="sub"><em>A distributed key-value store (think DynamoDB/Cassandra) must hold more data than one machine, survive node failures, and stay available &mdash; with simple get/put on a key. Designing one is a tour of the whole field: <a href="12.html">consistent hashing</a> for placement, <a href="37.html">replication</a> + quorums for durability and tunable consistency, <a href="34.html">anti-entropy</a> to heal divergence, and the <a href="11.html">CAP</a> choice made concrete. It's the Dynamo paper, rebuilt from requirements.</em></p>
 
-<div class="toc"><h4>In this lesson</h4>
-<ul>
-  <li><a href="#why">Why this problem matters</a></li>
-  <li><a href="#requirements">Requirements and scope</a></li>
-  <li><a href="#estimation">Capacity estimation</a></li>
-  <li><a href="#api">The API</a></li>
-  <li><a href="#partitioning">Partitioning: consistent hashing with virtual nodes</a></li>
-  <li><a href="#replication">Replication and the preference list</a></li>
-  <li><a href="#consistency">Tunable consistency: N, R, W quorums</a></li>
-  <li><a href="#versioning">Versioning and conflict resolution</a></li>
-  <li><a href="#failures">Handling failures: hinted handoff, read-repair, anti-entropy</a></li>
-  <li><a href="#membership">Membership and failure detection: gossip</a></li>
-  <li><a href="#storage">The storage engine: LSM trees</a></li>
-  <li><a href="#dynamo-vs-raft">Dynamo-style vs. Raft-style: which and why</a></li>
-  <li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>A horizontally-scalable, always-available store &mdash; in exchange for (by default) eventual consistency, conflict resolution, and giving up rich queries/transactions.</b> <span>Spread data across many nodes with no single leader so you scale linearly and survive failures. You pay by accepting eventual consistency (tunable per request), handling write conflicts, and forgoing joins/SQL &mdash; you get a hash table, not a database.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; we walk the design top to bottom, then deep-dive the hard parts</div>
+<pre class="tree">
+<b>Designing a Key-Value Store</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>
+├─ <a href="#api"><b>3. The API</b></a>  &mdash; get / put
+├─ <a href="#highlevel"><b>4. High-level design</b></a>  &mdash; ring of peers
+├─ <a href="#datamodel"><b>5. Data placement</b></a>  &mdash; consistent hashing + replicas
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+│
+├─ <a href="#subproblems"><b>The 4 hard sub-problems</b></a>
+│   ├─ <a href="#s1">1. Placement &amp; replication</a>           fail → <a href="#rehash">rehash on node change</a>
+│   ├─ <a href="#s2">2. Tunable consistency (quorums)</a>      fail → <a href="#stale">silent stale reads</a>
+│   ├─ <a href="#s3">3. Conflicts &amp; healing divergence</a>    fail → <a href="#lww-loss">last-write-wins data loss</a>
+│   └─ <a href="#s4">4. Storage engine &amp; deletes</a>          fail → <a href="#tombstone">resurrected deletes</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; Dynamo / Cassandra / Scylla
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
 </div>
 
-<h2 id="why">Why this problem matters</h2>
-<p>The distributed key-value store is the <span class="key">Rosetta Stone</span> of distributed system design. A single, faithful design forces the engineer to make concrete decisions about partitioning, replication, consistency, conflict resolution, failure detection, and storage — the entire distributed-systems syllabus collapsed into one artifact. Amazon's 2007 <span class="key">Dynamo paper</span> remains the reference architecture; Cassandra, Riak, Voldemort, and (loosely) DynamoDB all descend from it.</p>
-<p>What separates a principal-level answer from a mid-level one is not naming consistent hashing — everyone does that. It is reasoning precisely about <em>why</em> Dynamo chose an AP, leaderless, eventually-consistent design over a CP, leader-based one (see <a href="30.html">Consensus and Raft</a>), and being able to articulate the failure modes each choice introduces: divergent replicas, sibling versions, sloppy quorums that violate <code>R+W&gt;N</code> guarantees during partitions, and the operational cost of anti-entropy.</p>
+<!-- ============ 1. REQUIREMENTS ============ -->
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> <code>get(key)</code> and <code>put(key, value)</code> &mdash; no joins, no secondary queries, no transactions across keys (that's the deal that makes it scale). Data is larger than one machine; values are opaque blobs.</p>
+<p><b>Non-functional:</b> <b>highly available</b> (always writable, even during failures &mdash; the <a href="11.html">AP</a> choice, like Dynamo's shopping cart), <b>horizontally scalable</b> (add nodes for linear capacity/throughput), <b>low latency</b>, <b>durable</b> (replicated), <b>no single point of failure</b> (leaderless &mdash; every node is a peer), <b>tunable consistency</b> (per-request).</p>
 
-<div class="callout note"><span class="lbl">Key insight</span> Dynamo is "always writeable." It pushes conflict resolution to <em>read time</em> (and often to the application) so that writes never block on coordination. That single decision — availability over consistency under partition (<a href="11.html">CAP</a>) — cascades into every other component: vector clocks, read-repair, Merkle trees, and gossip all exist to clean up the divergence that "always writeable" creates.</div>
-
-<h2 id="requirements">Requirements and scope</h2>
-<h3>Functional</h3>
+<!-- ============ 2. CAPACITY ============ -->
+<h2 id="capacity">2. Capacity estimate</h2>
+<p>Say <b>100 TB</b> of data, <b>500,000 reads/sec</b> + <b>100,000 writes/sec</b>, replication factor <b>3</b>. Work it:</p>
 <ul>
-  <li><code>get(key)</code> &rarr; value (or a set of conflicting values + a context token)</li>
-  <li><code>put(key, context, value)</code> &rarr; store value; <code>context</code> carries causality (vector clock)</li>
-  <li>Values are opaque byte arrays (Dynamo's model). No secondary indexes, no range scans, no multi-key transactions.</li>
+<li><b>Storage:</b> 100 TB &times; 3 (replicas) = <b>300 TB</b> total. At ~10 TB usable per node &rarr; <b>~30 nodes</b> minimum, more for headroom. <b>Consequence: enough nodes that node churn is constant &mdash; placement must tolerate it.</b></li>
+<li><b>Throughput:</b> 600k ops/sec &times; 3 (each write hits 3 replicas; quorum reads hit 2&ndash;3) spread over ~30+ nodes &asymp; tens of thousands of ops/sec/node &mdash; fine for an <a href="38.html">LSM</a> engine. <b>Consequence: writes amplify by the replication factor &mdash; budget for it.</b></li>
+<li><b>Why leaderless:</b> at this scale, demanding a single leader per key (and failover) adds latency and a coordination point. A leaderless quorum design stays available through node loss with no failover &mdash; the AP choice. <b>Consequence: we owe conflict resolution and anti-entropy.</b></li>
 </ul>
-<h3>Non-functional (the interesting part)</h3>
+
+<!-- ============ 3. API ============ -->
+<h2 id="api">3. The API</h2>
+<pre class="tree" style="border:none;background:var(--code-bg,#f6f8fa);padding:12px;border-radius:8px">
+get(key, consistency) -> (value, version)   // consistency: ONE | QUORUM | ALL
+put(key, value, version, consistency)        // version enables conflict detection
+</pre>
+<p>The <b>consistency level is per request</b> &mdash; that's the tunable knob (<a href="11.html">PACELC</a>'s ELC leg as an API). <code>version</code> (a <a href="33.html">vector clock</a> / version vector) lets the store detect concurrent writes. Deliberately no <code>query</code>, no <code>join</code>, no multi-key transaction.</p>
+
+<!-- ============ 4. HIGH-LEVEL ============ -->
+<h2 id="highlevel">4. High-level design</h2>
+<p>A ring of <b>peer nodes</b>, no leader. A client (or a coordinator node) hashes the key to find its position on the <a href="12.html">consistent-hashing ring</a> and the <b>N</b> nodes that own its replicas (the next N clockwise). A <code>put</code> is sent to all N replicas; it succeeds once <b>W</b> of them ack. A <code>get</code> reads from replicas until <b>R</b> respond, returning the newest version. Nodes <a href="34.html">gossip</a> membership and use <a href="34.html">anti-entropy</a> (Merkle trees, read-repair, hinted handoff) to converge replicas in the background. Any node can coordinate any request &mdash; no special roles, no SPOF.</p>
+
+<!-- ============ 5. DATA PLACEMENT ============ -->
+<h2 id="datamodel">5. Data placement &mdash; consistent hashing + replicas</h2>
+<p><a href="12.html">Consistent hashing</a> (with virtual nodes for even distribution) maps each key to a position; its <b>N</b> replicas are the next N distinct physical nodes clockwise (the <span class="gl" data-def="Replication factor (N) &mdash; how many nodes hold a copy of each key; higher N means more durability/availability but more storage and write amplification.">replication factor</span>). Replicas are placed to span failure domains (different racks/AZs) so one failure doesn't take out multiple replicas. Adding/removing a node only shifts the keys in the affected arcs (~1/node), not the whole keyspace &mdash; essential when you have dozens of nodes churning.</p>
+
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; Discord, Cassandra &rarr; ScyllaDB (real migration)</span>
+Discord stored <b>trillions of messages</b> in Cassandra but hit latency/operational pain &mdash; GC pauses, tail latencies, and a large node count. Migrating to ScyllaDB (a C++ Cassandra-compatible rewrite) cut p99 read latency from <b>40&ndash;125ms to ~15ms</b> and shrank the fleet from <b>177 nodes to 72</b>. <b>What about a leaderless KV store's design causes these latency/operational pains, and what does this say about the storage engine choice?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the read that returns old data</span>
+You write a value with consistency <code>ONE</code> (one replica acks), then immediately read with <code>ONE</code> from a <i>different</i> replica that hasn't received the write yet &mdash; and get the old value. <b>Why did this happen, and what R/W settings guarantee a read sees the latest write?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; two writes to the same key, one silently lost</span>
+During a network partition, two clients write the same key on opposite sides. They reconcile by keeping the one with the larger timestamp &mdash; and the other write <b>vanishes with no error</b>. <b>Why is timestamp last-write-wins dangerous, and how should concurrent writes be handled instead?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#tombstone">the storage engine</a> (+ placement). Scenario 2 is <a href="#stale">tunable consistency / quorums</a>. Scenario 3 is <a href="#lww-loss">conflict resolution</a>. Each maps to a sub-problem.</i></p>
+
+<!-- ============ SUB-PROBLEMS ============ -->
+<h2 id="subproblems">The four hard sub-problems</h2>
+<p>Walking the design was the easy part. These four are the Dynamo paper's hard core &mdash; each with a nested failure.</p>
+
+<h3 id="s1">Sub-problem 1 &mdash; Placement &amp; replication</h3>
+<p>Map keys to nodes so it survives node churn, and replicate each key to N nodes for durability/availability. <a href="12.html">Consistent hashing</a> + virtual nodes handles placement; the N replicas (next N clockwise, across failure domains) provide redundancy. This is the foundation everything else (quorums, anti-entropy) builds on.</p>
+<div class="callout warn"><span class="lbl" id="rehash">The failure that happens when you get this wrong &mdash; rehash on node change</span>
+Naive <code>hash % N</code> placement remaps almost the entire keyspace when a node is added or fails &mdash; catastrophic in a 30+ node cluster where churn is routine, causing massive data movement and a flood of misses/repairs. <a href="12.html">Consistent hashing</a> limits movement to the arcs around the changed node (~1/N of keys), and virtual nodes keep the distribution even so no node is overloaded. Replica placement must also span <b>failure domains</b> &mdash; if all 3 replicas of a key sit in one rack/AZ, one failure loses all of them. Placement that ignores topology turns one failure into data loss.</div>
+
+<h3 id="s2">Sub-problem 2 &mdash; Tunable consistency via quorums</h3>
+<p>With N replicas, you choose how many must respond to a write (<b>W</b>) and a read (<b>R</b>). The rule <b>R + W &gt; N</b> guarantees any read quorum overlaps any write quorum in at least one replica &mdash; so a read is guaranteed to see the latest write (strong-ish consistency). Lower R/W = lower latency + higher availability but possible staleness. You dial this <i>per request</i>: <code>QUORUM</code> for important reads, <code>ONE</code> for fast/tolerant ones.</p>
+<div class="callout warn"><span class="lbl" id="stale">The failure that happens when you get this wrong &mdash; silent stale reads</span>
+This is <b>Scenario 2</b>. With <code>W=1, R=1</code> (<code>R+W=2 &le; N=3</code>), the replica you write to and the replica you read from may not overlap &mdash; so a read can hit a replica that never got the write and return stale data, with no indication anything's wrong. To guarantee read-your-writes / latest-value reads, choose R and W so <b>R + W &gt; N</b> (e.g. <code>W=2, R=2</code> with N=3): now every read quorum and write quorum share a replica, so the read sees the latest write &mdash; at the cost of waiting for 2 nodes each. There's no single right setting; pick per operation by how much staleness you can tolerate (this is <a href="31.html">PACELC's ELC leg</a> as a knob). Assuming "it's usually consistent" is the trap.</div>
+
+<h3 id="s3">Sub-problem 3 &mdash; Conflicts &amp; healing divergence</h3>
+<p>Leaderless + available-under-partition means two clients can write the same key concurrently and both succeed &mdash; the replicas now disagree. You must (a) <b>detect</b> the conflict and (b) <b>resolve</b> it, and (c) <b>heal</b> replicas that drifted. Detection uses <a href="33.html">version vectors</a> (which reveal whether two writes were causally ordered or truly concurrent); healing uses <a href="34.html">read-repair</a> (fix on read), <b>hinted handoff</b> (catch up a node that was down), and <b>Merkle-tree anti-entropy</b> (background reconciliation).</p>
+<div class="callout warn"><span class="lbl" id="lww-loss">The failure that happens when you get this wrong &mdash; last-write-wins data loss</span>
+This is <b>Scenario 3</b>. Resolving conflicts by "keep the larger timestamp" (<b>LWW</b>) is simple but <b>silently discards</b> the losing write &mdash; and with <a href="33.html">unreliable clocks</a>, the "loser" may actually be the write you wanted. For data where losing a write is unacceptable (a shopping cart, a counter, a set), use <a href="33.html">version vectors</a> to <i>detect</i> concurrency and then either return <b>both siblings</b> to the application to merge (Dynamo's cart: union the carts) or use a <a href="35.html">CRDT</a> that merges without loss. LWW is acceptable only when the data genuinely tolerates it (a "last seen" timestamp). Know your store's default &mdash; many default to LWW, which quietly loses data you may care about.</div>
+
+<h3 id="s4">Sub-problem 4 &mdash; Storage engine &amp; deletes</h3>
+<p>Each node needs a local engine to store its keys. Write-heavy KV stores use an <a href="38.html">LSM-tree</a> (sequential writes, great write throughput) &mdash; which means deletes are <a href="34.html">tombstones</a> (a delete writes a marker, not a removal) and reads may touch multiple SSTables (mitigated by <a href="42.html">Bloom filters</a>). The engine choice shapes the store's entire latency and operational profile.</p>
+<div class="callout warn"><span class="lbl" id="tombstone">The failure that happens when you get this wrong &mdash; resurrected deletes &amp; engine pain</span>
+This is <b>Scenario 1</b>. Two engine-level traps. <b>(1) Resurrected deletes:</b> in an eventually-consistent LSM store, a delete is a <a href="34.html">tombstone</a> that must propagate to all replicas; if a replica was down during the delete and tombstones are garbage-collected too early, that replica <i>resurrects</i> the deleted data on the next repair &mdash; so you must keep tombstones for a grace period and run repairs within it. <b>(2) Engine/operational pain</b> (Discord): an LSM store's background <a href="38.html">compaction</a> competes with reads, and in a GC'd runtime (Cassandra/JVM) stop-the-world pauses spike tail latency &mdash; which is exactly why Discord moved to ScyllaDB (C++, no GC pauses, better compaction control), cutting p99 from ~125ms to ~15ms and the fleet from 177 to 72 nodes. The storage engine and its background machinery, not the distribution model, often dominate real-world latency and ops cost.</div>
+
+<!-- ============ AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the design decisions</h2>
 <table>
-<thead><tr><th>Property</th><th>Target</th><th>Implication</th></tr></thead>
-<tbody>
-<tr><td>Availability</td><td>"Always writeable" — 99.9%+ on writes even during failures</td><td>Leaderless, AP design; sloppy quorums</td></tr>
-<tr><td>Latency</td><td>p99 &lt; 10–15 ms for get/put</td><td>SSD-backed LSM, in-region replication, no synchronous cross-region writes</td></tr>
-<tr><td>Scale</td><td>Horizontal to thousands of nodes, petabytes</td><td>Consistent hashing, no central coordinator</td></tr>
-<tr><td>Consistency</td><td>Tunable per-operation</td><td>Quorum knobs N, R, W exposed to the caller</td></tr>
-<tr><td>Durability</td><td>No data loss on single-node failure</td><td>N&gt;1 replicas, write-ahead log in storage engine</td></tr>
-</tbody>
+<tr><th>Decision</th><th>Choice</th><th>Why</th></tr>
+<tr><td>Placement</td><td>Consistent hashing + vnodes, span AZs</td><td>Survive churn; avoid correlated replica loss</td></tr>
+<tr><td>Consistency</td><td>Per-request quorums (R + W &gt; N for strong)</td><td>Tune latency vs staleness per operation</td></tr>
+<tr><td>Conflicts</td><td>Version vectors + app merge / CRDT (not blind LWW)</td><td>Don't silently lose writes</td></tr>
+<tr><td>Healing</td><td>Read-repair + hinted handoff + Merkle anti-entropy</td><td>Converge replicas without a leader</td></tr>
+<tr><td>Storage engine</td><td>LSM-tree (+ Bloom filters, tombstone GC discipline)</td><td>Write throughput; mind compaction &amp; deletes</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The rule in one line</span>Place with <b>consistent hashing across failure domains</b>, replicate N ways, tune consistency with <b>R + W &gt; N quorums per request</b>, resolve conflicts with <b>version vectors + merge/CRDT (never blind LWW)</b>, heal with <b>anti-entropy</b>, and store with an <b>LSM engine</b> whose compaction and tombstone discipline you respect &mdash; the engine often dominates real latency (Discord).</div>
 
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They state the SLA in the customer's terms: Dynamo's SLA was framed at the <em>99.9th percentile</em>, not the mean, because Amazon's service-oriented architecture fans out one request into hundreds of downstream calls — the tail dominates. Pin this number early; it justifies rejecting designs that add a coordination round-trip (e.g., synchronous leader election) on the write path.</div>
-
-<h2 id="estimation">Capacity estimation</h2>
-<p>Suppose 10 KB average value, 1 million writes/sec peak, 5:1 read:write ratio, 1-year retention, N=3.</p>
+<!-- ============ SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-  <li><strong>Write throughput:</strong> 1M/s &times; 10 KB &times; 3 replicas = 30 GB/s of replica writes. Spread over 1000 nodes &asymp; 30 MB/s/node — comfortable for NVMe.</li>
-  <li><strong>Storage:</strong> 1M/s &times; 10 KB &times; 86400 &times; 365 &asymp; 315 PB/yr logical, &times;3 = ~945 PB raw. With LSM compaction overhead and bloom-filter/index metadata, budget ~1.2&times; on top.</li>
-  <li><strong>Read throughput:</strong> 5M reads/s. With R=2, that's 10M replica reads/s. The block cache and bloom filters keep most reads off disk (see <a href="04.html">Caching</a>).</li>
+<li><b>Scenario 1 (Discord migration):</b> What engine-level pains (compaction, GC pauses, tombstones) drove it, and why does the storage engine dominate real latency/ops?</li>
+<li><b>Scenario 2 (stale read):</b> Why can <code>ONE/ONE</code> return stale data, and what does <code>R + W &gt; N</code> guarantee?</li>
+<li><b>Scenario 3 (lost write):</b> Why is timestamp LWW dangerous, and how do version vectors + merge/CRDT avoid silent loss?</li>
+<li>Why leaderless (no failover, always available), and what does that cost you (conflicts, eventual consistency)?</li>
+<li>Why does consistent hashing matter more as the node count grows?</li>
 </ul>
-<p>These numbers justify <em>sharding</em> (<a href="05.html">data partitioning</a>) as non-negotiable and rule out anything that requires a global view of the keyspace on the hot path.</p>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> 4 sub-problems &mdash; <a href="#s1">placement + replication</a>, <a href="#s2">quorum consistency</a>, <a href="#s3">conflicts + anti-entropy</a>, <a href="#s4">storage engine + deletes</a>.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="12.html">Consistent Hashing</a>, <a href="37.html">Replication</a>, <a href="11.html">CAP</a>, <a href="34.html">Anti-Entropy &amp; Gossip</a>, <a href="33.html">Clocks (vector)</a>, <a href="35.html">CRDTs</a>, <a href="38.html">Storage Engines</a>.</p>
 
-<h2 id="api">The API</h2>
-<pre><code>// get returns potentially-conflicting versions plus an opaque context
-GetResult get(Key key, ConsistencyLevel level)
-  -> { values: [Value], context: Context }   // context = serialized vector clock(s)
-
-// put MUST echo back the context from a prior get to express causality
-void put(Key key, Context context, Value value, ConsistencyLevel level)
-
-// ConsistencyLevel maps to R/W: ONE, QUORUM, ALL  (Cassandra-style)
-</code></pre>
-<p>The <span class="key">context</span> is the crux of the API contract. A blind <code>put</code> without a context creates a new, causally-unrelated version (a sibling). A read-modify-write loop must pass the context it received so the system can supersede the old version rather than fork it.</p>
-
-<h2 id="partitioning">Partitioning: consistent hashing with virtual nodes</h2>
-<p>Keys are mapped onto a fixed ring (e.g., MD5 of the key &rarr; 128-bit ring position). A node owns the arc of the ring ending at its position. This is <a href="12.html">consistent hashing</a>: adding or removing a node only reshuffles keys between it and its ring neighbors, not the whole keyspace.</p>
-<h3>Why naive consistent hashing isn't enough</h3>
-<ul>
-  <li><strong>Non-uniform load.</strong> Random node positions create uneven arc sizes; some nodes own 3&times; the data of others.</li>
-  <li><strong>Heterogeneous hardware.</strong> A beefier node should own more of the ring.</li>
-  <li><strong>Slow rebalancing.</strong> When a node joins, only one neighbor donates data — a single-source bottleneck.</li>
-</ul>
-<div class="callout note"><span class="lbl">Key insight</span> <span class="key">Virtual nodes (vnodes)</span> fix all three. Each physical node is assigned T positions on the ring (Dynamo: T&asymp;100–256). Load is now the average of T arcs (std-dev of load &darr; by &radic;T). A bigger machine gets more tokens. When a node joins, it takes T small slices from <em>many</em> donors in parallel, so rebalancing is fast and spread out. Cassandra defaults to 256 vnodes per node for exactly this reason.</div>
-<pre><code>ring: sorted list of (token, vnode) where token = hash(node_id + ":" + i), i in [0,T)
-owner(key):
-    pos = hash(key)
-    return first vnode clockwise from pos on the ring
-</code></pre>
-
-<h2 id="replication">Replication and the preference list</h2>
-<p>Each key is replicated to N nodes. Starting at the key's owning vnode, walk clockwise and collect the next N <em>distinct physical</em> nodes (skipping vnodes that map to a node already in the list). This ordered list is the <span class="key">preference list</span> for the key.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span> If you naively take the next N vnodes, you can land multiple replicas on the <em>same physical node</em> — defeating the purpose of replication. You must skip duplicates, and ideally enforce that replicas span multiple racks / availability zones so a single fault domain failure doesn't take out a quorum. Cassandra encodes this in a <code>NetworkTopologyStrategy</code>; Dynamo built rack-awareness into the preference list directly.</div>
-<p>The first N nodes in the preference list are the <em>natural</em> replicas. Because of failures, the list is longer than N — extra nodes downstream serve as fallback targets for <a href="#failures">hinted handoff</a>. See also <a href="09.html">Redundancy and Replication</a> and the deeper <a href="37.html">Replication Deep Dive</a>.</p>
-
-<h2 id="consistency">Tunable consistency: N, R, W quorums</h2>
-<p>Dynamo exposes three knobs per operation:</p>
-<ul>
-  <li><strong>N</strong> — replication factor (how many nodes hold each key).</li>
-  <li><strong>W</strong> — write quorum: a <code>put</code> succeeds once W replicas acknowledge.</li>
-  <li><strong>R</strong> — read quorum: a <code>get</code> waits for R replicas to respond, then reconciles.</li>
-</ul>
-<div class="callout note"><span class="lbl">Key insight</span> <code>R + W &gt; N</code> guarantees the read and write quorums <em>overlap</em> on at least one node, so a read is guaranteed (under strict quorums) to see the latest acknowledged write — <span class="key">strong-ish</span> consistency without a leader. <code>W &gt; N/2</code> additionally prevents two concurrent writes from both succeeding on disjoint sets. Common configs: N=3,W=2,R=2 (balanced); N=3,W=3,R=1 (read-optimized, fragile to writes); N=3,W=1,R=1 (max availability, eventual only).</div>
+<!-- ============ CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
 <table>
-<thead><tr><th>Config</th><th>Reads</th><th>Writes</th><th>Use case</th></tr></thead>
-<tbody>
-<tr><td>W=1, R=1</td><td>Fast, may be stale</td><td>Always writeable</td><td>Shopping cart, session store</td></tr>
-<tr><td>W=2, R=2 (N=3)</td><td>Overlapping quorum</td><td>Survives 1 node down</td><td>General purpose</td></tr>
-<tr><td>W=N, R=1</td><td>Fast reads</td><td>Slow, blocks if any replica down</td><td>Read-heavy, rarely written config</td></tr>
-</tbody>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Managed KV / wide-column</td><td>DynamoDB / Keyspaces (Cassandra)</td><td>Bigtable</td><td>Cosmos DB</td></tr>
+<tr><td>Self-managed leaderless</td><td colspan="3">Cassandra, ScyllaDB, Riak (on VMs/k8s)</td></tr>
+<tr><td>In-memory KV</td><td>ElastiCache / MemoryDB</td><td>Memorystore</td><td>Azure Cache for Redis</td></tr>
 </table>
-<div class="callout warn"><span class="lbl">Pitfall</span> <code>R+W&gt;N</code> does <em>not</em> make Dynamo linearizable. With a <span class="key">sloppy quorum</span> (writes accepted by the first N healthy nodes, not the natural N, to stay available during partitions), the overlap guarantee can be violated: a write satisfied by fallback nodes and a read satisfied by natural nodes may not intersect. This is the price of "always writeable." For true linearizability you need a consensus protocol (<a href="30.html">Raft</a>) and accept reduced availability — see <a href="31.html">Consistency Models and PACELC</a>, whose ELC clause says even when there's no partition, you trade latency for consistency.</div>
+<div class="callout note"><span class="lbl">The takeaway</span>DynamoDB packages this whole design as a managed service &mdash; consistent hashing, replication, tunable consistency (eventual vs strong reads), and anti-entropy are hidden behind get/put. But the principles leak through: you still choose per-read consistency, pay for the replication factor, and must understand that its default conflict handling and (for global tables) LWW can lose concurrent writes. Knowing the internals tells you which knobs matter.</div>
 
-<h2 id="versioning">Versioning and conflict resolution</h2>
-<p>Because writes can hit different replicas during partitions, two versions of the same key can diverge. Dynamo must (a) detect divergence and (b) resolve it.</p>
-<h3>Vector clocks for causality</h3>
-<p>Each version carries a <span class="key">vector clock</span>: a map <code>{node_id: counter}</code>. On a write, the coordinating node increments its own entry. Given two clocks, you can decide their causal relationship (see <a href="33.html">Time, Clocks and Ordering</a>):</p>
-<pre><code>compare(A, B):
-    if every A[i] &lt;= B[i] and A != B:  A happened-before B  (B wins, discard A)
-    if every B[i] &lt;= A[i] and A != B:  B happened-before A  (A wins)
-    else:                              CONCURRENT -> siblings, must reconcile
-</code></pre>
-<p>If one clock dominates the other, the system silently keeps the newer version. If they're <em>concurrent</em>, both are returned to the next reader as <span class="key">siblings</span>.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span> Vector clocks grow unbounded if many nodes coordinate writes to the same key. Dynamo truncates the oldest entries past a threshold (e.g., 10), which can produce false-concurrency and unnecessary siblings. In practice this is why Riak and Cassandra steered users toward <em>last-write-wins</em> or <a href="35.html">CRDTs</a> instead of raw vector clocks for most workloads.</div>
-<h3>Resolution strategies</h3>
+<!-- ============ IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>Same facets &mdash; model, consistency/conflict handling, and the failure to watch.</p>
+<h3 id="impl-dynamo">Amazon Dynamo / DynamoDB</h3>
 <ul>
-  <li><strong>Semantic reconciliation (application-level).</strong> Dynamo's shopping cart merges sibling carts by <em>union</em> — the famous "resurrected deleted item" anomaly is the trade-off. The store hands siblings to the app; the app decides.</li>
-  <li><strong>Last-write-wins (LWW).</strong> Attach a wall-clock timestamp; highest timestamp wins. Simple, but silently drops concurrent writes and is vulnerable to clock skew. Cassandra defaults to LWW per-cell.</li>
-  <li><strong>CRDTs.</strong> Choose data types whose merge is commutative/associative/idempotent so siblings always converge automatically — no application logic, no lost updates. See <a href="35.html">CRDTs</a>.</li>
+<li><b>What it is.</b> The originating leaderless design (the 2007 paper) and its managed descendant.</li>
+<li><b>Consistency/conflicts.</b> Tunable (eventual/strong reads); version vectors + app-level merge in classic Dynamo; managed DynamoDB hides much of it but global tables use LWW.</li>
+<li><b>The failure to watch.</b> LWW conflict resolution silently dropping concurrent writes; hot partitions.</li>
+</ul>
+<h3 id="impl-cassandra">Cassandra</h3>
+<ul>
+<li><b>What it is.</b> Open-source leaderless wide-column store on the Dynamo model + an <a href="38.html">LSM</a> engine.</li>
+<li><b>Consistency/conflicts.</b> Per-query consistency levels (<code>ONE/QUORUM/ALL</code>), R+W&gt;N for strong; read-repair + hinted handoff + Merkle repair; tombstone deletes.</li>
+<li><b>The failure to watch.</b> JVM GC pauses spiking tail latency; compaction load; tombstone read-amplification and resurrected deletes if repairs lapse (Scenario 1).</li>
+</ul>
+<h3 id="impl-scylla">ScyllaDB</h3>
+<ul>
+<li><b>What it is.</b> A C++ rewrite of Cassandra (same model + protocol), built for low/predictable latency.</li>
+<li><b>Consistency/conflicts.</b> Same Cassandra semantics; a shard-per-core architecture and no GC.</li>
+<li><b>The failure to watch.</b> Still LSM (compaction/tombstone discipline applies); the win is removing GC-pause tail latency &mdash; why Discord migrated (177&rarr;72 nodes, p99 125&rarr;15ms).</li>
 </ul>
 
-<h2 id="failures">Handling failures: hinted handoff, read-repair, anti-entropy</h2>
-<p>Three layered mechanisms keep replicas converging, operating at increasing timescales.</p>
-<h3>Hinted handoff (seconds)</h3>
-<p>If a natural replica is down at write time, the coordinator writes to the next healthy node in the preference list with a <span class="key">hint</span> (the intended recipient). When the original node recovers, the holder replays the hinted writes to it, then deletes the hint. This is what makes Dynamo "always writeable" during transient failures — the write isn't rejected, just temporarily re-homed.</p>
-<h3>Read-repair (on every read)</h3>
-<p>When a coordinator gathers R responses and detects that some replicas have a stale version, it asynchronously pushes the reconciled value back to the laggards. Reads thus opportunistically heal the data they touch — cheap for hot keys, useless for cold ones.</p>
-<h3>Anti-entropy via Merkle trees (background)</h3>
-<p>Cold keys never get read-repaired, and hinted handoff can be lost if the holder also dies. The backstop is a periodic full reconciliation between replicas using <span class="key">Merkle trees</span>: each node builds a hash tree over its key ranges. Two replicas exchange root hashes; if equal, they're in sync and stop — O(1). If not, they descend only the differing subtrees, transferring just the divergent keys. This makes the comparison cost proportional to the <em>difference</em>, not the dataset size. Covered in depth in <a href="34.html">Anti-Entropy and Gossip</a>.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> The three repair mechanisms form a cost/coverage ladder: read-repair is nearly free but only covers read keys; hinted handoff covers transient failures but loses hints on cascading failure; Merkle-tree anti-entropy covers everything but is I/O- and CPU-heavy and must be rate-limited so it doesn't compete with foreground traffic. A mature system runs all three and tunes anti-entropy frequency against the acceptable inconsistency window.</div>
-
-<h2 id="membership">Membership and failure detection: gossip</h2>
-<p>With thousands of nodes and no central master, every node must learn the ring topology and who's alive. Dynamo uses a <span class="key">gossip protocol</span>: each second, each node picks a random peer and exchanges its view of (membership, token assignments, node liveness). State converges across the cluster in O(log N) rounds.</p>
+<!-- ============ BUILD ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Work each before opening the approach.</p>
+<h3 id="ex-quorum">Pick R, W, N for two workloads</h3>
+<p>For (a) a user-session store that must always be writable and tolerates slight staleness, and (b) an inventory count that must be read-correct, choose N/R/W and explain the trade.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Use N=3 for both. <b>(a) Sessions:</b> <code>W=1, R=1</code> (or W=1, R=2) &mdash; fast, always-available writes; staleness on a read is harmless (you'll get a slightly old session). <code>R+W=2 &le; 3</code>, so reads <i>can</i> be stale &mdash; acceptable here. <b>(b) Inventory:</b> <code>W=2, R=2</code> &mdash; <code>R+W=4 &gt; 3</code>, so every read quorum overlaps the latest write quorum, guaranteeing read-correct counts, at the cost of waiting for 2 nodes per op. The lesson: consistency is a <i>per-operation</i> dial, not a database-wide setting &mdash; spend the latency only where correctness demands it (Scenario 2). For inventory you might further use a <a href="35.html">CRDT</a> counter to avoid lost decrements under concurrency.</p>
+</div></details>
+<h3 id="ex-conflict">Resolve a shopping-cart conflict without loss</h3>
+<p>Two clients add different items to the same cart on opposite sides of a partition. Design conflict handling so no added item is lost.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Don't use timestamp LWW &mdash; it would drop one client's additions (Scenario 3). Tag the cart with a <a href="33.html">version vector</a>; when the two writes reconcile, the vectors are <i>incomparable</i> (neither happened-before the other) &rarr; a true concurrent conflict. Resolve by <b>merging</b>: for a cart, take the <i>union</i> of items (Dynamo's actual approach &mdash; better to occasionally re-add a removed item than to lose an added one). Even cleaner: model the cart as an <a href="35.html">OR-Set CRDT</a> so the merge is automatic, commutative, and lossless &mdash; concurrent adds both survive, and removes only affect tags they've observed. The principle: detect concurrency with version vectors, then merge with logic that fits the data, never silently pick a winner.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
 <ul>
-  <li><strong>Seed nodes</strong> bootstrap membership so the cluster doesn't logically partition into disjoint gossip groups.</li>
-  <li><strong>Failure detection</strong> is local and probabilistic: node A marks B as down when B stops responding to A's requests, rather than relying on a global consensus that B is dead. This avoids flapping and false positives from transient network blips — an <em>accrual</em> failure detector (phi-accrual) outputs a suspicion level rather than a boolean.</li>
-</ul>
-<div class="callout note"><span class="lbl">Key insight</span> Membership in Dynamo is decentralized and gossip-driven precisely to avoid a coordinator that would become a SPOF and a scaling bottleneck. Contrast this with systems that <em>do</em> centralize coordination via a consensus group — see <a href="36.html">Leader Election and Coordination</a> and <a href="64.html">a distributed locking service</a>. The deliberate refusal to have a leader is what lets the store survive partitions while remaining writeable.</div>
-
-<h2 id="storage">The storage engine: LSM trees</h2>
-<p>The per-node storage engine must absorb a write-heavy, high-throughput stream on SSDs. The dominant choice is the <span class="key">Log-Structured Merge tree (LSM)</span>, not a B-tree.</p>
-<h3>Write path</h3>
-<ol>
-  <li>Append to a <strong>commit log / WAL</strong> on disk (durability).</li>
-  <li>Insert into an in-memory sorted structure (<strong>memtable</strong>, e.g., a skip list).</li>
-  <li>When the memtable fills, flush it immutably to disk as a sorted <strong>SSTable</strong>.</li>
-  <li>Background <strong>compaction</strong> merges SSTables, discarding superseded/tombstoned keys.</li>
-</ol>
-<h3>Read path</h3>
-<p>Check the memtable, then SSTables newest-to-oldest. A per-SSTable <span class="key">bloom filter</span> (a <a href="42.html">probabilistic data structure</a>) cheaply rules out SSTables that can't contain the key, so a read usually touches one file. A sparse index locates the block within it.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> LSM trades <span class="key">read amplification</span> and <span class="key">space amplification</span> (a key may exist in several SSTables until compaction) for sequential, append-only writes — ideal for SSDs and write-heavy KV workloads. A B-tree keeps each key in one place (a read touches a single page path) but suffers random-write amplification and in-place page updates. The full comparison, including leveled vs. size-tiered compaction and the RUM conjecture, is in <a href="38.html">Storage Engines: LSM vs B-Tree</a>.</div>
-<div class="callout warn"><span class="lbl">Pitfall</span> Deletes in an LSM are <em>tombstones</em>, not in-place removals. Combined with the leaderless replication model, this creates the classic <span class="key">deleted-data-resurrection</span> bug: if a tombstone is garbage-collected (after <code>gc_grace_seconds</code>) before anti-entropy propagates it to a replica that missed the delete, that replica's stale live value re-replicates the row back. The fix is to ensure repair completes within the grace window — a real operational constraint, not a theoretical one.</div>
-
-<h2 id="dynamo-vs-raft">Dynamo-style vs. Raft-style: which and why</h2>
-<p>The single most important framing to internalize is <em>when this architecture is the wrong choice</em>.</p>
-<table>
-<thead><tr><th>Dimension</th><th>Dynamo-style (this design)</th><th>Raft/Paxos-style (e.g., Spanner, etcd)</th></tr></thead>
-<tbody>
-<tr><td>Topology</td><td>Leaderless, every replica accepts writes</td><td>Per-shard leader, followers replicate</td></tr>
-<tr><td>Consistency</td><td>Eventual / tunable, not linearizable</td><td>Linearizable per key/range</td></tr>
-<tr><td>Availability under partition</td><td>AP — minority side still writeable</td><td>CP — minority side rejects writes</td></tr>
-<tr><td>Conflict handling</td><td>Push to read time (siblings, vector clocks)</td><td>None — leader serializes, no conflicts</td></tr>
-<tr><td>Write latency</td><td>No coordination round-trip</td><td>One round-trip to a quorum of followers</td></tr>
-<tr><td>Best for</td><td>High-availability, write-heavy, conflict-tolerant data</td><td>Anything needing read-your-writes / transactions</td></tr>
-</tbody>
-</table>
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They refuse to treat "eventually consistent" as a free lunch. They name the concrete anomalies the application must tolerate — lost updates, sibling explosion, resurrected deletes, monotonic-read violations — and either justify why the use case tolerates them (carts, session, metrics) or pivot to a Raft-backed design (<a href="32.html">Distributed Transactions</a>) when it can't. The same primitives reappear when you <a href="55.html">design a distributed cache</a>; the difference is durability requirements and whether stale reads are acceptable.</div>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They drive the design from the <em>availability SLA at p99</em> and let that justify every leaderless choice, rather than reciting Dynamo features in isolation. They are precise about where consistency guarantees actually hold (and where sloppy quorums break <code>R+W&gt;N</code>), they connect each repair mechanism to the failure timescale it covers, and they proactively surface the application-visible anomalies the design imposes. When pushed, they can redesign the same store as a CP, Raft-backed system and articulate exactly what changes and what it costs in latency and availability.</div>
-<ul>
-  <li><strong>Quorum nuance:</strong> "You set N=3, R=2, W=2 and call it strongly consistent. Walk me through a network partition with sloppy quorums where a reader misses a just-acknowledged write despite <code>R+W&gt;N</code>. How would you detect that this happened?"</li>
-  <li><strong>Conflict explosion:</strong> "Your vector clocks are growing past the truncation limit on a hot key written by 50 coordinators. What anomalies does truncation introduce, and would you switch to LWW or a CRDT? Defend the data-loss implications of each."</li>
-  <li><strong>Repair economics:</strong> "Anti-entropy is consuming 40% of disk I/O and hurting p99. How do you reduce the inconsistency window without that cost — and what's the relationship between <code>gc_grace_seconds</code>, repair cadence, and resurrected deletes?"</li>
-  <li><strong>Hot partitions:</strong> "A single key (a celebrity's record) takes 30% of traffic. Virtual nodes don't help — the key still maps to N nodes. What do you actually do?" (Answer should reach for request-coalescing, a read-through cache layer, or splitting the value; honest engineers admit consistent hashing doesn't solve single-key hotspots.)</li>
-  <li><strong>The pivot:</strong> "Product now needs read-your-writes and conditional puts (compare-and-set). Can you bolt that onto a leaderless Dynamo, or must you re-leader the shards with Raft? What breaks?"</li>
-  <li><strong>Cross-region:</strong> "Extend this to three regions with a 100 ms RTT. Where do you put the quorum boundary, and how does the consistency model degrade?" (Tie to <a href="53.html">Multi-Region and Disaster Recovery</a> and PACELC's latency clause.)</li>
+<li><b>Add secondary indexes.</b> Your KV store needs "find users by email." Design how, given there's no global query &mdash; and the consistency cost. &rarr; <a href="06.html">Indexes</a>, <a href="43.html">Search</a>.</li>
+<li><b>Tune for write-heavy vs read-heavy.</b> Choose the LSM compaction strategy and Bloom-filter sizing for each. &rarr; <a href="38.html">Storage Engines</a>.</li>
+<li><b>Make deletes safe.</b> Design tombstone TTL + repair schedule so deletes never resurrect, without unbounded tombstone buildup. &rarr; <a href="34.html">Anti-Entropy</a>.</li>
 </ul>
 
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed key-value store</td><td>DynamoDB</td><td>Bigtable, Firestore</td><td>Cosmos DB</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="56.html">&lsaquo; Prev: Designing a Distributed Message Queue</a><a class="nx" href="58.html">Next: Designing a Unique ID Generator &rsaquo;</a></div>
-
+<div class="navfoot"><a href="56.html">&lsaquo; Prev: Distributed Message Queue</a><a class="nx" href="58.html">Next: Unique ID Generator &rsaquo;</a></div>
 </div>
 </div>
 </div>

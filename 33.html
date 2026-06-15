@@ -111,208 +111,188 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Time, Clocks and Ordering</div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Time, Clocks &amp; Ordering</div>
+<h1>Time, Clocks &amp; Ordering</h1>
+<p class="sub"><em>"What happened first?" sounds trivial &mdash; until the two events happened on different machines whose wall clocks disagree by milliseconds and can jump backwards. Physical time can't order distributed events reliably. So we build <b>logical clocks</b> that capture causality instead, and only the richest engineering effort (atomic clocks + GPS) earns back real-time ordering.</em></p>
 
-<h1>Time, Clocks and Ordering</h1>
-<p class="sub"><em>Why "what time is it?" is the wrong question in a distributed system &mdash; and how logical clocks, vector clocks, HLC and TrueTime let you order events without trusting wall clocks.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth.</b> <span>there is no global clock — ordering events costs logical/vector clocks or bounded-uncertainty waits.</span></div>
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>A reliable order for events across machines &mdash; in exchange for either giving up real wall-clock time (logical clocks) or buying expensive bounded-error time (TrueTime).</b> <span>You cannot trust physical timestamps to order distributed events. Logical clocks capture "happened-before" cheaply but lose real time; TrueTime restores real-time order at the cost of GPS/atomic hardware and a deliberate wait.</span></div>
 
-<div class="toc"><h4>In this lesson</h4>
-<ul>
-<li><a href="#why-time-lies">Why physical wall-clock time lies</a></li>
-<li><a href="#happens-before">The happens-before relation</a></li>
-<li><a href="#lamport">Lamport logical clocks</a></li>
-<li><a href="#vector">Vector clocks and version vectors</a></li>
-<li><a href="#hlc">Hybrid Logical Clocks (HLC)</a></li>
-<li><a href="#truetime">TrueTime, commit-wait and Spanner</a></li>
-<li><a href="#choosing">Choosing a clock for your design</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Time, Clocks &amp; Ordering</b>
+│
+├─ <a href="#root"><b>Why ordering is the real problem</b></a>  &mdash; not "what time is it"
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#ideas"><b>The 5 ideas to understand</b></a>  &mdash; each has a misconception to avoid
+│   ├─ <a href="#i1">1. Wall-clock time lies</a>            trap → <a href="#wallclock-trap">"timestamps order events"</a>
+│   ├─ <a href="#i2">2. Happens-before &amp; Lamport clocks</a> trap → <a href="#lamport-trap">"Lamport order = real order"</a>
+│   ├─ <a href="#i3">3. Vector clocks (detect concurrency)</a> trap → <a href="#vector-trap">"vector clocks scale free"</a>
+│   ├─ <a href="#i4">4. Hybrid Logical Clocks (HLC)</a>     trap → <a href="#hlc-trap">"HLC needs special hardware"</a>
+│   └─ <a href="#i5">5. TrueTime &amp; commit-wait</a>          trap → <a href="#truetime-trap">"TrueTime is exact time"</a>
+│
+├─ <a href="#decision-table"><b>Choosing a clock</b></a>  &mdash; which clock for which job
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; clock sync you can buy
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; clocks in real systems
+│   ├─ <a href="#impl-vector">Vector clocks: Dynamo / Riak</a>
+│   ├─ <a href="#impl-hlc">HLC: CockroachDB / MongoDB</a>
+│   └─ <a href="#impl-truetime">TrueTime: Spanner</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-lamport">Compute Lamport timestamps</a>
+    ├─ <a href="#ex-vector">Detect a conflict with vector clocks</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="why-time-lies">Why physical wall-clock time lies</h2>
-
-<p>Every server has a quartz oscillator driving its clock. Quartz crystals drift &mdash; typically <span class="key">tens to hundreds of parts per million</span>. At even 50 ppm, two machines diverge by ~4.3 seconds per day if left uncorrected. To fight this, machines run <span class="key">NTP</span> (Network Time Protocol), which estimates offset from upstream stratum servers over a jittery network. NTP corrects drift but cannot eliminate uncertainty: typical synchronization is good to a few milliseconds inside a datacenter and tens to hundreds of milliseconds across the internet.</p>
-
-<p>This produces a series of failure modes that bite distributed systems:</p>
-
+<!-- ============ ROOT ============ -->
+<h2 id="root">Why ordering is the real problem</h2>
+<p>You almost never need to know the absolute time an event happened. What you need is <b>order</b>: did this write come before that one? Did the comment happen after the post it replies to? Distributed systems make ordering hard because the only obvious tool &mdash; each machine's wall clock &mdash; is unreliable: clocks drift, are corrected by <span class="gl" data-def="NTP &mdash; Network Time Protocol, the standard service that syncs a machine's clock to a reference over the network; corrections can move the clock forward or backward in steps.">NTP</span> in steps that can move time <i>backwards</i>, and never agree to better than a few milliseconds across a fleet.</p>
+<p>So we separate two things a "clock" can give you:</p>
 <ul>
-<li><span class="key">Clock skew</span> &mdash; two nodes report different times for the same instant. Node A's "now" might be 80 ms ahead of Node B's.</li>
-<li><span class="key">Backward jumps</span> &mdash; when NTP corrects a fast clock, it may step time backward. A timestamp generated after another event can be numerically smaller. Code that assumes monotonic timestamps (e.g. expiry, last-write-wins) breaks.</li>
-<li><span class="key">Leap seconds</span> &mdash; UTC inserts a leap second to track Earth's rotation. Naive handling caused the 2012 outages at Reddit, LinkedIn, and Mozilla. Google's response was the <span class="key">leap smear</span>: spread the extra second across a 24-hour window so no discontinuity exists.</li>
-<li><span class="key">VM pauses and GC</span> &mdash; a process can be frozen for hundreds of ms (STW GC) or seconds (VM migration, host swap). When it resumes, its notion of "now" is stale, but it doesn't know that.</li>
+<li><b>Causal order</b> &mdash; "A could have influenced B." Captured by <b>logical clocks</b> (Lamport, vector) without any reference to wall time.</li>
+<li><b>Real-time order</b> &mdash; "A finished before B started, by the wall." Only recoverable with tightly-bounded physical clocks (<b>TrueTime</b>) or a coordination round-trip.</li>
 </ul>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Ordering trades <b>real-time meaning for cheap causality, or money for restored real time</b>. Logical clocks order causally-related events for free but tell you nothing about wall-clock order of concurrent events. TrueTime buys back real-time order with atomic/GPS hardware and a deliberate "commit-wait." Pick what your correctness actually needs.</div>
 
-<div class="callout warn"><span class="lbl">Pitfall</span> The classic bug: <em>last-write-wins (LWW) keyed on <code>System.currentTimeMillis()</code></em>. With skew, the write that physically happened second can carry the smaller timestamp and be silently discarded. Cassandra's LWW conflict resolution has exactly this hazard &mdash; a node with a fast clock can make its writes "win" forever, masking later correct writes. This is data loss with no error and no log line.</div>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">choosing a clock</a>.</p>
 
-<p>The core lesson: <span class="key">physical time is an external reference, not an ordering mechanism.</span> You can use it to display a date or measure latency, but you cannot use a bare wall-clock timestamp to decide which of two events happened first across machines. For that you need <em>logical</em> time. This thread runs through <a href="31.html">Consistency Models and PACELC</a>, <a href="37.html">Replication Deep Dive</a>, and <a href="35.html">CRDTs</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the leap second, 2012 &amp; 2016 (real incidents)</span>
+On 30 June 2012 a leap second was inserted (23:59:60 UTC). Reddit, Mozilla, and others went down; Linux hosts spun their CPUs to 100% trying to reconcile a clock that didn't advance normally. In 2016, Cloudflare's DNS software computed the gap between two timestamps, got a <b>negative number</b> &mdash; because time had effectively gone backwards &mdash; and panicked, breaking 0.2% of DNS queries. <b>What core assumption did all this code make, and why is it false in any real system?</b></div>
 
-<h2 id="happens-before">The happens-before relation</h2>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; last-write-wins eats a write</span>
+Two replicas accept concurrent writes to the same key. Conflict resolution is "keep the one with the larger timestamp." Replica A's clock is 30 ms ahead of B's. A's write happened <i>causally later</i> in reality but carries a smaller timestamp because... actually it's the other way around &mdash; the point is you can't tell. <b>How can last-write-wins silently discard the write that should have won, and what kind of clock would at least <i>detect</i> that the two writes were concurrent?</b></div>
 
-<p>Leslie Lamport's 1978 paper "Time, Clocks, and the Ordering of Events in a Distributed System" defines a <span class="key">partial order</span> over events called <em>happens-before</em>, written <code>a &rarr; b</code>. It is defined by three rules:</p>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; Spanner's deliberate wait</span>
+Google Spanner gives you globally consistent transactions with real-time ordering across continents. To do it, every commit <b>waits a few milliseconds on purpose</b> before acknowledging &mdash; deliberately making itself slower. <b>What is it waiting for, and why does waiting make the system <i>more</i> correct rather than just slower?</b></div>
 
-<ol>
-<li>If <code>a</code> and <code>b</code> are in the same process and <code>a</code> occurs before <code>b</code>, then <code>a &rarr; b</code>.</li>
-<li>If <code>a</code> is the sending of a message and <code>b</code> is the receipt of that message, then <code>a &rarr; b</code>.</li>
-<li>Transitivity: if <code>a &rarr; b</code> and <code>b &rarr; c</code>, then <code>a &rarr; c</code>.</li>
-</ol>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#wallclock-trap">why wall-clock time lies</a>. Scenario 2 is why you need <a href="#vector-trap">vector clocks to detect concurrency</a>. Scenario 3 is <a href="#truetime-trap">TrueTime and commit-wait</a>. Each maps to an idea below.</i></p>
 
-<p>If neither <code>a &rarr; b</code> nor <code>b &rarr; a</code>, the events are <span class="key">concurrent</span> (written <code>a || b</code>). Concurrency here does not mean "at the same wall-clock instant" &mdash; it means <em>causally independent</em>: no chain of process steps or messages connects them. This is the right abstraction because it captures only the orderings that could possibly matter for correctness: causality flows through messages, and nothing else.</p>
+<!-- ============ BRANCH 1: THE IDEAS ============ -->
+<h2 id="ideas">The five ideas to understand</h2>
+<p>Theory, not knobs &mdash; ideas to hold correctly, each guarded by a misconception.</p>
 
-<div class="callout note"><span class="lbl">Key insight</span> Happens-before is a <em>partial</em> order, not a total one. Two events can be unordered. Any system that needs a single total order &mdash; a replicated log, a consensus sequence &mdash; must <em>impose</em> one on top of the partial order, breaking ties arbitrarily but consistently. That is precisely what <a href="30.html">Consensus and Raft</a> does.</div>
+<h3 id="i1">Idea 1 &mdash; Physical wall-clock time lies</h3>
+<p>Two failure modes make wall-clock timestamps unsafe for ordering. <b>Clock skew</b>: no two machines' clocks agree exactly &mdash; they drift apart and NTP only resyncs them periodically, to within milliseconds at best. <b>Non-monotonicity</b>: NTP corrections and leap seconds can step the clock <i>backwards</i>, so a later reading can be smaller than an earlier one. Code that subtracts two timestamps and assumes the result is non-negative is a bug waiting for a leap second.</p>
+<div class="callout warn"><span class="lbl" id="wallclock-trap">The misconception to avoid &mdash; "timestamps order events"</span>
+This is <b>Scenario 1</b>. The 2012/2016 leap-second outages all came from one assumption: <i>time only moves forward, at a steady rate</i>. It doesn't. For elapsed-time measurement, use a <b>monotonic clock</b> (a counter that never goes backwards, e.g. <code>CLOCK_MONOTONIC</code>) &mdash; not the wall clock. For <i>ordering events across machines</i>, don't use physical time at all unless you have bounded-error clocks; use logical clocks.</div>
 
-<h2 id="lamport">Lamport logical clocks</h2>
+<h3 id="i2">Idea 2 &mdash; Happens-before and Lamport logical clocks</h3>
+<p>Leslie Lamport (1978) defined the <b>happens-before</b> relation (&rarr;): A &rarr; B if A and B are on the same node with A first, or A is a send and B is its receive, or by transitivity. If neither A &rarr; B nor B &rarr; A, they are <b>concurrent</b>. A <b>Lamport clock</b> is one integer per node: increment on each event; on send, attach your counter; on receive, set <code>counter = max(local, received) + 1</code>. This guarantees: <b>if A &rarr; B then timestamp(A) &lt; timestamp(B)</b>.</p>
+<div class="callout warn"><span class="lbl" id="lamport-trap">The misconception to avoid &mdash; "a smaller Lamport timestamp means it really happened first"</span>
+The implication only runs one way. A &rarr; B implies LC(A) &lt; LC(B), but <b>LC(A) &lt; LC(B) does NOT imply A happened before B</b> &mdash; they might be concurrent and just got different numbers. Lamport clocks give a <i>total order</i> consistent with causality (useful for breaking ties deterministically) but they <b>cannot tell you whether two events were concurrent</b>. For that you need vector clocks.</div>
 
-<p>A Lamport clock is a single integer counter <code>L</code> per process, updated by these rules:</p>
+<h3 id="i3">Idea 3 &mdash; Vector clocks detect concurrency</h3>
+<p>A <b>vector clock</b> keeps one counter <i>per node</i>: <code>[a, b, c]</code> for nodes A, B, C. Each node increments its own slot on an event; on receive, take the element-wise max then increment your own slot. Now you can compare two vectors: if every element of V1 ≤ V2 (and at least one is strictly less), then V1 happened-before V2; if neither dominates the other, the events are <b>concurrent</b> &mdash; a genuine conflict. This is exactly what AP stores need to flag write conflicts instead of silently dropping one.</p>
+<div class="callout warn"><span class="lbl" id="vector-trap">The misconception to avoid &mdash; "vector clocks are free to use everywhere"</span>
+This is the fix for <b>Scenario 2</b> &mdash; vector clocks <i>detect</i> the concurrent writes that last-write-wins silently loses. But the cost is real: the vector grows with the number of nodes that have ever written, so metadata can balloon in large or churning clusters. Production systems prune them (per-client version vectors, dotted version vectors) to bound the size. They detect conflicts; they don't resolve them &mdash; you still need an app-level merge or a <a href="35.html">CRDT</a>.</div>
 
-<pre><code>// each process maintains an integer L, initially 0
+<h3 id="i4">Idea 4 &mdash; Hybrid Logical Clocks (HLC)</h3>
+<p>Logical clocks lose real time; physical clocks lie. <b>HLC</b> (Kulkarni et al., 2014) combines them: a timestamp is a pair <code>(physical_time, logical_counter)</code>. It tracks physical time closely (so timestamps roughly match the wall clock and are human-meaningful) <i>and</i> preserves happens-before (so it never goes backwards causally). When physical time stalls or jumps back, the logical counter takes over to keep order monotonic.</p>
+<div class="callout warn"><span class="lbl" id="hlc-trap">The misconception to avoid &mdash; "you need atomic clocks like Spanner to get ordered timestamps"</span>
+HLC gives you causality-respecting, roughly-wall-clock timestamps on <b>commodity hardware</b> with ordinary NTP &mdash; no GPS or atomic clocks. That's why CockroachDB and MongoDB use it: it's the practical middle ground between pure logical clocks (no real-time meaning) and TrueTime (needs special hardware). It does <i>not</i> give the tight error bounds TrueTime does, so it can't offer Spanner-grade external consistency without extra coordination.</div>
 
-on local event:
-    L = L + 1
+<h3 id="i5">Idea 5 &mdash; TrueTime and commit-wait</h3>
+<p>Google's <b>TrueTime</b> equips every datacenter with GPS receivers and atomic clocks, and instead of returning a single timestamp it returns an <i>interval</i> <code>[earliest, latest]</code> guaranteed to contain the true time &mdash; with the uncertainty (ε) kept to single-digit milliseconds. <a href="30.html">Spanner</a> uses it for <b>commit-wait</b>: after picking a commit timestamp, it <i>waits out the uncertainty interval</i> before acknowledging, guaranteeing that any transaction that starts later gets a strictly greater timestamp. That's how it achieves global <span class="gl" data-def="External consistency / strict serializability &mdash; if transaction T1 commits before T2 starts in real time, then T1 is ordered before T2 everywhere; the strongest practical guarantee.">external consistency</span>.</p>
+<div class="callout warn"><span class="lbl" id="truetime-trap">The misconception to avoid &mdash; "TrueTime is exact, perfectly-synced time"</span>
+This is <b>Scenario 3</b>. TrueTime is <i>not</i> exact &mdash; it's honest about being <i>uncertain</i>, returning a bounded interval rather than a point. The cleverness is in the <i>wait</i>: by deliberately pausing for the uncertainty window, Spanner ensures no two transactions can disagree about order. The "slower" commit-wait is what <i>buys</i> the correctness &mdash; you trade a few milliseconds of latency for globally consistent ordering. Shrinking ε (better clocks) directly shrinks that wait.</div>
 
-on send(msg):
-    L = L + 1
-    msg.timestamp = L
-
-on receive(msg):
-    L = max(L, msg.timestamp) + 1</code></pre>
-
-<p>The guarantee is one-directional: <strong>if <code>a &rarr; b</code> then <code>L(a) &lt; L(b)</code></strong>. This is the <em>clock condition</em>. By taking <code>max</code> on receive, causal dependencies always push the receiver's counter past the sender's.</p>
-
-<p>To build a <span class="key">total order</span> (useful for a distributed mutual-exclusion algorithm or a state-machine replication log), break ties on equal <code>L</code> with a fixed rule like process ID: order by <code>(L, processId)</code>. This gives a consistent total order across all nodes.</p>
-
-<div class="callout warn"><span class="lbl">Pitfall</span> The implication does <em>not</em> run backward. <code>L(a) &lt; L(b)</code> does <strong>not</strong> imply <code>a &rarr; b</code>. Two concurrent events can have <code>L=5</code> and <code>L=7</code> purely by coincidence of local activity. A Lamport clock therefore <strong>cannot detect concurrency</strong> &mdash; it cannot tell you whether two writes conflicted or one truly preceded the other. For conflict detection you need vector clocks.</div>
-
-<p>So Lamport clocks are great for <em>imposing</em> an order (they're enough for total-order broadcast tie-breaking) but useless for <em>discovering</em> whether a real causal dependency exists. That distinction drives the next step.</p>
-
-<h2 id="vector">Vector clocks and version vectors</h2>
-
-<p>A <span class="key">vector clock</span> replaces the single counter with a vector of counters, one entry per process. With <code>N</code> nodes, each event carries an <code>N</code>-element vector <code>V</code>.</p>
-
-<pre><code>// process i holds vector V[0..N-1], all zero initially
-
-on local event:
-    V[i] = V[i] + 1
-
-on send(msg):
-    V[i] = V[i] + 1
-    msg.vc = copy(V)
-
-on receive(msg):
-    for k in 0..N-1:
-        V[k] = max(V[k], msg.vc[k])
-    V[i] = V[i] + 1</code></pre>
-
-<p>Compare two vectors element-wise:</p>
-
+<!-- ============ BRANCH 2: CHOOSING A CLOCK ============ -->
+<h2 id="decision-table">Choosing a clock for the job</h2>
 <table>
-<tr><th>Condition</th><th>Meaning</th></tr>
-<tr><td><code>VA[k] &le; VB[k]</code> for all <code>k</code>, and <code>VA &ne; VB</code></td><td><code>a &rarr; b</code> (a causally precedes b)</td></tr>
-<tr><td><code>VB</code> dominates <code>VA</code> symmetrically</td><td><code>b &rarr; a</code></td></tr>
-<tr><td>Each dominates on some index</td><td><code>a || b</code> &mdash; <span class="key">concurrent / conflicting</span></td></tr>
+<tr><th>You need…</th><th>Use</th><th>Gives you</th><th>Cost</th></tr>
+<tr><td>Measure elapsed time on one machine</td><td><b>Monotonic clock</b></td><td>Never goes backwards</td><td>None (built in) &mdash; just don't use the wall clock for this</td></tr>
+<tr><td>A deterministic total order (tie-break)</td><td><b>Lamport clock</b></td><td>Order consistent with causality</td><td>Can't detect concurrency</td></tr>
+<tr><td>Detect concurrent writes / conflicts</td><td><b>Vector clock</b></td><td>"These two are concurrent"</td><td>Metadata grows with node count</td></tr>
+<tr><td>Roughly-wall-clock + causal, commodity HW</td><td><b>HLC</b></td><td>Human-meaningful &amp; monotonic</td><td>No tight error bound</td></tr>
+<tr><td>Global real-time order (strict serializability)</td><td><b>TrueTime</b></td><td>External consistency</td><td>GPS/atomic clocks + commit-wait latency</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The rule in one line</span>For <i>elapsed time</i> use a monotonic clock; for <i>ordering across machines</i> never trust the wall clock &mdash; use logical clocks (Lamport to order, vector to detect concurrency), HLC when you want timestamps that also look like real time, and TrueTime only when you genuinely need global real-time order and can afford the hardware.</div>
 
-<p>Now the implication runs both ways: <strong><code>a &rarr; b</code> if and only if <code>VA &lt; VB</code></strong>. The "neither dominates" case <em>precisely</em> identifies concurrent updates &mdash; exactly the writes that conflict and need reconciliation. This is why Amazon's <span class="key">Dynamo</span> (and Riak after it) attach a vector clock to every object version. On read, if two siblings are concurrent, the store returns <em>both</em> and lets the application (or a CRDT-style merge) resolve them instead of silently dropping one. See <a href="57.html">Designing a Key-Value Store</a> and <a href="35.html">CRDTs</a> for the reconciliation side.</p>
-
-<p>A <span class="key">version vector</span> is the same machinery applied to <em>replicas of a data item</em> rather than processes exchanging messages: one counter per replica, incremented on each update at that replica, merged on replication. The terms are often used interchangeably; the formal distinction (Baquero/Almeida) is that version vectors track object replica state while vector clocks track event causality.</p>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> Vector clocks give you exact causality but cost <code>O(N)</code> space per value, where <code>N</code> is the number of writer nodes &mdash; and that set grows over time. Riak caps growth with <code>pruning</code> (drop oldest entries by timestamp once the vector exceeds a size/age threshold), which can introduce false-concurrency but bounds memory. Dynamo bounds it by truncating at ~10 entries. The unbounded-growth problem is the practical reason vector clocks don't appear everywhere.</div>
-
-<h2 id="hlc">Hybrid Logical Clocks (HLC)</h2>
-
-<p>Lamport clocks lose the connection to real time (the counter is meaningless as a date). Pure physical clocks lose causality. <span class="key">Hybrid Logical Clocks</span> (Kulkarni et al., 2014) combine both: a timestamp is a pair <code>(l, c)</code> where <code>l</code> is a physical-time component (close to NTP wall time) and <code>c</code> is a small logical counter that breaks ties and absorbs causality when physical time stalls or goes backward.</p>
-
-<pre><code>// pt() = local physical clock reading
-on send or local event:
-    l_prev = l
-    l = max(l_prev, pt())
-    if l == l_prev: c = c + 1
-    else:           c = 0
-    return (l, c)
-
-on receive(m):       // m = (l_m, c_m)
-    l_prev = l
-    l = max(l_prev, l_m, pt())
-    if l == l_prev and l == l_m: c = max(c, c_m) + 1
-    elif l == l_prev:            c = c + 1
-    elif l == l_m:               c = c_m + 1
-    else:                        c = 0
-    return (l, c)</code></pre>
-
-<p>Properties that make HLC attractive:</p>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li>It satisfies the happens-before clock condition like a Lamport clock: causally ordered events get ordered timestamps.</li>
-<li>The <code>l</code> component stays within a bounded distance of NTP wall-clock time, so timestamps are <em>meaningful</em> and queryable ("give me writes around 10:05").</li>
-<li>It is <span class="key">monotonic</span> &mdash; never goes backward &mdash; even when the underlying NTP clock steps backward, because of the <code>max</code> and the logical counter.</li>
-<li>It is fixed-size (typically 64 bits: ~48 bits physical millis + ~16 bits logical), unlike vector clocks.</li>
+<li><b>Scenario 1 (leap second):</b> What false assumption broke Reddit/Cloudflare, and what clock should elapsed-time code use instead of the wall clock?</li>
+<li><b>Scenario 2 (LWW eats a write):</b> Why can timestamp-based last-write-wins lose the causally-later write, and what kind of clock at least <i>detects</i> that the writes were concurrent?</li>
+<li><b>Scenario 3 (commit-wait):</b> What is Spanner waiting for, and why does the deliberate wait make it <i>more</i> correct? What does TrueTime actually return?</li>
+<li>Why does A&rarr;B imply LC(A)&lt;LC(B) but not the reverse? What does that prevent Lamport clocks from doing?</li>
+<li>Why do CockroachDB/MongoDB use HLC instead of TrueTime?</li>
 </ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>5 ideas</b> &mdash; <a href="#i1">wall-clock time lies</a>, <a href="#i2">Lamport gives causal-consistent order</a>, <a href="#i3">vector clocks detect concurrency</a>, <a href="#i4">HLC = causal + wall-clock on commodity HW</a>, <a href="#i5">TrueTime buys real-time order with a wait</a> &mdash; each guarded by a misconception.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="31.html">Consistency Models</a>, <a href="35.html">CRDTs</a>, <a href="09.html">Replication</a>, <a href="30.html">Consensus &amp; Raft</a>.</p>
 
-<p>HLC is used as the timestamp mechanism in <span class="key">CockroachDB</span>, <span class="key">YugabyteDB</span>, and MongoDB's cluster time. CockroachDB uses HLC plus a configured <code>max_offset</code> (default 500 ms) bound: if it observes a timestamp from another node further ahead than <code>max_offset</code>, it crashes that node rather than risk a causality violation. HLC is the pragmatic middle ground when you don't have specialized hardware &mdash; it gives near-physical timestamps with logical-clock safety.</p>
-
-<div class="callout note"><span class="lbl">Key insight</span> HLC does <em>not</em> detect concurrency the way a vector clock does &mdash; it produces a single comparable value, so it gives you a usable total-ish order, not conflict detection. Choose vector clocks when you must <em>surface</em> conflicts (Dynamo-style), HLC when you want monotonic, near-real timestamps for ordering and MVCC.</div>
-
-<h2 id="truetime">TrueTime, commit-wait and Spanner</h2>
-
-<p>Google <span class="key">Spanner</span> takes a radically different stance: instead of accepting clock uncertainty, <em>bound it and expose it</em>. The <span class="key">TrueTime</span> API does not return a single instant. It returns an interval:</p>
-
-<pre><code>TT.now() -> { earliest, latest }   // guaranteed: true time in [earliest, latest]
-TT.after(t)  -> true if t has definitely passed
-TT.before(t) -> true if t has definitely not yet arrived</code></pre>
-
-<p>TrueTime achieves a small interval &mdash; typically <code>&epsilon; &approx; 1&ndash;7 ms</code> &mdash; using <span class="key">GPS receivers and atomic clocks</span> in every datacenter, with a time-master daemon polling them and disciplining local clocks. The hardware gives a tight, <em>provable</em> error bound rather than NTP's best-effort estimate.</p>
-
-<p>The payoff is <span class="key">commit-wait</span>, which delivers <em>external consistency</em> (linearizability of transactions, the strongest model). When a read-write transaction commits, Spanner:</p>
-
-<ol>
-<li>Picks a commit timestamp <code>s = TT.now().latest</code> at the moment of commit.</li>
-<li><span class="key">Waits</span> until <code>TT.after(s)</code> is true &mdash; i.e. sleeps for ~<code>2&epsilon;</code> until the chosen timestamp is guaranteed to be in the past for <em>every</em> node on Earth.</li>
-<li>Only then releases locks and acknowledges the commit.</li>
-</ol>
-
-<p>Because every transaction waits out the uncertainty window before becoming visible, if transaction <code>T1</code> commits before <code>T2</code> begins (in real time), then <code>s1 &lt; s2</code> is guaranteed. The total order of commit timestamps matches real-time order &mdash; that is the definition of external consistency. The cost is paid directly in <span class="key">write latency</span>: every commit eats roughly <code>2&epsilon;</code> (~10&ndash;14 ms historically) of mandatory wait, which is why Google invests so heavily in shrinking <code>&epsilon;</code> &mdash; smaller uncertainty literally means faster commits.</p>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> TrueTime trades capital and operational cost (GPS + atomic clocks in every region, a hard dependency Spanner cannot run without) for the ability to do globally-consistent transactions and lock-free, externally-consistent snapshot reads. HLC-based systems (CockroachDB, Yugabyte) get most of the way there on commodity hardware but must use stricter offset checks and occasionally restart transactions on uncertainty (the "uncertainty restart" window), paying in tail latency and occasional retries instead of a hardware bill.</div>
-
-<div class="callout warn"><span class="lbl">Pitfall</span> Don't claim "Spanner has perfectly synchronized clocks." It does not &mdash; it has <em>bounded uncertainty</em> and an algorithm (commit-wait) that <em>tolerates</em> the residual error by waiting it out. The cleverness is in turning an unsolvable problem (perfect sync) into a solvable one (bounded sync + wait). Conflating the two signals shallow understanding.</div>
-
-<h2 id="choosing">Choosing a clock for your design</h2>
-
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<p>You can't buy a Lamport clock, but you <i>can</i> buy tightly-synced physical time and clock-aware databases:</p>
 <table>
-<tr><th>Mechanism</th><th>Detects concurrency?</th><th>Size</th><th>Tracks real time?</th><th>Where used</th></tr>
-<tr><td>Physical / NTP</td><td>No</td><td>fixed</td><td>Yes (best-effort)</td><td>logging, metrics, TTLs</td></tr>
-<tr><td>Lamport clock</td><td>No</td><td>fixed (one int)</td><td>No</td><td>total-order broadcast, mutex</td></tr>
-<tr><td>Vector clock</td><td><strong>Yes</strong></td><td><code>O(N)</code>, grows</td><td>No</td><td>Dynamo, Riak conflict detection</td></tr>
-<tr><td>HLC</td><td>No</td><td>fixed (64-bit)</td><td>Yes (bounded)</td><td>CockroachDB, Yugabyte, Mongo</td></tr>
-<tr><td>TrueTime + commit-wait</td><td>No (orders all)</td><td>fixed + HW</td><td>Yes (bounded &epsilon;)</td><td>Spanner, external consistency</td></tr>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>High-accuracy time sync</td><td>Amazon Time Sync Service (with microsecond-accuracy clocks on some instances)</td><td>Google Public NTP / internal TrueTime</td><td>Azure host-based time sync</td></tr>
+<tr><td>Globally real-time-ordered DB (clock inside)</td><td>&mdash; (DynamoDB is vector-style)</td><td>Cloud Spanner (TrueTime)</td><td>Cosmos DB (bounded-staleness)</td></tr>
+<tr><td>HLC-based distributed SQL</td><td>(self-host CockroachDB)</td><td>(self-host CockroachDB)</td><td>(self-host CockroachDB)</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The takeaway</span>Cloud time-sync services now reach microsecond accuracy on some instance types, shrinking the clock-uncertainty (ε) that databases like Spanner-style systems must wait out &mdash; tighter clocks literally make consistent commits faster. But you still never order distributed events by reading the wall clock in your own code.</div>
 
-<p>A principal-level heuristic:</p>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>Clocks made concrete. Same facets &mdash; the clock used, what it enables, and the failure to watch.</p>
+
+<h3 id="impl-vector">Vector clocks &mdash; Dynamo / Riak</h3>
 <ul>
-<li>Need to <em>display</em> a time or expire a key &rarr; physical clock, accept skew.</li>
-<li>Need a <em>total order</em> over events but no conflict detection &rarr; Lamport (or just use the consensus log from <a href="30.html">Raft</a>, which gives you one for free).</li>
-<li>Need to <em>detect and surface concurrent writes</em> for application/CRDT merge &rarr; vector clocks or version vectors. See <a href="35.html">CRDTs</a> and <a href="37.html">Replication Deep Dive</a>.</li>
-<li>Need <em>monotonic, queryable timestamps</em> for MVCC on commodity hardware &rarr; HLC.</li>
-<li>Need <em>external consistency for global transactions</em> and can afford the infra &rarr; TrueTime-style bounded clocks + commit-wait. Relates to <a href="32.html">Distributed Transactions</a>.</li>
+<li><b>Clock used.</b> Version vectors (vector clocks) per key.</li>
+<li><b>What it enables.</b> Detecting concurrent writes so the system can return <i>both</i> siblings to the client (or a resolver) instead of silently picking one.</li>
+<li><b>The failure to watch.</b> Vector size grows with writers; Riak uses dotted version vectors to bound it, and unresolved siblings can pile up if the app never merges them.</li>
 </ul>
 
-<p>This decision interacts directly with your consistency target. As <a href="31.html">Consistency Models and PACELC</a> argues, in the normal (no-partition) case you trade latency against consistency &mdash; commit-wait makes that trade explicit and visible in p50 write latency.</p>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They never reach for <code>System.currentTimeMillis()</code> to order distributed events, and they say <em>why</em> unprompted &mdash; skew, backward steps, GC pauses. They distinguish "ordering events" (logical clocks) from "knowing the date" (physical clocks). They can state the one-way nature of the Lamport guarantee and immediately reach for vector clocks when conflict <em>detection</em> is needed. They explain TrueTime as "bounded uncertainty plus commit-wait," not "perfect clocks," and they connect the choice of clock back to the consistency model and the latency budget the design can afford.</p></div>
-
+<h3 id="impl-hlc">HLC &mdash; CockroachDB / MongoDB</h3>
 <ul>
-<li>Your service uses last-write-wins keyed on wall-clock time. Walk me through a concrete sequence where this silently loses a write. How would you detect it in production, and what would you change?</li>
-<li>When is a Lamport clock sufficient, and when must you upgrade to a vector clock? Give me a system that genuinely needs the vector and one where it would be over-engineering.</li>
-<li>Vector clocks grow with the number of writers. How does Dynamo or Riak bound that growth, and what correctness anomaly does the bounding introduce?</li>
-<li>Explain commit-wait. Where exactly is the latency paid, and what would halving TrueTime's &epsilon; do to your write throughput and SLOs?</li>
-<li>You're building a multi-region store on commodity hardware (no GPS clocks). How do HLCs let you approximate Spanner's guarantees, and what do you give up &mdash; concretely &mdash; versus a true TrueTime deployment?</li>
-<li>Two replicas show concurrent versions of the same object with non-comparable vector clocks. What are your options for resolving the conflict, and how does the choice differ for a shopping cart versus a bank balance?</li>
+<li><b>Clock used.</b> Hybrid Logical Clocks &mdash; <code>(physical, logical)</code> pairs.</li>
+<li><b>What it enables.</b> Causally-correct, roughly-wall-clock timestamps on ordinary cloud hardware with NTP &mdash; ordering transactions without GPS.</li>
+<li><b>The failure to watch.</b> No tight ε bound like TrueTime, so they need extra mechanisms (uncertainty intervals + retries, or read refreshes) to approach strict serializability; large clock skew degrades performance.</li>
 </ul>
 
-<div class="navfoot"><a href="32.html">&lsaquo; Prev: Distributed Transactions</a><a class="nx" href="34.html">Next: Anti-Entropy and Gossip &rsaquo;</a></div>
+<h3 id="impl-truetime">TrueTime &mdash; Spanner</h3>
+<ul>
+<li><b>Clock used.</b> TrueTime &mdash; GPS + atomic clocks returning bounded intervals.</li>
+<li><b>What it enables.</b> Global external consistency (strict serializability) via commit-wait, across continents.</li>
+<li><b>The failure to watch.</b> Requires Google's clock infrastructure; commit-wait adds latency proportional to clock uncertainty &mdash; you pay milliseconds per commit for the guarantee, and a clock-sync degradation widens ε and slows everything.</li>
+</ul>
 
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Clocks click when you trace them by hand. Work each before opening the approach.</p>
+
+<h3 id="ex-lamport">Compute Lamport timestamps across two nodes</h3>
+<p>Node A does events a1, a2, then sends a message to B. B has done b1, then receives A's message as b2. Assign Lamport timestamps and state which events are ordered and which are concurrent.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>A: a1=1, a2=2, send carries 2. B: b1=1; on receiving (with stamp 2), b2 = max(1,2)+1 = 3. So LC: a1=1, a2=2, b1=1, b2=3. Ordered: a1&rarr;a2&rarr;(send)&rarr;b2, and b1&rarr;b2. <b>Concurrent: a1 and b1</b> (both =1, no causal path) &mdash; and a2 vs b1 are also concurrent even though LC(b1)=1 &lt; LC(a2)=2. That last pair is the trap: a smaller Lamport timestamp did <i>not</i> mean it happened first. To <i>know</i> a2 and b1 are concurrent you'd need vector clocks.</p>
+</div></details>
+
+<h3 id="ex-vector">Detect a conflict with vector clocks</h3>
+<p>Three nodes A,B,C. A writes (vector <code>[1,0,0]</code>), B independently writes <code>[0,1,0]</code>. Are these concurrent? Now A's write propagates to B, which writes again. Show the new vector and why it's no longer a conflict with A's.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p><code>[1,0,0]</code> vs <code>[0,1,0]</code>: neither dominates (A's 1st slot is bigger, B's 2nd slot is bigger) &rarr; <b>concurrent &mdash; a conflict</b> the system must surface. After B receives A's write, B merges (element-wise max &rarr; <code>[1,1,0]</code>) then increments its own slot &rarr; <code>[1,2,0]</code>. Now <code>[1,0,0] ≤ [1,2,0]</code> element-wise &rarr; A's write <i>happened-before</i> B's latest &mdash; no conflict, B's value supersedes. The dominance test is the whole mechanism: comparable &rarr; ordered; incomparable &rarr; concurrent.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Replace last-write-wins.</b> Your key-value store loses writes under LWW. Redesign conflict handling using vector clocks to detect concurrency, then a merge strategy that doesn't drop data. &rarr; <a href="35.html">CRDTs</a>, <a href="09.html">Replication</a>.</li>
+<li><b>Order a global event log without TrueTime.</b> You need a near-real-time, causally-correct ordering of events across regions on commodity hardware. Design it with HLC and explain where it falls short of strict serializability. &rarr; <a href="31.html">Consistency Models</a>.</li>
+<li><b>Make a leap second a non-event.</b> Audit a service for code that assumes time only moves forward. Decide where to use a monotonic clock and how to handle a backwards step. &rarr; <a href="51.html">Resilience Patterns</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="32.html">&lsaquo; Prev: Distributed Transactions</a><a class="nx" href="34.html">Next: Anti-Entropy &amp; Gossip &rsaquo;</a></div>
 </div>
 </div>
 </div>

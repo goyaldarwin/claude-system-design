@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Batch and Big Data Processing</title>
+<title>Batch and Big Data</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
 <link rel="stylesheet" href="./_principal_files/lesson.css?v=20260615a">
 <script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('sd-nav')==='collapsed')document.documentElement.classList.add('nav-collapsed');}catch(e){}})();</script>
@@ -111,150 +111,185 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Batch and Big Data Processing</div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Batch &amp; Big Data</div>
+<h1>Batch &amp; Big Data Processing</h1>
+<p class="sub"><em>When the data is too big for one machine and you need a complete, exact answer &mdash; recompute a recommendation model, reconcile a day's payments, build a search index from scratch &mdash; you process it in <b>batch</b>: run a finite job over a bounded, complete dataset across a cluster. The ideas that make this work at petabyte scale &mdash; MapReduce's shuffle, Spark's in-memory DAG, columnar storage &mdash; are the foundation of modern data platforms.</em></p>
 
-<h1>Batch and Big Data Processing</h1>
-<p class="sub">How petabyte-scale datasets get processed offline &mdash; from MapReduce&rsquo;s shuffle to Spark&rsquo;s DAG, columnar storage, and the lambda-vs-kappa debate.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Finite capacity.</b> <span>crunching huge data sets, paid in batch latency, with the all-to-all shuffle as the dominant cost.</span></div>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Exact, complete results over enormous datasets &mdash; in exchange for latency (minutes to hours) and the cost of moving data across the cluster.</b> <span>Batch gives you correctness and the ability to do complex historical joins over everything. You pay in latency &mdash; the answer is hours stale &mdash; and in the shuffle, the expensive all-to-all data movement that dominates big-data jobs.</span></div>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#why">Why batch still matters</a></li>
-<li><a href="#mapreduce">MapReduce: map, shuffle, reduce</a></li>
-<li><a href="#shuffle">The shuffle is the bottleneck</a></li>
-<li><a href="#spark">Spark: RDDs, DAGs, and in-memory</a></li>
-<li><a href="#storage">Data lake, warehouse, lakehouse</a></li>
-<li><a href="#columnar">Columnar formats &amp; ETL vs ELT</a></li>
-<li><a href="#lambda">Lambda vs Kappa architecture</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Batch &amp; Big Data Processing</b>
+│
+├─ <a href="#root"><b>What batch processing is</b></a>  &mdash; finite jobs over complete data
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>The 5 ideas to understand</b></a>
+│   ├─ <a href="#d1">1. MapReduce &amp; the shuffle</a>          fail → <a href="#shuffle-trap">the shuffle bottleneck</a>
+│   ├─ <a href="#d2">2. Spark: DAGs &amp; in-memory</a>          fail → <a href="#spill-trap">spilling &amp; skew</a>
+│   ├─ <a href="#d3">3. Lake / warehouse / lakehouse</a>      fail → <a href="#swamp-trap">the data swamp</a>
+│   ├─ <a href="#d4">4. Columnar formats &amp; ELT</a>          fail → <a href="#row-trap">row storage for analytics</a>
+│   └─ <a href="#d5">5. Lambda vs Kappa</a>                  fail → <a href="#lambda-trap">two codebases drift</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; batch vs stream, formats, architectures
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; managed batch &amp; warehouses
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; the engines &amp; stores
+│   ├─ <a href="#impl-spark">Spark</a>
+│   ├─ <a href="#impl-warehouse">Warehouses: BigQuery / Snowflake</a>
+│   └─ <a href="#impl-lakehouse">Lakehouse: Delta / Iceberg</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-mr">Write a word count as MapReduce</a>
+    ├─ <a href="#ex-skew">Fix a skewed join</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="why">Why batch still matters</h2>
-<p><span class="key">Batch processing</span> operates on a large, bounded input &mdash; a day&rsquo;s logs, a full table snapshot, a crawl corpus &mdash; and produces a derived output (an index, a report, a model&rsquo;s training set). Unlike a request/response service, a batch job has no latency SLA per record; it optimizes for <span class="key">throughput</span> and <span class="key">cost per byte processed</span>. A well-tuned job pushes hardware to its limits: sequential disk and network bandwidth rather than random IOPS.</p>
-<p>Even in a streaming-first world (see <a href="40.html">Stream Processing and CDC</a>), batch remains indispensable for three reasons: it is the only sane way to <span class="key">reprocess history</span> after a bug or schema change; it produces the gold-standard correct answer that streaming approximations are reconciled against; and many workloads &mdash; nightly billing, training data assembly, large joins across full datasets &mdash; are simply more efficient as bounded jobs. The output of a batch job is <span class="key">immutable and idempotent</span>: rerun it on the same input and you get the same output, which makes failure recovery trivial &mdash; just rerun the failed task.</p>
-<div class="callout note"><span class="lbl">Key insight</span>The defining property of good batch design is <em>partitioned, deterministic, idempotent</em> work. Input is split into independent chunks; each chunk is processed in isolation; reruns are safe. This is what lets a framework restart a failed task on another machine without corrupting results &mdash; the foundation of fault tolerance at scale.</div>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What batch processing is</h2>
+<p><b>Batch processing</b> runs a finite job over a <b>bounded, complete dataset</b> and produces a result, then stops &mdash; the opposite of <a href="40.html">streaming</a>'s never-ending computation. You reach for it when you need an <i>exact</i> answer over <i>all</i> the data (not a provisional one), when the computation is too complex or expensive to do per-event, or when latency simply doesn't matter (a nightly report, a weekly model retrain). "Big data" is just batch when the dataset exceeds one machine, forcing the work across a cluster &mdash; which introduces the central problem: <b>moving data between machines is expensive.</b></p>
+<p>Why it still matters in a streaming world: streaming gives freshness, batch gives <b>completeness, exactness, and cost-efficiency</b> at huge scale &mdash; reprocessing history, training models, reconciliation, and building derived datasets.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Batch trades <b>latency</b> for <b>completeness, exactness, and throughput-per-dollar</b>. You wait minutes-to-hours, but you get an exact answer over the entire dataset with arbitrary complexity &mdash; and the dominant cost you're managing is the <b>shuffle</b>, the all-to-all data movement that the whole field is organized around minimizing.</div>
 
-<h2 id="mapreduce">MapReduce: map, shuffle, reduce</h2>
-<p><span class="key">MapReduce</span> (Dean &amp; Ghemawat, Google, 2004) was the model that made petabyte processing routine on commodity hardware. It expresses a computation as two user functions over key/value pairs:</p>
-<pre><code>map(k1, v1)      -&gt; list(k2, v2)     // one input record -&gt; many intermediate pairs
-reduce(k2, list(v2)) -&gt; list(k3, v3) // all values for one key -&gt; aggregated output</code></pre>
-<p>The canonical word-count: <code>map</code> emits <code>(word, 1)</code> for each token; the framework groups all <code>1</code>s by word; <code>reduce</code> sums them. The genius is not the two functions &mdash; it is everything the framework does <em>between</em> them, automatically: input splitting, scheduling map tasks near their data (data locality, since the job ran on HDFS DataNodes), the <span class="key">shuffle</span> that moves intermediate data to reducers, sorting by key, fault-tolerant re-execution of failed tasks, and straggler mitigation via <span class="key">speculative execution</span> (launch a duplicate of a slow task and take whichever finishes first).</p>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
 
-<h4>Execution phases</h4>
-<ol>
-<li><span class="key">Map:</span> each split (typically one HDFS block, 128&ndash;256&nbsp;MB) is read by one mapper; output is buffered, sorted, and spilled to local disk, partitioned by <code>hash(key) % numReducers</code>.</li>
-<li><span class="key">Shuffle:</span> reducers pull their partition from every mapper&rsquo;s local disk over the network. This is an all-to-all transfer.</li>
-<li><span class="key">Sort/merge:</span> each reducer merge-sorts the incoming streams so all values for a key arrive contiguously.</li>
-<li><span class="key">Reduce:</span> the user function runs over each key group; output is written to HDFS with replication.</li>
-</ol>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the job that's slow in the middle</span>
+A big-data job reads fast, computes fast at the start, then spends 80% of its wall-clock time in a phase where the network is saturated and CPUs sit idle &mdash; between the "map" and "reduce" parts. <b>What is that phase, why is it the bottleneck of nearly every big-data job, and what reduces it?</b></div>
 
-<div class="callout warn"><span class="lbl">Pitfall</span>MapReduce&rsquo;s rigidity is its undoing. Every job is exactly one map + one reduce; anything richer (a multi-stage join, an iterative algorithm like PageRank or k-means) becomes a <em>chain of jobs</em>, and the intermediate result of each job is materialized to HDFS &mdash; written, replicated 3&times;, then read back. For a 10-iteration algorithm that is 10 full round-trips through replicated disk. This is exactly the cost Spark was built to eliminate.</div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the analytics query that scans 200 columns to read 3</span>
+Your daily revenue report needs 3 columns out of a 200-column events table, over a billion rows. Stored as rows, the query reads all 200 columns off disk for every row. <b>What storage layout would let it read only the 3 columns it needs, and roughly how much I/O does that save?</b></div>
 
-<p>MapReduce also has a long-tail latency problem: the whole job is gated on its slowest reducer, and a single hot key (data skew) can stall the job for hours while every other reducer sits idle. A <span class="key">combiner</span> &mdash; a map-side pre-aggregation, e.g. summing partial word counts before the shuffle &mdash; reduces shuffle volume but only helps for associative/commutative reductions.</p>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the same logic written twice (Lambda)</span>
+A team wants both a real-time approximate count and a nightly exact recomputation. They build a streaming pipeline <i>and</i> a separate batch pipeline implementing the same aggregation logic in two different codebases. Six months later the two give subtly different numbers. <b>What architecture is this, what's its core maintenance hazard, and what's the alternative?</b></div>
 
-<h2 id="shuffle">The shuffle is the bottleneck</h2>
-<p>Across every batch engine &mdash; MapReduce, Spark, Hive, Presto &mdash; the <span class="key">shuffle</span> is the single dominant cost and the thing a principal engineer reasons about first. It is the all-to-all redistribution of data that happens whenever you change the partitioning key: a <code>GROUP BY</code>, a <code>JOIN</code>, a <code>reduceByKey</code>, a <code>repartition</code>. With <em>M</em> map tasks and <em>R</em> reduce tasks, the shuffle is up to <em>M&times;R</em> connections moving data over the network and through local disk on both ends.</p>
-<p>Why it hurts:</p>
-<ul>
-<li><span class="key">Network is the scarce resource.</span> Cross-rack bandwidth is oversubscribed; moving terabytes between nodes saturates it. Locality (processing data where it lives) avoids the network on the map side, but the shuffle inherently cannot.</li>
-<li><span class="key">It materializes to disk.</span> Shuffle data is spilled to local disk so it survives a fetch failure without recomputing the producer &mdash; trading I/O for fault tolerance.</li>
-<li><span class="key">It is a barrier.</span> Reducers cannot start until enough map output exists; a skewed or slow producer stalls the consumer stage.</li>
-</ul>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>The art of batch tuning is <em>shuffling less</em>. Techniques: a <span class="key">broadcast (map-side) join</span> ships a small dimension table to every node so the large fact table never moves &mdash; eliminating the shuffle entirely when one side fits in memory. <span class="key">Bucketing</span> pre-partitions tables on the join key at write time so the join needs no reshuffle. Partition pruning and predicate pushdown cut the data before it ever enters the shuffle. Each trades storage layout or memory for network. This is the same partitioning logic as <a href="05.html">Sharding or Data Partitioning</a>, applied to analytics.</div>
-<p><span class="key">Data skew</span> is the shuffle&rsquo;s evil twin: if one key (a null, a sentinel, a celebrity user) carries 40% of the rows, one reducer gets 40% of the work and the job&rsquo;s wall-clock is set by that task. Mitigations include salting the hot key (append a random suffix, aggregate in two passes) and isolating skewed keys into a separate broadcast path. Spark&rsquo;s Adaptive Query Execution detects skew at runtime and splits oversized partitions automatically.</p>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#shuffle-trap">the shuffle</a>. Scenario 2 is <a href="#row-trap">columnar formats</a>. Scenario 3 is <a href="#lambda-trap">Lambda vs Kappa</a>. Each maps to an idea below.</i></p>
 
-<h2 id="spark">Spark: RDDs, DAGs, and in-memory</h2>
-<p><span class="key">Apache Spark</span> (Zaharia et al., 2012) keeps MapReduce&rsquo;s fault-tolerance and locality but fixes its two cardinal sins: the rigid two-phase model and the disk materialization between stages. Its core abstraction is the <span class="key">RDD</span> (Resilient Distributed Dataset) &mdash; an immutable, partitioned collection with a recorded <span class="key">lineage</span> of the transformations that built it.</p>
+<!-- ============ BRANCH 1: THE IDEAS ============ -->
+<h2 id="decisions">The five ideas to understand</h2>
+<p>Five ideas carry the field. Each has a named failure nested under it.</p>
 
-<h4>Lazy DAG, not eager jobs</h4>
-<p>Transformations (<code>map</code>, <code>filter</code>, <code>join</code>, <code>reduceByKey</code>) are <span class="key">lazy</span> &mdash; they only build a logical graph. Nothing runs until an <span class="key">action</span> (<code>count</code>, <code>collect</code>, <code>saveAsTable</code>) forces evaluation. At that point the <span class="key">DAG scheduler</span> compiles the lineage into stages, splitting at shuffle boundaries:</p>
-<pre><code>rdd = sc.textFile("hdfs://logs/2026-06-12/*")     // transformation (lazy)
-        .map(parse)                               // narrow dep
-        .filter(lambda r: r.status == 500)        // narrow dep
-        .map(lambda r: (r.endpoint, 1))           // narrow dep  -- all one stage
-        .reduceByKey(lambda a,b: a+b)             // WIDE dep -> shuffle, stage boundary
-counts = rdd.collect()                            // action -> triggers execution</code></pre>
-<p>Within a stage, consecutive <span class="key">narrow dependencies</span> (each output partition depends on one input partition) are <span class="key">pipelined</span> into a single pass with no intermediate materialization &mdash; map, filter, and map above all fuse together. A <span class="key">wide dependency</span> (a partition depends on many inputs) forces a shuffle and ends the stage. This is the structural win over MapReduce: many operators per stage instead of one rigid map+reduce.</p>
+<h3 id="d1">Idea 1 &mdash; MapReduce and the shuffle</h3>
+<p><b>MapReduce</b> (Google, 2004) is the foundational model: <b>map</b> each input record to key-value pairs in parallel across the cluster; <b>shuffle</b> moves all pairs with the same key to the same machine; <b>reduce</b> aggregates each key's group. Map and reduce are embarrassingly parallel &mdash; the magic and the cost are in the shuffle, which groups data by key across the whole cluster.</p>
+<div class="callout warn"><span class="lbl" id="shuffle-trap">The failure that happens when you get this wrong &mdash; the shuffle bottleneck</span>
+This is <b>Scenario 1</b>. The shuffle is an <b>all-to-all data movement</b> over the network plus disk spills &mdash; the most expensive part of nearly every big-data job, and the thing the entire discipline optimizes around. You reduce it by: filtering and aggregating <i>before</i> the shuffle (map-side combine / pushing predicates down), partitioning data so related keys are already co-located (avoiding a re-shuffle on joins), and avoiding unnecessary wide transformations. A job that shuffles the full dataset when it could have pre-aggregated is the classic big-data performance bug.</div>
 
-<h4>In-memory and lineage-based recovery</h4>
-<p>Spark can <code>cache()</code> / <code>persist()</code> an RDD in cluster memory, so an iterative algorithm reuses the dataset across iterations without re-reading disk &mdash; the reason Spark is often 10&ndash;100&times; faster than MapReduce on iterative ML and interactive queries. Fault tolerance does not rely on replicating the cached data: if a partition is lost, Spark <span class="key">recomputes it from lineage</span>, replaying only the transformations for that partition. For long lineages, <span class="key">checkpointing</span> to reliable storage truncates the recovery chain.</p>
+<h3 id="d2">Idea 2 &mdash; Spark: DAGs and in-memory execution</h3>
+<p>MapReduce writes intermediate results to disk between every stage &mdash; slow for multi-step jobs (and disastrous for iterative ones like ML training). <b>Spark</b> models a job as a <span class="gl" data-def="DAG &mdash; directed acyclic graph; a graph of computation steps with no cycles, letting the engine plan, parallelize, and recover stages of a job.">DAG</span> (directed acyclic graph) of transformations on distributed datasets (<span class="gl" data-def="RDD &mdash; Resilient Distributed Dataset; Spark's core abstraction: an immutable, partitioned collection across the cluster that tracks its lineage so lost partitions can be recomputed.">RDDs</span>/DataFrames) and keeps intermediate data <b>in memory</b> across stages, only spilling to disk when it must. It also tracks lineage, so a lost partition is recomputed from its inputs rather than from a checkpoint. Result: often 10&ndash;100&times; faster than MapReduce for multi-stage and iterative work.</p>
+<div class="callout warn"><span class="lbl" id="spill-trap">The failure that happens when you get this wrong &mdash; spilling and skew</span>
+Spark's speed assumes data fits in memory. When a stage's data exceeds memory it <b>spills to disk</b>, collapsing the in-memory advantage; and a <b>skewed</b> key (one key with vastly more rows than others) sends a huge partition to one executor while the rest finish &mdash; the job's tail is one straggler task. Fixes: size executor memory/partitions to the data, and for skew, <b>salt</b> the hot key (split it into sub-keys and combine after) or use a broadcast join for a small side. Skew is the Spark analog of the <a href="05.html">hot shard</a>.</div>
 
+<h3 id="d3">Idea 3 &mdash; Data lake, warehouse, lakehouse</h3>
+<p>Where does the data live? <b>Data warehouse</b> &mdash; structured, schema-on-write, optimized for SQL analytics (Snowflake, BigQuery). <b>Data lake</b> &mdash; raw files of any shape in cheap object storage, schema-on-read (S3 + Parquet). <b>Lakehouse</b> &mdash; the modern hybrid: lake storage + a table layer (Delta Lake, Apache Iceberg) that adds warehouse features (ACID transactions, schema enforcement, time travel) on top of open files.</p>
+<div class="callout warn"><span class="lbl" id="swamp-trap">The failure that happens when you get this wrong &mdash; the data swamp</span>
+A data lake with no schema enforcement, catalog, or governance degrades into a <b>data swamp</b>: terabytes of files nobody can find, trust, or query, with no idea what's current or correct. Schema-on-read becomes schema-on-never. The lakehouse table formats exist precisely to fix this &mdash; they put a transactional, schema-enforced, discoverable table layer over the cheap files, so you get the lake's cost and flexibility without the swamp.</div>
+
+<h3 id="d4">Idea 4 &mdash; Columnar formats and ELT</h3>
+<p>Analytics reads a few columns across many rows; transactional systems read whole rows. <b>Columnar formats</b> (Parquet, ORC) store each column contiguously, so a query reads only the columns it needs and compresses far better (similar values adjacent). This is why warehouses are column stores. And the modern pattern is <b>ELT</b> over ETL: load raw data into the warehouse/lake first, then transform <i>in</i> it with SQL (leveraging the warehouse's compute), rather than transforming before loading.</p>
+<div class="callout warn"><span class="lbl" id="row-trap">The failure that happens when you get this wrong &mdash; row storage for analytics</span>
+This is <b>Scenario 2</b>. A row-oriented store forced to serve analytics reads <i>every</i> column of every row even when the query needs 3 of 200 &mdash; reading ~60&times; more data off disk than necessary, with poor compression. A columnar format reads only the 3 needed columns' contiguous blocks (and skips row groups via min/max stats), often cutting I/O by 50&times;+. Using a row store (or an OLTP database) for big analytical scans is a classic cost-and-latency mistake; analytics belongs in a columnar warehouse/lakehouse.</div>
+
+<h3 id="d5">Idea 5 &mdash; Lambda vs Kappa architecture</h3>
+<p>How do you serve both real-time and exact results? <b>Lambda architecture</b> runs two layers: a <b>speed layer</b> (streaming, fast, approximate) and a <b>batch layer</b> (slow, exact, periodically recomputes from scratch), serving a merged view. <b>Kappa architecture</b> drops the batch layer: a single <a href="40.html">streaming</a> pipeline over a replayable <a href="39.html">log</a> handles both &mdash; to "recompute history" you just replay the log through the same code.</p>
+<div class="callout warn"><span class="lbl" id="lambda-trap">The failure that happens when you get this wrong &mdash; two codebases that drift</span>
+This is <b>Scenario 3</b>. Lambda's core hazard is <b>maintaining the same logic twice</b> &mdash; once in the streaming layer, once in the batch layer &mdash; in different frameworks. They inevitably drift, and now your "real-time" and "corrected" numbers disagree with no clear source of truth. Kappa avoids it by using one replayable stream and one codebase: reprocessing is just replay. Lambda still wins when batch genuinely needs a different engine (huge historical joins streaming can't do); but if a single replayable pipeline can serve both, prefer Kappa to kill the dual-maintenance bug.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance</h2>
 <table>
-<tr><th></th><th>MapReduce</th><th>Spark</th></tr>
-<tr><td>Programming model</td><td>Fixed map + reduce</td><td>Arbitrary DAG of operators</td></tr>
-<tr><td>Intermediate data</td><td>Written to HDFS (replicated 3&times;)</td><td>Pipelined in memory; spill to local disk only when needed</td></tr>
-<tr><td>Iterative jobs</td><td>One job per iteration (re-read disk)</td><td>Cache once, reuse in memory</td></tr>
-<tr><td>Fault recovery</td><td>Re-run task; inputs durable on HDFS</td><td>Recompute partition from lineage</td></tr>
-<tr><td>Latency</td><td>Minutes; JVM startup per task</td><td>Sub-second to seconds; long-lived executors</td></tr>
+<tr><th>Question</th><th>Answer</th></tr>
+<tr><td>Need an exact answer over all the data, latency OK</td><td><b>Batch</b></td></tr>
+<tr><td>Need fresh answers within seconds</td><td><a href="40.html"><b>Stream</b></a></td></tr>
+<tr><td>Multi-stage / iterative big-data job</td><td><b>Spark</b> (in-memory DAG) over plain MapReduce</td></tr>
+<tr><td>Analytical store</td><td><b>Columnar</b> (Parquet/ORC) in a warehouse/lakehouse</td></tr>
+<tr><td>Raw storage + warehouse features</td><td><b>Lakehouse</b> (Delta/Iceberg on object storage)</td></tr>
+<tr><td>Both real-time + exact, one codebase</td><td><b>Kappa</b> (replay the log); Lambda only if batch needs a different engine</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The rule in one line</span>Use batch for completeness and exactness at scale; minimize the <b>shuffle</b>; store analytics <b>columnar</b>; put a <b>table layer</b> over your lake to avoid a swamp; and prefer <b>one replayable pipeline</b> (Kappa) over two drifting ones (Lambda) when you can.</div>
 
-<p>The modern Spark stack is <span class="key">Spark SQL / DataFrames</span> on top of the <span class="key">Catalyst</span> optimizer and <span class="key">Tungsten</span> execution engine: you write SQL or a typed DataFrame, Catalyst applies relational optimizations (predicate pushdown, join reordering, broadcast selection) and Tungsten generates whole-stage compiled bytecode operating on off-heap columnar memory. You almost never write raw RDD code today &mdash; but understanding RDD lineage explains <em>why</em> a job&rsquo;s recovery and stage boundaries behave as they do.</p>
-
-<h2 id="storage">Data lake, warehouse, lakehouse</h2>
-<p>The compute engine is half the story; where the data lives and in what shape is the other half.</p>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">Data warehouse</span> (Snowflake, BigQuery, Redshift, Teradata): schema-on-write, highly structured, optimized columnar storage with strong SQL, governance, and ACID. Loading requires conforming to a schema up front. Excellent for BI and known query patterns; historically expensive and rigid for raw/semi-structured data.</li>
-<li><span class="key">Data lake</span> (files on S3/HDFS/GCS, queried by Spark/Presto/Hive): schema-on-read, store anything &mdash; raw JSON, logs, images, Parquet &mdash; cheaply, decide structure at query time. Flexible and cheap, but easily degenerates into a <span class="key">data swamp</span> with no transactions, no schema enforcement, and no atomic updates.</li>
-<li><span class="key">Lakehouse</span> (Delta Lake, Apache Iceberg, Apache Hudi): a transactional table format <em>layered over</em> open columnar files in object storage. It adds a metadata/manifest layer that brings ACID transactions, schema evolution, time travel, and efficient upserts/deletes to the lake &mdash; warehouse semantics on lake economics. Iceberg&rsquo;s hidden partitioning and snapshot isolation, Delta&rsquo;s transaction log, and Hudi&rsquo;s copy-on-write/merge-on-read are the dominant designs.</li>
+<li><b>Scenario 1 (slow middle):</b> What is the shuffle, why is it the bottleneck, and what three things reduce it?</li>
+<li><b>Scenario 2 (200 columns):</b> How does columnar storage cut the I/O, and roughly by how much for a 3-of-200 query?</li>
+<li><b>Scenario 3 (logic twice):</b> What is Lambda's dual-maintenance hazard, and how does Kappa eliminate it?</li>
+<li>Why is Spark faster than MapReduce, and what breaks that advantage (spill, skew)?</li>
+<li>What turns a data lake into a swamp, and what fixes it?</li>
 </ul>
-<div class="callout note"><span class="lbl">Key insight</span>The lakehouse exists to solve a real operational pain: how do you do a GDPR delete, a late-arriving correction, or a schema change on a billion immutable Parquet files? The table format keeps an atomic log of which files constitute the current snapshot, so a write is &ldquo;add new files, atomically swap the manifest pointer&rdquo; &mdash; the same copy-on-write, pointer-swap pattern as an <a href="38.html">LSM-tree compaction</a> or a database&rsquo;s MVCC.</div>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>5 ideas</b> &mdash; <a href="#d1">MapReduce/shuffle</a>, <a href="#d2">Spark DAG in-memory</a>, <a href="#d3">lake/warehouse/lakehouse</a>, <a href="#d4">columnar + ELT</a>, <a href="#d5">Lambda vs Kappa</a> &mdash; each with a nested failure.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="40.html">Stream Processing &amp; CDC</a>, <a href="38.html">Storage Engines</a>, <a href="48.html">Object Storage &amp; CDN</a>, <a href="70.html">Recommendation &amp; ML Systems</a>, <a href="63.html">Ad Click Aggregation</a>.</p>
 
-<h2 id="columnar">Columnar formats &amp; ETL vs ELT</h2>
-<p>Analytics scans many rows but few columns: &ldquo;average revenue by region&rdquo; reads 2 columns out of 200. <span class="key">Columnar formats</span> &mdash; <span class="key">Parquet</span> and <span class="key">ORC</span> &mdash; store values column-by-column rather than row-by-row, which is decisive for analytical (OLAP) workloads:</p>
-<ul>
-<li><span class="key">Column pruning:</span> read only the columns the query touches &mdash; 100&times; less I/O than a row format that must read whole rows.</li>
-<li><span class="key">Compression:</span> a column holds homogeneous values, so run-length, dictionary, and delta encoding compress far better than mixed-type rows &mdash; often 5&ndash;10&times;.</li>
-<li><span class="key">Predicate pushdown:</span> per-rowgroup min/max statistics and zone maps let the reader skip entire blocks that cannot match a filter, without decompressing them.</li>
-<li><span class="key">Vectorized execution:</span> contiguous same-type values feed SIMD-friendly, batch-at-a-time operators (Spark Tungsten, Presto).</li>
-</ul>
-<p>The contrast is a row format (CSV, Avro, JSON): great for write-once, read-whole-row, streaming append (Avro is the standard wire/serialization format for <a href="39.html">Kafka</a> topics), terrible for wide-table analytics. A common pipeline lands raw events as Avro, then compacts to Parquet for the analytical layer.</p>
-
-<h4>ETL vs ELT</h4>
-<p><span class="key">ETL</span> (Extract, Transform, Load) transforms data <em>before</em> loading it into the target &mdash; the classic warehouse pattern when storage and compute were expensive and you only loaded clean, conformed data. <span class="key">ELT</span> (Extract, Load, Transform) loads raw data into a cheap lake/lakehouse first, then transforms in place using the warehouse&rsquo;s own elastic compute (the dbt + Snowflake/BigQuery pattern). ELT won for most modern stacks because object storage is cheap, compute is elastic and decoupled, and keeping the raw data lets you re-derive transforms when requirements change &mdash; the same reprocessing argument that justifies batch in the first place.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>ELT trades governance and cost discipline for flexibility. You ingest everything (cheap, flexible, but a swamp risk and a larger compliance surface) and push transformation cost into query time. ETL front-loads schema discipline and minimizes stored/queried volume but is brittle to changing requirements. Most teams land on ELT for the raw/staging layers and ETL-style curated, governed marts on top.</div>
-
-<h2 id="lambda">Lambda vs Kappa architecture</h2>
-<p>The hardest design question in big-data systems is reconciling <span class="key">fast, approximate</span> answers with <span class="key">slow, correct</span> ones.</p>
-
-<h4>Lambda architecture</h4>
-<p>Proposed by Nathan Marz, Lambda runs <span class="key">two parallel pipelines</span> over the same input:</p>
-<ul>
-<li><span class="key">Batch layer:</span> recomputes a comprehensive, correct view from the full immutable master dataset on a schedule (hours). Slow but authoritative; absorbs any bug because it always recomputes from raw.</li>
-<li><span class="key">Speed layer:</span> a stream processor computes a low-latency, approximate view over recent data only, covering the window the batch layer hasn&rsquo;t caught up to yet.</li>
-<li><span class="key">Serving layer:</span> queries merge the batch view and the speed view; as each batch run completes, it overwrites the corresponding speed-layer window.</li>
-</ul>
-<div class="callout warn"><span class="lbl">Pitfall</span>Lambda&rsquo;s fatal flaw is <span class="key">two codebases for one computation</span>. You implement the same aggregation logic twice &mdash; once in Spark batch, once in a stream processor &mdash; in different languages or APIs, and must keep them semantically identical forever. Every business-logic change is a double edit with subtle reconciliation bugs. The <a href="63.html">ad-click aggregation</a> problem is the canonical case where this dual-path tension shows up.</div>
-
-<h4>Kappa architecture</h4>
-<p>Proposed by Jay Kreps, <span class="key">Kappa</span> eliminates the batch layer entirely: there is <em>only a stream</em>. The trick is treating the immutable, replayable log (<a href="39.html">Kafka</a> with long retention, or a lakehouse table) as the system of record. &ldquo;Batch&rdquo; reprocessing becomes <span class="key">replaying the stream from the beginning</span> through the same stream-processing code &mdash; one codebase, one set of semantics. To fix a bug or change logic: deploy a new version of the job, replay the log into a fresh output, then cut over.</p>
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
 <table>
-<tr><th></th><th>Lambda</th><th>Kappa</th></tr>
-<tr><td>Codebases</td><td>Two (batch + stream)</td><td>One (stream only)</td></tr>
-<tr><td>Reprocessing</td><td>Re-run batch job</td><td>Replay log from offset 0</td></tr>
-<tr><td>Correctness model</td><td>Batch is ground truth; speed is approximate</td><td>Exactly-once stream is ground truth</td></tr>
-<tr><td>Weak spot</td><td>Logic drift between two paths</td><td>Needs long log retention &amp; mature stream engine for heavy reprocessing</td></tr>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Managed Spark / batch</td><td>EMR / Glue</td><td>Dataproc</td><td>Synapse / HDInsight</td></tr>
+<tr><td>Serverless data warehouse</td><td>Redshift / Athena</td><td>BigQuery</td><td>Synapse Analytics</td></tr>
+<tr><td>Object-storage data lake</td><td>S3</td><td>Cloud Storage</td><td>ADLS / Blob</td></tr>
+<tr><td>Lakehouse table format</td><td colspan="3">Delta Lake (Databricks), Apache Iceberg, Apache Hudi</td></tr>
 </table>
-<p>Kappa is the modern default when the stream engine (Flink, Kafka Streams, Spark Structured Streaming) provides exactly-once semantics, event-time windowing, and watermarks &mdash; covered in <a href="40.html">Stream Processing and CDC</a>. Lambda persists where batch reprocessing of enormous historical datasets (e.g. retraining over years of data, a full <a href="25.html">web-crawl</a> corpus rebuild) is fundamentally cheaper or more capable as a true batch job than replaying a stream. In practice many systems are pragmatically hybrid: a Kappa-style serving path plus periodic batch backfills for correctness audits.</p>
+<div class="callout note"><span class="lbl">The takeaway</span>Serverless warehouses (BigQuery, Athena, Redshift Serverless) let you run columnar SQL over lake files without managing a cluster &mdash; the shuffle, columnar reads, and parallelism are handled for you, and you pay per query/scanned-bytes. That billing model is why <b>columnar + partition pruning</b> (Scenario 2) directly lowers your bill, not just your latency.</div>
 
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They reason about the <em>shuffle and data layout</em> before reaching for a framework. They estimate data volume, identify which operations force a shuffle, and propose concrete reductions &mdash; broadcast joins, bucketing, partition pruning, columnar formats &mdash; with rough numbers (block size, replication factor, compression ratio). They never say &ldquo;use Spark&rdquo; without explaining <em>why</em> over MapReduce (iterative reuse, pipelined stages, lineage recovery). On the lambda/kappa question they lead with the operational cost &mdash; dual codebases vs log retention &mdash; rather than buzzwords, and they tie correctness back to immutable, replayable input and idempotent, deterministic jobs.</div>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The engines and stores made concrete. Same facets &mdash; what it is, the model, and the failure to watch.</p>
+
+<h3 id="impl-spark">Apache Spark</h3>
 <ul>
-<li>A daily job processing 5&nbsp;TB takes 6 hours and one reducer always runs 4&times; longer than the rest. Walk me through diagnosing and fixing it. (Looking for: data skew, hot key salting, AQE, broadcast vs sort-merge join.)</li>
-<li>Why is materializing intermediate results to HDFS between MapReduce jobs so expensive, and exactly how does Spark avoid it? Where does Spark <em>still</em> hit disk?</li>
-<li>We store events as JSON on S3 and queries are slow and costly. What changes and what do you trade away? (Parquet, partitioning scheme, column pruning, predicate pushdown, the small-files problem.)</li>
-<li>Argue for Kappa over Lambda for a real-time metrics pipeline, then tell me the conditions under which you&rsquo;d keep a batch layer anyway.</li>
-<li>When would you choose a lakehouse (Iceberg/Delta) over a warehouse like Snowflake, and what specifically does the table format buy you over raw Parquet files? (ACID, time travel, GDPR deletes, schema evolution, atomic manifest swap.)</li>
-<li>Your batch job failed halfway through writing output. How do you guarantee a rerun produces correct, non-duplicated results? (Idempotency, atomic commit / write-to-temp-then-rename, partition overwrite, determinism.)</li>
+<li><b>What it is.</b> The dominant general-purpose big-data engine; batch, SQL, streaming, and ML in one framework.</li>
+<li><b>Model.</b> In-memory DAG over RDDs/DataFrames with lineage-based recovery; Catalyst optimizer pushes filters/aggregations before shuffles.</li>
+<li><b>The failure to watch.</b> Memory spills and data skew (Scenario 2's straggler); over-shuffling from poorly-planned joins.</li>
 </ul>
 
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1680536708095.jpeg" alt="Batch vs stream processing for big data" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A side-by-side comparison of batch processing (MapReduce-style mapper/shuffle/reducer aggregating user clicks) versus stream processing (unbounded click streams through filtering/transformation/aggregation to sinks). <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed Spark / Hadoop</td><td>EMR</td><td>Dataproc</td><td>HDInsight / Synapse Spark</td></tr><tr><td>Serverless big-data query</td><td>Athena, Redshift</td><td>BigQuery</td><td>Synapse Analytics</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="40.html">&lsaquo; Prev: Stream Processing and CDC</a><a class="nx" href="42.html">Next: Probabilistic Data Structures &rsaquo;</a></div>
+<h3 id="impl-warehouse">Warehouses &mdash; BigQuery / Snowflake</h3>
+<ul>
+<li><b>What it is.</b> Serverless/elastic columnar SQL warehouses that separate storage from compute.</li>
+<li><b>Model.</b> Columnar storage + massively-parallel query execution; you write SQL, they handle shuffle and parallelism; billed by scanned data or compute time.</li>
+<li><b>The failure to watch.</b> <code>SELECT *</code> and unpartitioned scans bill for the whole table; design schemas columnar and partition/cluster on filter columns.</li>
+</ul>
+
+<h3 id="impl-lakehouse">Lakehouse &mdash; Delta Lake / Iceberg / Hudi</h3>
+<ul>
+<li><b>What it is.</b> Open table formats that add ACID transactions, schema enforcement, and time travel over Parquet files in object storage.</li>
+<li><b>Model.</b> A transaction log over immutable data files gives consistent reads, upserts/deletes, and "query as of yesterday" &mdash; warehouse features on lake economics.</li>
+<li><b>The failure to watch.</b> Small-file proliferation needs periodic compaction; without the table layer's governance you're back to a swamp (Scenario's Idea 3).</li>
+</ul>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you reason about the data movement. Work each before opening the approach.</p>
+
+<h3 id="ex-mr">Write a word count as MapReduce, then spot the shuffle</h3>
+<p>Express "count occurrences of each word across a terabyte of text" as map / shuffle / reduce, and identify where the network cost is and how to cut it.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p><b>Map:</b> each node reads its chunk and emits <code>(word, 1)</code> for every word &mdash; fully parallel, no network. <b>Shuffle:</b> all <code>(word, 1)</code> pairs for the same word are moved to the same reducer &mdash; the all-to-all network cost. <b>Reduce:</b> each reducer sums the 1s for its words. The cut: add a <b>map-side combiner</b> that pre-sums each word <i>locally</i> before the shuffle &mdash; emit <code>(word, localCount)</code> instead of millions of <code>(word, 1)</code>. For a terabyte of text with repeated words, this shrinks shuffle volume by orders of magnitude. Pre-aggregating before the shuffle is the single most important big-data optimization.</p>
+</div></details>
+
+<h3 id="ex-skew">Fix a skewed join</h3>
+<p>You join a billion-row events table to a users table on <code>user_id</code>, but one bot account has 40% of all events. One Spark task runs for an hour while the rest finish in minutes. Fix it.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>The bot's <code>user_id</code> is a hot key &mdash; all 40% of rows hash to one partition / one task (the straggler). Two fixes: (1) <b>Salt the hot key</b> &mdash; append a random suffix (0&ndash;N) to the bot's <code>user_id</code> on the events side and replicate the bot's user row N times with matching suffixes, so the join spreads across N tasks; combine results after. (2) If the users table is small, use a <b>broadcast (map-side) join</b> &mdash; ship the whole users table to every executor so there's no shuffle of the huge events table at all. Both attack the same root: don't let one key's data land on one machine. This is the <a href="05.html">hot-shard</a> problem inside a batch job.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Design a daily revenue pipeline.</b> Raw events land in object storage; you need an exact daily revenue report, cheaply. Choose storage format, partitioning, engine, and where to transform (ETL vs ELT). &rarr; <a href="48.html">Object Storage &amp; CDN</a>.</li>
+<li><b>Real-time + exact, one codebase.</b> Decide Lambda vs Kappa for a metrics system needing both a live count and a nightly exact recompute, and justify it. &rarr; <a href="40.html">Stream Processing &amp; CDC</a>, <a href="65.html">Metrics &amp; Monitoring</a>.</li>
+<li><b>Retrain an ML model at scale.</b> Design a batch pipeline that recomputes features and retrains nightly over petabytes, minimizing shuffle and skew. &rarr; <a href="70.html">Recommendation &amp; ML Systems</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="40.html">&lsaquo; Prev: Stream Processing &amp; CDC</a><a class="nx" href="42.html">Next: Probabilistic Data Structures &rsaquo;</a></div>
 </div>
 </div>
 </div>

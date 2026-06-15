@@ -111,105 +111,195 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Consensus and Raft</div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Consensus &amp; Raft</div>
+<h1>Consensus &amp; Raft</h1>
+<p class="sub"><em>How do a group of machines agree on one value &mdash; the next log entry, who is leader, whether a transaction committed &mdash; when any of them can crash and the network can drop or delay messages? That single problem, <b>consensus</b>, sits under almost every reliable distributed system. Raft is the algorithm that finally made it teachable.</em></p>
 
-<h1>Consensus and Raft</h1>
-<p class="sub">How a set of unreliable machines agrees on a single value &mdash; the foundation under every replicated database, lock service, and config store.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth.</b> <span>getting unreliable machines to agree, paid in a majority round-trip per decision.</span></div>
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>One agreed value across many unreliable machines &mdash; in exchange for a majority round-trip on every decision and a hard cap on how many failures you can survive.</b> <span>Consensus buys you a single source of truth that outlives any one node. You pay with latency (a <span class="gl" data-def="Quorum &mdash; a majority of nodes (more than half) that must acknowledge before a decision is committed; guarantees any two quorums overlap in at least one node.">quorum</span> must agree before anything is committed) and with a fault ceiling: a cluster of 2f+1 nodes survives only f failures.</span></div>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#problem">The consensus problem</a></li>
-<li><a href="#flp">FLP impossibility &amp; why we relax it</a></li>
-<li><a href="#raft">Raft: leader election, log replication, safety</a></li>
-<li><a href="#paxos">Paxos and Multi-Paxos</a></li>
-<li><a href="#quorum">Quorums and the R + W &gt; N rule</a></li>
-<li><a href="#practice">Where it shows up in practice</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Consensus &amp; Raft</b>
+│
+├─ <a href="#root"><b>What consensus is</b></a>  &mdash; the agreement problem, stated precisely
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#ideas"><b>The 5 ideas to understand</b></a>  &mdash; each has a misconception to avoid
+│   ├─ <a href="#i1">1. The problem &amp; FLP impossibility</a>  trap → <a href="#flp-trap">"FLP means consensus is impossible"</a>
+│   ├─ <a href="#i2">2. Leader election (terms)</a>         trap → <a href="#split-vote">"two leaders can coexist"</a>
+│   ├─ <a href="#i3">3. Log replication</a>                 trap → <a href="#commit-trap">"replicated = committed"</a>
+│   ├─ <a href="#i4">4. Safety &amp; the quorum overlap</a>    trap → <a href="#quorum-trap">"more replicas = more durable"</a>
+│   └─ <a href="#i5">5. Paxos vs Raft</a>                   trap → <a href="#paxos-trap">"Raft replaced Paxos"</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; cluster size, fault tolerance, the numbers
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; who runs consensus for you
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; consensus in real systems
+│   ├─ <a href="#impl-raft">Raft systems: etcd / Consul</a>
+│   ├─ <a href="#impl-paxos">Paxos systems: Chubby / Spanner</a>
+│   └─ <a href="#impl-zab">ZAB: ZooKeeper</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-size">Size a cluster</a>
+    ├─ <a href="#ex-election">Trace an election</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="problem">The consensus problem</h2>
-<p><span class="key">Consensus</span> is the problem of getting a group of processes to agree on a single value, even when some of those processes crash, messages are delayed or reordered, and the network partitions. It is the hardest and most fundamental problem in distributed systems, because almost every other coordination primitive &mdash; leader election, distributed locks, atomic commit, replicated state machines, group membership &mdash; reduces to it.</p>
-<p>A correct consensus algorithm must satisfy four properties:</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What consensus is</h2>
+<p><b>Consensus</b> is the problem of getting a set of machines to agree on a single value, even though some may crash and the network may delay, drop, or reorder messages. "Value" is general: it can be the next entry in a replicated log, the identity of the current leader, or the outcome (commit or abort) of a transaction. Agree on a sequence of values and you have a <b>replicated state machine</b> &mdash; every node applies the same operations in the same order, so every node ends in the same state.</p>
+<p>A correct consensus algorithm must guarantee three things at once:</p>
 <ul>
-<li><span class="key">Agreement:</span> no two correct nodes decide different values.</li>
-<li><span class="key">Validity (integrity):</span> the decided value was proposed by some node.</li>
-<li><span class="key">Termination (liveness):</span> every correct node eventually decides.</li>
-<li><span class="key">Stability:</span> once a node decides, it never changes its decision.</li>
+<li><b>Agreement</b> &mdash; no two nodes decide different values. (This is the safety property you must never violate.)</li>
+<li><b>Validity</b> &mdash; the value decided was actually proposed by some node (you can't agree on garbage).</li>
+<li><b>Termination</b> &mdash; every non-failed node eventually decides. (This is <span class="gl" data-def="Liveness &mdash; the property that the system eventually makes progress and produces a result, as opposed to safety, which is the property that it never produces a wrong result.">liveness</span> &mdash; the property that can be sacrificed temporarily without corrupting data.)</li>
 </ul>
-<p>The <span class="key">replicated state machine</span> model is the reason this matters in practice: if every replica starts in the same state and applies the same sequence of deterministic commands in the same order, every replica ends in the same state. Consensus is precisely how the cluster agrees on that command order. A consensus-backed log is therefore the spine of systems like etcd, ZooKeeper, Consul, CockroachDB, and Spanner.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Consensus trades <b>latency and a fault ceiling</b> for <b>a single, durable source of truth</b>. Every decision waits for a majority; the cluster survives fewer than half its nodes failing. In return you get a value that all survivors agree on and that outlives any individual machine. <b>It is the foundation under leader election, distributed locks, configuration stores, and atomic commit.</b></div>
 
-<h2 id="flp">FLP impossibility and why we relax it</h2>
-<p>The <span class="key">FLP result</span> (Fischer, Lynch, Paterson, 1985) proves that in a fully asynchronous system &mdash; no bound on message delay &mdash; no deterministic consensus algorithm can guarantee termination if even a single process may crash. The problem is that you cannot distinguish a crashed node from a merely slow one.</p>
-<p>Real systems escape FLP not by violating it but by <span class="key">weakening the assumptions</span>:</p>
-<ul>
-<li><span class="key">Partial synchrony:</span> assume the network is "eventually" timely. Raft and Paxos use timeouts &mdash; they remain <em>safe</em> always, and become <em>live</em> once the network behaves.</li>
-<li><span class="key">Randomization:</span> algorithms like Ben-Or terminate with probability 1.</li>
-<li><span class="key">Failure detectors:</span> an external oracle that eventually identifies crashed nodes.</li>
-</ul>
-<div class="callout note"><span class="lbl">Key insight</span>The practical lesson: production consensus algorithms <em>never sacrifice safety</em> (agreement) for liveness. During a partition they will stall rather than risk a split-brain. This is the CAP trade-off made concrete &mdash; consensus systems choose CP. See <a href="11.html">CAP Theorem</a> and <a href="31.html">Consistency Models &amp; PACELC</a>.</div>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide your answer first &mdash; the rest of the lesson is the answer. If you already know all three cold, skip to <a href="#decision-table">the numbers</a>.</p>
 
-<h2 id="raft">Raft: designed for understandability</h2>
-<p>Raft (Ongaro &amp; Ousterhout, 2014) deliberately decomposes consensus into three sub-problems so it can be reasoned about and implemented correctly. Every node is in one of three states: <span class="key">follower</span>, <span class="key">candidate</span>, or <span class="key">leader</span>. Time is divided into <span class="key">terms</span>, each beginning with an election; a term is a logical clock that lets nodes detect stale leaders.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; Cloudflare, 2 November 2020 (real incident)</span>
+A partial switch failure put part of Cloudflare's core network into a half-broken state: some nodes could reach others but not all. Their <a href="36.html">etcd</a> cluster &mdash; which uses Raft &mdash; <b>could not elect a stable leader. It kept starting elections forever and committed nothing for hours.</b> The data was safe; the cluster simply made no progress. <b>Which of consensus's three guarantees broke, and why is that the one that's allowed to break?</b></div>
 
-<h3>1. Leader election</h3>
-<p>Followers expect periodic heartbeats from the leader. If a follower's randomized election timeout (e.g. 150&ndash;300 ms) elapses without a heartbeat, it increments the term, becomes a candidate, votes for itself, and requests votes from peers. A candidate wins if it gathers votes from a <span class="key">majority</span>. Randomized timeouts make split votes rare and self-correcting.</p>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the two-leader fear</span>
+Your 5-node Raft cluster suffers a partition: 2 nodes on one side, 3 on the other. A new leader gets elected on the 3-node side. Meanwhile the old leader is still alive on the 2-node side and thinks it's in charge. <b>Can both leaders accept writes and corrupt your data? What single mechanism makes that impossible?</b></div>
 
-<h3>2. Log replication</h3>
-<p>Clients send commands to the leader. The leader appends the command to its log and sends <code>AppendEntries</code> RPCs to followers. Once a majority have persisted the entry, the leader marks it <span class="key">committed</span>, applies it to its state machine, and returns to the client. Each entry carries the term in which it was created, which is the basis of the safety argument.</p>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the durability illusion</span>
+A client sends a write. The leader copies it to one follower, then both crash before anyone else sees it. Later the cluster recovers from the remaining 3 nodes. <b>Is the write still there? When exactly is a write safe to acknowledge to the client &mdash; and why isn't "I copied it to a follower" enough?</b></div>
 
-<h3>3. Safety</h3>
-<p>The crucial guarantee is the <span class="key">Leader Completeness property</span>: a leader for a given term contains all entries committed in previous terms. Raft enforces this with the <span class="key">election restriction</span> &mdash; a node will only grant its vote to a candidate whose log is at least as up-to-date as its own. This means a node missing committed entries can never win an election, so committed entries are never lost.</p>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#flp-trap">FLP and liveness</a> &mdash; consensus can stall but never lie. Scenario 2 is <a href="#split-vote">terms and the majority rule</a>. Scenario 3 is <a href="#commit-trap">the commit point</a> &mdash; what "committed" really means. Each maps to an idea below.</i></p>
 
-<pre><code>// Simplified AppendEntries consistency check on a follower
-if (args.prevLogTerm != log[args.prevLogIndex].term) {
-    return REJECT;          // logs diverged; leader will back up and retry
-}
-appendOrOverwrite(args.entries);
-if (args.leaderCommit &gt; commitIndex) {
-    commitIndex = min(args.leaderCommit, lastNewEntryIndex);
-}</code></pre>
+<!-- ============ BRANCH 1: THE IDEAS ============ -->
+<h2 id="ideas">The five ideas to understand</h2>
+<p>Consensus isn't decisions to configure or sub-problems to build &mdash; it's a small set of ideas you must hold correctly, each guarded by a common misconception. Get the idea, avoid the trap.</p>
 
-<p>Raft also handles <span class="key">membership changes</span> safely via joint consensus (Cnew,old overlap so no two disjoint majorities can form) and bounds log growth with <span class="key">snapshotting</span> &mdash; the state machine is serialized and the log prefix discarded.</p>
+<h3 id="i1">Idea 1 &mdash; The problem, and FLP impossibility</h3>
+<p>In 1985, Fischer, Lynch and Paterson proved the <b>FLP impossibility result</b>: in a fully <span class="gl" data-def="Asynchronous network &mdash; a network model with no upper bound on message delay; you can never tell a slow node from a crashed one because a reply might just be very late.">asynchronous network</span> (no bound on message delay), no deterministic algorithm can guarantee consensus if even one node may crash. The reason is fundamental: you can never distinguish a crashed node from a merely slow one, so any algorithm can be forced to wait forever.</p>
+<p>Real systems escape FLP not by breaking it but by relaxing the model: they add <b>timeouts</b> (a partial-synchrony assumption &mdash; messages usually arrive within some bound) and often a dash of <b>randomness</b> (Raft randomizes election timeouts so two candidates rarely clash twice). This buys termination <i>in practice</i> while keeping agreement always.</p>
+<div class="callout warn"><span class="lbl" id="flp-trap">The misconception to avoid &mdash; "FLP means consensus is impossible"</span>
+This is <b>Scenario 1</b>. FLP says you cannot guarantee <i>termination</i> (liveness) in a purely asynchronous model &mdash; it does <b>not</b> say you can't agree. Raft and Paxos never violate <i>agreement</i> (safety); under a nasty partition they may simply stop making progress, which is exactly what Cloudflare's etcd did in 2020 &mdash; infinite elections, zero committed entries, but no corrupted data. <b>The deal consensus makes is: I may stall, but I will never lie.</b> A system that kept serving writes during that partition would be the dangerous one.</div>
 
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Raft funnels all writes through one leader. This makes it easy to reason about but caps write throughput at one node and adds a leader-election stall (a few hundred ms) on failover. Systems needing higher write parallelism shard the keyspace and run one Raft group per shard (CockroachDB, TiKV).</div>
+<h3 id="i2">Idea 2 &mdash; Leader election and terms</h3>
+<p>Raft makes consensus understandable by funneling everything through one elected <b>leader</b>. Time is divided into <b>terms</b> &mdash; numbered epochs, each with at most one leader. A node is a follower, a candidate, or the leader. If a follower hears nothing from a leader within its (randomized) election timeout, it bumps the term number, becomes a candidate, votes for itself, and asks the others for votes. <b>A candidate wins only if it collects votes from a majority.</b> Because each node votes for at most one candidate per term, and any two majorities overlap, <b>at most one candidate can win a given term.</b></p>
+<div class="callout warn"><span class="lbl" id="split-vote">The misconception to avoid &mdash; "two leaders can coexist and both accept writes"</span>
+This is <b>Scenario 2</b>. The old leader on the minority (2-node) side <i>still thinks</i> it's leader &mdash; but it can't get a majority to accept any new entry, so it commits nothing. The new leader has a <i>higher term number</i>; the moment the partition heals and the old leader sees that higher term, it immediately steps down. The majority-vote rule plus monotonic terms means <b>writes only ever commit on one side of any partition.</b> Two nodes can briefly <i>believe</i> they're leader; only one can ever <i>commit</i>. (A split vote &mdash; nobody gets a majority &mdash; just triggers a new election with fresh random timeouts.)</div>
 
-<h2 id="paxos">Paxos and Multi-Paxos</h2>
-<p>Paxos (Lamport) is the original and most-studied consensus algorithm. Single-decree Paxos agrees on one value through two phases &mdash; <span class="key">prepare/promise</span> and <span class="key">accept/accepted</span> &mdash; mediated by proposers, acceptors, and learners. A proposal number imposes a total order on attempts; an acceptor promises not to accept anything older.</p>
-<p><span class="key">Multi-Paxos</span> amortizes the cost for a stream of values by electing a stable leader so phase 1 is skipped for steady-state operations &mdash; the same optimization Raft bakes in by design. Paxos is famously hard to implement correctly, which is exactly why Raft was created. Functionally they are equivalent; Raft trades a small amount of generality for a large amount of clarity. <span class="key">EPaxos</span> and <span class="key">Flexible Paxos</span> are notable variants that relax the leader bottleneck or the quorum-intersection requirement.</p>
+<h3 id="i3">Idea 3 &mdash; Log replication and the commit point</h3>
+<p>Clients send commands to the leader. The leader appends each command to its log and sends it to all followers via <code>AppendEntries</code>. Here is the crucial rule: <b>an entry is "committed" only once a majority of nodes have written it to their logs.</b> Only then does the leader apply it to its state machine and reply to the client. The leader tracks a <b>commit index</b> and tells followers about it so they apply entries in the same order.</p>
+<div class="callout warn"><span class="lbl" id="commit-trap">The misconception to avoid &mdash; "replicated to one follower = committed"</span>
+This is <b>Scenario 3</b>. A write copied to only the leader + one follower (2 of 5) is <b>not</b> committed &mdash; if both crash, the remaining 3 form a majority that never saw it, and the entry is correctly discarded. That's not a bug; it's the guarantee. A write is durable <i>only</i> after a majority holds it, because then any future leader (also elected by a majority) is guaranteed to have it &mdash; the two majorities must overlap. <b>"Committed" means "a majority has it," and you must not acknowledge the client one moment sooner.</b></div>
 
-<h2 id="quorum">Quorums and the R + W &gt; N rule</h2>
-<p>Consensus relies on <span class="key">overlapping majorities</span>. With <code>N</code> replicas, any two majorities of size <code>&lfloor;N/2&rfloor; + 1</code> must share at least one node, which guarantees that a new leader sees the latest committed write. The same intersection logic generalizes to <span class="key">quorum reads/writes</span> in Dynamo-style systems: if a write must reach <code>W</code> replicas and a read must reach <code>R</code>, then <code>R + W &gt; N</code> guarantees the read set overlaps the write set, giving strong consistency for that key.</p>
+<h3 id="i4">Idea 4 &mdash; Safety and the quorum-overlap argument</h3>
+<p>Why does any of this actually work? Because <b>any two majorities of the same set must share at least one member.</b> A new leader is elected by a majority, and that majority must include at least one node from the majority that committed the last entry &mdash; so the new leader is guaranteed to have every committed entry. Raft layers extra rules on top (a candidate can't win unless its log is at least as up-to-date as the voter's; a leader never overwrites or deletes its own entries; a leader only commits entries from its <i>own</i> term directly) but the quorum overlap is the load-bearing idea.</p>
+<div class="callout warn"><span class="lbl" id="quorum-trap">The misconception to avoid &mdash; "more replicas always means more durable"</span>
+Adding nodes raises your fault tolerance only in <i>odd</i> steps, and it <i>slows every write</i> because the majority grows. A 5-node cluster tolerates 2 failures; a 6-node cluster <b>also</b> tolerates only 2 (you need 4 of 6 vs 3 of 5) while being slower and more likely to lose quorum. <b>Always run an odd number of nodes</b> &mdash; 3 or 5 is the sweet spot. Beyond ~7, the majority round-trip dominates latency and you should shard the consensus group, not grow it.</div>
+
+<h3 id="i5">Idea 5 &mdash; Paxos, Multi-Paxos, and where Raft came from</h3>
+<p><b>Paxos</b> (Lamport, 1998) was the first proven-correct consensus algorithm, but its single-decree form decides one value and is famously hard to turn into a working system. <b>Multi-Paxos</b> adds a stable leader to decide a <i>sequence</i> of values efficiently &mdash; which is what real systems need. <b>Raft</b> (Ongaro &amp; Ousterhout, 2014) was designed explicitly for understandability: it makes the leader strong, forbids gaps in the log, and separates election from replication. It is equivalent in power to Multi-Paxos, just easier to implement correctly.</p>
+<div class="callout warn"><span class="lbl" id="paxos-trap">The misconception to avoid &mdash; "Raft replaced Paxos"</span>
+Plenty of battle-tested infrastructure still runs Paxos variants &mdash; Google's <a href="36.html">Chubby</a> and <a href="33.html">Spanner</a>, for instance. Raft <i>won the teaching war</i> and dominates new open-source systems (<a href="36.html">etcd, Consul</a>), but "which consensus algorithm" is rarely your decision &mdash; you pick the <i>system</i> (etcd vs ZooKeeper) and inherit its algorithm. The thing to carry into an interview is that they all rest on the same quorum-overlap guarantee.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; cluster size and fault tolerance</h2>
+<p>The one table to memorize. A cluster of N=2f+1 nodes tolerates f failures and needs f+1 (a majority) to commit:</p>
 <table>
-<tr><th>Configuration</th><th>Effect</th></tr>
-<tr><td><code>W = N, R = 1</code></td><td>Fast reads, slow/fragile writes (any replica down blocks writes)</td></tr>
-<tr><td><code>W = 1, R = N</code></td><td>Fast writes, slow reads; good for write-heavy logs</td></tr>
-<tr><td><code>W = R = &lfloor;N/2&rfloor;+1</code></td><td>Balanced, tolerates <code>&lfloor;N/2&rfloor;</code> failures &mdash; the usual choice</td></tr>
+<tr><th>Nodes (N)</th><th>Majority needed</th><th>Failures tolerated (f)</th><th>Notes</th></tr>
+<tr><td>1</td><td>1</td><td>0</td><td>No fault tolerance &mdash; not consensus.</td></tr>
+<tr><td>3</td><td>2</td><td>1</td><td>The common minimum for production.</td></tr>
+<tr><td>5</td><td>3</td><td>2</td><td>The sweet spot for critical clusters.</td></tr>
+<tr><td>6</td><td>4</td><td>2</td><td><b>Worse than 5</b> &mdash; same tolerance, slower, easier to lose quorum. Never use even N.</td></tr>
+<tr><td>7</td><td>4</td><td>3</td><td>Rarely worth it &mdash; the majority round-trip starts to hurt latency.</td></tr>
 </table>
-<p>Why an odd <code>N</code>? Five nodes tolerate two failures; six also tolerate only two but cost more &mdash; even sizes buy no extra fault tolerance while widening the quorum.</p>
+<div class="callout note"><span class="lbl">The rule in one line</span>Run an <b>odd</b> number of nodes (3 or 5). Tolerance is <code>(N-1)/2</code>. Every committed write costs one majority round-trip, so bigger clusters are <i>more</i> available to read but <i>slower</i> to write &mdash; which is why you scale consensus by <a href="05.html">sharding into many small groups</a>, not by growing one group.</div>
 
-<h2 id="practice">Where it shows up in practice</h2>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and see if you can rebuild them.</p>
 <ul>
-<li><span class="key">etcd / Consul</span> &mdash; Raft-backed KV stores for Kubernetes config and service discovery.</li>
-<li><span class="key">ZooKeeper</span> &mdash; uses ZAB, a consensus protocol closely related to Multi-Paxos. See <a href="36.html">Leader Election &amp; Coordination</a>.</li>
-<li><span class="key">Spanner / CockroachDB / TiKV</span> &mdash; one Raft/Paxos group per data range for horizontally scalable strong consistency.</li>
-<li><span class="key">Kafka</span> &mdash; KRaft mode replaced the ZooKeeper dependency with an internal Raft quorum. See <a href="39.html">Kafka &amp; Log-based Messaging</a>.</li>
+<li><b>Scenario 1 (Cloudflare etcd):</b> Which of agreement / validity / termination broke during the partition, and why is that the one consensus is allowed to sacrifice? What does FLP actually prove?</li>
+<li><b>Scenario 2 (two leaders):</b> Why can the old leader on the minority side never corrupt data, even though it still thinks it's leader? What two mechanisms guarantee one committer per term?</li>
+<li><b>Scenario 3 (commit point):</b> Exactly when is a write safe to acknowledge, and why is "copied to one follower" not enough? State the quorum-overlap argument.</li>
+<li>Why must you run an odd number of nodes? What does a 6-node cluster buy you over a 5-node one?</li>
+<li>What is the difference between Paxos, Multi-Paxos, and Raft &mdash; and why is the choice rarely yours to make directly?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> consensus is <b>5 ideas</b> &mdash; <a href="#i1">FLP (stall, don't lie)</a>, <a href="#i2">leader election by majority + terms</a>, <a href="#i3">commit = majority holds it</a>, <a href="#i4">safety from quorum overlap</a>, <a href="#i5">Paxos/Raft are the same guarantee</a> &mdash; each guarded by a misconception.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="11.html">CAP Theorem</a>, <a href="31.html">Consistency Models</a>, <a href="36.html">Leader Election &amp; Coordination</a>, <a href="09.html">Replication</a>, <a href="32.html">Distributed Transactions</a>.</p>
+
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<p>You almost never implement Raft yourself &mdash; you consume a system that has. These are the managed places consensus lives:</p>
+<table>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Coordination / config / locks (consensus store)</td><td>&mdash; (run etcd/ZooKeeper on EC2, or use DynamoDB for locks)</td><td>&mdash; (GKE runs etcd for you)</td><td>&mdash; (AKS runs etcd for you)</td></tr>
+<tr><td>Managed Kubernetes (etcd hidden)</td><td>EKS</td><td>GKE</td><td>AKS</td></tr>
+<tr><td>Globally-consistent database (Paxos/Raft inside)</td><td>Aurora / DynamoDB global tables</td><td>Cloud Spanner</td><td>Cosmos DB</td></tr>
+<tr><td>Service discovery / health</td><td>Cloud Map</td><td>Service Directory</td><td>App Configuration</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>The big cloud databases that promise strong consistency (Spanner, DynamoDB, Cosmos) run a consensus protocol internally for every replicated write &mdash; you pay for the majority round-trip in their latency numbers whether you see it or not.</div>
+
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The theory made concrete. Same facets for each &mdash; algorithm, what it stores, how clients use it, and the failure to watch.</p>
+
+<h3 id="impl-raft">Raft systems &mdash; etcd / Consul</h3>
+<ul>
+<li><b>Algorithm.</b> Raft, exactly as described above (leader, terms, log replication, majority commit).</li>
+<li><b>What it stores.</b> A replicated key-value store for <i>small, critical</i> metadata: leader identity, cluster membership, config, distributed locks. <a href="36.html">etcd</a> is the backing store for all of Kubernetes.</li>
+<li><b>How clients use it.</b> Watches (notify me when this key changes), leases (a key that expires if not renewed), compare-and-swap. These are the primitives you build leader election and locks on.</li>
+<li><b>The failure to watch.</b> The Cloudflare 2020 case &mdash; a partial network failure can cause endless elections and total stall. Keep the cluster small (3 or 5), low-latency, and off the critical path where a stall would take everything down.</li>
 </ul>
 
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They reach for consensus only where it is actually required &mdash; metadata, leader election, config, small critical state &mdash; and keep it <em>off</em> the high-throughput data path. They know consensus is expensive (a majority round-trip per decision) and bound its blast radius by sharding into many small groups.</div>
-<p>Probing questions to ask engineers:</p>
+<h3 id="impl-paxos">Paxos systems &mdash; Chubby / Spanner</h3>
 <ul>
-<li>"You said you'll use a leader. What happens to in-flight writes during failover, and how long is the unavailability window?"</li>
-<li>"Why is the cluster size 3 or 5 and not 4 or 6?"</li>
-<li>"Your design puts every user write through Raft. What's the throughput ceiling, and how would you raise it?"</li>
-<li>"How does a newly elected leader know it has all committed entries?"</li>
+<li><b>Algorithm.</b> Multi-Paxos with a stable leader.</li>
+<li><b>What it stores.</b> <a href="36.html">Chubby</a> is Google's coarse-grained lock service and small-file store; <a href="33.html">Spanner</a> runs Paxos <i>per shard</i> (per "Paxos group") to replicate data across datacenters.</li>
+<li><b>How clients use it.</b> Chubby: acquire a lock / read a config file. Spanner: ordinary SQL &mdash; the consensus is invisible, paid for in <a href="33.html">TrueTime commit-wait</a> latency.</li>
+<li><b>The failure to watch.</b> Same fault ceiling; Spanner sidesteps the "one group is slow" problem by sharding into thousands of independent Paxos groups so no single majority round-trip gates the whole database.</li>
 </ul>
 
-<div class="navfoot"><a href="29.html">&lsaquo; Prev: Design BookMyShow</a><a class="nx" href="31.html">Next: Consistency Models and PACELC &rsaquo;</a></div>
+<h3 id="impl-zab">ZAB &mdash; ZooKeeper</h3>
+<ul>
+<li><b>Algorithm.</b> ZAB (ZooKeeper Atomic Broadcast) &mdash; a consensus protocol predating Raft, similar in spirit: one leader, majority commit, totally-ordered broadcast of updates.</li>
+<li><b>What it stores.</b> A hierarchical namespace of small nodes (znodes) &mdash; the original coordination kernel that Kafka, HBase, and Hadoop leaned on.</li>
+<li><b>How clients use it.</b> Ephemeral znodes + watches &mdash; the classic recipe for leader election and membership (covered in <a href="36.html">Leader Election &amp; Coordination</a>).</li>
+<li><b>The failure to watch.</b> Same odd-cluster, majority-quorum constraints; a minority partition goes read-only.</li>
+</ul>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Consensus sticks when you reason it through. Work each one before opening the approach.</p>
+
+<h3 id="ex-size">Size a cluster for a target fault tolerance</h3>
+<p>Your coordination store must survive any 2 node failures and you want the cheapest cluster that does. How many nodes, and what's the majority? What happens to write latency if you double that to survive 4 failures?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Tolerating f=2 needs N=2f+1=5 nodes, majority = 3. To survive f=4 you need N=9, majority = 5 &mdash; every commit now waits for the slowest of 5 nodes instead of 3, and you've nearly doubled the gossip and replication traffic. The lesson: fault tolerance grows linearly in nodes but write latency and coordination cost grow with the majority size, so production almost never goes past 5 in one group &mdash; it shards into many 3- or 5-node groups instead (see Spanner's per-shard Paxos).</p>
+</div></details>
+
+<h3 id="ex-election">Trace an election through a partition</h3>
+<p>A 5-node cluster (terms currently at 7) partitions into {A,B} and {C,D,E}, where A was leader. Walk through what each side does, what term numbers result, and what happens when the partition heals.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>On {A,B}: A stays leader at term 7 but can never reach a 3-node majority, so it commits nothing &mdash; client writes time out. On {C,D,E}: they stop hearing A, time out, and one (say C) bumps the term to 8, campaigns, and wins 3 votes &mdash; a valid majority. C now commits writes at term 8. On heal: A receives a message with term 8 > 7, recognizes a newer term, and immediately steps down to follower, discarding any uncommitted term-7 entries that conflict with C's log. No data committed on the majority side is ever lost; nothing committed on the minority side ever existed. One committer per term, guaranteed.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Build leader election on a consensus store.</b> Using only "create-if-not-exists" + an expiring lease + a watch, design leader election so exactly one node leads and a new one takes over within seconds of a crash. &rarr; <a href="36.html">Leader Election &amp; Coordination</a>.</li>
+<li><b>Make the stall tolerable.</b> Your metadata store can go unavailable on the minority side during a partition (by design). Architect the surrounding system so a consensus stall degrades gracefully instead of taking the product down. &rarr; <a href="51.html">Resilience Patterns</a>, <a href="11.html">CAP Theorem</a>.</li>
+<li><b>Scale consensus past one group.</b> A single Raft group can't handle your write volume. Design a sharding scheme (many independent groups) and decide what crosses group boundaries &mdash; and what that costs you. &rarr; <a href="05.html">Sharding</a>, <a href="32.html">Distributed Transactions</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="29.html">&lsaquo; Prev: BookMyShow</a><a class="nx" href="31.html">Next: Consistency Models &amp; PACELC &rsaquo;</a></div>
 </div>
 </div>
 </div>

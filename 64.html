@@ -111,154 +111,193 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Locking Service</div>
-
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Distributed Locking</div>
 <h1>Designing a Distributed Locking Service</h1>
-<p class="sub">Mutual exclusion across machines that crash and partition &mdash; why locks need consensus, why TTLs alone are unsafe, and why fencing tokens are the real fix.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth.</b> <span>mutual exclusion across machines, paid in a consensus-backed lease and fencing tokens.</span></div>
+<p class="sub"><em>Sometimes exactly one process must do a thing at a time &mdash; run a leader, touch a shared resource, avoid a double-charge. A <b>distributed lock</b> coordinates that across machines that can crash, pause, and partition. It looks simple ("acquire, do work, release") and is one of the most subtly dangerous things to build &mdash; because a held lock <i>never</i> truly guarantees exclusivity, which is the heart of the famous Kleppmann&ndash;antirez debate.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#req">Requirements and scope</a></li>
-<li><a href="#need">Do you actually need a distributed lock?</a></li>
-<li><a href="#why-consensus">Why a lock needs consensus underneath</a></li>
-<li><a href="#leases">Lease-based locks with TTL</a></li>
-<li><a href="#fencing">The fencing-token problem</a></li>
-<li><a href="#zk">Sessions and ephemeral nodes (ZooKeeper / Chubby)</a></li>
-<li><a href="#redlock">The Redlock debate</a></li>
-<li><a href="#api">A reference design and API</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Mutual exclusion across unreliable machines &mdash; in exchange for the truth that no lock alone guarantees exclusivity, so correctness needs fencing tokens enforced by the protected resource.</b> <span>A lock service lets one process proceed while others wait. But a holder can be paused or partitioned and lose the lock without knowing &mdash; so you pay by requiring a fencing token the resource checks, and by accepting that "I hold the lock" is never enough on its own.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; we walk the design top to bottom, then deep-dive the hard parts</div>
+<pre class="tree">
+<b>Designing a Distributed Locking Service</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>
+├─ <a href="#api"><b>3. The API</b></a>  &mdash; acquire / release / fencing token
+├─ <a href="#highlevel"><b>4. High-level design</b></a>  &mdash; consensus-backed lock store
+├─ <a href="#datamodel"><b>5. Lock model</b></a>  &mdash; lease + owner + fencing token
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+│
+├─ <a href="#subproblems"><b>The 4 hard sub-problems</b></a>
+│   ├─ <a href="#s1">1. The held lock is never truly exclusive</a> fail → <a href="#zombie">the zombie holder</a>
+│   ├─ <a href="#s2">2. Leases &amp; liveness (no deadlock)</a>     fail → <a href="#deadlock">the held-forever lock</a>
+│   ├─ <a href="#s3">3. The lock store's own correctness</a>   fail → <a href="#redlock">unsafe lock (Redlock)</a>
+│   └─ <a href="#s4">4. Efficiency vs correctness locks</a>     fail → <a href="#wrong-grade">wrong lock grade</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
 </div>
 
-<h2 id="req">Requirements and scope</h2>
-<p>The brief: design a service that lets independent processes &mdash; running on different machines, in different datacenters, with no shared memory &mdash; coordinate exclusive access to a resource. This is the role played by <span class="key">Google Chubby</span>, <span class="key">Apache ZooKeeper</span>, <span class="key">etcd</span>, and <span class="key">HashiCorp Consul</span> in real fleets.</p>
-<p>Functional requirements:</p>
+<!-- ============ 1. REQUIREMENTS ============ -->
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> <code>acquire(lockName)</code> grants the lock to at most one client; <code>release</code> frees it; locks <span class="gl" data-def="Lease &mdash; a lock held only for a TTL; the holder must renew (heartbeat) to keep it, so a crashed holder's lock auto-expires, preventing permanent deadlock.">auto-expire</span> if the holder dies (no permanent deadlock); support <b>fencing tokens</b> for correctness-critical use; ideally fair (FIFO) waiting.</p>
+<p><b>Non-functional:</b> <b>safety &mdash; at most one holder</b> (or, more precisely, at most one <i>effective</i> holder, see <a href="#s1">sub-problem 1</a>); <b>liveness</b> (a crashed holder's lock is eventually released); <b>highly available</b> (the lock service itself isn't a SPOF); <b>low latency</b> (acquire/release are fast); correct under crashes, pauses, and partitions.</p>
+
+<!-- ============ 2. CAPACITY ============ -->
+<h2 id="capacity">2. Capacity estimate</h2>
+<p>Lock services are about <b>correctness, not throughput</b> &mdash; but the numbers still shape the design:</p>
 <ul>
-<li><span class="key">Mutual exclusion:</span> at most one client holds a named lock at any instant.</li>
-<li><span class="key">Acquire / release / try-acquire</span> with optional blocking and a wait queue (fairness).</li>
-<li><span class="key">Shared/exclusive (read/write)</span> modes are a common extension.</li>
-<li>Lock <span class="key">ownership metadata</span> &mdash; who holds it, since when &mdash; for debugging and observability.</li>
+<li><b>Lock rate:</b> say tens of thousands of acquire/release per second across the system. <b>Consequence: modest &mdash; a small <a href="30.html">consensus</a> cluster (3&ndash;5 nodes) handles it; lock services don't need to scale to millions of QPS, they need to be <i>correct</i>.</b></li>
+<li><b>Cluster size:</b> the lock store must survive node failure without two holders, so it's <a href="30.html">consensus</a>-backed (3 or 5 nodes, majority quorum). <b>Consequence: every lock grant is a consensus write &mdash; a majority round-trip &mdash; which bounds latency and is why you keep the cluster small and don't put locks on ultra-hot paths.</b></li>
+<li><b>The real constraint is correctness under failure:</b> the hard part isn't load, it's that holders pause (GC), clocks drift, and networks partition &mdash; so the design is dominated by <i>safety under adverse timing</i>, not capacity. <b>Consequence: spend the design budget on fencing and lease semantics, not sharding.</b></li>
 </ul>
-<p>Non-functional requirements &mdash; these dominate the design:</p>
-<ul>
-<li><span class="key">Safety:</span> never grant the same exclusive lock to two clients. This is non-negotiable and must survive crashes, GC pauses, and partitions.</li>
-<li><span class="key">Liveness (no deadlock):</span> if a lock holder crashes, the lock must eventually be reclaimable. A lock you can never release is worse than no lock.</li>
-<li><span class="key">Fault tolerance:</span> the service survives the loss of a minority of nodes.</li>
-<li><span class="key">Low, predictable latency</span> for acquire/release; locks sit on the hot path.</li>
-</ul>
-<div class="callout warn"><span class="lbl">Pitfall</span>Safety and liveness pull in opposite directions. To guarantee liveness you must time out crashed holders; but a "crashed" holder can just be paused (GC, VM migration, network blip) and wake up still believing it holds the lock. Reconciling these two is the entire substance of this problem.</div>
 
-<h2 id="need">Do you actually need a distributed lock?</h2>
-<p>A principal should open by interrogating the requirement, because distributed locks are reached for far too often and are a frequent source of correctness bugs. There are two legitimate purposes, and they have very different bars:</p>
-<ul>
-<li><span class="key">Efficiency:</span> avoid doing duplicate work (e.g. only one worker regenerates a cache entry). A rare double-execution is merely wasteful. A weak, single-node lock is fine here.</li>
-<li><span class="key">Correctness:</span> two clients writing the same resource would corrupt data or double-charge a customer. Here a single violation is a catastrophe, and you need the full machinery below.</li>
-</ul>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They ask <em>"efficiency or correctness?"</em> first. If correctness, they push back on whether a lock is even the right tool: often the better answer is to make the operation idempotent, use an atomic compare-and-swap / conditional write on the resource itself, partition work so a single owner is structurally guaranteed (e.g. Kafka partition assignment), or use a database transaction. A lock is a coordination band-aid layered <em>outside</em> the system of record; pushing the invariant <em>into</em> the system of record is almost always safer.</div>
-<p>This connects directly to <a href="60.html">Designing a Distributed Job Scheduler</a> (ensuring a task runs once) and <a href="36.html">Leader Election and Coordination</a> (a "lock held forever by one process" is just leader election).</p>
+<!-- ============ 3. API ============ -->
+<h2 id="api">3. The API</h2>
+<pre class="tree" style="border:none;background:var(--code-bg,#f6f8fa);padding:12px;border-radius:8px">
+acquire(lockName, ttl) -> { acquired: bool, fencingToken: int }   // token is monotonic
+renew(lockName, fencingToken, ttl) -> bool                         // extend the lease
+release(lockName, fencingToken) -> bool
+</pre>
+<p>The <b>fencing token</b> &mdash; a <span class="gl" data-def="Fencing token &mdash; a monotonically increasing number issued per lock acquisition; the protected resource records the highest seen and rejects writes with a lower token, blocking a zombie holder.">monotonically increasing number</span> returned on each acquisition &mdash; is the most important part of the API and the thing most naive lock services omit. The client must pass it to the <b>protected resource</b> on every operation; the resource rejects stale tokens (<a href="#s1">sub-problem 1</a>). <code>ttl</code> makes the lock a <b>lease</b> that auto-expires if not renewed.</p>
 
-<h2 id="why-consensus">Why a lock needs consensus underneath</h2>
-<p>The naive design &mdash; a single server holding an in-memory hash of <code>lockName &rarr; owner</code> &mdash; gives perfect mutual exclusion until that server dies, at which point every lock is lost and liveness is gone. To be fault tolerant you must replicate the lock state, and the instant you replicate state across machines you are forced to solve agreement: which replica's view of "who holds lock L" is authoritative when they disagree?</p>
-<p>That is the <span class="key">consensus</span> problem. A distributed lock service is, at its core, a thin API over a <span class="key">replicated state machine</span> driven by a consensus log &mdash; Raft in etcd and Consul, Zab (a Paxos relative) in ZooKeeper, Paxos in Chubby. The lock state is just an entry in a consistently-replicated, linearizable key-value store. "Acquire lock L" becomes a CAS append to the consensus log: <em>create key <code>/locks/L</code> if it does not exist</em>. Because consensus gives <span class="key">linearizability</span>, every client sees a single agreed history of acquisitions and releases.</p>
-<div class="callout note"><span class="lbl">Key insight</span>You cannot build a <em>correct</em> distributed lock on top of a store that lacks linearizable, fault-tolerant compare-and-set. That is why locks are built on Chubby/ZooKeeper/etcd and not on an eventually-consistent store or a single Redis node. The lock service inherits the CP nature of its consensus core (see <a href="30.html">Consensus and Raft</a> and <a href="11.html">CAP Theorem</a>): during a partition the minority side cannot grant locks, by design.</div>
-<p>The consensus layer also gives a clean answer to ordering and fairness. Because every operation is sequenced in the replicated log, the service can hand out locks in request order and there is a single global timeline of events (relevant when reasoning about happens-before; see <a href="33.html">Time, Clocks and Ordering</a>).</p>
+<!-- ============ 4. HIGH-LEVEL ============ -->
+<h2 id="highlevel">4. High-level design</h2>
+<p>The lock store is a small, strongly-consistent, <a href="30.html">consensus</a>-backed key-value service (<a href="36.html">etcd / ZooKeeper / Chubby</a>). <code>acquire(lockName)</code> is an atomic <b>create-if-not-exists</b> on a key, replicated via consensus so only one client can win even across failures &mdash; the majority quorum guarantees a single winner. The key holds the owner and a <b>lease</b> (TTL); the holder <b>renews</b> (heartbeats) to keep it. If the holder stops renewing (crash/pause), the lease expires and the lock becomes acquirable again. Each acquisition returns a <b>fencing token</b> (the key's monotonically increasing version), which the holder presents to the protected resource. The consensus backing is what makes the store itself safe (no split-brain granting two holders).</p>
 
-<h2 id="leases">Lease-based locks with TTL</h2>
-<p>To prevent a crashed holder from deadlocking the lock forever, locks are granted as <span class="key">leases</span>: a lock is held only for a bounded time-to-live (TTL), and the holder must <span class="key">renew</span> (heartbeat) before expiry to keep it. If the holder crashes, it stops renewing, the lease expires, and the service reclaims the lock automatically.</p>
-<pre><code>// Client side: acquire then keep alive
-lease = locks.acquire("L", ttl=15s)        // CAS create in consensus store
-spawn renewer:
-    every 5s: locks.renew(lease)            // extend TTL while alive
-do_work_under_lock()
-locks.release(lease)
-stop renewer</code></pre>
-<p>The TTL is a tension knob. <span class="key">Short TTL</span> = fast crash recovery but more renewal traffic and higher risk of false expiry under load. <span class="key">Long TTL</span> = cheap, but a crashed holder blocks others for a long time. etcd implements this with a <code>Lease</code> object that keys attach to; ZooKeeper achieves the same effect via <em>session</em> timeouts (below).</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Time-based leases require <em>bounded clock drift</em> and <em>bounded scheduling delay</em> to be safe. Neither is guaranteed in practice: a stop-the-world GC pause, a hypervisor freezing a VM for live migration, or a long disk stall can exceed any TTL you pick. This is exactly where TTL-only locks become <em>unsafe</em>, which motivates fencing tokens.</div>
-
-<h2 id="fencing">The fencing-token problem</h2>
-<p>This is the heart of the lesson and Martin Kleppmann's well-known critique. Consider the failure timeline that any TTL-based lock permits:</p>
-<ol>
-<li>Client&nbsp;1 acquires lock L with a 15s lease and begins writing to a shared store.</li>
-<li>Client&nbsp;1 hits a <span class="key">stop-the-world GC pause</span> (or VM migration, or a swapped-out page) lasting 20s.</li>
-<li>The lease expires at 15s. The lock service, correctly, reclaims L and grants it to Client&nbsp;2.</li>
-<li>Client&nbsp;2 begins writing to the shared store.</li>
-<li>Client&nbsp;1 resumes from its pause &mdash; <em>still believing it holds the lock</em> &mdash; and issues its delayed write.</li>
-</ol>
-<p>Now two clients write concurrently. The lock service did nothing wrong; the lock was correctly exclusive at every instant according to its own clock. The bug is that <span class="key">the client's belief about holding the lock is stale</span>, and the protected resource has no way to know that. <strong>No TTL, however carefully tuned, closes this hole</strong> &mdash; the pause can always exceed it, and you cannot detect "this node is paused" from inside the node.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>Adding a "check the lock again right before writing" step does <em>not</em> fix this. The pause can occur in the window between the check and the write. Mutual exclusion on the lock does not imply mutual exclusion on the resource; the gap between them is unbounded.</div>
-<h3>The fix: monotonic fencing tokens</h3>
-<p>The lock service returns, with every grant, a <span class="key">fencing token</span> &mdash; a number that strictly increases on each successful acquisition (a monotonic counter maintained in the consensus log; ZooKeeper's <code>zxid</code> / per-node version, etcd's <code>revision</code>, serve this role). The client passes this token on every write to the protected resource, and the resource (or its storage layer / gateway) <span class="key">rejects any write carrying a token lower than the highest it has already seen</span>.</p>
-<pre><code>// Lock service
-token = consensus.next_monotonic_token()    // strictly increasing, never reused
-grant(client, lease, token)
-
-// Protected storage, on every write
-def write(data, fencing_token):
-    if fencing_token &lt;= self.max_seen_token:
-        reject("stale token")                // an old, paused holder is fenced out
-    self.max_seen_token = fencing_token
-    apply(data)</code></pre>
-<p>Replaying the timeline: Client&nbsp;1 holds token 33, Client&nbsp;2 gets token 34. When Client&nbsp;2 writes, the store records max_seen=34. When the paused Client&nbsp;1 finally writes with token 33, the store sees 33&nbsp;&le;&nbsp;34 and rejects it. The stale holder is <span class="key">fenced</span>.</p>
-<div class="callout note"><span class="lbl">Key insight</span>The lock service alone can never guarantee correctness, because correctness depends on what the <em>resource</em> does. Fencing pushes the final enforcement into the resource itself: the lock orders intentions, the fencing token lets the resource reject out-of-order effects. A correctness-critical design that uses a lock <em>without</em> a fencing mechanism on the protected resource is, by Kleppmann's argument, simply broken &mdash; and a strong engineer will name this explicitly.</div>
-<p>The catch: this only works if the protected resource can <em>check and store</em> a token. Many can (databases via a <code>WHERE token &gt; ?</code> conditional update, object stores via conditional writes / preconditions). Some cannot &mdash; an arbitrary side-effecting API with no idempotency or versioning support cannot be safely fenced, which is itself a signal that a lock is the wrong tool for that interaction.</p>
-
-<h2 id="zk">Sessions and ephemeral nodes (ZooKeeper / Chubby)</h2>
-<p>ZooKeeper offers an elegant lock primitive built on two features. A <span class="key">session</span> is a client&ndash;cluster connection with a negotiated timeout; the client heartbeats to keep it alive, and if heartbeats stop the session expires server-side. An <span class="key">ephemeral znode</span> is a node tied to a session &mdash; when the session ends (crash, network loss, expiry) the ZooKeeper cluster automatically deletes the node. This is the lease mechanism realized as data, with crash-cleanup handled by the cluster rather than the client.</p>
-<p>The canonical recipe avoids the <span class="key">herd effect</span> (every waiter waking on each release) by using sequential ephemeral nodes and each waiter watching only its immediate predecessor:</p>
-<pre><code>// ZooKeeper exclusive lock recipe
-1. create("/lock/req-", EPHEMERAL | SEQUENTIAL)   // -&gt; /lock/req-0000000017
-2. children = sorted(getChildren("/lock"))
-3. if my node is the lowest sequence number: LOCK ACQUIRED
-4. else: set a watch on the ONE node just below mine; wait
-5. on watch fire (predecessor gone): go to step 2</code></pre>
-<p>This gives FIFO fairness, no thundering herd, and automatic release on crash. The sequence number doubles as a coarse ordering, and ZooKeeper's <code>zxid</code> can serve as the fencing token. Chubby (Google) is philosophically similar &mdash; a small, Paxos-replicated, strongly consistent filesystem-like store whose primary <em>use</em> turned out to be name resolution, not the coarse-grained locking it was built for.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>ZooKeeper/Chubby deliberately target <span class="key">coarse-grained</span> locks &mdash; held for minutes to hours, low acquisition rate (leader election, config ownership, shard assignment). They are <em>not</em> built for fine-grained, high-churn locks taken millions of times per second; the consensus write per acquisition makes that prohibitively expensive. If you need fine-grained locking, redesign so the contention lives inside a sharded data store, not a global coordinator.</div>
-
-<h2 id="redlock">The Redlock debate</h2>
-<p>Redis is fast and tempting, so it is constantly used for locking. The key distinctions:</p>
-<ul>
-<li><span class="key">Single-node Redis lock</span> &mdash; <code>SET resource token NX PX 15000</code> &mdash; is fine for the <em>efficiency</em> use case but unsafe for <em>correctness</em>. Redis replication is asynchronous: if the master grants a lock and crashes before replicating to its replica, the promoted replica has no record of the lock, and a second client can acquire it. Mutual exclusion is silently violated.</li>
-<li><span class="key">Redlock</span> is Redis's multi-node algorithm: acquire the lock on a majority of N independent Redis masters within a time bound. The argument is that majority acquisition tolerates a minority of node failures.</li>
-</ul>
-<p><span class="key">The debate.</span> Kleppmann argued Redlock is unsafe for correctness because it relies on <em>wall-clock timing assumptions</em> rather than consensus: clock jumps (NTP steps), GC pauses, and process stalls can cause two clients to believe they hold the lock simultaneously, and Redlock provides <em>no fencing token</em> to backstop that. Antirez (Redis's author) rebutted that the timing assumptions are reasonable in practice and that fencing can be layered on top. The principal-level takeaways are durable regardless of who "won":</p>
-<ol>
-<li>For correctness-critical locks, prefer a system whose safety rests on <span class="key">consensus</span> (etcd, ZooKeeper, Consul), not on synchronized clocks.</li>
-<li>Whatever lock you use, if correctness matters you still need <span class="key">fencing tokens on the resource</span> &mdash; the lock service alone is never sufficient. This is the through-line that makes the Redlock argument secondary.</li>
-<li>For pure efficiency locks, a single-node Redis lock is pragmatic, cheap, and entirely defensible. Match the mechanism to the cost of a violation.</li>
-</ol>
-
-<h2 id="api">A reference design and API</h2>
-<p>Putting it together: a lock service is a stateless API tier in front of a 3- or 5-node consensus cluster (Raft). The API tier routes writes to the current Raft leader; the cluster tolerates the loss of a minority (1 of 3, 2 of 5).</p>
+<!-- ============ 5. LOCK MODEL ============ -->
+<h2 id="datamodel">5. Lock model &mdash; lease + owner + fencing token</h2>
 <table>
-<tr><th>Operation</th><th>Semantics</th><th>Returns</th></tr>
-<tr><td><code>acquire(name, ttl, mode)</code></td><td>CAS-create lock key via consensus; block or queue if held</td><td>lease handle + <span class="key">fencing token</span></td></tr>
-<tr><td><code>tryAcquire(name, ttl)</code></td><td>Non-blocking; fail fast if held</td><td>lease | null</td></tr>
-<tr><td><code>renew(lease)</code></td><td>Extend TTL; fails if lease already expired/lost</td><td>ok | LOST</td></tr>
-<tr><td><code>release(lease)</code></td><td>Delete lock key via consensus</td><td>ok</td></tr>
-<tr><td><code>watch(name)</code></td><td>Notify on release (avoids polling / herd)</td><td>stream</td></tr>
+<tr><th>Field</th><th>Purpose</th></tr>
+<tr><td><code>lockName</code> (the key)</td><td>What's being locked</td></tr>
+<tr><td><code>owner</code></td><td>Which client/session holds it</td></tr>
+<tr><td><code>leaseExpiry</code></td><td>When it auto-releases if not renewed (liveness)</td></tr>
+<tr><td><code>fencingToken</code> (monotonic)</td><td>Increments on every acquisition; the resource enforces ordering</td></tr>
 </table>
-<p>Critical client-side contract: the <code>renew</code> call must return <code>LOST</code> if the lease expired, and the application <strong>must stop work immediately and not write</strong> if it ever observes a lost lease &mdash; but because of the pause problem, it must <em>also</em> carry the fencing token on every protected write rather than trusting its local belief. Observability matters too: emit metrics for lock hold time, contention/wait time, renewal failures, and lease expirations &mdash; a sudden spike in expirations usually means GC or network trouble, not crashes (see <a href="50.html">Observability</a>).</p>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They sketch the full chain &mdash; consensus core for safety, leases for liveness, fencing tokens for the GC-pause hole &mdash; and they state which guarantee each layer provides and which failure each one does <em>not</em> cover. They size the lock granularity to the contention rate, and they keep returning to "what breaks if a holder pauses for 30 seconds?" as the litmus test for every design choice.</div>
+<p>The fencing token is typically the key's <b>version/revision number</b> from the consensus store (etcd's mod-revision, ZooKeeper's zxid) &mdash; guaranteed to increase with each change, so a later acquisition always has a strictly higher token than an earlier one.</p>
 
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They refuse to treat "distributed lock" as a black box. They distinguish efficiency from correctness up front, recognize that a fault-tolerant lock is a consensus problem in disguise, and &mdash; the discriminator &mdash; they raise the fencing-token / GC-pause problem <em>unprompted</em> and explain that the lock service can never guarantee correctness on its own; the protected resource must reject stale tokens. They treat Redlock skeptically for correctness-critical paths and reach for idempotency or conditional writes before reaching for a lock at all.</div>
-<p>Sharp questions to test your own understanding:</p>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the GC pause that broke mutual exclusion (the Kleppmann argument)</span>
+Client A acquires the lock and starts writing to the shared resource. Mid-operation, A suffers a long <a href="33.html">GC pause</a>. Its lease expires; client B legitimately acquires the lock and writes. Then A wakes up &mdash; <i>still believing it holds the lock</i> &mdash; and writes too. Two writers, corruption. <b>What single mechanism makes A's stale write impossible, and why does no timeout value fix this?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the holder crashed and the lock is stuck forever</span>
+A client acquires a lock and crashes before releasing it. With a naive lock (acquire/release, no expiry), the lock is held <b>forever</b> &mdash; every other client waits indefinitely. <b>How do you ensure a dead holder's lock is freed, and what new risk does that introduce?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; Redlock: is a multi-Redis lock safe? (the real debate)</span>
+A popular pattern (Redlock) acquires a lock across several independent Redis nodes for "high availability." Martin Kleppmann argued it's unsafe for correctness; antirez (Redis's creator) rebutted. <b>What's the disagreement, and when is a Redis-based lock acceptable vs dangerous?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#zombie">the held lock is never truly exclusive (fencing)</a>. Scenario 2 is <a href="#deadlock">leases &amp; liveness</a>. Scenario 3 is <a href="#redlock">the lock store's correctness</a>. Each maps to a sub-problem.</i></p>
+
+<!-- ============ SUB-PROBLEMS ============ -->
+<h2 id="subproblems">The four hard sub-problems</h2>
+<p>The acquire/release flow is trivial; the correctness is brutal. These four are why distributed locks are dangerous &mdash; each with a nested failure.</p>
+
+<h3 id="s1">Sub-problem 1 &mdash; A held lock is never <i>truly</i> exclusive</h3>
+<p>The fundamental truth: between the moment a client checks "do I hold the lock?" and the moment it acts on the resource, it can be <b>paused (GC), descheduled, or partitioned</b> for arbitrarily long &mdash; long enough for its lease to expire and another client to acquire. So a client can <i>believe</i> it holds the lock when it no longer does. No lock service can prevent this, because it can't control the holder's pauses. The only robust defense is a <b>fencing token</b>: the resource itself enforces ordering.</p>
+<div class="callout warn"><span class="lbl" id="zombie">The failure that happens when you get this wrong &mdash; the zombie holder</span>
+This is <b>Scenario 1</b>, and the core of the Kleppmann argument. A paused holder (A, token 33) wakes after its lease expired and B (token 34) already acquired and wrote &mdash; A then writes with its stale belief, corrupting data. <b>No timeout value fixes this</b>: too long and a real failure stalls everyone; too short and a normal GC pause makes you a zombie &mdash; and the pause can always exceed any chosen timeout. The <i>only</i> robust fix is the <b>fencing token</b>: each acquisition gets a monotonically increasing token; the client sends it with every write; the <b>protected resource records the highest token it has seen and rejects any write with a lower token</b>. So when zombie A writes with token 33, the resource (having seen 34) rejects it &mdash; corruption impossible, even though A still "holds" the lock. The crucial insight: <b>the lock service alone cannot guarantee exclusivity; the resource must validate the token.</b> A lock without fencing is unsafe for anything correctness-critical.</div>
+
+<h3 id="s2">Sub-problem 2 &mdash; Leases &amp; liveness (avoiding deadlock)</h3>
+<p>If a lock is held until explicitly released, a crashed holder deadlocks everyone forever. So locks are <b>leases</b>: they auto-expire after a TTL unless the holder <b>renews</b> (heartbeats). A dead holder stops renewing, the lease expires, and the lock frees up &mdash; liveness without a human. The tension: the TTL must be long enough to outlast normal pauses but short enough for timely recovery.</p>
+<div class="callout warn"><span class="lbl" id="deadlock">The failure that happens when you get this wrong &mdash; the held-forever lock (and the slow-vs-dead tension)</span>
+This is <b>Scenario 2</b>. Without a lease/TTL, a holder that crashes (or just forgets to release) holds the lock <b>forever</b> &mdash; permanent deadlock for all waiters. The <b>lease + renewal</b> fixes liveness: no renewal &rarr; expiry &rarr; lock freed. But this <i>creates</i> the zombie risk (Scenario 1): a holder that's merely slow (long GC) can have its lease expire while it's still alive and "thinks" it holds the lock. So leases trade deadlock-prevention for the zombie problem &mdash; which is exactly why <b>fencing (sub-problem 1) is mandatory</b>, not optional, once you use leases. Size the TTL above your worst expected pause, require frequent renewals, and never rely on the lease alone for correctness. (This is the same lease/heartbeat pattern as the <a href="60.html">job scheduler</a> and <a href="36.html">leader election</a>.)</div>
+
+<h3 id="s3">Sub-problem 3 &mdash; The lock store's own correctness</h3>
+<p>The lock service itself must never grant the same lock to two clients &mdash; even during its own node failures or partitions. This requires the store to be <b>strongly consistent / <a href="30.html">consensus</a>-backed</b> (etcd/ZooKeeper/Chubby), so that a partition can't let two halves each grant the lock (no split-brain in the lock store). A lock built on a store <i>without</i> this guarantee can hand out two holders during a failure &mdash; defeating the entire purpose.</p>
+<div class="callout warn"><span class="lbl" id="redlock">The failure that happens when you get this wrong &mdash; an unsafe lock store (the Redlock debate)</span>
+This is <b>Scenario 3</b>. <a href="36.html">Kleppmann's critique of Redlock</a>: acquiring a lock across N independent Redis nodes (a majority) for "HA" makes <b>timing assumptions</b> (bounded clocks, bounded network/process delays) that real systems violate &mdash; and it provides <b>no fencing token</b>. So under clock drift, GC pauses, or partitions, Redlock can grant two holders <i>and</i> can't protect the resource. <b>antirez's rebuttal</b>: it's acceptable for <i>efficiency</i> locks (where an occasional double-grant just wastes work) and the timing assumptions are practically fine. The resolution both sides imply: a <b>single-node Redis lock or Redlock is fine for "efficiency" (best-effort) locking, but for "correctness" locking you need a <a href="30.html">consensus</a>-backed store (etcd/ZooKeeper) AND fencing tokens</b>. The deeper lesson: a lock service's safety depends entirely on its store's consistency model &mdash; build correctness-critical locks on consensus, not on a store that can split-brain.</div>
+
+<h3 id="s4">Sub-problem 4 &mdash; Efficiency locks vs correctness locks</h3>
+<p>Crucially, not all locks need the same rigor. An <b>efficiency lock</b> just avoids redundant work (e.g. "only one worker should regenerate this cache entry") &mdash; if it occasionally fails and two workers run, you waste a little work, no harm. A <b>correctness lock</b> protects against <i>damage</i> (e.g. "only one process may write this file / charge this card") &mdash; a double-grant corrupts data or money. These have very different requirements.</p>
+<div class="callout warn"><span class="lbl" id="wrong-grade">The failure that happens when you get this wrong &mdash; using the wrong lock grade</span>
+Matching the lock to the stakes is itself a design decision. <b>Over-engineering an efficiency lock</b> (full consensus + fencing for "don't recompute the cache twice") wastes complexity and latency &mdash; a cheap best-effort Redis lock is fine, since the worst case is duplicated work. <b>Under-engineering a correctness lock</b> (a fencing-less Redis lock guarding money or a shared file) is the dangerous one &mdash; a GC pause or partition leads to two holders and real corruption (Scenarios 1 + 3). The rule: ask "what happens if two clients hold this at once?" &mdash; if the answer is "wasted work," use a cheap lock; if it's "data corruption / lost money," use a <b>consensus-backed store + fencing token enforced by the resource</b> (and ideally, redesign so you don't need a distributed lock at all &mdash; e.g. make the operation <a href="32.html">idempotent</a> or use a single-writer/partition design). Distributed locks are a last resort for correctness; prefer designs that don't need them.</div>
+
+<!-- ============ AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; efficiency vs correctness locks</h2>
+<table>
+<tr><th>Property</th><th>Efficiency lock</th><th>Correctness lock</th></tr>
+<tr><td>What a double-grant costs</td><td>Wasted work (harmless)</td><td>Data corruption / lost money</td></tr>
+<tr><td>Store</td><td>Single Redis / Redlock OK</td><td><b>Consensus-backed</b> (etcd/ZooKeeper)</td></tr>
+<tr><td>Fencing token</td><td>Optional</td><td><b>Mandatory</b> (resource enforces)</td></tr>
+<tr><td>Lease</td><td>Yes (liveness)</td><td>Yes + fencing for safety</td></tr>
+<tr><td>Best move</td><td>Cheap best-effort lock</td><td>Avoid the lock if you can (idempotency / single-writer)</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The rule in one line</span>A held lock is <b>never truly exclusive</b> (the holder can pause), so for correctness you need a <b>consensus-backed store</b> (no split-brain grants) <i>plus</i> a <b>fencing token the resource enforces</b> (rejects stale writers) <i>plus</i> a <b>lease</b> (no deadlock). For mere efficiency, a cheap best-effort lock suffices. And the best correctness lock is often <b>no lock</b> &mdash; use idempotency or single-writer partitioning instead.</div>
+
+<!-- ============ SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li>"Your lock holder pauses for 30 seconds in GC while holding a 10-second lease. Walk me through what happens, and how you prevent data corruption." (Forces fencing tokens; TTL-only answers fail here.)</li>
-<li>"Why can't I just use <code>SETNX</code> on a single Redis node for this? When is that actually fine, and when is it dangerous?"</li>
-<li>"Your lock service is built on a 3-node Raft cluster and the network partitions 1 from 2. Can clients on the minority side acquire or renew locks? Should they? What does the majority side do?"</li>
-<li>"We're acquiring this lock 500k times per second. Is ZooKeeper the right choice? If not, how do you redesign so you don't need a global lock at all?"</li>
-<li>"How do you choose the TTL? What inputs go into that number, and what fails if you pick it too short or too long?"</li>
-<li>"The protected resource is a third-party REST API with no versioning or idempotency support. Can you make this lock correct? If not, what do you tell the team?"</li>
+<li><b>Scenario 1 (GC pause):</b> Why can't any timeout guarantee exclusivity, and exactly how does a fencing token (enforced by the resource) make a zombie write impossible?</li>
+<li><b>Scenario 2 (stuck forever):</b> How does a lease prevent deadlock, and what new risk (zombie) does it create &mdash; requiring what?</li>
+<li><b>Scenario 3 (Redlock):</b> What did Kleppmann argue and antirez rebut, and when is a Redis lock OK vs dangerous?</li>
+<li>Why must a correctness lock's store be consensus-backed, and what does that prevent?</li>
+<li>Efficiency vs correctness lock &mdash; how do you decide, and why is "no lock" often best?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> 4 sub-problems &mdash; <a href="#s1">never truly exclusive (fencing)</a>, <a href="#s2">leases (liveness, creates zombie)</a>, <a href="#s3">store correctness (consensus, Redlock)</a>, <a href="#s4">efficiency vs correctness grade</a>.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="36.html">Leader Election &amp; Coordination (fencing)</a>, <a href="30.html">Consensus &amp; Raft</a>, <a href="33.html">Clocks (pauses)</a>, <a href="32.html">Idempotency (avoid the lock)</a>, <a href="60.html">Job Scheduler (leases)</a>.</p>
+
+<!-- ============ CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<table>
+<tr><th>Need</th><th>Options</th></tr>
+<tr><td>Consensus-backed lock (correctness)</td><td>etcd, ZooKeeper, Consul; Google Chubby (internal)</td></tr>
+<tr><td>Managed lock on a database</td><td>DynamoDB lock client (conditional write + lease + version as fencing token)</td></tr>
+<tr><td>Best-effort / efficiency lock</td><td>Redis <code>SET NX EX</code> (single node) / Redlock</td></tr>
+<tr><td>Avoid the lock entirely</td><td>Idempotency keys, single-writer partitioning, optimistic concurrency (CAS)</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>The common production correctness-lock is the <b>DynamoDB lock client</b>: a conditional write claims the lock, a TTL/lease auto-expires it, and the item's version number serves as the <b>fencing token</b> &mdash; which the protected resource still must check. For efficiency locks, a single-node Redis <code>SET NX</code> is fine. But before reaching for any distributed lock on a correctness path, ask whether <b>idempotency</b> or a <b>single-writer</b> design removes the need &mdash; it usually does, and it's safer.</div>
+
+<!-- ============ IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>Same facets &mdash; what it is, the model, and the failure to watch.</p>
+<h3 id="impl-etcd">etcd / ZooKeeper / Chubby (correctness locks)</h3>
+<ul>
+<li><b>What it is.</b> Consensus-backed coordination kernels with lock recipes (covered in <a href="36.html">Leader Election</a>).</li>
+<li><b>Model.</b> Atomic create-if-not-exists + <a href="36.html">ephemeral</a>/lease keys + watches; the key's revision (etcd mod-revision / ZK zxid) is a natural <b>fencing token</b>.</li>
+<li><b>The failure to watch.</b> The lock is safe only if the <i>resource</i> checks the fencing token; minority partitions go read-only (a feature); session-timeout vs GC tuning.</li>
+</ul>
+<h3 id="impl-redlock">Redis / Redlock (efficiency locks)</h3>
+<ul>
+<li><b>What it is.</b> A lock via Redis <code>SET NX EX</code> (single node) or Redlock (across N nodes).</li>
+<li><b>Model.</b> Fast, lease-based; Redlock acquires a majority of independent Redis nodes for HA.</li>
+<li><b>The failure to watch.</b> No fencing token and timing assumptions (Kleppmann) &mdash; <b>fine for efficiency, unsafe for correctness</b>; a single-node Redis lock loses the lock if that node fails over.</li>
+</ul>
+<h3 id="impl-db">Database / optimistic concurrency (often the better answer)</h3>
+<ul>
+<li><b>What it is.</b> Use the database's own atomicity instead of a separate lock &mdash; conditional updates, <a href="11.html">compare-and-swap</a> on a version column.</li>
+<li><b>Model.</b> "Update row WHERE version = X" succeeds for exactly one writer (the version <i>is</i> a fencing token); no separate lock service.</li>
+<li><b>The failure to watch.</b> Contention on a hot row; but for many "one writer at a time" needs this is simpler and safer than a distributed lock.</li>
 </ul>
 
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2024-05-16 at 8.23.21 AM.jpg" alt="Deadlocks and lock management" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Text explaining deadlocks, the four Coffman conditions, and deadlock prevention/recovery strategies. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
-<div class="navfoot"><a href="63.html">&lsaquo; Prev: Designing Ad Click Aggregation</a><a class="nx" href="65.html">Next: Designing a Metrics and Monitoring System &rsaquo;</a></div>
+<!-- ============ BUILD ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Work each before opening the approach.</p>
+<h3 id="ex-fencing">Add fencing tokens to a lease-based lock</h3>
+<p>Take a lease-based lock and make it safe against a GC-paused zombie holder. Define what the lock returns and exactly what the protected resource must do.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>On each successful <code>acquire</code>, return a <b>monotonically increasing fencing token</b> (use the consensus store's key version &mdash; etcd mod-revision / ZK zxid &mdash; guaranteed to increase per acquisition). The client must send this token with <i>every</i> write to the protected resource (the database, file store, etc.). The resource records the <b>highest token it has accepted</b> and <b>rejects any write carrying a lower token</b>. Now the GC-pause scenario is safe: A acquires (token 33), pauses; A's lease expires; B acquires (token 34) and writes &mdash; the resource records 34. When zombie A wakes and writes with token 33, the resource sees 33 &lt; 34 and rejects it (Scenario 1). The non-negotiable insight: <b>the lock service can't enforce exclusivity &mdash; only the resource can, by validating the token.</b> No lease/timeout value substitutes for this. If the resource <i>can't</i> check a token (a dumb third-party API), you can't make the lock truly correct &mdash; redesign (idempotency / single-writer) instead.</p>
+</div></details>
+<h3 id="ex-avoid">Avoid the lock entirely</h3>
+<p>You're tempted to use a distributed lock so "only one worker processes each order." Design an alternative that needs no lock and is safer.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Distributed locks for correctness are a last resort &mdash; prefer designs that eliminate the need. Two common alternatives: <b>(1) Single-writer partitioning</b> &mdash; route all work for a given order to <i>one</i> consumer by partitioning on <code>order_id</code> (e.g. <a href="39.html">Kafka</a> key), so by construction only one worker ever handles that order; no lock needed, no zombie risk. <b>(2) Idempotency + optimistic concurrency</b> &mdash; let multiple workers attempt the work but make it <a href="32.html">idempotent</a> (dedup on order id) and/or guard the state transition with a conditional update (<code>UPDATE order SET state='processing' WHERE id=X AND state='new'</code>) &mdash; exactly one succeeds; the database's atomicity <i>is</i> your lock + fencing token (the version column). Both avoid the held-lock-never-exclusive problem entirely. Reach for an actual distributed lock only when you genuinely need cross-resource mutual exclusion that these can't express &mdash; and then use consensus + fencing (Scenario's sub-problem 4).</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<ul>
+<li><b>Build leader election on the lock.</b> Use acquire + lease + watch so exactly one node leads and failover is fast &mdash; with fencing so a zombie leader can't act. &rarr; <a href="36.html">Leader Election</a>.</li>
+<li><b>Classify your locks.</b> For three real needs (cache regen, leader election, ledger write), decide efficiency vs correctness and the right implementation for each. &rarr; <a href="61.html">Payment System</a>.</li>
+<li><b>Make a correctness lock survivable.</b> Your consensus lock store goes read-only on a minority partition. Design the system so that stall degrades gracefully. &rarr; <a href="30.html">Consensus</a>, <a href="51.html">Resilience</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="63.html">&lsaquo; Prev: Ad Click Aggregation</a><a class="nx" href="65.html">Next: Metrics &amp; Monitoring System &rsaquo;</a></div>
 </div>
 </div>
 </div>

@@ -111,195 +111,182 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Reliability &amp; Operations &nbsp;&rsaquo;&nbsp; Deployment Strategies</div>
-
 <h1>Deployment Strategies</h1>
-<p class="sub"><em>How to ship changes to a running distributed system without taking it down, and how to undo a bad change before it burns your users.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Operability.</b> <span>shipping change safely, paid in gradual rollout machinery and migration discipline.</span></div>
+<p class="sub"><em>Change is the leading cause of outages &mdash; most incidents start with a deploy. So the goal of a deployment strategy isn't to deploy faster; it's to make change <b>safe</b>: roll out gradually, detect problems while the blast radius is small, and roll back instantly. The deepest move is decoupling <b>deploy</b> (ship the code, dormant) from <b>release</b> (turn it on), so the two riskiest moments don't happen at once.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#frame">The core problem: change is the leading cause of outages</a></li>
-<li><a href="#deploy-vs-release">Decoupling deploy from release</a></li>
-<li><a href="#rolling">Rolling updates</a></li>
-<li><a href="#bluegreen">Blue-green deployment</a></li>
-<li><a href="#canary">Canary releases and automated analysis</a></li>
-<li><a href="#flags">Feature flags, dark launches, and shadow traffic</a></li>
-<li><a href="#migrations">Zero-downtime database migrations</a></li>
-<li><a href="#rollback">Rollback vs roll-forward</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Safe, reversible change with a small blast radius &mdash; in exchange for running multiple versions at once, deployment infrastructure, and the discipline of backward-compatible steps.</b> <span>Gradual rollout + instant rollback turns a risky big-bang change into a controlled, observable one. You pay by temporarily running old and new versions side by side (which forces backward compatibility, especially in the database) and by building the deploy/flag machinery.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Deployment Strategies</b>
+│
+├─ <a href="#root"><b>Why deployment is a reliability problem</b></a>  &mdash; change causes outages
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>The 4 decisions that define a deploy strategy</b></a>
+│   ├─ <a href="#d1">1. Deploy ≠ release (decouple them)</a>     fail → <a href="#big-bang">the all-at-once flip</a>
+│   ├─ <a href="#d2">2. How do you roll out? (rolling/blue-green/canary)</a> fail → <a href="#no-canary">no early detection</a>
+│   ├─ <a href="#d3">3. How do you change the database safely?</a> fail → <a href="#migration-break">the breaking migration</a>
+│   └─ <a href="#d4">4. How do you undo? (rollback vs roll-forward)</a> fail → <a href="#no-rollback">stranded with no way back</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; the rollout strategies compared
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; deploy tooling
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; strategies in practice
+│   ├─ <a href="#impl-canary">Canary + automated analysis</a>
+│   ├─ <a href="#impl-flags">Feature flags / dark launch</a>
+│   └─ <a href="#impl-expand">Expand-contract migrations</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-migration">Add a column with zero downtime</a>
+    ├─ <a href="#ex-canary">Design a canary with auto-rollback</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="frame">The core problem: change is the leading cause of outages</h2>
-<p>Most production incidents are not caused by random hardware failure or organic traffic — they are <span class="key">self-inflicted</span>, triggered by a change someone deployed. Google's SRE writings put the figure at roughly 70% of outages tracing to a change in a live system. That single fact reframes the whole discipline: a deployment strategy is fundamentally a <em>risk-management</em> mechanism, not a delivery convenience. The question is never "how do I get my code out?" It is "how do I limit the blast radius and the time-to-detect when this change is wrong, and how fast can I get back to a known-good state?"</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">Why deployment is a reliability problem</h2>
+<p>Steady-state systems rarely fail on their own &mdash; they fail when something <i>changes</i>, and the change you make most often is a deploy. So deployment strategy is really <b>change-safety</b> strategy, and it has three jobs: (1) limit the <span class="gl" data-def="Blast radius &mdash; the scope of users/systems affected by a failure or bad change; deployment strategies aim to keep it small (e.g. 1% of users) until a change is proven safe.">blast radius</span> of a bad change (don't expose it to everyone at once), (2) <b>detect</b> problems automatically while exposure is small, and (3) <b>recover</b> instantly (roll back) when you do.</p>
+<p>The foundational idea that enables all three: <b>separate deploy from release.</b> <b>Deploying</b> means getting the new code onto servers (it can be present but dormant); <b>releasing</b> means making it active for users. Decoupling them &mdash; via <a href="#impl-flags">feature flags</a> &mdash; means you ship code continuously and turn features on independently, gradually, and reversibly, without a redeploy.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>A deployment strategy trades <b>the simplicity of all-at-once and the cost of running multiple versions</b> for <b>a small blast radius, early detection, and instant rollback</b>. The price &mdash; old and new versions coexisting during a rollout &mdash; forces every change (especially database changes) to be backward-compatible, which is the discipline that makes safe deploys possible at all.</div>
 
-<p>Three properties matter for any strategy, and you should be able to name them under pressure:</p>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the strategies</a>.</p>
+
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; Knight Capital, 1 August 2012 (real incident)</span>
+Knight Capital deployed new trading code to its 8 servers &mdash; but the deploy <b>missed one server</b>, which kept running old code. Worse, the new code <b>repurposed an old, dormant feature flag</b> that, on the stale server, activated long-dead "test" logic. At market open that one server began firing millions of unintended orders. In <b>45 minutes</b> Knight lost <b>$440 million</b> and was effectively destroyed. <b>Which deployment discipline failures combined here, and how would each have prevented the disaster?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the bug that hit 100% of users instantly</span>
+You deploy a new version to all servers at once. It has a subtle bug that only manifests under real production traffic. Within seconds, <b>every</b> user is affected, error rates spike across the board, and you're now doing an emergency rollback under maximum pressure. <b>What rollout approach would have exposed the bug to 1% of users first, caught it automatically, and stopped before it reached everyone?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the migration that broke the old version mid-deploy</span>
+Your deploy renames a database column from <code>name</code> to <code>full_name</code>. During the rolling deploy, old-version instances (still querying <code>name</code>) and new-version instances (querying <code>full_name</code>) run simultaneously &mdash; and the old instances start throwing errors because the column they need is gone. <b>Why does a rename break a rolling deploy, and what's the multi-step pattern that changes a schema with zero downtime?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#big-bang">deploy discipline (and decoupling deploy/release)</a>. Scenario 2 is <a href="#no-canary">canary rollout</a>. Scenario 3 is <a href="#migration-break">zero-downtime DB migration</a>. Each maps to a decision below.</i></p>
+
+<!-- ============ BRANCH 1: THE DECISIONS ============ -->
+<h2 id="decisions">The four decisions that define a deploy strategy</h2>
+<p>Designing safe change is these four choices. Each has a named failure nested under it.</p>
+
+<h3 id="d1">Decision 1 &mdash; Decouple deploy from release</h3>
+<p>Deploying code and releasing a feature are different acts with different risks &mdash; conflating them means the moment you ship is also the moment users are exposed, with no independent control. Decouple them with <a href="#impl-flags">feature flags</a>: deploy the new code <i>dark</i> (present but off), then <b>release</b> by flipping a flag &mdash; for 1% of users, then 10%, then all &mdash; and <b>roll back instantly</b> by flipping it off, no redeploy. This also enables <b>dark launches</b> (run new code against real traffic without showing results) and <b>shadow traffic</b> (mirror production requests to the new version to test it).</p>
+<div class="callout warn"><span class="lbl" id="big-bang">The failure that happens when you get this wrong &mdash; the all-at-once flip (and undisciplined deploys)</span>
+This is <b>Scenario 1</b>. Knight Capital is the canonical catastrophe, and it stacks several failures: <b>(a) inconsistent deploy</b> &mdash; one of 8 servers didn't get the new code, so old and new ran together with no detection (an automated, verified deploy would have caught the missed server); <b>(b) repurposing an old flag</b> &mdash; reusing a dormant feature flag's name meant the new code reactivated dead logic on the stale server (never repurpose flags; remove dead ones); <b>(c) no gradual release</b> &mdash; it went live to the full market instantly with no canary to catch the runaway orders; <b>(d) no kill switch</b> &mdash; no fast way to disable the misbehaving code. Decoupling deploy from release, automated consistent deploys, flag hygiene, and a kill switch each independently would have bounded a $440M loss to a near-miss.</div>
+
+<h3 id="d2">Decision 2 &mdash; How do you roll out? (rolling, blue-green, canary)</h3>
+<p>Three strategies for getting new code live:</p>
 <ul>
-<li><span class="key">Blast radius</span> — what fraction of traffic/users sees the new code before you have a signal it is healthy.</li>
-<li><span class="key">Time to detect (TTD)</span> — how long between a bad version going live and you knowing it is bad. This is bounded by your <a href="50.html">observability</a> and your <a href="49.html">SLOs</a>.</li>
-<li><span class="key">Time to recover (TTR)</span> — how long to get back to good once you know. The whole point of blue-green and canary is to make TTR a config flip, not a rebuild.</li>
+<li><b>Rolling update</b> &mdash; replace instances in batches (some old, some new during the roll). No extra capacity, but old+new coexist (forcing compatibility) and rollback means rolling back.</li>
+<li><b>Blue-green</b> &mdash; stand up a full parallel "green" environment, switch all traffic at once, keep "blue" ready for instant rollback. Clean and instantly reversible, but needs double the capacity briefly.</li>
+<li><b>Canary</b> &mdash; route a <i>small</i> % of traffic to the new version, watch its metrics, and only proceed (or auto-rollback) based on what you see. The safest for catching production-only bugs early.</li>
 </ul>
+<div class="callout warn"><span class="lbl" id="no-canary">The failure that happens when you get this wrong &mdash; no early detection</span>
+This is <b>Scenario 2</b>. A big-bang rollout (all instances at once) exposes <i>every</i> user to a bad change <i>simultaneously</i> &mdash; the blast radius is 100% before you have any signal, and you discover the problem from a flood of user-facing errors, mid-emergency. A <b>canary</b> exposes ~1% first and compares the canary's error rate / latency / business metrics against the baseline (<b>automated canary analysis</b>); a regression auto-halts and rolls back before most users ever see it. The principle: <b>find the bug with 1% of users, not 100%</b> &mdash; gradual exposure converts a potential outage into a contained blip.</div>
 
-<div class="callout note"><span class="lbl">Key insight</span>Every deployment strategy is a different point on the curve trading off <em>cost/complexity</em> against <em>blast radius</em> and <em>recovery speed</em>. Rolling is cheap but slow to recover; blue-green recovers instantly but doubles capacity cost; canary minimizes blast radius but needs real automated analysis to be worth the operational weight.</p></div>
+<h3 id="d3">Decision 3 &mdash; How do you change the database safely?</h3>
+<p>Schema changes are the hardest deploys because the database is shared state that old and new code both use <i>during</i> a rolling deploy. The pattern is <span class="gl" data-def="Expand-contract (parallel-change) &mdash; a zero-downtime schema-migration pattern: add the new schema additively (expand), migrate/dual-write, switch reads, then remove the old schema (contract) — each step backward-compatible.">expand-contract</span> (parallel-change): <b>expand</b> (add the new schema additively &mdash; new column/table &mdash; without removing the old), <b>migrate</b> (backfill data; deploy code that writes both and reads new), then <b>contract</b> (once nothing uses the old schema, remove it) &mdash; each step backward-compatible so old and new code coexist safely.</p>
+<div class="callout warn"><span class="lbl" id="migration-break">The failure that happens when you get this wrong &mdash; the breaking migration</span>
+This is <b>Scenario 3</b>. A destructive schema change in one step (rename/drop a column, change a type, add a NOT NULL) breaks whichever code version doesn't match &mdash; during a rolling deploy, old instances querying the old column error out the instant it's gone. <b>Expand-contract</b> avoids it: e.g. to rename <code>name</code>&rarr;<code>full_name</code>: (1) <b>add</b> <code>full_name</code> (keep <code>name</code>); (2) deploy code that <i>writes both</i>; backfill <code>full_name</code> from <code>name</code>; (3) deploy code that <i>reads</i> <code>full_name</code>; (4) once no code reads <code>name</code>, <b>drop</b> it. Every intermediate state is backward-compatible, so old and new versions coexist without error, and any step can be rolled back. (Same discipline as <a href="45.html">API evolution</a> &mdash; additive, then remove later.) Also: avoid locking DDL on large tables (use online/concurrent variants) so the migration itself doesn't cause an outage.</div>
 
-<h2 id="deploy-vs-release">Decoupling deploy from release</h2>
-<p>The most important conceptual move a principal makes is separating two things that juniors conflate:</p>
-<ul>
-<li><span class="key">Deploy</span> — getting new <em>binary/code</em> onto production machines. This is an operational, infrastructure event.</li>
-<li><span class="key">Release</span> — making new <em>behavior</em> visible to users. This is a product event.</li>
-</ul>
-<p>If these are coupled, every behavior change requires a deploy, and every deploy is a high-stakes event because it simultaneously changes what's running <em>and</em> what users experience. Once you decouple them — typically with <a href="#flags">feature flags</a> — you can deploy a binary that contains dormant code many times a day with low risk, then turn on the actual feature independently, gradually, and reversibly. This is why mature orgs deploy continuously but release deliberately.</p>
+<h3 id="d4">Decision 4 &mdash; How do you undo? (rollback vs roll-forward)</h3>
+<p>When a deploy goes bad, you either <b>roll back</b> (revert to the previous known-good version) or <b>roll forward</b> (ship a fix on top). Rollback is faster and safer when available &mdash; so design for it: keep the previous version deployable, and ensure changes are backward-compatible so reverting code doesn't conflict with already-migrated data. Roll-forward is necessary when you <i>can't</i> roll back (e.g. an irreversible data migration already ran), which is exactly why you make migrations reversible/expand-contract.</p>
+<div class="callout warn"><span class="lbl" id="no-rollback">The failure that happens when you get this wrong &mdash; stranded with no way back</span>
+The worst place to be during an incident is having shipped a bad change you <i>can't</i> reverse &mdash; because a destructive migration already dropped the old column, or the new version wrote data the old version can't read. Now your only option is to fix-forward under maximum pressure, with users hurting the whole time. <b>Design every deploy to be rollback-able</b>: keep the prior version one click away (blue-green / flag flip makes rollback instant), and make data changes <a href="#migration-break">expand-contract</a> so reverting code never conflicts with the data. A deploy you can't undo is a deploy you shouldn't make without extreme care &mdash; reversibility is the safety net everything else assumes.</div>
 
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They volunteer the deploy/release distinction early and use it to simplify the rest of the design: "I'd ship the new code path behind a flag defaulting to off, deploy it through a rolling update, verify it's inert, then ramp the flag as a canary on the <em>release</em> dimension." Now the rollback for a behavioral bug is a flag flip with sub-second TTR, no redeploy.</p></div>
-
-<h2 id="rolling">Rolling updates</h2>
-<p>A rolling update replaces instances of the old version with the new version incrementally — N at a time — until the fleet is fully converted. This is the Kubernetes default <code>RollingUpdate</code> strategy and the baseline for most stateless services. See <a href="47.html">Containers, Kubernetes and Serverless</a> for the orchestration mechanics.</p>
-
-<pre><code>strategy:
-  type: RollingUpdate
-  rollingUpdate:
-    maxUnavailable: 25%   # never drop below 75% capacity during roll
-    maxSurge: 25%         # may briefly run 125% to keep capacity
-readinessProbe:           # CRITICAL: gate traffic on real readiness
-  httpGet: { path: /healthz/ready, port: 8080 }
-  initialDelaySeconds: 5
-  periodSeconds: 5</code></pre>
-
-<p>The decisive detail is the <span class="key">readiness probe</span>. Kubernetes only routes traffic to a pod once its readiness probe passes, and a rolling update will not proceed to the next batch until new pods are ready. A weak or missing readiness check is the classic cause of a "successful deploy" that black-holes traffic: the orchestrator declares the new pods up, the load balancer (see <a href="03.html">Load Balancing</a>) sends them requests, and they 500 because the connection pool or cache warm-up isn't done.</p>
-
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the rollout strategies</h2>
 <table>
-<tr><th>Property</th><th>Rolling update</th></tr>
-<tr><td>Extra capacity needed</td><td>Minimal (just <code>maxSurge</code>)</td></tr>
-<tr><td>Blast radius</td><td>Grows continuously — no clean "X% of traffic" knob</td></tr>
-<tr><td>Mixed versions live?</td><td>Yes, throughout the roll — both versions serve simultaneously</td></tr>
-<tr><td>Rollback</td><td>Roll backward, also incremental and slow (TTR in minutes)</td></tr>
+<tr><th>Strategy</th><th>Blast radius</th><th>Rollback</th><th>Extra capacity</th><th>Best for</th></tr>
+<tr><td><b>Rolling</b></td><td>Grows as it rolls</td><td>Roll back the batches</td><td>None</td><td>Default for stateless services</td></tr>
+<tr><td><b>Blue-green</b></td><td>All-at-once switch</td><td><b>Instant</b> (switch back)</td><td>~2&times; briefly</td><td>When instant rollback matters most</td></tr>
+<tr><td><b>Canary</b></td><td><b>~1% first</b></td><td>Auto-halt + roll back</td><td>Small</td><td>Catching production-only bugs safely</td></tr>
+<tr><td><b>Feature flag (release)</b></td><td>You choose (%/cohort)</td><td><b>Instant flip</b>, no redeploy</td><td>None</td><td>Decoupling release from deploy</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The rule in one line</span>Deploy code dark, <b>release via flags</b> gradually with <b>instant rollback</b>; roll out with a <b>canary</b> + automated analysis to catch bugs at 1%; make every DB change <b>expand-contract</b> so versions coexist and you can always revert. Change is the top cause of outages &mdash; the whole game is shrinking blast radius and keeping a way back.</div>
 
-<div class="callout warn"><span class="lbl">Pitfall</span>Because old and new run concurrently during the roll, <span class="key">both versions must be mutually compatible</span> — same as the constraint for online schema changes. A v2 that writes a new message format an in-flight v1 consumer cannot parse will break <em>during the roll itself</em>, not just at the end. This is the single most overlooked rolling-update failure mode.</p></div>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
+<ul>
+<li><b>Scenario 1 (Knight Capital):</b> Name the deployment discipline failures that combined (inconsistent deploy, repurposed flag, no canary, no kill switch) and how each would have prevented the loss.</li>
+<li><b>Scenario 2 (100% instantly):</b> How does a canary + automated analysis catch a production-only bug before it reaches everyone?</li>
+<li><b>Scenario 3 (broken migration):</b> Why does a one-step rename break a rolling deploy, and what are the expand-contract steps to rename a column with zero downtime?</li>
+<li>Why decouple deploy from release, and what does that enable (gradual release, instant rollback, dark launch, shadow)?</li>
+<li>Why design for rollback, and what makes a change un-rollback-able?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>4 decisions</b> &mdash; <a href="#d1">decouple deploy/release</a>, <a href="#d2">rollout strategy (canary)</a>, <a href="#d3">expand-contract DB migrations</a>, <a href="#d4">rollback-ability</a> &mdash; each with a nested failure: all-at-once flip, no early detection, breaking migration, no way back.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="51.html">Resilience Patterns</a>, <a href="49.html">SLI/SLO (error budget gates deploys)</a>, <a href="45.html">API Design (evolution)</a>, <a href="47.html">Containers/K8s</a>, <a href="50.html">Observability</a>.</p>
 
-<h2 id="bluegreen">Blue-green deployment</h2>
-<p>Blue-green runs two complete production environments. <span class="pill">blue = current</span> serves all traffic; <span class="pill">green = new</span> is deployed in full and tested in isolation. You cut over by repointing the router/load balancer (or DNS, or a service selector) from blue to green atomically. Rollback is the reverse cutover — near-instant, because blue is still running, fully warmed, untouched.</p>
-
-<pre><code># Conceptually, the cutover is one atomic pointer move:
-router.active_pool = green_pool   # was blue_pool
-# rollback:
-router.active_pool = blue_pool    # blue never went away</code></pre>
-
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
 <table>
-<tr><th></th><th>Blue-green</th><th>Rolling</th></tr>
-<tr><td>Capacity cost</td><td>2x during cutover</td><td>~1x</td></tr>
-<tr><td>Mixed versions</td><td>No (clean cut)</td><td>Yes</td></tr>
-<tr><td>TTR (rollback)</td><td>Seconds (flip back)</td><td>Minutes (re-roll)</td></tr>
-<tr><td>Blast radius at cutover</td><td>100% at once</td><td>Gradual</td></tr>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure / other</th></tr>
+<tr><td>Rolling / blue-green / canary deploy</td><td>CodeDeploy, ECS/EKS rolling</td><td>Cloud Deploy, GKE rollouts</td><td>Azure DevOps; Argo Rollouts, Spinnaker</td></tr>
+<tr><td>Automated canary analysis</td><td>CloudWatch + CodeDeploy alarms</td><td>Cloud Deploy + monitoring</td><td>Kayenta (Spinnaker), Argo Analysis</td></tr>
+<tr><td>Feature flags</td><td>AppConfig feature flags</td><td>(Firebase Remote Config)</td><td>LaunchDarkly, Flagsmith, Unleash, Split</td></tr>
+<tr><td>Progressive delivery (K8s)</td><td colspan="3">Argo Rollouts, Flagger (with a service mesh for traffic splitting)</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The takeaway</span>On Kubernetes, <b>Argo Rollouts / Flagger</b> (with a <a href="44.html">service mesh</a> for traffic splitting) give you canary + automated analysis + auto-rollback declaratively. Dedicated <b>feature-flag platforms</b> (LaunchDarkly, Unleash) are how teams decouple release from deploy at scale &mdash; and good flag hygiene (remove dead flags, never repurpose) is the cultural lesson Knight Capital paid $440M to teach.</div>
 
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Blue-green gives you the fastest rollback and a clean, un-mixed version boundary — but it flips <span class="key">100% of traffic at once</span>, so a bad version that passed your pre-cutover tests still hits every user instantly. You've optimized TTR at the expense of blast radius. That is why serious shops layer a <a href="#canary">canary</a> on top: route 1% to green first, then flip the rest. Blue-green also doubles compute cost during the window, and it does <em>not</em> magically solve stateful concerns — a shared database is touched by both, so schema compatibility and in-flight sessions still need the <a href="#migrations">expand-contract</a> discipline below.</p></div>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The strategies made concrete. Same facets &mdash; what it is, the mechanism, and the failure to watch.</p>
 
-<p>Sticky sessions and long-lived connections (WebSockets, gRPC streams — see <a href="13.html">Long-Polling vs WebSockets vs SSE</a>) complicate the clean cut: existing connections pinned to blue must drain. Production blue-green typically allows a <span class="key">connection-draining</span> window where blue keeps serving established connections while new connections go to green.</p>
-
-<h2 id="canary">Canary releases and automated analysis</h2>
-<p>A canary release routes a small slice of traffic (often 1%, then 5%, 25%, 50%, 100%) to the new version and <em>measures</em> it against the baseline before widening. The name comes from canaries in coal mines — a small, expendable early-warning signal. The blast radius at each step is bounded, and you only proceed when the data says the canary is healthy.</p>
-
-<p>A naive canary — "route 5%, eyeball a dashboard, click promote" — is barely better than nothing because it depends on a human watching at the right moment. The principal-grade version is <span class="key">automated canary analysis (ACA)</span>: a controller compares the canary's metrics against a control (ideally a same-age baseline pulled from the same release, not the old production version, to avoid confounds like cache warmth) and promotes or aborts automatically.</p>
-
-<pre><code># Progressive canary with SLO-burn-based auto-rollback (e.g. Argo Rollouts / Flagger)
-steps:
-  - setWeight: 1
-  - pause: { duration: 5m }
-  - analysis:                         # query Prometheus/Datadog
-      metrics:
-        - name: error-rate
-          successCondition: result &lt; 0.01      # &lt;1% 5xx
-        - name: p99-latency
-          successCondition: result &lt; 300       # ms
-      # if ANY metric fails -> abort, route 100% back to stable
-  - setWeight: 25
-  - pause: { duration: 10m }
-  - analysis: { ... }
-  - setWeight: 50
-  - pause: { duration: 10m }
-  - setWeight: 100</code></pre>
-
-<p>The metrics that gate promotion should be your actual <a href="49.html">SLIs</a>: error rate, latency percentiles (p50/p95/p99 — never the mean), and saturation. The strong pattern is to tie the abort condition to <span class="key">SLO error-budget burn rate</span>: if the canary is burning budget fast enough that, extrapolated, it would blow the monthly budget, abort. This is the same fast-burn alert logic from SLO theory applied at deploy time, which is far more robust than a fixed "error rate > 1%" threshold because it scales with how much room you actually have.</p>
-
-<div class="callout note"><span class="lbl">Key insight</span>Canary analysis is a statistical comparison, not a threshold check. Two pitfalls dominate: (1) <span class="key">low traffic to the canary</span> means too few samples for the difference to be significant — a 1% slice of a low-QPS service may take an hour to detect a regression; consider weighting by request count, not just percentage. (2) <span class="key">confounding</span> — comparing a cold canary against warm production conflates the version change with cache/JIT warmth. Compare canary vs. a freshly-deployed baseline of the <em>current</em> version when you can.</p></div>
-
-<div class="callout warn"><span class="lbl">Pitfall</span>Canaries catch problems proportional to the traffic they see. They are excellent for latency/error regressions and bad for <span class="key">rare-event and time-delayed bugs</span>: a data-corruption bug that only manifests on a nightly batch, a memory leak that takes 6 hours to OOM, or a bug triggered by a specific tenant that never lands in the 1% slice. Don't claim a canary "proves" correctness — it bounds risk, it doesn't eliminate it.</p></div>
-
-<h2 id="flags">Feature flags, dark launches, and shadow traffic</h2>
-<p>Feature flags are runtime conditionals that gate behavior without a deploy. They are the mechanism that makes <a href="#deploy-vs-release">deploy/release decoupling</a> real, and they enable per-user, per-tenant, or percentage-based rollout independent of which binary is running.</p>
-
-<pre><code>if (flags.isEnabled("new_ranking_v2", ctx.userId, ctx.tenantId)) {
-    return rankWithV2(query);     // new path, dark until ramped
-} else {
-    return rankWithV1(query);     // stable path
-}</code></pre>
-
+<h3 id="impl-canary">Canary + automated analysis</h3>
 <ul>
-<li><span class="key">Dark launch</span> — deploy and even execute the new code path in production <em>without surfacing its result to users</em>, to validate it under real load and data before exposure. Facebook famously dark-launched features by running the new backend for real traffic and discarding the output.</li>
-<li><span class="key">Shadow traffic (traffic mirroring)</span> — duplicate a copy of real production requests to the new version, which processes them but whose responses are <em>discarded</em> (and must not have side effects). This is the gold standard for de-risking a rewrite of a read path: you compare v2's output and latency against v1 on identical real traffic, with zero user-facing risk. Service meshes (see <a href="44.html">Microservices and Service Mesh</a>) make mirroring a config line.</li>
+<li><b>What it is.</b> Route a small % of traffic to the new version and decide go/no-go from its metrics (Spinnaker/Kayenta pioneered automated canary analysis).</li>
+<li><b>Mechanism.</b> Compare canary vs baseline on error rate, latency, and business KPIs over a window; auto-promote on pass, auto-rollback on regression.</li>
+<li><b>The failure to watch.</b> Too-short analysis windows or too-few canary requests miss the bug; canary must see <i>representative</i> traffic.</li>
 </ul>
 
-<div class="callout warn"><span class="lbl">Pitfall</span>Shadow traffic is only safe for <span class="key">idempotent, side-effect-free</span> paths. Mirror a request that writes to the DB, charges a card (see <a href="61.html">Payment System</a>), or publishes to <a href="39.html">Kafka</a>, and you double the side effect. Shadow consumers must hit a sandboxed datastore or have all writes stubbed. Also account for doubled load on shared downstream dependencies — mirroring 100% traffic effectively doubles QPS on any backend the shadow path calls.</p></div>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Flags are powerful but become <span class="key">technical debt and a combinatorial test problem</span>. Every flag is an <code>if</code> that doubles the code paths; ten flags are 1024 theoretical combinations. The discipline: flags must have owners and expiry dates, and a process to retire them (delete the dead branch) once a release is fully rolled out. Long-lived "permanent" flags blur into config and should be reclassified as such. Stale flags have caused major incidents — the 2012 Knight Capital collapse was, in part, dead flag-gated code reactivated by a partial deploy.</p></div>
-
-<h2 id="migrations">Zero-downtime database migrations</h2>
-<p>This is where most engineers fall apart, and where principals earn their title. Code is easy to roll forward and back; <span class="key">schema and data are not</span>. The constraint is the same one rolling updates impose: during any rollout, old code and new code run against the <em>same</em> database simultaneously, so the schema must be readable and writable by both. You cannot do a destructive schema change in lockstep with a code change.</p>
-
-<h3>Expand-contract (parallel-change)</h3>
-<p>The canonical pattern decomposes a breaking schema change into a sequence of individually backward-compatible steps. To rename column <code>email</code> to <code>email_address</code>:</p>
-<ol>
-<li><span class="key">Expand</span> — add the new column <code>email_address</code> (nullable / with default). Schema now has both. Old code ignores it; this deploy is safe because it adds, never removes.</li>
-<li><span class="key">Dual-write</span> — deploy code that writes to <em>both</em> <code>email</code> and <code>email_address</code> on every write, but still reads from the old one. Now new rows are consistent in both.</li>
-<li><span class="key">Backfill</span> — run a batched migration to copy <code>email</code> &rarr; <code>email_address</code> for all historical rows. Batch it (e.g. 5k rows/txn) to avoid long locks and replication lag (see <a href="37.html">Replication Deep Dive</a>).</li>
-<li><span class="key">Migrate reads</span> — deploy code that reads from <code>email_address</code>. Verify. The dual-write window means a rollback to step 3 code still works.</li>
-<li><span class="key">Stop writing old</span> — deploy code that only writes/reads the new column.</li>
-<li><span class="key">Contract</span> — after a soak period with no rollback need, drop the old <code>email</code> column.</li>
-</ol>
-
-<div class="callout note"><span class="lbl">Key insight</span>The <span class="key">dual-write window</span> is the safety net that makes each step independently reversible. At every point, the version you might roll back to can still read and write the database correctly. The cost is that the application carries temporary complexity (writing two columns, a backfill job) and the migration spans <em>multiple deploys over days</em> — you cannot do it in one PR. Proposing "ALTER TABLE RENAME COLUMN" in a single deploy has just designed an outage.</p></div>
-
-<h3>Other rules of zero-downtime DDL</h3>
+<h3 id="impl-flags">Feature flags / dark launch / shadow</h3>
 <ul>
-<li><span class="key">Additive changes are safe; destructive ones need the contract phase.</span> Adding a nullable column or a new table is non-breaking. Dropping a column, renaming, narrowing a type, or adding a <code>NOT NULL</code> without a default is breaking.</li>
-<li><span class="key">Adding NOT NULL</span> — add the column nullable, backfill, then add the constraint, rather than blocking on a default-fill that locks the table.</li>
-<li><span class="key">Index creation</span> — use <code>CREATE INDEX CONCURRENTLY</code> (Postgres) / online DDL (MySQL 8 / gh-ost / pt-online-schema-change) so you don't take a long table lock. A naive index build on a large table is a multi-minute write lock = outage.</li>
-<li><span class="key">Beware long-running migrations on replicas</span> — a single huge transaction can stall the replication stream and blow read-replica lag, indirectly degrading the whole service.</li>
+<li><b>What it is.</b> Runtime switches that decouple release from deploy (LaunchDarkly, Unleash, in-house).</li>
+<li><b>Mechanism.</b> Deploy code dark; flip flags per cohort/% to release; dark-launch (execute new path, hide output) and shadow (mirror traffic) to test under real load; instant kill switch.</li>
+<li><b>The failure to watch.</b> Flag sprawl and stale/repurposed flags (Knight Capital) &mdash; treat flags as code with lifecycle and cleanup.</li>
 </ul>
 
-<div class="callout warn"><span class="lbl">Pitfall</span>The dual-write window introduces a <span class="key">consistency hazard</span>: if a write to column A succeeds and the write to column B fails (or the process crashes between them), the two diverge. For a single-row multi-column write inside one transaction this is fine. But if "dual write" spans two datastores (e.g. old DB and a new service), you've created a distributed write with no atomicity — exactly the problem <a href="32.html">distributed transactions</a> and <a href="40.html">CDC / outbox</a> patterns exist to solve. Don't hand-roll cross-store dual writes; use change-data-capture to derive the second store from the first.</p></div>
-
-<h2 id="rollback">Rollback vs roll-forward</h2>
-<p>When a deploy goes bad, you have two recoveries, and a principal knows when each applies:</p>
+<h3 id="impl-expand">Expand-contract migrations</h3>
 <ul>
-<li><span class="key">Rollback</span> — revert to the previous known-good version. Fast, low-risk <em>for stateless code</em>. The default reaction to a freshly-deployed regression. Blue-green and flag-flips make this seconds; rolling makes it minutes.</li>
-<li><span class="key">Roll-forward</span> — fix the bug and deploy a new version. Necessary when rollback is <em>impossible or unsafe</em> — most commonly because a schema/data migration already ran and the old code can no longer read the new state. Once you've passed the "contract" phase of expand-contract, you cannot roll back; you can only roll forward.</li>
+<li><b>What it is.</b> The zero-downtime schema-change pattern (parallel-change).</li>
+<li><b>Mechanism.</b> Add new (expand) &rarr; dual-write + backfill &rarr; switch reads &rarr; remove old (contract); every step backward-compatible.</li>
+<li><b>The failure to watch.</b> Skipping a step (dropping the old column too early) breaks coexisting versions; locking DDL on big tables causes its own outage &mdash; use online/concurrent operations.</li>
 </ul>
 
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Rollback is faster and safer for code, but <span class="key">data migrations are frequently irreversible</span>, which is precisely why expand-contract keeps the old schema alive through the rollout — it preserves the option to roll back. The architectural decision is: how long do you keep the rollback option open (the soak period before contract), versus the carrying cost of dual schemas and dual writes? High-stakes systems keep it open for days; the cost is acceptable complexity for the recovery guarantee.</p></div>
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you sequence the steps. Work each before opening the approach.</p>
 
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They state the recovery plan as part of the design, not as an afterthought: define the <span class="key">automated rollback trigger</span> (SLO burn / canary abort), confirm the rollback target is still healthy and warm, and explicitly call out the point of no return where the strategy switches from rollback to roll-forward. They also know that rolling back doesn't undo emitted side effects — messages already published, emails already sent, payments already taken — and that those need compensating actions, linking deployment safety to <a href="51.html">resilience patterns</a> like idempotency and sagas.</p></div>
+<h3 id="ex-migration">Add a NOT NULL column with zero downtime</h3>
+<p>You must add a required <code>email_verified</code> boolean to a 100M-row users table, while old and new code versions run during a rolling deploy. Sequence the migration so nothing breaks.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Never add a NOT NULL column with a default in one shot on a huge table (locks/old-code break). <b>Expand-contract</b>: (1) <b>Add</b> the column as <i>nullable</i> (fast, non-locking; old code ignores it). (2) Deploy code that <b>writes</b> the column on new/updated rows. (3) <b>Backfill</b> existing rows in batches (not one giant UPDATE that locks the table). (4) Once every row has a value and all instances write it, add the <b>NOT NULL</b> constraint (validate separately from the lock-heavy step where the DB supports it). (5) Old code never needed the column, so it coexisted safely throughout. Each step is backward-compatible and individually reversible &mdash; the opposite of a one-step breaking migration (Scenario 3). Use online/concurrent DDL so the schema change itself doesn't lock out traffic.</p>
+</div></details>
 
-<h2 id="mastery">Principal-level mastery check</h2>
+<h3 id="ex-canary">Design a canary with automated rollback</h3>
+<p>You deploy a new version of a checkout service. Design a canary rollout that catches a production-only regression at ~1% and rolls back automatically, then promotes safely if healthy.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Deploy the new version alongside the old; route <b>~1%</b> of real traffic to it (the canary), 99% to the stable baseline. Run <b>automated canary analysis</b>: over a window (long enough for statistical signal &mdash; minutes, with enough requests), compare the canary's <b>error rate, latency percentiles, and key business metrics</b> (checkout success rate) against the baseline. If the canary regresses beyond thresholds, <b>auto-halt and roll back</b> (shift traffic back to baseline) &mdash; the bug hit ~1% of users for a few minutes, not 100% (Scenario 2 fix). If healthy, progressively shift more traffic (1%&rarr;10%&rarr;50%&rarr;100%), re-analyzing at each step, until full. Tie the gate to your <a href="49.html">SLO/error budget</a>, and keep the baseline running until 100% so rollback stays instant. This makes the rollout self-driving and self-protecting.</p>
+</div></details>
 
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat deployment as risk management with explicit blast-radius / TTD / TTR levers, not as a CI/CD checkbox. They decouple deploy from release with flags, propose canary <em>with automated SLO-burn-based analysis</em> rather than hand-watched dashboards, and — the real differentiator — they handle the database. They reach for expand-contract unprompted, articulate the dual-write window as the thing that preserves reversibility, and name the exact point where the strategy crosses from rollback to roll-forward. They connect deployment safety to <a href="49.html">error budgets</a>, <a href="50.html">observability</a>, and <a href="51.html">resilience</a> instead of treating them as separate topics.</p></div>
-
-<p>Sharp questions to test your own understanding:</p>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
 <ul>
-<li>You're renaming a heavily-used column on a 2-billion-row table with zero downtime. Walk me through every deploy and the exact failure mode at each step if you skipped it. Where is the point of no return?</li>
-<li>Your canary is at 1% on a service doing 50 QPS, and you're hunting a regression that affects 1 in 500 requests. How long until you'd detect it, and how would you change the canary to detect faster?</li>
-<li>You want to validate a rewritten pricing service with shadow traffic. The service writes to a ledger and calls a payment provider. What breaks, and how do you mirror safely?</li>
-<li>A blue-green cutover passed all pre-cut tests but green is failing for 30% of users post-flip. What's your recovery, and why might the failure not have shown pre-cut?</li>
-<li>How would you wire your canary's abort condition to an SLO error budget rather than a fixed error-rate threshold, and why is that better?</li>
-<li>You have 40 feature flags, three are years old. What's your governance, and what's the incident risk of leaving them? (Probe: do they know the Knight Capital story?)</li>
+<li><b>Build a flag-driven release process.</b> Design how features ship dark, release gradually by cohort, get a kill switch, and get cleaned up &mdash; with the Knight Capital failures explicitly designed out. &rarr; <a href="44.html">Microservices</a>.</li>
+<li><b>Migrate a live high-traffic table.</b> Re-shard or re-type a column on a table taking thousands of writes/sec with zero downtime. Sequence expand-contract + backfill + dual-write. &rarr; <a href="05.html">Sharding</a>, <a href="37.html">Replication</a>.</li>
+<li><b>Gate deploys on the error budget.</b> Wire your deploy pipeline so a depleted <a href="49.html">error budget</a> automatically freezes risky releases. &rarr; <a href="49.html">SLI/SLO/SLA</a>.</li>
 </ul>
 
-<div class="navfoot"><a href="51.html">&lsaquo; Prev: Resilience Patterns</a><a class="nx" href="53.html">Next: Multi-Region and Disaster Recovery &rsaquo;</a></div>
-
+<div class="navfoot"><a href="51.html">&lsaquo; Prev: Resilience Patterns</a><a class="nx" href="53.html">Next: Multi-Region &amp; DR &rsaquo;</a></div>
 </div>
 </div>
 </div>

@@ -111,168 +111,209 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing a Unique ID Generator</div>
-
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Unique ID Generator</div>
 <h1>Designing a Unique ID Generator</h1>
-<p class="sub">How to mint billions of globally unique, roughly time-ordered 64-bit identifiers per day with no central coordinator on the hot path.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth.</b> <span>unique IDs without coordination, paid in clock-skew handling and roughly-sortable bit layouts.</span></div>
+<p class="sub"><em>Every distributed system needs to mint unique identifiers &mdash; for tweets, orders, messages &mdash; at high rate, across many machines, with no coordination bottleneck. A single auto-increment column can't keep up and is a single point of failure; random UUIDs are unique but kill database performance. The elegant answer, Twitter's Snowflake, packs <b>time + machine + sequence</b> into 64 bits &mdash; and its one sharp edge is what happens when a clock moves backwards.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#req">Requirements and back-of-envelope</a></li>
-<li><a href="#uuid">Approach 1: UUIDs</a></li>
-<li><a href="#dbauto">Approach 2: DB auto-increment</a></li>
-<li><a href="#ticket">Approach 3: Ticket / segment servers (Flickr)</a></li>
-<li><a href="#snowflake">Approach 4: Twitter Snowflake</a></li>
-<li><a href="#clock">The clock problem: skew and rollback</a></li>
-<li><a href="#sortable">Why sortable IDs matter: ULID, KSUID, index locality</a></li>
-<li><a href="#coord">Machine-id assignment and coordination</a></li>
-<li><a href="#wrap">Putting it together</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Globally-unique, roughly-sortable, 64-bit IDs at scale with no central coordinator &mdash; in exchange for depending on loosely-synced clocks and a per-node sequence limit.</b> <span>Encode time + machine id + a counter so each node generates IDs alone, no lock or round-trip. The price: IDs are only as monotonic as your clocks, and a backwards clock or a sequence overflow must be handled explicitly.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; we walk the design top to bottom, then deep-dive the hard parts</div>
+<pre class="tree">
+<b>Designing a Unique ID Generator</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>  &mdash; functional &amp; non-functional
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>  &mdash; rate &rarr; bits needed
+├─ <a href="#api"><b>3. The API</b></a>  &mdash; nextId()
+├─ <a href="#highlevel"><b>4. High-level design</b></a>  &mdash; the 64-bit layout
+├─ <a href="#datamodel"><b>5. The bit layout</b></a>  &mdash; timestamp | machine | sequence
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+│
+├─ <a href="#subproblems"><b>The 4 hard sub-problems</b></a>
+│   ├─ <a href="#s1">1. Why not the obvious options?</a>     fail → <a href="#uuid-trap">random UUIDs kill the index</a>
+│   ├─ <a href="#s2">2. The clock-backwards problem</a>       fail → <a href="#clock-back">duplicate IDs on NTP rewind</a>
+│   ├─ <a href="#s3">3. Assigning machine IDs</a>             fail → <a href="#dup-machine">two nodes, same machine id</a>
+│   └─ <a href="#s4">4. Sequence overflow in a millisecond</a> fail → <a href="#seq-overflow">running out of sequence</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; the approaches compared
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; reconstruct the scenarios
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; Snowflake / Instagram / Flickr
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+</pre>
 </div>
 
-<h2 id="req">Requirements and back-of-envelope</h2>
-<p>The problem: "a service that generates unique IDs in a distributed system." Before sketching anything, pin down the functional and non-functional requirements &mdash; the right answer is entirely determined by them.</p>
+<!-- ============ 1. REQUIREMENTS ============ -->
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b></p>
 <ul>
-<li><span class="key">Uniqueness:</span> no two IDs ever collide, across all data centers, forever.</li>
-<li><span class="key">Size:</span> typically <span class="key">64-bit</span> integers. They fit a <code>BIGINT</code> / <code>long</code>, index densely, and are half the width of a 128-bit UUID in every B-tree page, network frame, and cache line.</li>
-<li><span class="key">Sortable / k-sorted:</span> IDs should be <em>roughly</em> time-ordered so that newer rows sort after older ones. This is a soft requirement that has outsized impact on storage-engine performance (see <a href="#sortable">below</a>).</li>
-<li><span class="key">Throughput &amp; latency:</span> e.g. 10,000+ IDs/sec per node, p99 &lt; 1&nbsp;ms, ideally generated locally with <em>no network round-trip</em>.</li>
-<li><span class="key">No single point of failure:</span> the generator must not depend on a central server on the critical path.</li>
+<li>Generate <b>globally unique</b> IDs (never a collision, ever).</li>
+<li>IDs are <b>64-bit</b> (fit a <code>BIGINT</code> / <code>long</code> &mdash; UUIDs' 128 bits are wasteful as a primary key).</li>
+<li>IDs are <b>roughly time-sortable</b> (sortable by creation order &mdash; hugely useful for feeds, pagination, and <a href="38.html">B-tree</a> insert locality).</li>
 </ul>
-<div class="callout note"><span class="lbl">Key insight</span>The whole problem is a tension between two goals that pull in opposite directions: <em>uniqueness</em> wants global coordination, while <em>throughput and availability</em> want zero coordination. Every approach below is a different point on that trade-off curve. The winning designs push coordination off the hot path &mdash; they coordinate <em>rarely</em> (a machine-id lease) so they can generate IDs <em>locally</em> (no round-trip per ID).</div>
-
-<h4>Sanity numbers</h4>
-<p>A 64-bit unsigned space is ~1.8&times;10<sup>19</sup> values. Twitter at peak tweeted &lt; 10<sup>4</sup>/sec; even a hyperscaler minting 10<sup>6</sup> IDs/sec burns through only ~3&times;10<sup>13</sup>/year &mdash; you will exhaust the <em>timestamp</em> field (a 41-bit ms clock lasts ~69 years) long before the space. The real scarcity is bits, not IDs.</p>
-
-<h2 id="uuid">Approach 1: UUIDs</h2>
-<p>A <span class="key">UUID</span> (RFC 4122) is a 128-bit value. Two variants matter here:</p>
+<p><b>Non-functional:</b></p>
 <ul>
-<li><span class="key">UUIDv4</span> &mdash; 122 random bits. Collision probability is negligible (you'd need ~10<sup>18</sup> UUIDs for a 50% chance). Fully decentralized, zero coordination, generate anywhere offline. <strong>But</strong> it is <em>not sortable</em> &mdash; consecutive inserts scatter randomly across the index.</li>
-<li><span class="key">UUIDv1</span> &mdash; 60-bit timestamp + 14-bit clock sequence + 48-bit MAC/node. Time-ordered in principle, but the timestamp is laid out in a byte order that is <em>not</em> lexicographically sortable, and it leaks the MAC address (privacy / security concern). UUIDv6/v7 (2024 RFC 9562) fix the ordering &mdash; v7 is a Unix-ms timestamp + random, and is the modern recommendation when you can afford 128 bits.</li>
+<li><b>High throughput</b> &mdash; tens of thousands of IDs/sec per node, millions across the fleet.</li>
+<li><b>Low latency</b> &mdash; generating an ID must be near-instant (ideally no network call).</li>
+<li><b>Highly available &amp; no single point of failure</b> &mdash; a central allocator everyone calls is both.</li>
 </ul>
-<div class="callout warn"><span class="lbl">Pitfall</span>The killer problem with random UUIDs (v4) as a <em>primary key</em> is write amplification. In an InnoDB B-tree (clustered index) or any B-tree storage engine, random keys cause inserts to land in random pages &mdash; constant page splits, a cold buffer pool, and poor fill factor. Benchmarks routinely show 2&ndash;10&times; slower bulk inserts and a 30&ndash;40% larger index versus a monotonic key. See <a href="38.html">Storage Engines: LSM vs B-Tree</a>. Also: 128 bits is double the storage and, because secondary indexes in InnoDB embed the PK, that bloat multiplies.</div>
-<p><span class="pill">verdict</span> Great when you need <em>offline / client-side</em> generation and don't care about 64-bit or sort order. For a system requiring a <em>sortable 64-bit</em> ID, UUIDv4 is a wrong answer; UUIDv7 is acceptable only if the 128-bit width is fine.</p>
 
-<h2 id="dbauto">Approach 2: DB auto-increment</h2>
-<p>The naive answer: a single table with an <code>AUTO_INCREMENT</code> / <code>SERIAL</code> column. Insert a row, read back the generated key.</p>
-<p>It gives you small, perfectly monotonic, sortable IDs &mdash; but it has two fatal flaws at scale:</p>
+<!-- ============ 2. CAPACITY ============ -->
+<h2 id="capacity">2. Capacity estimate &mdash; work the bits</h2>
+<p>The capacity math here is a <b>bit budget</b> &mdash; how to spend 64 bits to meet the requirements. Let's derive it:</p>
 <ul>
-<li><span class="key">SPOF and write ceiling:</span> a single primary DB is one machine's worth of write throughput and one failure domain. Every ID generation is a network round-trip plus a durable write.</li>
-<li><span class="key">Doesn't shard:</span> the moment you partition the database (see <a href="05.html">Sharding / Data Partitioning</a>), each shard's counter is independent and they collide.</li>
+<li><b>1 bit</b> &mdash; sign bit, left 0 (so the ID is a positive signed 64-bit integer). <b>63 bits to spend.</b></li>
+<li><b>Timestamp:</b> we want IDs sortable by time and the system to last decades. <b>41 bits</b> of milliseconds = 2<sup>41</sup> ms &asymp; 69 years. Using a <span class="gl" data-def="Custom epoch &mdash; a chosen start time (e.g. the system's launch date) that the timestamp counts from instead of the Unix 1970 epoch, maximizing the usable years that fit in the timestamp bits.">custom epoch</span> (start counting from your launch date, not 1970) gives the full 69 years from launch. &rarr; <b>41 bits.</b></li>
+<li><b>Machine id:</b> how many ID-generating nodes? <b>10 bits</b> = 1,024 nodes. Plenty for a large fleet. &rarr; <b>10 bits.</b></li>
+<li><b>Sequence:</b> the remaining <b>12 bits</b> = 4,096 values &mdash; this is how many IDs <i>one node</i> can mint <i>per millisecond</i>. So per node: 4,096 IDs/ms = <b>~4.096 million IDs/second</b>; across 1,024 nodes, ~4 billion IDs/sec. &rarr; <b>12 bits.</b></li>
 </ul>
-<p>The classic workaround is <span class="key">stepped sequences</span>: configure N database servers with <code>auto_increment_increment = N</code> and distinct <code>auto_increment_offset</code> (server 1 &rarr; 1,3,5,7&hellip;; server 2 &rarr; 2,4,6,8&hellip; for N=2). This removes the single SPOF but is brittle: adding a node requires re-planning the modulus, IDs are only <em>weakly</em> time-ordered across servers, and you've coupled ID generation to DB topology.</p>
+<p><b>1 + 41 + 10 + 12 = 64.</b> Every bit is accounted for, and each allocation maps directly to a requirement: timestamp &rarr; sortability + lifespan, machine id &rarr; fleet size, sequence &rarr; per-node throughput. <b>The consequence:</b> if you need more than 4,096 IDs per node per millisecond, you've overflowed the sequence (<a href="#seq-overflow">sub-problem 4</a>) &mdash; the bit budget <i>is</i> the design.</p>
 
-<h2 id="ticket">Approach 3: Ticket / segment servers (Flickr)</h2>
-<p>Flickr's well-known design uses dedicated <span class="key">ticket servers</span> &mdash; tiny MySQL boxes whose only job is to vend IDs via <code>REPLACE INTO</code> on a single-row table:</p>
-<pre><code>REPLACE INTO Tickets64 (stub) VALUES ('a');
-SELECT LAST_INSERT_ID();</code></pre>
-<p>Two ticket servers run with offset 1/2 and increment 2 (odd vs even) so a failure of one doesn't stop ID issuance. The crucial scaling refinement is the <span class="key">segment (range) allocator</span>, used by systems like Meituan's <em>Leaf</em>: instead of one ID per round-trip, a service requests a <em>block</em> of IDs (e.g. 1,000) in a single transaction, then hands them out from local memory.</p>
-<pre><code>-- atomic range claim
-UPDATE id_alloc SET max_id = max_id + 1000
-  WHERE biz_tag = 'orders';
-SELECT max_id FROM id_alloc WHERE biz_tag = 'orders';
--- server now owns [max_id-1000, max_id), serves locally</code></pre>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They immediately propose <em>double buffering</em> on the segment allocator: prefetch the next block asynchronously when the current block is ~80% consumed, so a client never blocks on the DB round-trip. This makes p99 latency independent of the DB and tolerates short DB outages (you keep serving from the buffer). It is the difference between a textbook answer and a production one.</div>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Segment allocation trades <em>density</em> for <em>availability</em>: on every restart you discard the unused tail of the current block, so IDs have gaps. That's fine (gaps are allowed; only uniqueness matters) but it means IDs are <em>k-sorted</em> across servers, not globally monotonic &mdash; two servers holding adjacent blocks can interleave.</div>
+<!-- ============ 3. API ============ -->
+<h2 id="api">3. The API</h2>
+<p>Deliberately tiny &mdash; the whole point is a local call, no parameters, no network:</p>
+<pre class="tree" style="border:none;background:var(--code-bg,#f6f8fa);padding:12px;border-radius:8px">
+long nextId()        // returns the next unique 64-bit id
+</pre>
+<p>It runs <i>in-process</i> on each application node (or as a sidecar), so generating an ID is a few CPU instructions &mdash; no round-trip, which is what lets it hit millions/sec at sub-microsecond latency. Contrast a central "ID service" you'd call over the network: that adds latency and is a <a href="36.html">single point of failure</a>.</p>
 
-<h2 id="snowflake">Approach 4: Twitter Snowflake</h2>
-<p><span class="key">Snowflake</span> is the canonical answer for a <em>distributed, coordination-free, sortable 64-bit</em> ID. Every node generates IDs locally by composing three fields into a single 64-bit integer. The original Twitter layout:</p>
-<pre><code> 0 | 41-bit timestamp (ms since epoch) | 10-bit machine id | 12-bit sequence
- ^   ^                                   ^                    ^
- |   |                                   |                    +-- 4096 ids / ms / node
- |   |                                   +-- 1024 nodes (5 dc + 5 worker, or flat)
- |   +-- ~69 years from a custom epoch
- +-- sign bit, always 0 -> id stays positive in signed long</code></pre>
-<table>
-<tr><th>Field</th><th>Bits</th><th>Capacity</th><th>Purpose</th></tr>
-<tr><td>Sign</td><td>1</td><td>always 0</td><td>keeps the value positive in a signed 64-bit long</td></tr>
-<tr><td>Timestamp</td><td>41</td><td>~69 yrs of ms</td><td>high bits &rarr; sort order; use a <em>custom epoch</em> to extend lifespan</td></tr>
-<tr><td>Machine id</td><td>10</td><td>1024 nodes</td><td>guarantees cross-node uniqueness without coordination per ID</td></tr>
-<tr><td>Sequence</td><td>12</td><td>4096 / ms</td><td>disambiguates IDs minted in the same millisecond on one node</td></tr>
-</table>
-<p>Because the timestamp occupies the <em>high-order bits</em>, the integer ordering of two IDs matches their time ordering &mdash; this is what makes Snowflake IDs sortable. The generation logic:</p>
-<pre><code>synchronized long nextId() {
-  long now = currentTimeMillis();
-  if (now &lt; lastTs)                 // clock moved backwards!
-      throw new ClockBackwardException(lastTs - now);
-  if (now == lastTs) {
-      seq = (seq + 1) &amp; 0xFFF;       // 12-bit mask
-      if (seq == 0) now = waitNextMillis(lastTs);  // burned 4096, spin
-  } else {
-      seq = 0;
-  }
-  lastTs = now;
-  return ((now - EPOCH) &lt;&lt; 22)       // 10 + 12 = 22 bits below timestamp
-       | (machineId &lt;&lt; 12)
-       | seq;
-}</code></pre>
-<p>Field widths are <em>negotiable per workload</em>: if you have only a few nodes but huge per-node throughput, steal bits from machine-id and give them to the sequence. Discord, Instagram, and Sonyflake all ship Snowflake variants with different splits (Instagram embeds a shard id; Sonyflake uses 10&nbsp;ms ticks to last 174 years with fewer sequence bits).</p>
-
-<h2 id="clock">The clock problem: skew and rollback</h2>
-<p>Snowflake's correctness rests entirely on the wall clock being <em>monotonically non-decreasing</em>. This is its single biggest operational hazard.</p>
-<ul>
-<li><span class="key">Clock skew:</span> two nodes' clocks differ by tens of ms. This is harmless for <em>uniqueness</em> (machine-id keeps them distinct) but means IDs are only <span class="key">k-sorted</span> &mdash; globally ordered within the skew window, not strictly. Don't promise strict total order across nodes.</li>
-<li><span class="key">Clock rollback:</span> NTP slews or steps the clock <em>backwards</em>, or a VM is restored from a snapshot. If <code>now &lt; lastTs</code>, naive code could re-mint an already-issued (timestamp, machine-id, seq) triple &mdash; a <em>collision</em>.</li>
-</ul>
-<div class="callout warn"><span class="lbl">Pitfall</span>Never run NTP in <em>step</em> mode on an ID-generation host. Use <code>chrony</code> in <em>slew</em>-only mode (<code>maxslewrate</code>, no <code>makestep</code>) so the clock only ever speeds up or slows down, never jumps back. A backward jump is the one thing the algorithm cannot tolerate.</div>
-<p>Mitigation strategies, in increasing robustness:</p>
+<!-- ============ 4. HIGH-LEVEL ============ -->
+<h2 id="highlevel">4. High-level design</h2>
+<p>Each node independently builds an ID by composing three numbers it can produce locally:</p>
 <ol>
-<li><span class="key">Refuse and wait:</span> if the rollback is small (&lt; a few ms), block until the clock catches up to <code>lastTs</code>. Simple, but stalls.</li>
-<li><span class="key">Refuse and alarm:</span> if the rollback exceeds a threshold, throw and let the node take itself out of rotation. Availability over a silent collision.</li>
-<li><span class="key">Persist the high-water mark:</span> periodically write <code>lastTs</code> to durable storage / ZooKeeper. On restart, refuse to issue IDs until the clock passes the persisted watermark. Baidu's <em>UidGenerator</em> and Meituan Leaf-snowflake do exactly this against ZooKeeper.</li>
-<li><span class="key">Logical clocks:</span> decouple the high bits from wall time entirely &mdash; advance a monotonic counter on every backward jump. This trades strict time-meaning for guaranteed monotonicity (related ideas in <a href="33.html">Time, Clocks and Ordering</a>).</li>
+<li>Read the <b>current time</b> in ms (minus the custom epoch) &rarr; the 41-bit timestamp.</li>
+<li>Use its <b>assigned machine id</b> &rarr; the 10-bit machine field (set once at startup).</li>
+<li>Take the <b>next value of a per-millisecond counter</b> &rarr; the 12-bit sequence (resets to 0 each new millisecond).</li>
 </ol>
+<p>Bit-shift and OR them together into one 64-bit integer. No two nodes share a machine id, so even if two nodes generate at the same millisecond with the same sequence, the machine-id field makes the IDs differ &mdash; <b>uniqueness without any coordination.</b> And because the timestamp is the high-order bits, IDs sort by creation time.</p>
 
-<h2 id="sortable">Why sortable IDs matter: ULID, KSUID, index locality</h2>
-<p>Sortability is not a nice-to-have; it directly governs storage-engine efficiency. Time-ordered keys turn random I/O into sequential I/O:</p>
-<ul>
-<li><span class="key">B-trees:</span> monotonic inserts always append to the rightmost leaf page &mdash; minimal page splits, high fill factor, hot pages stay in the buffer pool. Random keys (UUIDv4) thrash the whole tree.</li>
-<li><span class="key">LSM trees:</span> sorted keys compact cleanly and, critically, enable efficient <em>range scans</em> &mdash; "fetch the last hour of events" becomes a contiguous read. Time-prefixed keys also bound which SSTables a read must touch.</li>
-</ul>
-<p>This is why <a href="38.html">storage-engine choice</a> and ID design must be discussed together. Two popular wider sortable formats sit alongside Snowflake:</p>
+<!-- ============ 5. BIT LAYOUT ============ -->
+<h2 id="datamodel">5. The bit layout (the "data model")</h2>
 <table>
-<tr><th>Format</th><th>Bits</th><th>Layout</th><th>Notable</th></tr>
-<tr><td>Snowflake</td><td>64</td><td>41 ts(ms) + 10 node + 12 seq</td><td>fits BIGINT; needs coordinated machine-id</td></tr>
-<tr><td>ULID</td><td>128</td><td>48 ts(ms) + 80 random</td><td>Crockford base32, lexicographically sortable as text; no node coordination</td></tr>
-<tr><td>KSUID</td><td>160</td><td>32 ts(s) + 128 random</td><td>second-granularity, huge random space, URL-safe</td></tr>
+<tr><th>Bits</th><th>Field</th><th>Meaning</th></tr>
+<tr><td>1</td><td>sign</td><td>Always 0 (keeps it a positive number)</td></tr>
+<tr><td>41</td><td>timestamp</td><td>Milliseconds since a custom epoch (~69 yrs) &mdash; high-order, so IDs sort by time</td></tr>
+<tr><td>10</td><td>machine id</td><td>Which node generated it (1,024 nodes)</td></tr>
+<tr><td>12</td><td>sequence</td><td>Per-node counter within one millisecond (4,096/ms)</td></tr>
 </table>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span><span class="key">Snowflake</span> buys you 64 bits and tight ordering at the cost of <em>coordination</em> (you must assign unique machine-ids). <span class="key">ULID/KSUID/UUIDv7</span> buy you <em>zero coordination</em> (random low bits) at the cost of 128/160 bits and only millisecond/second-level ordering with random tie-breaking. For a sharded database PK where width matters, Snowflake wins; for client-generated IDs or where you can't run a coordinator, ULID/UUIDv7 win.</div>
+<p>This is the Snowflake layout. The split is tunable: more machine-id bits (bigger fleet) means fewer sequence bits (lower per-node rate), and vice-versa &mdash; you spend the 63 bits to match <i>your</i> fleet size and throughput.</p>
 
-<h2 id="coord">Machine-id assignment and coordination</h2>
-<p>Snowflake's Achilles heel: two nodes must never share a machine-id, or they will collide within the same millisecond. The 10-bit field gives only 1024 slots, so static config files break the moment you autoscale, replace, or restart pods. Options:</p>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; "just use a UUID" / "just use auto-increment"</span>
+A teammate says "why all this &mdash; UUIDs are unique, or just use the database's auto-increment." <b>What's wrong with each at scale: why do random UUIDs hurt database performance, and why is auto-increment a bottleneck and a single point of failure?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the clock jumps backward (real hazard)</span>
+A node's clock is corrected by <a href="33.html">NTP</a> and jumps <i>backwards</i> 50ms. The timestamp field now repeats values it already used &mdash; so it could generate an ID it generated 50ms ago. Twitter's Snowflake handles this deliberately. <b>What does it do, and why is refusing to generate the safest choice?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; two nodes boot with the same machine id</span>
+Through a config bug, two nodes start up with machine id <code>42</code>. Now they can each independently produce the <i>same</i> (timestamp, machine, sequence) triple &mdash; a duplicate ID, silently. <b>How do you assign machine ids so this can never happen, even as nodes autoscale up and down?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#uuid-trap">why not the obvious options</a>. Scenario 2 is <a href="#clock-back">the clock-backwards problem</a>. Scenario 3 is <a href="#dup-machine">machine-id assignment</a>. Each maps to a sub-problem below.</i></p>
+
+<!-- ============ SUB-PROBLEMS ============ -->
+<h2 id="subproblems">The four hard sub-problems</h2>
+<p>The design above is the easy 80%. These four are where it gets interesting &mdash; each with a nested failure.</p>
+
+<h3 id="s1">Sub-problem 1 &mdash; Why not the obvious options?</h3>
+<p>Three tempting alternatives and why they fall short: <b>(a) Database auto-increment</b> &mdash; simple and sortable, but every insert needs the one database (a throughput bottleneck and <a href="36.html">single point of failure</a>); sharded auto-increment with offsets is fragile. <b>(b) UUID v4 (random 128-bit)</b> &mdash; generated anywhere with no coordination, but 128 bits is twice the storage as a key, and being <i>random</i> they destroy <a href="38.html">B-tree</a> insert locality. <b>(c) Snowflake</b> &mdash; 64-bit, coordination-free, time-sortable: the sweet spot.</p>
+<div class="callout warn"><span class="lbl" id="uuid-trap">The failure that happens when you get this wrong &mdash; random UUIDs kill the index</span>
+This is <b>Scenario 1</b>. A random UUID as a primary key means each insert lands at a <i>random</i> position in the table's <a href="38.html">B-tree</a> index &mdash; so the database constantly splits pages all over the tree, thrashes the buffer cache (the hot insertion point is everywhere), and fragments storage. Sequential-ish IDs (like Snowflake's time-ordered ones) insert at the <i>end</i> of the index &mdash; cheap, cache-friendly, no fragmentation. This is why "just use UUIDs" is a real performance problem at write-heavy scale, and why time-sortable IDs matter beyond convenience. (UUID v7, time-ordered, fixes much of this &mdash; the lesson is to keep IDs roughly sequential.)</div>
+
+<h3 id="s2">Sub-problem 2 &mdash; The clock-backwards problem</h3>
+<p>Snowflake's uniqueness rests on the timestamp <i>never decreasing</i>. But <a href="33.html">wall clocks lie</a> &mdash; NTP corrections and leap seconds can step a clock backwards. If the timestamp field goes back to a value the node already used, it can re-mint a (timestamp, machine, sequence) triple it already issued &rarr; a duplicate ID, the one thing that must never happen.</p>
+<div class="callout warn"><span class="lbl" id="clock-back">The failure that happens when you get this wrong &mdash; duplicate IDs on a backwards clock</span>
+This is <b>Scenario 2</b>. The standard Snowflake defense: the generator <b>remembers the last timestamp it used</b>, and if the current clock reading is <i>less</i> than that, it knows time went backwards &mdash; so it <b>refuses to generate</b> (throws/blocks) until the clock catches back up to the last-seen time. Refusing is the safe choice: a brief generation stall (usually milliseconds) is vastly preferable to silently issuing a duplicate ID that corrupts your data. Mitigate the stall by keeping clocks tightly synced and, for small rewinds, briefly waiting; for large rewinds, alert &mdash; something is wrong with that node's clock. (This is exactly the <a href="33.html">"time can't go backwards" lesson</a> from the leap-second outages, applied.)</div>
+
+<h3 id="s3">Sub-problem 3 &mdash; Assigning machine IDs without collision</h3>
+<p>Uniqueness depends on every node having a <i>distinct</i> machine id &mdash; so how do nodes get one, especially when they autoscale (nodes come and go, and you can't hardcode)? Options: a <a href="36.html">coordination service</a> (ZooKeeper/etcd) hands out an unused id from the 1,024-space on startup (and reclaims it when a node dies); or derive it from something already unique (a stable host index, an ENI/IP-based scheme). The id must be claimed atomically so two nodes can't grab the same one.</p>
+<div class="callout warn"><span class="lbl" id="dup-machine">The failure that happens when you get this wrong &mdash; two nodes, same machine id</span>
+This is <b>Scenario 3</b>. If two live nodes share a machine id, they can each generate the identical (timestamp, machine, sequence) triple &mdash; a silent duplicate, invisible until two rows collide. Prevent it with <b>atomic id assignment</b>: a node, on startup, claims an id from a <a href="36.html">coordination kernel</a> using create-if-not-exists on an <a href="36.html">ephemeral</a> key &mdash; so the id is held only while the node is alive and is freed (for reuse) the moment it dies, and two nodes can never claim the same id. Hardcoding or deriving ids from non-unique sources (a reused config, a non-stable hostname) is the trap. The 10-bit space (1,024) bounds the fleet &mdash; size that field for your max node count.</div>
+
+<h3 id="s4">Sub-problem 4 &mdash; Sequence overflow within a millisecond</h3>
+<p>The 12-bit sequence allows 4,096 IDs per node per millisecond. What if a node needs to generate the 4,097th ID in the same millisecond? The sequence has overflowed.</p>
+<div class="callout warn"><span class="lbl" id="seq-overflow">The failure that happens when you get this wrong &mdash; running out of sequence</span>
+The correct handling: when the sequence hits its max within a millisecond, <b>wait (busy-spin) until the next millisecond</b>, then reset the sequence to 0 and continue. This caps a single node at 4,096 IDs/ms (~4M/sec) &mdash; if you genuinely need more <i>per node</i>, you re-budget the bits (more sequence bits, fewer machine/timestamp bits) or scale out to more nodes. The bug to avoid is letting the sequence wrap around to 0 <i>within</i> the same millisecond without advancing time &mdash; that re-issues IDs already used this millisecond (duplicates). The wait-for-next-ms is a tiny stall that preserves correctness; it's the same "correctness over a brief stall" principle as the clock-backwards case.</div>
+
+<!-- ============ AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the approaches compared</h2>
+<table>
+<tr><th>Approach</th><th>Unique?</th><th>Sortable?</th><th>Size</th><th>Coordination</th><th>Verdict</th></tr>
+<tr><td>DB auto-increment</td><td>Yes</td><td>Yes</td><td>64-bit</td><td>Central DB (bottleneck + SPOF)</td><td>Doesn't scale</td></tr>
+<tr><td>UUID v4 (random)</td><td>Yes</td><td><b>No</b></td><td>128-bit</td><td>None</td><td>Kills index locality</td></tr>
+<tr><td>Flickr ticket server</td><td>Yes</td><td>Yes</td><td>64-bit</td><td>2 DBs (HA), batch-fetch</td><td>Good, but a service to run</td></tr>
+<tr><td><b>Snowflake</b></td><td>Yes</td><td>Yes (time)</td><td>64-bit</td><td><b>None at runtime</b> (only machine-id setup)</td><td>The standard answer</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The rule in one line</span>Use a <b>Snowflake-style</b> time+machine+sequence 64-bit ID for coordination-free, sortable, compact IDs &mdash; and handle its three sharp edges: <b>refuse to generate on a backwards clock</b>, <b>assign machine ids atomically</b> (coordination kernel), and <b>wait for the next ms on sequence overflow</b>.</div>
+
+<!-- ============ SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">ZooKeeper sequential znodes:</span> on startup a node creates an <em>ephemeral sequential</em> znode under <code>/snowflake/workers/</code>; the sequence number (mod 1024) is its machine-id. The original Twitter Snowflake used exactly this. Ephemeral means the slot is reclaimed on disconnect (related: <a href="36.html">Leader Election and Coordination</a>).</li>
-<li><span class="key">Lease + persistence (Leaf):</span> get a worker-id from ZooKeeper, then cache it locally and persist the clock watermark, so a brief ZK outage doesn't stop generation.</li>
-<li><span class="key">Derive from infra:</span> map machine-id from the pod's stable ordinal in a Kubernetes <code>StatefulSet</code>, or from a DB-backed registry that hands out leases with a TTL. The DB-segment approach (Leaf-segment) sidesteps the machine-id problem entirely.</li>
+<li><b>Scenario 1 (obvious options):</b> Why do random UUIDs hurt the database index, and why is auto-increment a bottleneck + SPOF? What does Snowflake give that both lack?</li>
+<li><b>Scenario 2 (clock backwards):</b> Why does a backwards clock risk duplicates, and why is refusing to generate the right response?</li>
+<li><b>Scenario 3 (same machine id):</b> How does atomic id assignment via a coordination kernel prevent two nodes sharing an id, even under autoscaling?</li>
+<li>Derive the 1+41+10+12 bit budget from the requirements &mdash; what does each field buy?</li>
+<li>What do you do when the per-ms sequence overflows, and why not just wrap to 0?</li>
 </ul>
-<div class="callout warn"><span class="lbl">Pitfall</span>The dangerous edge case: a node loses its ZK session (GC pause, network blip), ZK reclaims its ephemeral slot and hands it to a new node, but the old node hasn't noticed yet and keeps minting IDs with the now-shared id. Mitigate by having the generator <em>stop issuing</em> as soon as it detects a lost session, and by ensuring the session timeout exceeds your max GC pause. This is the same fencing problem covered in <a href="64.html">Designing a Distributed Locking Service</a>.</div>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> a 64-bit <b>time | machine | sequence</b> ID, generated locally; the three sharp edges are <a href="#clock-back">backwards clock</a>, <a href="#dup-machine">machine-id collision</a>, and <a href="#seq-overflow">sequence overflow</a>.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="33.html">Time, Clocks &amp; Ordering</a>, <a href="36.html">Leader Election &amp; Coordination</a>, <a href="38.html">Storage Engines (index locality)</a>, <a href="05.html">Sharding</a>, <a href="15.html">URL Shortener</a>.</p>
 
-<h2 id="wrap">Putting it together</h2>
-<p>A pragmatic production design:</p>
-<ol>
-<li><span class="key">Default:</span> Snowflake generated <em>in-process</em> inside each application instance &mdash; no ID service, no network hop, lowest latency. Machine-id leased from ZooKeeper/etcd at startup.</li>
-<li><span class="key">If clients can't be trusted to generate IDs</span> (mobile, third parties): run a small fleet of stateless ID servers behind a load balancer (<a href="03.html">Load Balancing</a>), each with its own machine-id, returning Snowflake IDs over a thin RPC.</li>
-<li><span class="key">If you can't run a coordinator at all:</span> use UUIDv7/ULID and accept 128 bits.</li>
-<li><span class="key">If you need guaranteed gapless small integers</span> (e.g. human-facing invoice numbers): a DB segment allocator with double buffering &mdash; but understand it serializes per biz-tag.</li>
-</ol>
-<p>This pattern underpins real designs in this course: short-code generation in <a href="15.html">Designing a URL Shortening service like TinyURL</a> is the same problem with a different encoding, and tweet/message IDs in <a href="20.html">Designing Twitter</a> are literally where Snowflake was born.</p>
+<!-- ============ CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<table>
+<tr><th>Need</th><th>Options</th></tr>
+<tr><td>Machine-id assignment / coordination</td><td>ZooKeeper, etcd, Consul (atomic id claim via ephemeral keys)</td></tr>
+<tr><td>Managed Snowflake-style IDs</td><td>Sonyflake, Baidu UidGenerator, Twitter Snowflake (OSS); many DBs offer sequence generators</td></tr>
+<tr><td>Time-ordered UUID in DB</td><td>UUID v7 (time-ordered) &mdash; native/extension support in Postgres, etc.</td></tr>
+<tr><td>Tight clock sync (shrinks rewind risk)</td><td>Amazon Time Sync, Google/Cloud NTP, PTP on some instances</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>You rarely need a bespoke service &mdash; a Snowflake library + a coordination kernel for machine ids, or your database's native <b>UUID v7</b> (which bakes the time-ordering in), usually suffices. The clock-sync quality of your platform directly affects how often the <a href="#clock-back">backwards-clock</a> guard trips.</div>
 
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They start by extracting the <em>exact</em> requirements (64-bit? sortable? coordination allowed? gapless?) because each one eliminates whole approaches &mdash; they don't reflexively answer "Snowflake." They proactively raise the clock-rollback failure mode and propose NTP slew-mode plus a persisted watermark before being prompted. They correctly distinguish <em>uniqueness</em> (hard guarantee) from <em>ordering</em> (best-effort, k-sorted) and never overclaim strict global ordering across nodes. And they connect ID design to downstream storage cost &mdash; write amplification in B-trees, compaction in LSM &mdash; rather than treating the generator in isolation.</div>
+<!-- ============ IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The approaches in real systems. Same facets &mdash; what it is, the mechanism, the failure to watch.</p>
+<h3 id="impl-snowflake">Twitter Snowflake</h3>
 <ul>
-<li>"You proposed Snowflake. Walk me through what happens, bit by bit, when one machine mints two IDs in the same millisecond &mdash; and what happens on the 4097th."</li>
-<li>"NTP steps the clock back 200&nbsp;ms on one node. Trace the exact failure. Now design three independent layers of defense, and tell me which one you'd ship first."</li>
-<li>"How does a freshly autoscaled pod get a machine-id? What guarantees no two live pods share one, and what's the failure window if ZooKeeper reclaims a slot too early?"</li>
-<li>"A teammate wants random UUIDv4 as the clustered primary key in MySQL for 'simplicity.' Quantify what that costs at 50k inserts/sec versus a Snowflake key."</li>
-<li>"The product asks for strictly increasing, gapless order numbers. Why can't Snowflake give you that, and what's the throughput ceiling of the design that can?"</li>
-<li>"Your IDs are 'roughly sortable.' Define the exact bound on how out-of-order two IDs can be, in terms of your clock-skew SLA."</li>
+<li><b>What it is.</b> The originating 64-bit time|machine|sequence design (41|10|12 + sign bit).</li>
+<li><b>Mechanism.</b> Local generation, no runtime coordination; refuses to generate if the clock moves backward.</li>
+<li><b>The failure to watch.</b> Clock skew/rewind (the backwards-clock guard) and machine-id assignment &mdash; the two things that can produce duplicates.</li>
+</ul>
+<h3 id="impl-instagram">Instagram (sharded Postgres)</h3>
+<ul>
+<li><b>What it is.</b> A Snowflake-like scheme baked into Postgres: 41 bits time + shard id + per-shard sequence (mod 1024), generated by a stored procedure.</li>
+<li><b>Mechanism.</b> The <i>shard id</i> doubles as the machine id, so an ID also encodes <i>where</i> the row lives &mdash; combining ID generation with <a href="05.html">logical sharding</a>.</li>
+<li><b>The failure to watch.</b> Per-shard-per-ms sequence cap (1,024); the scheme is tied to their shard layout.</li>
+</ul>
+<h3 id="impl-flickr">Flickr ticket server</h3>
+<ul>
+<li><b>What it is.</b> A pre-Snowflake approach: a dedicated MySQL with an auto-increment table that hands out IDs.</li>
+<li><b>Mechanism.</b> Two ticket servers (odd/even auto-increment offsets) for HA; clients <b>batch-fetch</b> blocks of ids to avoid a round-trip per id.</li>
+<li><b>The failure to watch.</b> It's still a service to run and a (mitigated) central dependency; batch-fetch loses strict ordering across clients.</li>
 </ul>
 
-<div class="navfoot"><a href="57.html">&lsaquo; Prev: Designing a Key-Value Store</a><a class="nx" href="59.html">Next: Designing a Notification System &rsaquo;</a></div>
+<!-- ============ BUILD ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Work each before opening the approach.</p>
+<h3 id="ex-budget">Re-budget the bits for a different scale</h3>
+<p>You need IDs for a fleet of up to 4,000 nodes, each generating up to 1,000 IDs/ms, lasting 30+ years. Re-allocate the 63 bits and check it works.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>4,000 nodes needs <b>12 machine-id bits</b> (4,096 &ge; 4,000). 1,000 IDs/ms needs <b>10 sequence bits</b> (1,024 &ge; 1,000). That leaves <b>41 bits for timestamp</b> (63 &minus; 12 &minus; 10 = 41) = ~69 years of ms &mdash; comfortably &ge; 30. So 1(sign)+41(time)+12(machine)+10(seq) = 64. Note the trade: by giving more bits to machine id you took them from sequence, lowering per-node rate &mdash; that's the fundamental tension. If you needed both more nodes <i>and</i> more per-node rate, you'd have to shorten the timestamp (shorter lifespan or coarser-than-ms resolution) or accept a larger ID. The bit budget makes every requirement a quantitative trade-off &mdash; which is the whole lesson.</p>
+</div></details>
+<h3 id="ex-clock">Handle a clock that jumps backward 5 seconds</h3>
+<p>A node's NTP correction yanks the clock back 5 seconds &mdash; far longer than a brief wait can absorb. Design the behavior so you never emit a duplicate and the system degrades sanely.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>The generator tracks <code>lastTimestamp</code>. On each request, read the clock: if it's &ge; <code>lastTimestamp</code>, proceed normally. If it's <i>behind</i> by a tiny amount (a few ms), <b>busy-wait</b> until it catches up &mdash; cheap, invisible. If it's behind by a <i>large</i> amount (5s), don't block for 5 seconds: instead <b>refuse to generate and raise an alert / take the node out of rotation</b> &mdash; a 5-second backward jump means that node's clock is unhealthy and shouldn't mint IDs at all. Other nodes (with good clocks) keep serving, so the fleet stays available. Some designs keep generating using <code>lastTimestamp</code> (not the wall clock) and a continuing sequence until real time catches up &mdash; valid as long as you never <i>reuse</i> a (time, machine, seq) triple. The non-negotiable: correctness (no duplicates) over availability of that one node.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<ul>
+<li><b>IDs that encode their shard.</b> Like Instagram, design IDs so the ID itself tells you which <a href="05.html">shard</a> the row lives on &mdash; and discuss the coupling cost. &rarr; <a href="05.html">Sharding</a>.</li>
+<li><b>Short, user-facing IDs.</b> A <a href="15.html">URL shortener</a> needs short <i>base-62</i> codes, not 64-bit numbers. Adapt the approach and discuss the trade-offs. &rarr; <a href="15.html">URL Shortener</a>.</li>
+<li><b>No-coordination machine ids.</b> You can't run ZooKeeper. Design machine-id assignment from cloud primitives (instance metadata, IP) that still guarantees uniqueness. &rarr; <a href="36.html">Coordination</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="57.html">&lsaquo; Prev: Key-Value Store</a><a class="nx" href="59.html">Next: Notification System &rsaquo;</a></div>
 </div>
 </div>
 </div>

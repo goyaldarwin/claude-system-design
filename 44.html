@@ -111,203 +111,185 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; Microservices and Service Mesh</div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; Microservices &amp; Service Mesh</div>
+<h1>Microservices &amp; Service Mesh</h1>
+<p class="sub"><em>Splitting one application into many independently-deployable services lets teams ship without stepping on each other and scale hot paths in isolation. But it converts every in-process function call into a network call &mdash; and the network can be slow, fail, and lie. Microservices trade local simplicity for organizational scale, and the bill comes due in distributed-systems complexity. Knowing <b>when not to split</b> is as important as knowing how.</em></p>
 
-<h1>Microservices and Service Mesh</h1>
-<p class="sub"><em>When to split a monolith, how to draw the seams, and what the network layer owes you once you do.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Operability &amp; finite capacity.</b> <span>independent scaling/deploys, paid in distributed-system complexity and data-per-service consistency.</span></div>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Independent deployment, scaling, and team autonomy &mdash; in exchange for network latency/failure, distributed data, and operational complexity on every call that used to be a function.</b> <span>You gain the ability for many teams to build and ship in parallel and scale services independently. You pay by turning every method call into an unreliable network hop, losing easy transactions, and taking on service discovery, observability, and failure handling everywhere.</span></div>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#why">Why this decision matters more than the tech</a></li>
-<li><a href="#monovsmicro">Monolith vs microservices: the real trade space</a></li>
-<li><a href="#conway">Conway's law and team topology</a></li>
-<li><a href="#ddd">Decomposition: bounded contexts, not nouns</a></li>
-<li><a href="#data">Database-per-service and the consistency cost</a></li>
-<li><a href="#comms">Inter-service communication: sync vs async</a></li>
-<li><a href="#mesh">Service mesh: pushing concerns into the network</a></li>
-<li><a href="#strangler">The strangler-fig migration</a></li>
-<li><a href="#antipatterns">Anti-patterns and failure modes</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Microservices &amp; Service Mesh</b>
+│
+├─ <a href="#root"><b>What microservices are</b></a>  &mdash; and the cost of the network
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>The 5 decisions that define a microservices design</b></a>
+│   ├─ <a href="#d1">1. Should you split at all?</a>          fail → <a href="#premature">premature decomposition</a>
+│   ├─ <a href="#d2">2. Where are the boundaries?</a>          fail → <a href="#distributed-monolith">the distributed monolith</a>
+│   ├─ <a href="#d3">3. Who owns the data?</a>                 fail → <a href="#shared-db">the shared database</a>
+│   ├─ <a href="#d4">4. Sync or async communication?</a>      fail → <a href="#cascade">the latency/failure cascade</a>
+│   └─ <a href="#d5">5. Where do cross-cutting concerns live?</a> fail → <a href="#library-drift">library drift (vs the mesh)</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; monolith vs microservices
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; meshes &amp; platforms
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; meshes &amp; patterns
+│   ├─ <a href="#impl-istio">Istio / Linkerd (mesh)</a>
+│   ├─ <a href="#impl-strangler">The strangler-fig migration</a>
+│   └─ <a href="#impl-monolith">The modular monolith</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-boundaries">Draw service boundaries</a>
+    ├─ <a href="#ex-strangler">Plan a strangler migration</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="why">Why this decision matters more than the tech</h2>
-<p>Microservices is an <span class="key">organizational</span> decision dressed up as an architectural one. The technology — containers, gRPC, Envoy — is the easy part. The hard part is that you are trading a single failure domain and ACID transactions for a distributed system with partial failure, eventual consistency, and an order-of-magnitude increase in operational surface area. A principal engineer is expected to know that this trade is frequently a <span class="key">bad</span> one, and to be able to say so to a room that wants to hear "yes."</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What microservices are &mdash; and the cost of the network</h2>
+<p><b>Microservices</b> decompose an application into small, independently-deployable services, each owning a slice of the business capability and (ideally) its own data, communicating over the network. The opposite is a <b>monolith</b>: one deployable unit where modules call each other in-process. The promised benefits are real &mdash; independent deployment (teams ship on their own cadence), independent scaling (scale only the hot service), fault isolation, and technology freedom per service.</p>
+<p>But the defining fact, the one everything else follows from: <b>a microservice call is a network call.</b> What was a nanosecond, always-succeeds function invocation becomes a millisecond, sometimes-fails, sometimes-slow, sometimes-lies remote call. Every <a href="11.html">distributed-systems</a> problem you'd otherwise avoid &mdash; partial failure, latency, <a href="32.html">distributed transactions</a>, <a href="31.html">consistency</a> &mdash; now lives inside your own app.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Microservices trade <b>distributed-systems complexity</b> for <b>organizational scale</b>. The real driver is <a href="#d1">team autonomy</a>, not technology &mdash; you adopt them when coordination between teams on one codebase costs more than the network/operational tax of splitting. Below that threshold, a monolith is the right answer, and "we should use microservices" is often the wrong default.</div>
 
-<div class="callout note"><span class="lbl">Key insight</span> Microservices do not make your system faster, more reliable, or simpler. They buy exactly one thing: <strong>independent deployability of teams</strong>. Every other property (scalability, fault isolation) is achievable in a well-built monolith. If you do not have multiple teams stepping on each other in a shared deploy pipeline, you are paying the distributed-systems cost for nothing.</div>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
 
-<h2 id="monovsmicro">Monolith vs microservices: the real trade space</h2>
-<p>The honest framing is a modular monolith versus a fleet of services. Both can have clean module boundaries; the difference is whether those boundaries are enforced by the compiler/linker (monolith) or by the network (microservices).</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; Amazon Prime Video reverses course, 2023 (real case)</span>
+Prime Video's video-quality monitoring service was built as distributed microservices &mdash; AWS Step Functions orchestrating Lambdas, passing frames through S3. It <b>hit a hard scaling limit at ~5% of the target load</b>, and the orchestration + storage costs were enormous. The team <b>collapsed it back into a single process</b> (one ECS task) and cut costs ~90%. <b>What did the microservice/serverless decomposition cost them here, and what does this say about when to split?</b></div>
 
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the deploy that requires deploying everything</span>
+You have 12 "microservices," but to ship a feature you must change and deploy 5 of them together in a specific order, and they all read the same shared database tables. A schema change in one breaks three others. <b>What have you actually built, and which two decisions did you get wrong to end up here?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; one slow service takes down the site</span>
+Your checkout service calls the recommendations service synchronously to show "you might also like." Recommendations gets slow (GC, overload). Checkout threads block waiting on it; the thread pool fills; checkout stops responding; the failure spreads upstream to the API gateway. A non-critical feature just took down checkout. <b>What is this failure called, and what three patterns would have contained it?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#premature">whether to split at all</a>. Scenario 2 is <a href="#distributed-monolith">boundaries + data ownership</a>. Scenario 3 is <a href="#cascade">sync communication and cascading failure</a>. Each maps to a decision below.</i></p>
+
+<!-- ============ BRANCH 1: THE DECISIONS ============ -->
+<h2 id="decisions">The five decisions that define a microservices design</h2>
+<p>Designing (or avoiding) microservices is these five choices. Each has a named failure nested under it.</p>
+
+<h3 id="d1">Decision 1 &mdash; Should you split at all?</h3>
+<p>The first and most-skipped decision. Microservices solve an <i>organizational</i> problem &mdash; many teams contending on one codebase &mdash; at the price of distributed-systems complexity. If you have one or a few teams, a <b>monolith</b> (or a <b>modular monolith</b>: clean module boundaries, one deployable) ships faster and is far easier to operate. Split when team-coordination cost clearly exceeds the network/ops tax, and split <i>incrementally</i> (extract the service that most needs independent scaling or ownership).</p>
+<div class="callout warn"><span class="lbl" id="premature">The failure that happens when you get this wrong &mdash; premature decomposition</span>
+This is <b>Scenario 1</b>. Splitting before you have the scale or team pressure to justify it buys you all the cost (network hops, orchestration, distributed data, ops) and none of the benefit. Prime Video's monitoring pipeline paid for Step Functions state transitions and S3 round-trips on every frame &mdash; costs that vanished when the work ran in one process. The lesson isn't "microservices bad," it's <b>"match the architecture to the actual problem"</b>: that team had one tightly-coupled, high-throughput workload, which a monolith serves better. Start monolith, extract services when a real seam appears.</div>
+
+<h3 id="d2">Decision 2 &mdash; Where are the service boundaries?</h3>
+<p>If you split, boundaries should follow <b>business capabilities / <a href="69.html">bounded contexts</a></b> (Orders, Payments, Inventory) &mdash; cohesive areas that change together &mdash; not technical layers or CRUD nouns. <span class="gl" data-def="Conway's law &mdash; organizations design systems that mirror their own communication structure; so service boundaries tend to follow team boundaries whether you intend it or not.">Conway's law</span> says your architecture will mirror your org chart, so align service boundaries with team boundaries: one team owns a service end-to-end. A good boundary minimizes the calls and data that must cross it.</p>
+<div class="callout warn"><span class="lbl" id="distributed-monolith">The failure that happens when you get this wrong &mdash; the distributed monolith</span>
+This is half of <b>Scenario 2</b>. Boundaries drawn at the wrong seams (by entity, by layer, or arbitrarily) produce services so chatty and interdependent that you must deploy them together in lockstep &mdash; a <b>distributed monolith</b>: all the operational pain of microservices, none of the independence. The tell: you can't deploy one service without others, a change ripples across many, and a single user action fans out to a dozen synchronous calls. Fix by redrawing boundaries around things that change together (merge over-split services), so each can deploy alone.</div>
+
+<h3 id="d3">Decision 3 &mdash; Who owns the data?</h3>
+<p>The rule that makes services truly independent: <b>each service owns its data and no other service touches that database directly</b> &mdash; you go through the owning service's API. This lets a service change its schema without coordinating, but it means cross-service queries and transactions are now <a href="32.html">distributed</a>: you can't <code>JOIN</code> across services or wrap them in one ACID transaction, so you use <a href="32.html">sagas</a>, the <a href="40.html">outbox/CDC</a>, and accept <a href="46.html">eventual consistency</a>.</p>
+<div class="callout warn"><span class="lbl" id="shared-db">The failure that happens when you get this wrong &mdash; the shared database</span>
+This is the other half of <b>Scenario 2</b>. If multiple services read and write the same tables, you've coupled them at the deepest level: one service's schema migration breaks the others, and nobody can evolve independently &mdash; the database <i>is</i> the integration point, recreating the monolith's coupling with worse ergonomics. Each service must own its store and expose data through its API (or via events). The cost &mdash; no cross-service joins/transactions &mdash; is real and is the point: it forces the boundaries to be honest.</div>
+
+<h3 id="d4">Decision 4 &mdash; Synchronous or asynchronous communication?</h3>
+<p>Services talk either <b>synchronously</b> (request/response: REST/<a href="45.html">gRPC</a> &mdash; simple, but the caller waits and is coupled to the callee's availability) or <b>asynchronously</b> (<a href="46.html">events/messages</a> &mdash; the caller fires and forgets, decoupled in time, but you get eventual consistency and harder debugging). The principle: use <b>async/events for cross-service workflows</b> wherever you can tolerate eventual consistency, and reserve synchronous calls for genuine request/response needs &mdash; and even then, protect them.</p>
+<div class="callout warn"><span class="lbl" id="cascade">The failure that happens when you get this wrong &mdash; the latency/failure cascade</span>
+This is <b>Scenario 3</b>. A synchronous call chain couples availability: if A calls B calls C synchronously, A is only as available as B&times;C, and a <i>slow</i> dependency is worse than a dead one &mdash; callers block threads waiting, pools exhaust, and the stall propagates upstream until the whole chain falls over (a non-critical service taking down a critical one). Contain it with: <b>timeouts</b> (never wait forever), <b>circuit breakers</b> (stop calling a failing dependency, fail fast), and <b>bulkheads</b> (isolate thread pools so one slow dependency can't consume all of them) &mdash; plus making non-critical calls async/optional. Full treatment in <a href="51.html">Resilience Patterns</a>.</div>
+
+<h3 id="d5">Decision 5 &mdash; Where do cross-cutting concerns live? (the service mesh)</h3>
+<p>Every service needs the same plumbing: retries, timeouts, <a href="03.html">load balancing</a>, mutual TLS, tracing, circuit breaking. You can put it in a <b>shared library</b> (linked into each service) or push it into a <b>service mesh</b> &mdash; a <span class="gl" data-def="Sidecar &mdash; a helper proxy container deployed alongside each service instance that intercepts all its network traffic, applying retries, mTLS, routing, and telemetry without the app knowing.">sidecar</span> proxy (e.g. <a href="03.html">Envoy</a>) deployed alongside each service that intercepts all traffic and applies these policies, controlled centrally, with zero application code.</p>
+<div class="callout warn"><span class="lbl" id="library-drift">The failure that happens when you get this wrong &mdash; library drift across polyglot services</span>
+The shared-library approach works until you have services in multiple languages (you must reimplement the library N times) or many versions deployed (a fix to the retry logic requires every team to upgrade and redeploy &mdash; <b>library drift</b>, where services run inconsistent, stale networking behavior). A <b>service mesh</b> moves this into the sidecar/network layer: one place to set timeouts, mTLS, and traffic policy, applied uniformly regardless of service language or version. The trade-off is the mesh's own operational complexity and per-call sidecar latency &mdash; worth it past a certain scale, overkill below it.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; monolith vs microservices</h2>
 <table>
-<thead><tr><th>Dimension</th><th>Modular monolith</th><th>Microservices</th></tr></thead>
-<tbody>
-<tr><td>Deployment</td><td>One artifact, all-or-nothing release</td><td>Independent per-service deploys</td></tr>
-<tr><td>Cross-module calls</td><td>In-process function call (ns, no failure)</td><td>Network RPC (ms, can time out, retry, partial fail)</td></tr>
-<tr><td>Transactions</td><td>Single DB, ACID across modules</td><td>Sagas / eventual consistency across services</td></tr>
-<tr><td>Refactoring a boundary</td><td>IDE rename, atomic commit</td><td>API versioning, dual-write, coordinated rollout</td></tr>
-<tr><td>Debugging a request</td><td>One stack trace</td><td>Distributed trace across N hops</td></tr>
-<tr><td>Failure blast radius</td><td>Whole process</td><td>Isolated <em>if</em> bulkheaded properly</td></tr>
-<tr><td>Team scaling</td><td>Merge contention grows with team count</td><td>Teams ship on their own cadence</td></tr>
-</tbody>
+<tr><th>Facet</th><th>Monolith / modular monolith</th><th>Microservices</th></tr>
+<tr><td>Deployment</td><td>One unit (simple, atomic)</td><td>Independent per service</td></tr>
+<tr><td>Calls between modules</td><td>In-process (fast, reliable)</td><td>Network (slow, can fail)</td></tr>
+<tr><td>Data &amp; transactions</td><td>One DB, easy ACID joins</td><td>DB-per-service, <a href="32.html">sagas</a>, eventual consistency</td></tr>
+<tr><td>Scaling</td><td>Scale the whole app</td><td>Scale hot services only</td></tr>
+<tr><td>Team fit</td><td>1&ndash;few teams</td><td>Many autonomous teams</td></tr>
+<tr><td>Main risk</td><td>Coordination/coupling at scale</td><td>Distributed-systems &amp; ops complexity</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The rule in one line</span><b>Start with a (modular) monolith.</b> Adopt microservices when team-coordination cost exceeds the network/ops tax &mdash; then split by <a href="69.html">bounded context</a>, give each service its own data, prefer async communication, protect the sync calls, and use a mesh for cross-cutting concerns once you're polyglot/large.</div>
 
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> The crossover point is people, not load. A 4-engineer team running a monolith at 50k RPS is fine. Forty engineers across eight teams sharing one deploy pipeline and one schema is misery regardless of load. Decompose when coordination cost between teams exceeds the operational cost of the network.</div>
-
-<p>Start with the modular monolith almost always. It is far cheaper to extract a service from a clean module than to merge services back together once you discover the boundary was wrong. Wrong boundaries are the single most expensive mistake in this space — see the distributed-monolith anti-pattern below.</p>
-
-<h2 id="conway">Conway's law and team topology</h2>
-<p><span class="key">Conway's law</span>: systems mirror the communication structure of the organization that builds them. The corollary that matters for design is the <em>Inverse Conway Maneuver</em> — deliberately shape your teams to match the architecture you want. If you want three independently deployable services, you need three teams that own them end to end (build, deploy, on-call), not one team that owns "the backend."</p>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="pill">Stream-aligned</span> teams own a service and its full lifecycle.</li>
-<li><span class="pill">Platform</span> teams own the mesh, CI/CD, and shared infra so stream teams do not each reinvent it.</li>
-<li>A service boundary that does not correspond to a team boundary will accrete cross-team coupling until it is a distributed monolith.</li>
+<li><b>Scenario 1 (Prime Video):</b> What did decomposition cost them, and what's the rule about when to split vs stay monolith?</li>
+<li><b>Scenario 2 (deploy everything):</b> What's a distributed monolith, and which two decisions (boundaries, data ownership) cause it?</li>
+<li><b>Scenario 3 (slow service):</b> What is a cascading failure, why is a <i>slow</i> dependency worse than a dead one, and what three patterns contain it?</li>
+<li>Why are microservices an organizational solution more than a technical one?</li>
+<li>Library vs service mesh for cross-cutting concerns &mdash; what does the mesh fix and cost?</li>
 </ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>5 decisions</b> &mdash; <a href="#d1">whether to split</a>, <a href="#d2">boundaries</a>, <a href="#d3">data ownership</a>, <a href="#d4">sync vs async</a>, <a href="#d5">cross-cutting concerns/mesh</a> &mdash; each with a nested failure: premature decomposition, distributed monolith, shared DB, cascade, library drift.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="69.html">Domain-Driven Design</a>, <a href="45.html">API Design</a>, <a href="46.html">Event-Driven Architecture</a>, <a href="51.html">Resilience Patterns</a>, <a href="32.html">Distributed Transactions</a>, <a href="66.html">Architectural Styles</a>.</p>
 
-<h2 id="ddd">Decomposition: bounded contexts, not nouns</h2>
-<p>The most common decomposition failure is splitting by entity (a "User service," an "Order service," a "Product service") because those are the database tables you already have. This produces chatty, tightly coupled services that all need each other's data on every request.</p>
-<p>The principled approach is <span class="key">Domain-Driven Design bounded contexts</span>. A bounded context is a region of the domain where a model and its language are internally consistent. The same word means different things in different contexts, and that linguistic seam <em>is</em> the service boundary.</p>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They observe that "Customer" in the <em>Sales</em> context (lead, opportunity, contact) is a different model from "Customer" in <em>Billing</em> (account, payment method, invoices) and <em>Support</em> (tickets, entitlements). Each owns its own representation, joined by a stable customer ID — not a shared Customer table that three services write to.</div>
-
-<h4>Heuristics for drawing the seam</h4>
-<ul>
-<li><strong>Rate of change</strong>: code that changes together should live together. If two "services" always deploy in lockstep, they are one service.</li>
-<li><strong>Data ownership</strong>: a single service should be the system of record for each piece of data. Two services writing the same row is a red flag.</li>
-<li><strong>Transactional boundaries</strong>: operations that must be atomic should ideally live inside one service. If a business invariant spans services, you have signed up for a saga (see <a href="32.html">Distributed Transactions</a>).</li>
-<li><strong>Failure isolation</strong>: a high-traffic, failure-prone subsystem (e.g., third-party payment integration) is a good extraction candidate so its failures do not take down checkout.</li>
-</ul>
-
-<h2 id="data">Database-per-service and the consistency cost</h2>
-<p>The non-negotiable rule of microservices: <span class="key">each service owns its data and exposes it only via its API</span>. No shared database, no other service reading your tables directly. The shared database is the back door through which coupling re-enters; if Service B queries Service A's schema, you can never change that schema without breaking B, and you are back to a monolith with extra network hops.</p>
-
-<div class="callout warn"><span class="lbl">Pitfall</span> "We'll just give them a read replica of our DB" is the most seductive way to destroy your service boundaries. It feels harmless and it permanently couples the consumer to your physical schema. Say no.</div>
-
-<p>The cost of this rule is that you lose cross-service joins and cross-service transactions. The consequences:</p>
-<ul>
-<li><strong>No distributed ACID transactions</strong> in practice. You coordinate with <span class="key">sagas</span>: a sequence of local transactions with compensating actions on failure. Orchestrated (a coordinator drives steps) or choreographed (services react to events). See <a href="32.html">Distributed Transactions</a> and <a href="46.html">Event-Driven Architecture</a>.</li>
-<li><strong>Eventual consistency by default.</strong> Read-after-write across services is not guaranteed. You must design UIs and APIs to tolerate staleness, or use techniques like the <em>outbox pattern</em> to publish state changes reliably. Ground this in <a href="31.html">Consistency Models and PACELC</a>.</li>
-<li><strong>Data duplication is expected.</strong> The Shipping service keeps its own copy of the address it cares about, kept in sync via events / <a href="40.html">CDC</a>. This is not denormalization gone wrong; it is the price of decoupling.</li>
-<li><strong>Reporting moves out of band.</strong> You cannot run a join across twelve service databases for a dashboard. Stream changes into a data lake or warehouse (<a href="41.html">Batch and Big Data Processing</a>) and query there.</li>
-</ul>
-
-<h4>The transactional outbox</h4>
-<p>The classic dual-write bug: you write to your DB and then publish to Kafka, and the process crashes between the two. Now your state and your events disagree. The fix is to write the event into an <code>outbox</code> table <em>in the same local transaction</em> as the state change, then a separate relay (often CDC reading the WAL — see <a href="40.html">Stream Processing and CDC</a>) publishes it.</p>
-
-<pre><code>BEGIN;
-  UPDATE orders SET status = 'CONFIRMED' WHERE id = 42;
-  INSERT INTO outbox (aggregate_id, type, payload)
-    VALUES (42, 'OrderConfirmed', '{"orderId":42,...}');
-COMMIT;
--- Debezium tails the WAL, publishes outbox rows to Kafka,
--- marks them sent. At-least-once delivery; consumers idempotent.</code></pre>
-
-<h2 id="comms">Inter-service communication: sync vs async</h2>
-<p>Every network hop you add couples availability multiplicatively. If a request fans out to five services each at 99.9% availability, your composite availability is 0.999^5 &asymp; 99.5% — you have lost an order of magnitude of nines by chaining synchronous calls.</p>
-
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
 <table>
-<thead><tr><th></th><th>Synchronous (request/response)</th><th>Asynchronous (events/messaging)</th></tr></thead>
-<tbody>
-<tr><td>Protocols</td><td>gRPC, REST/HTTP, GraphQL</td><td>Kafka, SQS, RabbitMQ, NATS</td></tr>
-<tr><td>Coupling</td><td>Temporal: callee must be up <em>now</em></td><td>Decoupled in time; broker buffers</td></tr>
-<tr><td>Availability</td><td>Multiplicative degradation</td><td>Caller survives callee being down</td></tr>
-<tr><td>Consistency</td><td>Easier read-after-write</td><td>Eventual; design for it</td></tr>
-<tr><td>Latency</td><td>Sum of hops on critical path</td><td>Off critical path; producer doesn't wait</td></tr>
-<tr><td>Best for</td><td>Queries needing an immediate answer</td><td>State propagation, work that can be deferred</td></tr>
-</tbody>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Service mesh</td><td>App Mesh / ECS Service Connect</td><td>Anthos Service Mesh (Istio)</td><td>Open Service Mesh / Istio on AKS</td></tr>
+<tr><td>Service discovery</td><td>Cloud Map</td><td>Service Directory / Traffic Director</td><td>App Configuration</td></tr>
+<tr><td>API gateway</td><td>API Gateway / ALB</td><td>API Gateway / Apigee</td><td>API Management</td></tr>
+<tr><td>Run the services</td><td>EKS / ECS / Fargate</td><td>GKE / Cloud Run</td><td>AKS / Container Apps</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The takeaway</span>Managed meshes (Anthos/Istio, App Mesh) give you mTLS, retries, traffic shaping, and tracing without per-service code &mdash; but they add a control plane and sidecar to operate. Below a handful of services in one language, a shared library or framework features are simpler; the mesh earns its keep when you're polyglot and at scale (Decision 5).</div>
 
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They keep synchronous calls shallow (avoid deep call chains) and push state-propagation work onto async events. "On checkout, the Order service commits locally and emits <code>OrderPlaced</code>; Inventory, Shipping, and Notifications react independently. The user gets a response after one local write, not after five blocking RPCs." For protocol choice within sync calls, they distinguish gRPC (internal, low-latency, contract-first) from REST/GraphQL (edge, client-facing) — see <a href="45.html">API Design</a>.</div>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>Patterns made concrete. Same facets &mdash; what it is, the mechanism, and the failure to watch.</p>
 
-<p>Whatever the style, async or sync, network calls fail. You need timeouts, retries with jitter, circuit breakers, and bulkheads on every dependency — see <a href="51.html">Resilience Patterns</a>. The question is <em>where</em> those live, which leads to the mesh.</p>
-
-<h2 id="mesh">Service mesh: pushing concerns into the network</h2>
-<p>Once you have dozens of services, every team is independently implementing TLS, retries, timeouts, load balancing, and tracing — usually inconsistently, in whatever language they chose. A <span class="key">service mesh</span> extracts these cross-cutting concerns out of application code and into the infrastructure layer.</p>
-
-<h4>The sidecar model</h4>
-<p>The dominant implementation (Istio, Linkerd, Consul Connect) deploys a proxy — almost always <span class="key">Envoy</span> — as a sidecar container next to every service instance. All inbound and outbound traffic is transparently redirected through the local proxy (via iptables or eBPF). The application thinks it is talking to localhost; the mesh handles everything between.</p>
-
+<h3 id="impl-istio">Istio / Linkerd (service mesh)</h3>
 <ul>
-<li><strong>Data plane</strong>: the fleet of Envoy sidecars that actually move bytes.</li>
-<li><strong>Control plane</strong>: Istio's <code>istiod</code> / Linkerd's controller, which pushes config (routing rules, certs, policy) to the proxies via xDS APIs. The control plane is not on the request path.</li>
+<li><b>What it is.</b> A mesh that injects a sidecar proxy (Istio: <a href="03.html">Envoy</a>; Linkerd: a lightweight Rust proxy) next to each service.</li>
+<li><b>Mechanism.</b> Sidecars intercept all traffic; a central control plane configures mTLS, retries, timeouts, traffic splitting (canary), and tracing &mdash; uniformly, no app code.</li>
+<li><b>The failure to watch.</b> Operational complexity and per-hop sidecar latency/resource overhead; Linkerd trades some features for simplicity/lower overhead vs Istio.</li>
 </ul>
 
-<h4>What the mesh gives you</h4>
+<h3 id="impl-strangler">The strangler-fig migration</h3>
 <ul>
-<li><strong>mTLS everywhere.</strong> The mesh issues short-lived certs (SPIFFE identities) and encrypts and mutually authenticates all service-to-service traffic with zero application code. Foundational for zero-trust — see <a href="54.html">Security in System Design</a>.</li>
-<li><strong>Traffic management.</strong> Weighted routing for canaries (1% to v2), blue/green, mirroring (shadow traffic to v2 without serving it), header-based routing. Decouples deployment from release — see <a href="52.html">Deployment Strategies</a>.</li>
-<li><strong>Resilience primitives.</strong> Retries, timeouts, circuit breaking, outlier detection (eject an instance after N consecutive 5xx), and rate limiting — declaratively, uniformly, in any language.</li>
-<li><strong>Observability.</strong> Because all traffic flows through Envoy, you get consistent golden-signal metrics (latency, traffic, errors, saturation), distributed-trace span propagation, and access logs for free — see <a href="50.html">Observability</a>.</li>
+<li><b>What it is.</b> The standard way to break up a monolith incrementally &mdash; not a big-bang rewrite.</li>
+<li><b>Mechanism.</b> Put a proxy/router in front of the monolith; extract one capability at a time into a service and route its traffic to the new service, leaving the rest in the monolith until it's gradually "strangled" away.</li>
+<li><b>The failure to watch.</b> The migration stalls half-done (you now run both forever); pick high-value seams first and actually finish, or stop deliberately at a stable hybrid.</li>
 </ul>
 
-<pre><code># Istio VirtualService: 95/5 canary with retries + timeout
-apiVersion: networking.istio.io/v1beta1
-kind: VirtualService
-metadata: { name: payments }
-spec:
-  hosts: [ payments ]
-  http:
-    - route:
-        - destination: { host: payments, subset: v1 }
-          weight: 95
-        - destination: { host: payments, subset: v2 }
-          weight: 5
-      timeout: 800ms
-      retries:
-        attempts: 2
-        perTryTimeout: 300ms
-        retryOn: 5xx,reset,connect-failure</code></pre>
-
-<div class="callout warn"><span class="lbl">Pitfall</span> Retries configured at multiple layers <em>multiply</em>. If the mesh retries twice and the application library also retries three times and the gateway retries twice, one failing request becomes 12 attempts — a retry storm that turns a brief blip into a self-inflicted outage. Pick <strong>one</strong> layer to own retries (usually the mesh) and disable it everywhere else. Always cap with a retry budget.</div>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> The mesh is not free. Every hop now traverses two extra Envoy proxies, adding ~0.5–2ms p50 and a tail-latency penalty, plus memory/CPU per sidecar (Envoy is ~50–100MB per pod). For a 5-service system, a mesh is over-engineering — a shared client library is cheaper. The mesh earns its keep at scale (dozens+ of services, polyglot teams) where uniformity and out-of-band upgrades outweigh the overhead. Linkerd's Rust micro-proxy is lighter than Envoy if footprint dominates; sidecar-less / ambient mesh and eBPF approaches (Cilium, Istio ambient) aim to cut the per-pod cost.</div>
-
-<p>Note the mesh handles <em>east-west</em> (service-to-service) traffic. <em>North-south</em> (client-to-cluster) ingress is the job of an API gateway, which may itself be an Envoy-based gateway but lives at the edge doing auth, rate limiting, and request shaping. Don't conflate the two. The mesh complements the orchestration layer covered in <a href="47.html">Containers, Kubernetes and Serverless</a> — Kubernetes schedules the pods, the mesh governs the traffic between them.</p>
-
-<h2 id="strangler">The strangler-fig migration</h2>
-<p>You rarely get to build microservices greenfield; you migrate a monolith. The big-bang rewrite is the reliably catastrophic option (you freeze features for 18 months and ship a system you can't compare to the original). The disciplined approach is the <span class="key">strangler-fig pattern</span>, named for the vine that grows around a tree and gradually replaces it.</p>
-<ol>
-<li>Put a <strong>facade / routing proxy</strong> in front of the monolith so all traffic flows through a layer you control.</li>
-<li>Identify a bounded context with clear seams and high value (often something painful to change or scale in the monolith).</li>
-<li>Build the new service alongside; route a slice of traffic to it via the facade, falling back to the monolith.</li>
-<li>Migrate data ownership for that context — frequently the hardest step. CDC (<a href="40.html">Stream Processing and CDC</a>) to keep the new store in sync during the cutover, then flip the system of record.</li>
-<li>Once the new service owns the context entirely, delete the monolith code path. Repeat.</li>
-</ol>
-<div class="callout note"><span class="lbl">Key insight</span> The strangler pattern works because every step is independently shippable and reversible. You are never more than one route-table flip away from rolling back. The migration can pause indefinitely between any two steps — which matters because business priorities will interrupt you, and a half-migrated strangler is a stable state while a half-finished rewrite is not.</div>
-
-<h2 id="antipatterns">Anti-patterns and failure modes</h2>
+<h3 id="impl-monolith">The modular monolith</h3>
 <ul>
-<li><strong>Distributed monolith.</strong> Services that must be deployed together, share a database, or chain synchronous calls so tightly that one being down breaks all of them. You took on every cost of microservices and got none of the independence. This is the default outcome of bad boundaries — and it is <em>worse</em> than the monolith you started with, because now your tight coupling runs over an unreliable network.</li>
-<li><strong>Nano-services.</strong> Splitting so finely that a single user action fans out across 30 services. The coordination, latency, and operational cost dwarf any benefit. Services should be as large as a team can own, not as small as a function.</li>
-<li><strong>Shared libraries as hidden coupling.</strong> A "common" library every service depends on means a change to it requires redeploying everything — a deployment monolith wearing a microservices costume.</li>
-<li><strong>Synchronous call chains.</strong> A &rarr; B &rarr; C &rarr; D on the request path. Latency adds, availability multiplies down, and a slow D backs up the whole chain. Flatten with async events or aggregation.</li>
-<li><strong>Premature decomposition.</strong> Splitting before you understand the domain locks in boundaries you'll regret. Moving a boundary in a monolith is a refactor; moving it across services is a project.</li>
-<li><strong>Ignoring the operational bill.</strong> Microservices demand mature CI/CD, centralized logging/tracing, service discovery, and on-call rotations <em>before</em> you split, not after. Without them you have multiplied your incidents and removed your ability to debug them.</li>
+<li><b>What it is.</b> One deployable, but with strict internal module boundaries (clear interfaces, separate schemas per module) &mdash; microservice discipline without the network.</li>
+<li><b>Mechanism.</b> Enforce boundaries in code (module visibility, no cross-module DB access) so you <i>could</i> later extract a module into a service cheaply.</li>
+<li><b>The failure to watch.</b> Boundaries erode without enforcement; but for most teams this is the right default and the answer to Scenario 1's lesson.</li>
 </ul>
 
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They resist the premise. When designing with microservices, start by asking <em>why</em> — how many teams, what's the deploy contention, what consistency does the domain need — and is willing to recommend a modular monolith. They draw boundaries from bounded contexts and team topology, not from database tables. They name the data-ownership rule and immediately surface its consequence (sagas, eventual consistency, outbox). They treat the service mesh as a tool with a real latency and complexity cost, not a default, and they can articulate the single retry-ownership rule. They sketch a strangler migration with reversible steps rather than a rewrite.</div>
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you draw the boundaries. Work each before opening the approach.</p>
 
-<p>Sharp questions to test your own understanding:</p>
+<h3 id="ex-boundaries">Draw service boundaries for an e-commerce app</h3>
+<p>You have Users, Products, Carts, Orders, Payments, Inventory, Shipping, Reviews. Group them into services, decide data ownership, and identify which cross-service calls should be async.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Group by <a href="69.html">bounded context</a>, not entity: e.g. <b>Catalog</b> (Products, Reviews), <b>Ordering</b> (Carts, Orders), <b>Payments</b>, <b>Fulfillment</b> (Inventory, Shipping), <b>Identity</b> (Users). Each owns its data &mdash; no shared tables. Synchronous where you need an immediate answer (checkout &rarr; Payments authorize). Asynchronous/events for workflows that tolerate eventual consistency: "OrderPlaced" event triggers Fulfillment to reserve inventory and Shipping to schedule, via a <a href="32.html">saga</a>, not a distributed transaction. The test of a good boundary: a typical feature touches one service, and a service can change its schema without coordinating. If "place order" fans out to 8 synchronous calls across 8 services, you've over-split (distributed monolith) &mdash; merge.</p>
+</div></details>
+
+<h3 id="ex-strangler">Plan a strangler-fig migration off a monolith</h3>
+<p>Your monolith handles everything; the Payments code is the riskiest and needs independent scaling and a dedicated team. Plan extracting it without a big-bang rewrite.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Put a router/proxy in front of the monolith. Build a new Payments service with its <i>own</i> database; migrate/replicate the payment data it needs. Route payment endpoints to the new service while everything else still hits the monolith. Use the <a href="40.html">outbox/CDC</a> to keep any shared data in sync during the transition, and an <a href="51.html">anti-corruption layer</a> so the monolith and new service can evolve independently. Cut over incrementally (shadow traffic &rarr; small % &rarr; full), with the ability to route back on failure. Once Payments is fully served by the service and the monolith no longer touches payment tables, remove the old code. Finish the extraction &mdash; a permanently half-migrated system is the worst of both.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
 <ul>
-<li>"You have one 12-person team and a monolith hitting scaling limits. Talk me out of microservices — what would you do instead, and when would that stop working?"</li>
-<li>"Two of your services both need to write the customer's shipping address atomically with an order. Walk me through how you keep them consistent without a distributed transaction. What's the failure mode of your approach?"</li>
-<li>"Your checkout request currently fans out synchronously to inventory, pricing, fraud, and payments. p99 is terrible and one slow dependency takes down checkout. Redesign the data flow."</li>
-<li>"When would you <em>not</em> deploy a service mesh, and what would you use instead? What does Envoy cost you per request and per pod?"</li>
-<li>"Your retries are configured in the client library, the mesh, and the gateway. Production has a retry storm during a minor blip. Diagnose it and tell me the principle that prevents it."</li>
-<li>"You're 40% through a strangler migration and the business reprioritizes for two quarters. Is your system in a safe state? Why is that different from pausing a rewrite?"</li>
+<li><b>Decide monolith vs microservices for a startup.</b> A 6-engineer team is building an MVP and "wants microservices for scale." Argue the right call and what would change your mind. &rarr; <a href="66.html">Architectural Styles</a>.</li>
+<li><b>Contain a cascading failure.</b> Map where timeouts, circuit breakers, and bulkheads go in a checkout&rarr;payments&rarr;inventory call chain so no single slow service takes the site down. &rarr; <a href="51.html">Resilience Patterns</a>.</li>
+<li><b>Replace synchronous chains with events.</b> An order flow makes 7 synchronous cross-service calls. Redesign it event-driven and state where eventual consistency is acceptable. &rarr; <a href="46.html">Event-Driven Architecture</a>.</li>
 </ul>
 
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1708841492795.jpeg" alt="Microservices best practices" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Nine microservice best practices: separate data store, code maturity, separate builds, single responsibility, containers, stateless servers, DDD, micro frontend, orchestration. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2023-09-28 at 8.23.46 AM.jpg" alt="Microservices best practices" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Diagram of 9 microservice best practices: separate data store, code maturity, separate builds, single responsibility, containers, stateless, DDD, micro frontend, orchestration. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1681190862984.jpeg" alt="API gateway evolution in microservice architectures" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A four-stage evolution of API architecture: monolith, direct access to microservices, gateway aggregation layer, and federated gateway. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Service mesh</td><td>App Mesh</td><td>Anthos Service Mesh (Istio)</td><td>Open Service Mesh / Istio on AKS</td></tr><tr><td>Service discovery</td><td>Cloud Map</td><td>(GKE DNS / Service Directory)</td><td>(AKS DNS)</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="43.html">&lsaquo; Prev: Search and Elasticsearch</a><a class="nx" href="45.html">Next: API Design REST gRPC GraphQL &rsaquo;</a></div>
+<div class="navfoot"><a href="43.html">&lsaquo; Prev: Search &amp; Elasticsearch</a><a class="nx" href="45.html">Next: API Design &rsaquo;</a></div>
 </div>
 </div>
 </div>

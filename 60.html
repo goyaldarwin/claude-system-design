@@ -111,164 +111,193 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Job Scheduler</div>
-
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Distributed Job Scheduler</div>
 <h1>Designing a Distributed Job Scheduler</h1>
-<p class="sub">A managed cron / workflow service that fires millions of one-time and recurring jobs on time, survives worker crashes, and never silently drops a run.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth &amp; partial failure.</b> <span>reliable scheduled execution, paid in leader election, leases, and fencing tokens.</span></div>
+<p class="sub"><em>Run jobs at a time (cron at 2am), after a delay (send this in 1 hour), or on a recurring schedule &mdash; reliably, at scale, across a fleet of workers where any node can crash. The deceptively hard parts: making sure a job runs <b>exactly once</b> (not zero times if a worker dies mid-run, not twice if two workers grab it), and finding "what's due now" efficiently among millions of scheduled jobs.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#req">Requirements &amp; scope</a></li>
-<li><a href="#estimate">Back-of-the-envelope</a></li>
-<li><a href="#api">API &amp; data model</a></li>
-<li><a href="#arch">High-level architecture</a></li>
-<li><a href="#timewheel">Time-bucketing &amp; the hot-shard problem</a></li>
-<li><a href="#election">Leader election &amp; the dispatcher</a></li>
-<li><a href="#delivery">Exactly-once, leases &amp; fencing</a></li>
-<li><a href="#backfill">Backfill &amp; missed runs</a></li>
-<li><a href="#dag">DAGs, dependencies &amp; priority</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Reliable time-based and recurring execution across many workers &mdash; in exchange for solving exactly-once execution (despite crashes), efficient due-job lookup, and worker coordination.</b> <span>A durable scheduler runs jobs even when workers fail. You pay by handling the at-least-once vs at-most-once dilemma (a crashed job must rerun, but mustn't double-run), indexing jobs by run-time so "what's due" is cheap, and coordinating so two workers don't run the same job.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; we walk the design top to bottom, then deep-dive the hard parts</div>
+<pre class="tree">
+<b>Designing a Distributed Job Scheduler</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>
+├─ <a href="#api"><b>3. The API</b></a>  &mdash; schedule / cancel
+├─ <a href="#highlevel"><b>4. High-level design</b></a>  &mdash; store + pickers + workers
+├─ <a href="#datamodel"><b>5. Data model</b></a>  &mdash; jobs indexed by next-run-time
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+│
+├─ <a href="#subproblems"><b>The 4 hard sub-problems</b></a>
+│   ├─ <a href="#s1">1. Finding what's due (the scan problem)</a> fail → <a href="#scan">scanning everything</a>
+│   ├─ <a href="#s2">2. Exactly-once execution</a>             fail → <a href="#double-run">double-run or no-run</a>
+│   ├─ <a href="#s3">3. Worker failure &amp; recovery</a>          fail → <a href="#orphan">the orphaned job</a>
+│   └─ <a href="#s4">4. Recurring jobs &amp; clock issues</a>      fail → <a href="#drift">skew / drift / thundering herd</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
 </div>
 
-<h2 id="req">Requirements &amp; scope</h2>
-<p>The problem: "design a distributed job scheduler." That phrase covers everything from a glorified <code>cron</code> to Airflow to AWS EventBridge Scheduler / Temporal. Your first job is to <span class="key">scope it</span>. State the functional surface explicitly:</p>
-<ul>
-<li><span class="key">One-time jobs</span> ("run task X at 2026-07-01T03:00Z") and <span class="key">recurring jobs</span> (cron expression or fixed interval).</li>
-<li><span class="key">Submit / cancel / pause / update</span> a job; <span class="key">query</span> status and run history.</li>
-<li><span class="key">Execution</span>: the scheduler does not run business logic itself &mdash; it triggers a target (HTTP webhook, enqueue to <a href="08.html">a queue</a>, invoke a function, run a container).</li>
-<li><span class="key">Delivery semantics</span>: at-least-once by default, with an idempotency contract; optional exactly-once <em>effects</em>.</li>
-<li><span class="key">DAG dependencies</span> and <span class="key">priorities</span> as an extension.</li>
-</ul>
-<p>Non-functional requirements are where the interesting design lives:</p>
-<ul>
-<li><span class="key">Scale</span>: 100M+ registered jobs, 10k&ndash;100k fires/sec at peak.</li>
-<li><span class="key">Timing accuracy</span>: a stated SLO, e.g. p99 fire within 1&ndash;2&nbsp;s of scheduled time. "On time" is a distribution, not a guarantee &mdash; nail this number down.</li>
-<li><span class="key">Durability</span>: an accepted job is never lost across crashes, deploys, or AZ failure.</li>
-<li><span class="key">No double-fire under normal operation</span>, and bounded duplicates under failure.</li>
-<li><span class="key">Multi-tenant fairness</span>: one tenant's 50M jobs cannot starve everyone else.</li>
-</ul>
-<div class="callout warn"><span class="lbl">Pitfall</span>It is tempting to jump straight to "a priority queue keyed by next-run-time." That's the easy 10%. The hard 90% is what happens when a worker grabbing the job dies mid-flight, when 4M jobs are all scheduled for midnight UTC, and when the leader that owns dispatch is partitioned away but still thinks it's the leader.</div>
+<!-- ============ 1. REQUIREMENTS ============ -->
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> schedule a job to run <b>at</b> a specific time, <b>after</b> a delay, or on a <b>recurring</b> (cron) schedule; cancel/update a scheduled job; jobs are units of work handed to workers; track status (scheduled/running/succeeded/failed).</p>
+<p><b>Non-functional:</b> <b>reliable</b> (a scheduled job <i>will</i> run, even if a worker crashes), <b>exactly-once execution</b> (or at-least-once + idempotent &mdash; never silently zero), <b>scalable</b> (millions of scheduled jobs, thousands running concurrently), <b>reasonably timely</b> (run near the scheduled time, not minutes late), <b>no single point of failure</b>.</p>
 
-<h2 id="estimate">Back-of-the-envelope</h2>
-<p>Anchor the design in numbers. Suppose 100M recurring jobs averaging one fire per hour &mdash; that's ~28k fires/sec average. Peaks concentrate on round timestamps (top of the minute/hour), so a naive design typically sees 10&ndash;100&times; that load in a 1&nbsp;s window, and pathological clustering can push it far higher. If 60% of 100M jobs use a cron like <code>0 * * * *</code>, ~60M fires land in the same second every hour &mdash; thousands of times the average. <em>That</em> spike, not the average, sizes your system.</p>
+<!-- ============ 2. CAPACITY ============ -->
+<h2 id="capacity">2. Capacity estimate</h2>
+<p>Say <b>100M scheduled jobs</b> outstanding, peak <b>10,000 jobs/sec</b> becoming due. Work it:</p>
+<ul>
+<li><b>Storage:</b> 100M jobs &times; ~1 KB metadata = <b>~100 GB</b> &mdash; fits in a database, but you can't scan it to find due jobs. <b>Consequence: jobs must be indexed by run-time so "what's due" is a range query, not a scan.</b></li>
+<li><b>Due rate:</b> 10,000 jobs/sec become due at peak. The picker must claim and dispatch them faster than they arrive, or the schedule falls behind. <b>Consequence: dispatch is the throughput-critical path; parallelize pickers, but coordinate so they don't claim the same job.</b></li>
+<li><b>Skew danger:</b> humans schedule things on round numbers &mdash; midnight, the top of the hour. So 2am UTC might have a <i>huge</i> spike of jobs all due at once. <b>Consequence: design for thundering-herd spikes at common times, and spread recurring jobs with jitter.</b></li>
+</ul>
+
+<!-- ============ 3. API ============ -->
+<h2 id="api">3. The API</h2>
+<pre class="tree" style="border:none;background:var(--code-bg,#f6f8fa);padding:12px;border-radius:8px">
+schedule({ jobType, payload, runAt | delay | cronExpr, idempotencyKey }) -> jobId
+cancel(jobId)
+getStatus(jobId) -> { state, lastRunAt, nextRunAt, attempts }
+</pre>
+<p><code>runAt</code>/<code>delay</code>/<code>cronExpr</code> cover the three timing modes; <code>idempotencyKey</code> supports exactly-once at the work level (<a href="#s2">sub-problem 2</a>). The job <code>payload</code> describes the work; workers know how to execute each <code>jobType</code>.</p>
+
+<!-- ============ 4. HIGH-LEVEL ============ -->
+<h2 id="highlevel">4. High-level design</h2>
+<p>Three parts: <b>(1) a durable job store</b> (database) holding all scheduled jobs, indexed by <b>next-run-time</b>. <b>(2) Picker/dispatcher nodes</b> that periodically query "jobs due now," <b>atomically claim</b> a batch (so two pickers don't grab the same job), and push them onto a <a href="08.html">work queue</a>. <b>(3) Worker pools</b> that pull from the queue, execute the job, and report success/failure; on success, recurring jobs are re-scheduled (compute next run, write it back). A <a href="36.html">coordination/leader</a> mechanism ensures the picker role is owned without conflict. The queue between pickers and workers decouples discovery from execution and absorbs the due-time spikes.</p>
+
+<!-- ============ 5. DATA MODEL ============ -->
+<h2 id="datamodel">5. Data model &mdash; jobs indexed by run-time</h2>
 <table>
-<tr><th>Quantity</th><th>Estimate</th></tr>
-<tr><td>Registered jobs</td><td>100M</td></tr>
-<tr><td>Avg fire rate</td><td>~28k/s</td></tr>
-<tr><td>Peak burst (top of hour)</td><td>millions in &lt;1s &mdash; must be spread</td></tr>
-<tr><td>Job metadata row</td><td>~1&ndash;2 KB &rarr; ~150&ndash;200 GB, easily sharded</td></tr>
-<tr><td>Run-history retention</td><td>append-only, far larger &rarr; time-partitioned store / object storage</td></tr>
+<tr><th>Field</th><th>Purpose</th></tr>
+<tr><td><code>jobId</code>, <code>jobType</code>, <code>payload</code></td><td>Identity &amp; work</td></tr>
+<tr><td><code>nextRunAt</code> (indexed)</td><td>The key index &mdash; "jobs due" is <code>WHERE nextRunAt &le; now</code></td></tr>
+<tr><td><code>state</code>, <code>lockedBy</code>, <code>lockExpiry</code></td><td>Claim/lease so one worker owns it</td></tr>
+<tr><td><code>cronExpr</code>, <code>attempts</code>, <code>idempotencyKey</code></td><td>Recurrence, retry count, dedup</td></tr>
 </table>
+<p>The index on <code>nextRunAt</code> is the heart: it turns "find due jobs among 100M" into an efficient range scan of just the soon-due ones. For very high scale, jobs are <a href="05.html">sharded</a> (by time bucket or job id) so pickers parallelize without contending.</p>
 
-<h2 id="api">API &amp; data model</h2>
-<pre><code>POST /jobs
-{
-  "name": "nightly-report",
-  "schedule": { "type": "cron", "expr": "0 3 * * *", "tz": "America/New_York" },
-  "target":   { "type": "http", "url": "https://svc/run", "method": "POST", "body": {...} },
-  "policy":   { "retries": 5, "backoff": "exponential", "timeout_s": 300,
-                "misfire": "fire_once", "overlap": "skip" },
-  "idempotency_key_template": "report-{{run_id}}",
-  "priority": 5
-}
-POST   /jobs/{id}/pause | /resume | /cancel
-GET    /jobs/{id}/runs?from=...&to=...</code></pre>
-<p>Two tables matter most. <span class="key">Jobs</span> holds the durable definition. <span class="key">Runs</span> (a.k.a. executions) is the per-fire record &mdash; this is the source of truth for "did run R for job J at time T happen?" and is what makes the system idempotent and auditable.</p>
-<pre><code>jobs(  job_id PK, tenant_id, schedule, target, policy,
-       next_run_at, state[ACTIVE|PAUSED], version, owner_shard )
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the worker that crashed mid-job</span>
+A worker claims "send invoice email," starts running it, and crashes before reporting success. <b>If you re-run it, the customer gets two emails; if you don't, they get none. Which is correct, how do you decide a job is really dead (not just slow), and how do you make the re-run safe?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; two pickers grabbed the same job</span>
+Two picker nodes both query "due jobs," both see job <code>X</code>, and both dispatch it &mdash; so it runs twice simultaneously on two workers. <b>How do you ensure exactly one picker/worker owns a given job, even with many pickers running in parallel?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; 2am, and 5 million jobs are all due at once</span>
+Tons of recurring jobs were scheduled "daily at midnight," so at 00:00 a massive spike of due jobs hits the picker and the downstream systems they call &mdash; a self-inflicted <a href="51.html">thundering herd</a>. <b>Why does this happen, and how do you smooth it?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#orphan">worker failure &amp; recovery</a> (+ exactly-once). Scenario 2 is <a href="#double-run">exactly-once execution / claiming</a>. Scenario 3 is <a href="#drift">recurring jobs &amp; the herd</a>. Each maps to a sub-problem.</i></p>
 
-runs(  run_id PK,            -- deterministic: hash(job_id, scheduled_time)
-       job_id, scheduled_at, state[PENDING|LEASED|RUNNING|SUCCEEDED|FAILED|LOST],
-       lease_owner, lease_expires_at, fence_token, attempt, last_error )</code></pre>
-<div class="callout note"><span class="lbl">Key insight</span>Make <code>run_id</code> a <em>deterministic</em> function of <code>(job_id, scheduled_time)</code>, not a random UUID. Then "insert this run" becomes an idempotent upsert: two dispatchers that both decide job J should fire at T produce the same <code>run_id</code> and the second insert is a no-op (unique-constraint conflict). This single decision collapses a whole class of double-fire bugs at the data layer. For ID strategy see <a href="58.html">Designing a Unique ID Generator</a>.</div>
+<!-- ============ SUB-PROBLEMS ============ -->
+<h2 id="subproblems">The four hard sub-problems</h2>
+<p>The pipeline is the easy part. These four are where schedulers are hard &mdash; each with a nested failure.</p>
 
-<h2 id="arch">High-level architecture</h2>
-<p>Separate the three concerns that people conflate: <span class="key">storing</span> jobs, <span class="key">deciding</span> what should fire now, and <span class="key">executing</span> the trigger.</p>
-<ul>
-<li><span class="key">API / control plane</span> &mdash; validates and persists job definitions, computes the first <code>next_run_at</code>, fronted by <a href="03.html">load balancers</a>. Stateless.</li>
-<li><span class="key">Durable store</span> &mdash; sharded SQL (Postgres/CockroachDB) or a wide-column store, partitioned by time bucket. This is the system of record. See <a href="05.html">Sharding</a> and <a href="10.html">SQL vs NoSQL</a>.</li>
-<li><span class="key">Dispatcher / scheduler tier</span> &mdash; scans for due runs, materializes <code>runs</code> rows, and pushes them onto an internal queue. This tier needs coordination so partitions don't double-scan.</li>
-<li><span class="key">Execution queue</span> &mdash; a <a href="56.html">distributed message queue</a> (SQS, Kafka, or a Redis-backed queue) decouples "decide" from "do" and absorbs bursts.</li>
-<li><span class="key">Worker pool</span> &mdash; pulls leased runs, invokes targets, applies retries/timeouts, writes terminal state back to <code>runs</code>.</li>
-</ul>
-<p>The decouple-via-queue step is the key architectural move: the scheduler tier only has to be fast enough to <em>enqueue</em>, and the queue smooths the midnight spike into whatever the worker pool can drain. This is classic <a href="46.html">event-driven</a> back-pressure.</p>
+<h3 id="s1">Sub-problem 1 &mdash; Finding what's due (the scan problem)</h3>
+<p>With millions of scheduled jobs, "which are due now?" must be cheap. The answer is the <code>nextRunAt</code> index: a range query <code>WHERE nextRunAt &le; now AND state = scheduled</code> returns just the due ones. Pickers poll this every few seconds (or use a time-bucketed structure). The index is what makes the scheduler scale.</p>
+<div class="callout warn"><span class="lbl" id="scan">The failure that happens when you get this wrong &mdash; scanning everything</span>
+Without an index on run-time, finding due jobs means scanning <i>all</i> 100M rows every polling interval &mdash; crippling, and it gets worse as jobs accumulate. The <code>nextRunAt</code> index turns it into an efficient range read of only the soon-due rows. Two refinements: <b>time-bucketing</b> (group jobs into buckets like "jobs due in minute M" so you query one small bucket) reduces index pressure and contention; and for far-future or huge-volume jobs, a tiered design (a database for the long tail, an in-memory <a href="06.html">priority queue</a> / <span class="gl" data-def="Timer wheel &mdash; a circular buffer of time-slot buckets for O(1) scheduling/expiry of large numbers of timers; jobs are placed in the bucket for their due time and fired as the wheel advances.">timer wheel</span> for the imminent ones) keeps the hot path fast. Polling a flat unindexed table is the classic scheduler scaling failure.</div>
 
-<h2 id="timewheel">Time-bucketing &amp; the hot-shard problem</h2>
-<p>You will not <code>SELECT ... WHERE next_run_at &lt;= now()</code> across 100M rows every second &mdash; that's a full hot-index scan. Instead <span class="key">bucket time</span>. Partition the due-index by a coarse time unit (e.g. one bucket per second or per minute), so a dispatcher only reads the handful of buckets that are due. A <span class="key">hierarchical timing wheel</span> (the Kafka / Linux-kernel approach) is the in-memory version: O(1) insert and tick, with overflow wheels for far-future jobs. For durability the wheel is a cache in front of the persistent bucket index, rebuilt on restart.</p>
-<p>The classic failure: <span class="key">hot buckets</span>. Cron expressions cluster on round numbers &mdash; <code>0 0 * * *</code> (midnight), <code>0 * * * *</code> (top of hour), <code>*/5</code>. Millions of jobs land in the same second-bucket, and whichever shard owns it gets crushed.</p>
+<h3 id="s2">Sub-problem 2 &mdash; Exactly-once execution (claiming a job)</h3>
+<p>Two distinct ways a job runs wrong: it runs <b>twice</b> (two pickers/workers grab it) or <b>zero</b> times (everyone assumes someone else has it). Preventing double-claim needs an <b>atomic claim</b>: a picker claims a job with a conditional update &mdash; <code>UPDATE jobs SET lockedBy=me, lockExpiry=now+T WHERE jobId=X AND state=scheduled</code> &mdash; which <i>atomically</i> succeeds for exactly one picker (the database serializes it). Or claim via a queue's at-least-once-with-visibility semantics.</p>
+<div class="callout warn"><span class="lbl" id="double-run">The failure that happens when you get this wrong &mdash; double-run or no-run</span>
+This is <b>Scenario 2</b>. If pickers read-then-write without atomicity, two can both see "scheduled" and both claim &rarr; the job runs twice. The fix is an <b>atomic conditional claim</b> (compare-and-set on state, in one DB statement, or a <a href="36.html">distributed lock</a> with a <a href="36.html">fencing token</a>) so exactly one picker wins; losers see the row already claimed and skip it. But "exactly-once <i>execution</i>" across crashes is ultimately impossible to guarantee at the dispatch layer alone &mdash; so combine atomic claiming (prevents concurrent double-run) with <b>idempotent jobs</b> (the job uses its <code>idempotencyKey</code> so even if it <i>is</i> dispatched twice across a crash, the effect happens once). Atomic claim + idempotency = exactly-once effect; relying on either alone leaves a gap.</div>
+
+<h3 id="s3">Sub-problem 3 &mdash; Worker failure &amp; recovery (leases)</h3>
+<p>A worker can claim a job and then die &mdash; leaving the job "running" forever (orphaned) unless you detect it. The mechanism is a <b>lease</b>: the claim sets <code>lockExpiry = now + T</code>; the worker must <b>renew the lease</b> (heartbeat) while running. If the lease expires without renewal, the job is presumed dead and becomes claimable again (re-dispatched to another worker).</p>
+<div class="callout warn"><span class="lbl" id="orphan">The failure that happens when you get this wrong &mdash; the orphaned job (and the slow-vs-dead dilemma)</span>
+This is <b>Scenario 1</b>. Without a lease/timeout, a worker that crashes mid-job leaves it stuck in "running" forever &mdash; it never completes and never retries (a silent <i>zero-run</i>). With a <b>lease + heartbeat</b>, an expired lease signals "worker probably dead" and the job is reclaimed. The hard judgment is <b>slow vs dead</b>: set the lease too short and you reclaim (and double-run) jobs from workers that are merely slow (a <a href="33.html">GC pause</a>); too long and recovery from a real crash is sluggish. Size the lease above your worst expected job duration + pause, require heartbeats for long jobs, and &mdash; because reclaim <i>can</i> double-dispatch a slow-but-alive worker's job &mdash; make jobs <a href="#double-run">idempotent</a> so the re-run is safe (back to Scenario 1: re-run is fine <i>if</i> the job is idempotent, which is why the customer gets one email, not two). A <a href="36.html">fencing token</a> ensures the reclaimed worker's write wins over the zombie's.</div>
+
+<h3 id="s4">Sub-problem 4 &mdash; Recurring jobs &amp; clock issues</h3>
+<p>Recurring (cron) jobs must compute their <i>next</i> run after each execution and write it back. And they introduce timing hazards: clock differences between nodes, <a href="33.html">clock drift/skew</a>, daylight-saving/timezone arithmetic, and the round-number spike where everyone schedules "at midnight."</p>
+<div class="callout warn"><span class="lbl" id="drift">The failure that happens when you get this wrong &mdash; skew, drift &amp; the scheduling herd</span>
+This is <b>Scenario 3</b>. Several traps: <b>(1) The herd</b> &mdash; humans schedule on round times, so 00:00 gets a giant spike of simultaneously-due jobs that overwhelms pickers <i>and</i> the systems those jobs call (a <a href="51.html">thundering herd</a>). <i>Fix:</i> add <b>jitter</b> &mdash; spread recurring jobs over a window (run "daily" jobs at a random minute within the hour, not all at 00:00). <b>(2) Clock skew</b> &mdash; if pickers use their own wall clocks and those disagree, a job can run early/late or (with a backward <a href="33.html">NTP</a> correction) twice. <i>Fix:</i> drive timing from one source of truth (the job store's time, or tightly-synced clocks), and treat the stored <code>nextRunAt</code> as authoritative. <b>(3) Timezone/DST</b> &mdash; "9am local daily" across DST changes is genuinely tricky; compute next-run in the user's timezone with a real calendar library, not naive UTC offset arithmetic. The jitter fix is the big one &mdash; it turns a 5-million-job spike into a smooth flow.</div>
+
+<!-- ============ AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the design decisions</h2>
 <table>
-<tr><th>Mitigation</th><th>How</th></tr>
-<tr><td>Jitter on materialization</td><td>Spread fires across a window: <code>actual = scheduled + hash(job_id) % jitter_window</code>. Only valid if the SLO allows it &mdash; "approximately 3am" jobs, yes; financial cutoffs, no.</td></tr>
-<tr><td>Shard by job_id, not by time</td><td>The due-index partition key = <code>hash(job_id)</code>; each shard independently scans its own slice of the current time bucket. Distributes the midnight spike across all shards.</td></tr>
-<tr><td>Pre-materialize early</td><td>Generate <code>runs</code> rows a few seconds <em>ahead</em> of scheduled time and let the queue hold them, so the fire itself is just a queue dequeue at T.</td></tr>
-<tr><td>Smooth the queue</td><td>The execution queue + worker autoscaling absorbs the residual burst; timing SLO is measured at <em>enqueue</em>, throughput is bounded by workers.</td></tr>
+<tr><th>Concern</th><th>Mechanism</th></tr>
+<tr><td>Find due jobs cheaply</td><td>Index on <code>nextRunAt</code> + time-bucketing (+ timer wheel for imminent)</td></tr>
+<tr><td>One owner per job</td><td>Atomic conditional claim (CAS on state) / distributed lock + fencing</td></tr>
+<tr><td>Survive worker crash</td><td>Lease + heartbeat; reclaim on lease expiry</td></tr>
+<tr><td>Safe re-run</td><td>Idempotent jobs (idempotencyKey) &mdash; exactly-once <i>effect</i></td></tr>
+<tr><td>Recurring + spikes</td><td>Recompute nextRunAt; add jitter; authoritative clock; TZ-aware</td></tr>
 </table>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Sharding the due-index by <code>hash(job_id)</code> kills the hot-time-bucket problem but means <em>every</em> shard must tick every bucket &mdash; more total scan work, more dispatcher nodes. Sharding by time bucket is cheaper to scan but reintroduces hot shards. Most production designs shard by job_id and accept the fan-out, because predictable load beats cheap-but-spiky.</div>
+<div class="callout note"><span class="lbl">The rule in one line</span>Store jobs <b>indexed by run-time</b>, have pickers <b>atomically claim</b> due jobs onto a queue, run them on workers under a <b>lease + heartbeat</b> (reclaim on expiry), make jobs <b>idempotent</b> so a reclaim/re-run is safe (exactly-once effect), and <b>jitter recurring jobs</b> to avoid the round-number herd.</div>
 
-<h2 id="election">Leader election &amp; the dispatcher</h2>
-<p>If N dispatcher nodes all scan the same bucket, they'll all try to fire the same jobs. Two safe designs:</p>
-<h3>Option A &mdash; partitioned ownership (preferred at scale)</h3>
-<p>Assign each due-index shard to exactly one dispatcher via a <span class="key">coordination service</span> (ZooKeeper / etcd / Consul). Use <a href="12.html">consistent hashing</a> over the shard ring so adding/removing a dispatcher reshuffles only 1/N of shards. When a dispatcher dies, its ephemeral lock expires and its shards are reassigned. This is horizontally scalable &mdash; no single leader is a bottleneck. The mechanics of leases, ephemeral nodes, and herd avoidance are covered in <a href="36.html">Leader Election and Coordination</a> and <a href="64.html">Designing a Distributed Locking Service</a>.</p>
-<h3>Option B &mdash; single leader</h3>
-<p>One elected leader (Raft &mdash; see <a href="30.html">Consensus and Raft</a>) owns all scanning and hands work out. Simpler reasoning, but the leader is a throughput ceiling and a single point of latency. Fine for thousands of jobs, not millions.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>Leader election does <em>not</em> by itself prevent double-fire. A leader can be partitioned, fail to receive heartbeats, and a new leader gets elected &mdash; while the old leader, not yet aware it lost the lease, fires a job. This is the split-brain window. The defense is not "better election," it's <span class="key">idempotency at the run layer</span> plus <span class="key">fencing tokens</span> at the side-effect layer. Never rely on a lock alone to guarantee single execution.</div>
-
-<h2 id="delivery">Exactly-once, leases &amp; fencing</h2>
-<p>Be precise: <span class="key">exactly-once delivery is impossible</span> over an unreliable network (the Two Generals problem). What you can build is <span class="key">at-least-once delivery</span> + <span class="key">idempotent effects</span> = "effectively-once." Choose at-least-once over at-most-once: a duplicate fire is recoverable if effects are idempotent; a dropped fire of a payroll job is not.</p>
-<h3>Worker leasing &amp; visibility timeout</h3>
-<p>A worker doesn't "take" a run, it <span class="key">leases</span> it: atomically set <code>state=LEASED, lease_owner=W, lease_expires_at=now+T, fence_token=monotonic++</code>. The worker must <span class="key">heartbeat</span> to extend the lease while running. If the worker crashes, the lease expires (the queue's <em>visibility timeout</em>), the run reverts to <code>PENDING</code>, and another worker reclaims it. This is exactly the SQS visibility-timeout pattern.</p>
-<pre><code># reclaim loop (runs on dispatchers)
-UPDATE runs SET state='PENDING'
-WHERE state IN ('LEASED','RUNNING') AND lease_expires_at &lt; now();
-
-# worker claim (atomic, idempotent)
-UPDATE runs SET state='LEASED', lease_owner=:w,
-               lease_expires_at=now()+:T, fence_token=:tok
-WHERE run_id=:r AND state='PENDING';   -- 0 rows affected =&gt; someone beat us</code></pre>
-<h3>Fencing tokens</h3>
-<p>The lease-expiry reclaim creates a danger: the original worker may have only been <em>slow</em> (GC pause), wake up, and complete its side effect after a second worker already started. Guard the downstream with a <span class="key">monotonically increasing fence token</span>. The target (or a dedup layer) records the highest token it has seen for a given <code>run_id</code> and rejects any write with a lower token. This is the canonical defense Kleppmann describes &mdash; a stale lease holder is fenced out at the resource, not at the lock. See the same pattern in <a href="64.html">Distributed Locking Service</a>.</p>
-<h3>End-to-end idempotency</h3>
-<p>Pass the deterministic <code>idempotency_key</code> (derived from <code>run_id</code>) to the target. The target deduplicates on it. For HTTP targets this is a header; for queue targets it's the message dedup key. Combined with deterministic <code>run_id</code> and fence tokens, a duplicate fire becomes a no-op rather than a double payment. See <a href="51.html">Resilience Patterns</a> for retry/backoff/dead-letter handling and <a href="61.html">Designing a Payment System</a> for why idempotency keys are non-negotiable on money-moving targets.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Shorter visibility timeout =&gt; faster recovery from dead workers, but more false reclaims of slow-but-alive workers (more duplicates). Longer timeout =&gt; fewer duplicates, slower failover (a fire stuck behind a dead worker waits the full timeout). Heartbeat-based lease extension lets you keep the timeout short <em>and</em> tolerate long-running jobs &mdash; the right answer for variable job durations.</div>
-
-<h2 id="backfill">Backfill &amp; missed runs</h2>
-<p>The scheduler is down (deploy, outage, partition) from 02:55 to 03:10 and a job was due at 03:00. What now? This is a <span class="key">misfire policy</span> and it must be explicit per job, not a global behavior:</p>
+<!-- ============ SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">Fire once on recovery</span> &mdash; coalesce all missed occurrences into a single catch-up fire. Right for "send the daily digest" (you don't want three digests).</li>
-<li><span class="key">Fire all (backfill)</span> &mdash; replay every missed occurrence in order. Right for batch ETL where each interval is a distinct data partition. See <a href="41.html">Batch &amp; Big Data Processing</a>.</li>
-<li><span class="key">Skip / fire-next-only</span> &mdash; drop the missed window entirely; only run the next scheduled occurrence. Right for "publish current price snapshot" where stale data is worthless.</li>
+<li><b>Scenario 1 (crashed mid-job):</b> Why is re-run correct only if the job is idempotent, how do you decide a worker is dead (lease), and how do you avoid double-running a merely-slow worker?</li>
+<li><b>Scenario 2 (two pickers):</b> How does an atomic conditional claim guarantee exactly one owner, and why isn't claiming alone enough for exactly-once?</li>
+<li><b>Scenario 3 (midnight spike):</b> Why does the herd happen, and how does jitter (plus an authoritative clock) smooth it?</li>
+<li>Why must jobs be indexed by run-time, and what does time-bucketing add?</li>
+<li>What's the slow-vs-dead dilemma, and how does lease sizing + idempotency resolve it?</li>
 </ul>
-<p>Implementation: because <code>run_id = hash(job_id, scheduled_time)</code>, the scheduler can on recovery enumerate every <code>scheduled_time</code> in the gap and decide per-policy which runs to materialize. The deterministic ID means re-running the recovery scan twice is safe &mdash; it produces the same run rows. Track <code>last_materialized_time</code> per job so you know the exact gap boundary. Airflow's <code>catchup</code> flag and <code>max_active_runs</code> are this policy made concrete.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>Naive backfill of a job that was paused for a week with a 1-minute cron generates 10,080 runs at once and stampedes the workers. Always cap backfill (<code>max_catchup_runs</code>) and feed it through the same rate-limited queue, not a tight loop. Relate this to <a href="23.html">API rate limiting</a>.</div>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> 4 sub-problems &mdash; <a href="#s1">find due jobs (index)</a>, <a href="#s2">exactly-once (atomic claim + idempotency)</a>, <a href="#s3">worker failure (lease)</a>, <a href="#s4">recurring + clocks (jitter)</a>.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="08.html">Queues</a>, <a href="36.html">Leader Election / Locks (fencing)</a>, <a href="64.html">Distributed Locking</a>, <a href="33.html">Clocks</a>, <a href="32.html">Idempotency</a>, <a href="51.html">Resilience (thundering herd)</a>.</p>
 
-<h2 id="dag">DAGs, dependencies &amp; priority</h2>
-<h3>Dependency scheduling</h3>
-<p>Beyond time triggers, jobs depend on other jobs: "run <code>aggregate</code> only after <code>extract</code> and <code>transform</code> both succeed." Model the workflow as a <span class="key">DAG</span> of tasks. A task becomes <span class="key">eligible</span> when all upstream edges are in a satisfied terminal state. Two execution models:</p>
+<!-- ============ CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<table>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure / OSS</th></tr>
+<tr><td>Managed cron / scheduled triggers</td><td>EventBridge Scheduler</td><td>Cloud Scheduler</td><td>Logic Apps / Functions timer</td></tr>
+<tr><td>Delayed delivery</td><td>SQS delay / Step Functions wait</td><td>Cloud Tasks (scheduled)</td><td>Service Bus scheduled msgs</td></tr>
+<tr><td>Workflow / long-running jobs</td><td>Step Functions</td><td>Workflows</td><td>Durable Functions; Temporal</td></tr>
+<tr><td>Self-managed</td><td colspan="3">Quartz, Airflow, Temporal/Cadence, db-backed job queues (Sidekiq, Celery)</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>Managed schedulers (EventBridge Scheduler, Cloud Scheduler, Cloud Tasks) handle the durable store, the due-time lookup, and at-least-once dispatch for you &mdash; so you mostly provide idempotent jobs and a target. For complex, long-running, stateful jobs with retries and compensation, workflow engines (<b>Temporal</b>, Step Functions) are the modern answer &mdash; they bake in the lease/heartbeat and exactly-once-effect machinery.</div>
+
+<!-- ============ IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>Same facets &mdash; what it is, the model, and the failure to watch.</p>
+<h3 id="impl-cron">Cron / Quartz</h3>
 <ul>
-<li><span class="key">Event-driven</span> &mdash; on each task completion, emit an event; a coordinator decrements the unmet-dependency count of downstream tasks and enqueues those that hit zero. Scales well; needs durable event handling.</li>
-<li><span class="key">Polling / sweep</span> &mdash; a scheduler periodically evaluates which tasks are now eligible. Simpler, higher latency. (Airflow's scheduler loop.)</li>
+<li><b>What it is.</b> Classic time-based schedulers &mdash; Unix cron (single node) and Quartz (clustered, JVM).</li>
+<li><b>Model.</b> Quartz clustering uses a database with row locks so only one node fires a given trigger.</li>
+<li><b>The failure to watch.</b> Single-node cron is a SPOF; clustered Quartz relies on DB locking that can contend at scale; no built-in idempotency &mdash; jobs must be safe to re-run.</li>
 </ul>
-<p>Store the DAG topology and per-run task states durably; a DAG run is itself a row tree so you can resume from the failure point rather than re-running succeeded upstream tasks. Cycle detection at submit time is mandatory.</p>
-<h3>Priority &amp; multi-tenant fairness</h3>
-<p>A single FIFO queue lets a low-priority bulk job block a latency-sensitive one. Use <span class="key">priority queues</span> (multiple queues drained weighted, or a score-ordered structure). For multi-tenancy, layer <span class="key">weighted fair queueing</span> per tenant so one tenant's 50M-job backfill can't monopolize workers &mdash; cap concurrent runs per tenant and round-robin across tenant queues. This is the same fairness concern as in <a href="08.html">Queues</a>.</p>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They separate <em>delivery semantics</em> from <em>execution semantics</em> early, and state plainly that exactly-once delivery is impossible &mdash; then build at-least-once + idempotent effects + fencing tokens to get effectively-once. They make <code>run_id</code> deterministic so idempotency falls out of a unique constraint. They identify the hot-time-bucket problem unprompted and pick a sharding strategy with eyes open about the fan-out cost. They treat leader election as necessary-but-insufficient and never claim a lock alone prevents double-fire. They tie timing accuracy to a concrete SLO measured at enqueue, and they make misfire/backfill an explicit per-job policy rather than hand-waving "we'll just re-run it."</div>
+<h3 id="impl-queue">DB-backed job queues (Sidekiq / Celery)</h3>
 <ul>
-<li>Your SLO is "p99 fire within 1s of schedule." Walk me through every place latency accumulates between the scheduled instant and the target receiving the trigger &mdash; and where you'd measure it.</li>
-<li>A worker leases a run, GC-pauses for 40s, the lease expires, a second worker runs the job, then the first worker wakes and POSTs to the target. Trace exactly what prevents a double side-effect. What if the target has no fencing support?</li>
-<li>60% of 100M jobs use <code>0 * * * *</code>. At 12:00:00 your design must not melt. Show me the load distribution across shards and where the burst is absorbed. What changes if jitter is disallowed by the SLO?</li>
-<li>The scheduler tier is down for 12 minutes during a deploy. For a 1-minute-cron ETL job, a daily-digest job, and a price-snapshot job &mdash; what fires on recovery, and how do you stop a backfill stampede?</li>
-<li>How do you guarantee a job submitted via the API is durable before you return 200, while keeping submit latency low at 10k submits/sec? Where exactly does the write land and what's your replication/consistency model? (See <a href="11.html">CAP</a>, <a href="31.html">PACELC</a>.)</li>
-<li>How would you support exactly-once <em>effects</em> for a target that moves money but exposes no idempotency key? What do you push back on, and what compensating design (ledger, two-phase, dedup table) would you propose?</li>
+<li><b>What it is.</b> Job queues with scheduled/delayed support, backed by Redis or a database.</li>
+<li><b>Model.</b> Jobs in a sorted set by run-time; workers pop due jobs atomically; retries with backoff.</li>
+<li><b>The failure to watch.</b> At-least-once by default (duplicate runs possible) &mdash; jobs must be idempotent; visibility/lease tuning for crash recovery.</li>
+</ul>
+<h3 id="impl-temporal">Temporal / Cadence</h3>
+<ul>
+<li><b>What it is.</b> Durable workflow engines that handle scheduling, retries, and exactly-once-effect for long-running jobs.</li>
+<li><b>Model.</b> Workflow state is durably persisted and replayed; activities have timeouts/heartbeats and automatic retry; the engine guarantees progress.</li>
+<li><b>The failure to watch.</b> More operational surface; you still design activities to be idempotent for the at-least-once activity execution.</li>
 </ul>
 
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Scheduled / cron jobs</td><td>EventBridge Scheduler</td><td>Cloud Scheduler</td><td>Logic Apps / Functions timer</td></tr><tr><td>Workflow orchestration</td><td>Step Functions</td><td>Workflows</td><td>Logic Apps / Durable Functions</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="59.html">&lsaquo; Prev: Designing a Notification System</a><a class="nx" href="61.html">Next: Designing a Payment System &rsaquo;</a></div>
+<!-- ============ BUILD ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Work each before opening the approach.</p>
+<h3 id="ex-claim">Claim a due job exactly once across many pickers</h3>
+<p>Many picker nodes poll for due jobs. Design the claim so exactly one picker dispatches a given job, even under concurrency, and a crashed picker/worker's job is recovered.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Pickers query <code>WHERE nextRunAt &le; now AND state='scheduled'</code> (using the run-time index). To claim, issue an <b>atomic conditional update</b>: <code>UPDATE jobs SET state='running', lockedBy=:me, lockExpiry=now()+lease WHERE jobId=:id AND state='scheduled'</code> &mdash; the database serializes this, so exactly one picker's update affects a row; losers get 0 rows updated and move on (Scenario 2 solved). The claimer sets a <b>lease</b> (<code>lockExpiry</code>) and, for long jobs, the worker <b>heartbeats</b> to extend it. A recovery sweep reclaims jobs whose <code>state='running'</code> but <code>lockExpiry &lt; now</code> (crashed worker, Scenario 1) by resetting them to <code>scheduled</code>. Because a reclaim can re-dispatch a slow-but-alive worker's job, the job itself is <b>idempotent</b> (uses <code>idempotencyKey</code>), and a <a href="36.html">fencing token</a> (e.g. the lease version) ensures a zombie worker's late write is rejected. Atomic claim + lease + idempotency = exactly-once effect.</p>
+</div></details>
+<h3 id="ex-jitter">Smooth the midnight herd</h3>
+<p>Millions of "daily" jobs are scheduled at 00:00 and overwhelm the system at midnight. Redesign so the load is smooth without changing what users asked for.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Add <b>jitter</b>: when materializing a recurring job's next run, don't use the exact boundary &mdash; spread it across a window. For "daily" jobs that don't need a precise minute, assign each a stable random offset within an hour (e.g. hash the jobId into 0&ndash;3600s) so the 5M jobs fire smoothly across 00:00&ndash;01:00 instead of all at 00:00 (Scenario 3 solved). For jobs that <i>must</i> run at exactly midnight, you can't jitter the trigger &mdash; so instead rate-limit/queue the <i>dispatch</i> (pickers pull due jobs at a bounded rate onto the work queue) and ensure downstream systems the jobs call are protected (<a href="23.html">rate limiting</a>, <a href="51.html">backpressure</a>). The principle: spread the load at the source (jitter) where semantics allow, and meter it at dispatch where they don't &mdash; never let a round-number spike become a self-inflicted <a href="51.html">thundering herd</a>.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<ul>
+<li><b>Tiered timing.</b> Design a two-tier store &mdash; a database for far-future jobs, an in-memory timer wheel for imminent ones &mdash; and how jobs migrate between tiers. &rarr; <a href="06.html">Indexes</a>.</li>
+<li><b>Workflow with dependencies.</b> Jobs that depend on other jobs (a DAG). Design ordering and failure/retry across the graph. &rarr; <a href="32.html">Sagas</a>, <a href="41.html">Batch</a>.</li>
+<li><b>Scheduled notifications.</b> Combine this with a <a href="59.html">notification system</a> to send "in the user's 9am." Design the timezone handling. &rarr; <a href="59.html">Notification System</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="59.html">&lsaquo; Prev: Notification System</a><a class="nx" href="61.html">Next: Payment System &rsaquo;</a></div>
 </div>
 </div>
 </div>

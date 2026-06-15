@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stream Processing and Change Data Capture</title>
+<title>Stream Processing and CDC</title>
 <link rel="icon" type="image/svg+xml" href="./_principal_files/favicon.svg">
 <link rel="stylesheet" href="./_principal_files/lesson.css?v=20260615a">
 <script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('sd-nav')==='collapsed')document.documentElement.classList.add('nav-collapsed');}catch(e){}})();</script>
@@ -111,140 +111,192 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Stream Processing and Change Data Capture</div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Stream Processing &amp; CDC</div>
+<h1>Stream Processing &amp; Change Data Capture</h1>
+<p class="sub"><em>Batch processing waits for all the data, then computes. Stream processing computes <b>continuously over data that never ends</b> &mdash; clicks, sensor readings, database changes &mdash; producing answers within seconds. The catch is that "now" is slippery: events arrive late and out of order, so you must reason carefully about <i>which</i> time you mean. And the most common stream source isn't a queue at all &mdash; it's your database's own change log, via CDC.</em></p>
 
-<h1>Stream Processing and Change Data Capture</h1>
-<p class="sub">Computing continuously over unbounded data &mdash; getting correct answers when records arrive late, out of order, and forever.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency.</b> <span>processing data in motion buys freshness, paid in state management, watermarks, and exactly-once effort.</span></div>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Continuous, low-latency answers over unbounded data &mdash; in exchange for approximate completeness, stateful operators you must checkpoint, and reasoning about event time vs processing time.</b> <span>Streaming gives you results in seconds instead of hours. You pay by accepting that an answer is always "as of late-arriving data so far," by managing operator state and checkpoints, and by handling the gap between when an event happened and when you process it.</span></div>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#unbounded">Unbounded data and the streaming mindset</a></li>
-<li><a href="#time">Event time vs processing time, and watermarks</a></li>
-<li><a href="#windows">Windowing: tumbling, sliding, session</a></li>
-<li><a href="#state">State, checkpointing, and exactly-once</a></li>
-<li><a href="#duality">Stream&ndash;table duality</a></li>
-<li><a href="#es-cqrs">Event sourcing and CQRS</a></li>
-<li><a href="#cdc">Change Data Capture and the outbox pattern</a></li>
-<li><a href="#backpressure">Backpressure</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Stream Processing &amp; CDC</b>
+│
+├─ <a href="#root"><b>What stream processing is</b></a>  &mdash; computing over data that never ends
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>The 5 ideas to understand</b></a>
+│   ├─ <a href="#d1">1. Event time vs processing time</a>     fail → <a href="#late-event">the late event miscounted</a>
+│   ├─ <a href="#d2">2. Windowing &amp; watermarks</a>            fail → <a href="#window-trap">never-closing windows</a>
+│   ├─ <a href="#d3">3. State, checkpoints &amp; exactly-once</a> fail → <a href="#state-loss">lost state on failure</a>
+│   ├─ <a href="#d4">4. CDC &amp; the outbox (the best source)</a> fail → <a href="#dual-write">the dual-write drift</a>
+│   └─ <a href="#d5">5. Backpressure</a>                      fail → <a href="#backpressure-trap">unbounded buffering &rarr; OOM</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; windows, semantics, when to stream
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; stream engines &amp; CDC services
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; engines &amp; CDC tools
+│   ├─ <a href="#impl-flink">Flink</a>
+│   ├─ <a href="#impl-kstreams">Kafka Streams</a>
+│   └─ <a href="#impl-debezium">Debezium (CDC)</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-window">Count events per minute, correctly</a>
+    ├─ <a href="#ex-cdc">Stream DB changes with CDC</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="unbounded">Unbounded data and the streaming mindset</h2>
-<p>Batch processing assumes a <span class="key">bounded</span> dataset: you have all the input, you run a job, it finishes, you get an answer. Stream processing assumes the input is <span class="key">unbounded</span> &mdash; events arrive forever, the job never "completes," and you must emit results incrementally before you have seen everything. This single difference cascades into every hard problem in the field: when is a result final? what does "the answer" even mean for an infinite input? how do you recover state without re-reading an infinite log?</p>
-<p>The modern reframing (popularised by the Google Dataflow model and implemented in <span class="key">Apache Flink</span>, Kafka Streams, and Spark Structured Streaming) is that batch is just a special case of streaming where the input happens to be finite. A well-designed streaming engine answers three orthogonal questions: <em>what</em> is being computed (the aggregation), <em>where in event time</em> it is computed (windowing), and <em>when in processing time</em> results are materialised (triggers and watermarks). Keeping these axes separate is what lets you reason about correctness.</p>
-<div class="callout note"><span class="lbl">Key insight</span>"Streaming vs batch" is the wrong axis. The real axis is <em>bounded vs unbounded</em> and <em>latency tolerance</em>. The same Flink program can run over a Kafka topic (unbounded, low latency) or a historical S3 dataset (bounded, reprocessing). This is the Lambda-to-Kappa evolution &mdash; see <a href="41.html">Batch and Big Data Processing</a>.</div>
-
-<h2 id="time">Event time vs processing time, and watermarks</h2>
-<p>Two clocks matter and they are never the same:</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What stream processing is</h2>
+<p><b>Stream processing</b> computes over an <b>unbounded</b> data set &mdash; a sequence of events with no end &mdash; producing continuously updated results, typically within seconds of an event arriving. Contrast with <a href="41.html">batch processing</a>, which runs over a bounded, complete dataset and finishes. The streaming mindset: you never have "all the data," so every answer is provisional, and the central difficulty is <b>time</b>.</p>
+<p>The core pieces:</p>
 <ul>
-<li><span class="key">Event time:</span> when the event actually occurred at the source (embedded in the record, e.g. the timestamp a user clicked).</li>
-<li><span class="key">Processing time:</span> when the event reaches the operator that handles it.</li>
+<li><b>Source</b> &mdash; an unbounded input: a <a href="39.html">Kafka topic</a>, a Kinesis stream, or a database change feed (CDC).</li>
+<li><b>Operators</b> &mdash; transformations (map, filter, join, aggregate). Some are <b>stateful</b> (a running count, a windowed sum) and must remember data across events.</li>
+<li><b>Windows</b> &mdash; how you slice an endless stream into finite chunks to aggregate (per-minute counts, per-session totals).</li>
+<li><b>Sink</b> &mdash; where results go: a database, a dashboard, another stream.</li>
 </ul>
-<p>The gap between them &mdash; <span class="key">skew</span> &mdash; comes from network delay, queueing in Kafka, mobile clients that were offline for hours, and operator backlog. If you aggregate by processing time you get answers that are easy to compute but wrong: a "9:00&ndash;9:01 clicks" count that includes a click from 8:47 that arrived late. Correct analytics almost always require <span class="key">event-time</span> processing.</p>
-<p>But event time creates a completion problem: at 9:05 processing time, can you close the 9:00&ndash;9:01 window? Maybe a straggler is still in flight. The engine's answer is the <span class="key">watermark</span> &mdash; a monotonically increasing assertion that "I believe I have now seen all events with event time &le; T." A watermark of 9:02 means windows ending at or before 9:02 can fire.</p>
-<p>Watermarks are heuristics, not guarantees. A common strategy is <em>bounded out-of-orderness</em>: <code>watermark = max_event_time_seen &minus; out_of_orderness_bound</code>. Set the lag too small and you drop legitimate late data; set it too large and every window result is delayed by that lag. This is the fundamental <span class="key">latency&ndash;completeness</span> trade-off of stream processing.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Tight watermark = low latency, more dropped/late records. Loose watermark = high completeness, higher latency. There is no free lunch &mdash; you choose where on the curve to sit, and you handle the tail with <em>allowed lateness</em> (re-fire the window) or a <em>side output</em> for dropped records so nothing is silently lost.</div>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Streaming trades <b>completeness and simplicity</b> for <b>freshness</b>. You get answers in seconds, but every answer is "as of the data seen so far," you must checkpoint operator state to survive failures, and you must decide whether you mean the time an event <i>happened</i> or the time you <i>processed</i> it. Get the time question wrong and your counts are simply incorrect.</div>
 
-<h2 id="windows">Windowing: tumbling, sliding, session</h2>
-<p>Aggregating an infinite stream requires slicing it into finite chunks. The three canonical window types:</p>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the mobile event that arrives 5 minutes late</span>
+You count "purchases per minute" from a mobile app. A user buys something at 10:00:30, but their phone is offline; the event reaches your pipeline at 10:05:10. Your counter, keyed on arrival time, files it under the 10:05 minute. <b>Which minute's count is now wrong &mdash; and which notion of time should you have used instead?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the dual-write that drifts (real-world pattern, Netflix/LinkedIn)</span>
+A service writes an order to its database <i>and</i> publishes an "order placed" event to <a href="39.html">Kafka</a> for downstream consumers. Over weeks, the database and the event stream slowly disagree &mdash; some events never published, some published for writes that rolled back. <b>What's the name of this problem, and what mechanism turns the database itself into the reliable event source?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the operator that crashes mid-aggregation</span>
+A streaming job maintains a running per-user total in memory. The machine running that operator crashes. <b>What happens to the in-flight totals, how do you recover them exactly (not double-counting), and why is this harder than in a stateless service?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#late-event">event time vs processing time</a>. Scenario 2 is <a href="#dual-write">CDC and the outbox</a>. Scenario 3 is <a href="#state-loss">state and checkpointing</a>. Each maps to an idea below.</i></p>
+
+<!-- ============ BRANCH 1: THE IDEAS ============ -->
+<h2 id="decisions">The five ideas to understand</h2>
+<p>Five ideas carry the whole subject. Each has a named failure nested under it.</p>
+
+<h3 id="d1">Idea 1 &mdash; Event time vs processing time</h3>
+<p>Every event has two timestamps: <b>event time</b> (when it actually happened, stamped at the source) and <b>processing time</b> (when your pipeline got to it). They differ because of network delay, offline buffering, retries, and backlogs. For any correctness-sensitive aggregation &mdash; counts, billing, analytics &mdash; you almost always want <b>event time</b>, so the same event always lands in the same window no matter when it arrives or how backed-up you are.</p>
+<div class="callout warn"><span class="lbl" id="late-event">The failure that happens when you get this wrong &mdash; the late event miscounted</span>
+This is <b>Scenario 1</b>. Using processing time, the 10:00:30 purchase that arrives at 10:05 is counted in the 10:05 minute &mdash; the 10:00 minute is undercounted, the 10:05 minute is overcounted, and a backlog or replay would scramble all your numbers. Using <b>event time</b>, the event's own 10:00:30 timestamp puts it in the 10:00 window regardless of arrival &mdash; correct and replay-stable. The cost: you can't close the 10:00 window the instant the clock hits 10:01, because late events may still arrive. That's what watermarks handle.</div>
+
+<h3 id="d2">Idea 2 &mdash; Windowing and watermarks</h3>
+<p>To aggregate an endless stream you slice it into <b>windows</b>: <b>tumbling</b> (fixed, non-overlapping &mdash; "each minute"), <b>sliding</b> (fixed-size, overlapping &mdash; "last 5 minutes, updated every minute"), or <b>session</b> (grouped by activity gaps &mdash; "a user's burst of clicks"). A <span class="gl" data-def="Watermark &mdash; a moving marker in event time that asserts 'I believe I have seen all events up to time T'; it lets the engine decide when a window is complete enough to emit, while still allowing a bounded grace period for stragglers.">watermark</span> is the engine's estimate of "event time has advanced to T, so windows ending before T can be finalized" &mdash; while still allowing a bounded grace period for late stragglers.</p>
+<div class="callout warn"><span class="lbl" id="window-trap">The failure that happens when you get this wrong &mdash; windows that never close (or close too soon)</span>
+Without a watermark you face a dilemma: wait forever for possibly-late events (the window never emits, results never appear, state grows without bound) or close immediately (and drop every late event, undercounting). Watermarks resolve it: emit when the watermark passes the window's end, plus a bounded <b>allowed lateness</b> after which stragglers are dropped or sent to a side-output. Set the lateness too tight and you drop real data; too loose and you hold state and delay results. It's a freshness-vs-completeness dial.</div>
+
+<h3 id="d3">Idea 3 &mdash; State, checkpointing, and exactly-once</h3>
+<p>Stateful operators (counts, joins, windows) hold data in memory that must survive failures. Engines periodically take a <b>checkpoint</b> &mdash; a consistent snapshot of all operator state plus the input offsets it corresponds to &mdash; to durable storage. On failure, the job restores the last checkpoint and replays the source from the matching offsets. Combined with idempotent or transactional sinks, this gives <b>exactly-once</b> processing of the streaming computation.</p>
+<div class="callout warn"><span class="lbl" id="state-loss">The failure that happens when you get this wrong &mdash; lost or double-counted state</span>
+This is <b>Scenario 3</b>. A stateless service just restarts; a <i>stateful</i> operator that crashes without checkpoints loses every in-flight aggregate &mdash; or, if you naively replay the input without restoring state, double-counts. The fix is the checkpoint + offset pairing: restore state <i>and</i> rewind the source to exactly the offsets that state reflects, so replay neither loses nor duplicates. This is why streaming engines (Flink's distributed snapshots, Kafka Streams' changelog topics) make checkpointing a first-class feature &mdash; you don't hand-roll it.</div>
+
+<h3 id="d4">Idea 4 &mdash; Change Data Capture and the outbox (the best stream source)</h3>
+<p><b>Change Data Capture (CDC)</b> turns a database into an event stream by <b>tailing its <a href="38.html">write-ahead log</a></b> &mdash; every insert/update/delete becomes an event, in commit order, with no change to the application. It's how you feed search indexes, caches, data warehouses, and other services from a system of record without dual writes. The <b>outbox pattern</b> pairs with it: write business data and an <code>outbox</code> event row in one local transaction, and let CDC publish the outbox &mdash; so the event is committed atomically with the data.</p>
+<div class="callout warn"><span class="lbl" id="dual-write">The failure that happens when you get this wrong &mdash; the dual-write drift</span>
+This is <b>Scenario 2</b>. Writing to the database <i>and</i> separately publishing to Kafka has no shared transaction (the <a href="32.html">dual-write problem</a>): a crash between them, or a rolled-back transaction whose event already published, makes the stream and the database drift &mdash; silently, over time. CDC fixes it by making the database's own committed log the single source of truth: you only ever write to the database, and every committed change <i>becomes</i> the event. Netflix, LinkedIn, and others run exactly this (Debezium &rarr; Kafka) to replace fragile dual-writes. Delivery is at-least-once, so consumers must still be <a href="32.html">idempotent</a>.</div>
+
+<h3 id="d5">Idea 5 &mdash; Backpressure</h3>
+<p>A streaming pipeline is a chain of operators at different speeds. When a downstream operator (or sink) can't keep up with the rate upstream is producing, the system must <b>push back</b> &mdash; signal upstream to slow down &mdash; rather than let data pile up. Good engines propagate backpressure all the way to the source (Kafka simply pauses consumption; the log buffers durably).</p>
+<div class="callout warn"><span class="lbl" id="backpressure-trap">The failure that happens when you get this wrong &mdash; unbounded buffering &rarr; OOM</span>
+Without backpressure, a slow sink causes records to accumulate in in-memory buffers between operators; the buffers grow until the process runs out of memory and crashes &mdash; often cascading as the restarted job faces an even bigger backlog. The fix is to make the slowness <i>flow backward</i>: block or slow the upstream operators, ultimately pausing reads from the durable source so the backlog sits safely in the <a href="39.html">log</a> (disk) rather than in process memory. A bounded, backpressured pipeline degrades by getting slower; an unbounded one degrades by dying.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance</h2>
 <table>
-<tr><th>Type</th><th>Definition</th><th>Overlap</th><th>Typical use</th></tr>
-<tr><td><span class="key">Tumbling</span></td><td>Fixed size, contiguous, non-overlapping (e.g. 1-minute buckets)</td><td>None &mdash; each event in exactly one window</td><td>Per-minute metrics, billing periods</td></tr>
-<tr><td><span class="key">Sliding (hopping)</span></td><td>Fixed size, advances by a smaller step (e.g. 5-min window every 1 min)</td><td>Yes &mdash; an event lands in multiple windows</td><td>Moving averages, "last 5 min" dashboards</td></tr>
-<tr><td><span class="key">Session</span></td><td>Data-driven; closes after a gap of inactivity (e.g. 30 min idle)</td><td>None, but variable length per key</td><td>User sessions, fraud bursts</td></tr>
+<tr><th>Question</th><th>Answer</th></tr>
+<tr><td>Counting/billing/analytics over time</td><td>Use <b>event time</b> + watermarks, not processing time</td></tr>
+<tr><td>Fixed reporting buckets</td><td><b>Tumbling</b> windows (per-minute, per-hour)</td></tr>
+<tr><td>Rolling metrics ("last 5 min")</td><td><b>Sliding</b> windows</td></tr>
+<tr><td>Group by user activity bursts</td><td><b>Session</b> windows</td></tr>
+<tr><td>Survive operator failure without double-counting</td><td><b>Checkpoints</b> + offset rewind + idempotent sink</td></tr>
+<tr><td>Feed other systems from a database reliably</td><td><b>CDC + outbox</b>, not dual writes</td></tr>
+<tr><td>Slow sink</td><td><b>Backpressure</b> to the durable source</td></tr>
 </table>
-<p>Sliding windows multiply state and output: a 1-hour window sliding every minute means each event is replicated into ~60 windows. Session windows are the trickiest because a late event can <em>merge</em> two previously separate sessions, forcing the engine to retract and recompute. The ad-click counting problem in <a href="63.html">Designing Ad Click Aggregation</a> is essentially a windowing-plus-watermark design exercise: count clicks per ad per minute in event time, tolerate late clicks, and stay exactly-once for billing.</p>
+<div class="callout note"><span class="lbl">When to stream vs batch</span>Stream when freshness matters (fraud, alerting, live dashboards, real-time features). <a href="41.html">Batch</a> when you need completeness, complex historical joins, or cost-efficiency over huge volumes and latency is fine. Many systems do both (<a href="41.html">Lambda/Kappa</a>).</div>
 
-<pre><code>// Flink event-time tumbling window, 1-minute click counts per ad
-clicks
-  .assignTimestampsAndWatermarks(
-      WatermarkStrategy
-        .&lt;Click&gt;forBoundedOutOfOrderness(Duration.ofSeconds(30))
-        .withTimestampAssigner((e, ts) -&gt; e.eventTimeMillis))
-  .keyBy(c -&gt; c.adId)
-  .window(TumblingEventTimeWindows.of(Time.minutes(1)))
-  .allowedLateness(Time.minutes(5))     // re-fire if stragglers arrive
-  .sideOutputLateData(droppedTag)        // anything later than 5 min -&gt; audit
-  .aggregate(new CountAgg());</code></pre>
-
-<h2 id="state">State, checkpointing, and exactly-once</h2>
-<p>A stateless stream operator (a filter, a map) is trivial to recover &mdash; just replay. The hard part is <span class="key">stateful</span> operators: a running count, a window buffer, a join's hash table, a dedup set. This state can be gigabytes to terabytes per operator and must survive failures without corrupting results.</p>
-<p>Flink's mechanism is <span class="key">asynchronous barrier snapshotting</span> (a variant of Chandy&ndash;Lamport). Periodically the source injects a <em>checkpoint barrier</em> into the stream. As the barrier flows through the dataflow graph, each operator snapshots its state when the barrier passes. When the barrier reaches all sinks, a globally consistent snapshot exists across every operator. State is persisted to durable storage (RocksDB local + S3/HDFS for the checkpoint). On failure the whole job rewinds to the last completed checkpoint and source offsets are reset to the recorded positions.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>"Exactly-once" almost never means each event is physically processed once. It means <em>exactly-once effect on state</em> &mdash; the observable result is as if each event were processed once. Replaying after a checkpoint reprocesses events; correctness comes from rewinding state in lockstep with input offsets, plus idempotent or transactional sinks.</div>
-<p>End-to-end exactly-once requires the <em>sink</em> to cooperate. Two patterns:</p>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">Idempotent writes:</span> the sink uses a deterministic key (e.g. <code>adId:minute</code>) so reprocessing overwrites rather than double-counts. Simplest and most robust.</li>
-<li><span class="key">Two-phase commit (transactional sink):</span> Flink's <code>TwoPhaseCommitSinkFunction</code> pre-commits output on checkpoint and commits when the checkpoint completes, so partial output is never visible. Kafka transactions implement this for stream-to-stream pipelines. This is a distributed-transaction protocol layered on the checkpoint &mdash; see <a href="32.html">Distributed Transactions</a>.</li>
+<li><b>Scenario 1 (late event):</b> Why does processing time miscount the late purchase, what does event time fix, and what new problem (window closing) does that create?</li>
+<li><b>Scenario 2 (dual-write drift):</b> Why do the DB and stream drift, and how do CDC + the outbox make the database the single source of truth?</li>
+<li><b>Scenario 3 (operator crash):</b> Why is recovering a stateful operator harder than a stateless service, and how do checkpoints + offset rewind give exactly-once?</li>
+<li>Name the three window types and when to use each. What does a watermark decide?</li>
+<li>What does backpressure prevent, and where should a backlog safely sit?</li>
 </ul>
-<p>Compare delivery semantics with the broker layer in <a href="39.html">Kafka and Log-based Messaging</a>: the consumer offset commit and the producer transaction together are what make a Kafka&rarr;Flink&rarr;Kafka pipeline exactly-once.</p>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>5 ideas</b> &mdash; <a href="#d1">event vs processing time</a>, <a href="#d2">windows &amp; watermarks</a>, <a href="#d3">checkpointed state</a>, <a href="#d4">CDC/outbox source</a>, <a href="#d5">backpressure</a> &mdash; each with a nested failure.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="39.html">Kafka</a>, <a href="41.html">Batch &amp; Big Data</a>, <a href="32.html">Distributed Transactions (outbox)</a>, <a href="46.html">Event-Driven Architecture</a>, <a href="63.html">Ad Click Aggregation</a>.</p>
 
-<h2 id="duality">Stream&ndash;table duality</h2>
-<p>One of the most powerful mental models in this space: a <span class="key">stream and a table are two views of the same data</span>.</p>
-<ul>
-<li>A <span class="key">table</span> is a snapshot of state at a point in time &mdash; the current value for each key.</li>
-<li>A <span class="key">stream</span> is the sequence of changes &mdash; the changelog &mdash; that produced that table.</li>
-</ul>
-<p>Replaying a stream and aggregating it (a "table" of latest-value-per-key) is the <span class="key">aggregation</span> direction; emitting a row every time a table changes is the <span class="key">changelog</span> direction. Kafka encodes this directly: a <em>compacted topic</em> keyed by primary key <em>is</em> a table (it retains the latest value per key), while a normal topic is the change stream. Kafka Streams' <code>KTable</code> vs <code>KStream</code> and Flink's dynamic tables are this duality made into an API. The deep consequence: a database's replication log and a Kafka topic are the same abstraction, which is exactly what makes CDC possible.</p>
-
-<h2 id="es-cqrs">Event sourcing and CQRS</h2>
-<p><span class="key">Event sourcing</span> inverts the usual persistence model. Instead of storing current state and mutating it in place, you store the <em>immutable log of events</em> that occurred (<code>OrderPlaced</code>, <code>ItemAdded</code>, <code>OrderShipped</code>), and current state is a left-fold over that log. The log is the source of truth; any state view is a derived, rebuildable projection.</p>
-<p>Benefits: a complete audit trail for free, the ability to reconstruct state at any past time ("temporal queries"), and the ability to build <em>new</em> read models retroactively by replaying history. Costs: events are immutable so schema evolution and GDPR-style deletion are genuinely hard (crypto-shredding is the usual answer), and naive replay of a long log is slow &mdash; you need periodic <span class="key">snapshots</span> to bound replay cost.</p>
-<p><span class="key">CQRS</span> (Command Query Responsibility Segregation) frequently pairs with it: separate the write model (validates commands, appends events) from one or more read models (denormalised, query-optimised projections built by consuming the event stream). The read side is eventually consistent with the write side &mdash; a deliberate trade you must surface in the UX. This is a core pattern in <a href="46.html">Event-Driven Architecture</a>.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Event sourcing + CQRS buys auditability, replayability, and independently scalable reads. It costs you eventual consistency on the read side, harder deletes/corrections, and significant operational complexity. Reach for it where the audit log <em>is</em> the business (payments, ledgers, trading) &mdash; not as a default architecture.</div>
-
-<h2 id="cdc">Change Data Capture and the outbox pattern</h2>
-<p>Most companies already have their truth in an OLTP database, not in a Kafka log. <span class="key">Change Data Capture</span> is how you turn that database's mutations into a stream &mdash; the bridge between the table world and the stream world. Two approaches, and the distinction is critical:</p>
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
 <table>
-<tr><th></th><th>Query-based (polling)</th><th>Log-based (WAL tailing)</th></tr>
-<tr><td>Mechanism</td><td>Poll <code>WHERE updated_at &gt; last_seen</code></td><td>Read the DB's replication log (WAL/binlog/redo)</td></tr>
-<tr><td>Captures deletes?</td><td>No (row is gone)</td><td>Yes</td></tr>
-<tr><td>Captures intermediate states?</td><td>No (only last value between polls)</td><td>Yes (every change)</td></tr>
-<tr><td>Source load</td><td>Repeated table scans</td><td>Low &mdash; reads sequential log</td></tr>
-<tr><td>Latency</td><td>Poll interval</td><td>Near real-time</td></tr>
-<tr><td>Tooling</td><td>Kafka Connect JDBC, cron jobs</td><td>Debezium, Maxwell, AWS DMS</td></tr>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Managed stream processing</td><td>Kinesis Data Analytics / Managed Flink</td><td>Dataflow (Apache Beam)</td><td>Stream Analytics</td></tr>
+<tr><td>Stream source</td><td>Kinesis / MSK</td><td>Pub/Sub</td><td>Event Hubs</td></tr>
+<tr><td>Change data capture</td><td>DMS, DynamoDB Streams</td><td>Datastream</td><td>SQL/Cosmos change feed</td></tr>
+<tr><td>Self-managed engines</td><td colspan="3">Apache Flink, Kafka Streams, Spark Structured Streaming, Apache Beam</td></tr>
 </table>
-<p>Log-based CDC is strongly preferred at scale. <span class="key">Debezium</span> connects as a replication client &mdash; it reads the Postgres WAL (via a logical decoding slot), MySQL binlog, or MongoDB oplog &mdash; and emits a structured change event (<code>before</code>, <code>after</code>, <code>op</code>, source metadata) per row mutation onto Kafka. Because it reads the same log the database uses for its own replicas, it sees every insert/update/delete in commit order with minimal source overhead. This is the stream&ndash;table duality at work: the WAL is the changelog of the database table.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>A logical replication slot in Postgres pins WAL until the consumer acks. If Debezium falls behind or dies, WAL accumulates and can fill the disk and take the primary down. Monitor replication slot lag as a first-class SLO and alert aggressively.</div>
+<div class="callout note"><span class="lbl">The takeaway</span>Managed Flink (AWS) / Dataflow (GCP) give you event-time windowing, watermarks, and checkpointed exactly-once state without operating the cluster. For DB-to-stream, the cloud CDC services (DMS, Datastream, DynamoDB Streams, change feeds) are the managed equivalent of Debezium &mdash; the same outbox/CDC pattern, run for you.</div>
 
-<h3>The dual-write problem and the outbox pattern</h3>
-<p>A service that does "write to DB, then publish to Kafka" has a <span class="key">dual-write</span> problem: the two writes are not atomic. If the process crashes between them, the DB and Kafka diverge &mdash; an order exists with no <code>OrderPlaced</code> event, or vice versa. Distributed transactions across a DB and a broker (XA) are slow, poorly supported, and operationally fragile.</p>
-<p>The <span class="key">transactional outbox pattern</span> solves this elegantly using CDC. In the <em>same local DB transaction</em> as the business write, insert a row into an <code>outbox</code> table. That single ACID transaction guarantees the business change and the intent-to-publish commit or roll back together. A CDC connector (Debezium) then tails the outbox table and publishes those rows to Kafka. The broker may receive duplicates on retry, so consumers must be idempotent &mdash; but no event is ever lost and none is published for a rolled-back transaction.</p>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The engines made concrete. Same facets &mdash; model, time/state handling, and the failure to watch.</p>
 
-<pre><code>BEGIN;
-  UPDATE orders SET status = 'PLACED' WHERE id = 42;
-  INSERT INTO outbox (aggregate_id, event_type, payload)
-    VALUES (42, 'OrderPlaced', '{"orderId":42,...}');
-COMMIT;
--- Debezium tails the WAL, sees the outbox INSERT,
--- publishes 'OrderPlaced' to Kafka. At-least-once -> idempotent consumers.</code></pre>
-
-<p>CDC also powers broader <span class="key">DB-to-stream pipelines</span>: replicating an OLTP database into a data lake or warehouse, keeping a search index (Elasticsearch) or a cache in sync, and feeding real-time materialised views. It decouples the system of record from the proliferating downstream consumers without coupling them to the application code &mdash; the database becomes a streaming source.</p>
-
-<h2 id="backpressure">Backpressure</h2>
-<p>When a downstream operator (or sink) cannot keep up with its input rate, the system must do something. The wrong answer is to buffer unboundedly &mdash; that just relocates the failure to an OOM crash. <span class="key">Backpressure</span> is the mechanism by which a slow consumer slows down its producers all the way back to the source.</p>
-<p>Flink propagates backpressure naturally through its bounded network buffers and credit-based flow control: when a downstream task's input buffers fill, it stops granting credits, the upstream task blocks on the network, and the slowdown cascades to the Kafka source, which simply stops polling new records. Because Kafka is a durable log, the data isn't lost &mdash; it stays in the topic, consumer lag grows, and the job catches up when capacity frees up. Contrast this with a push-based system over an unbounded in-memory queue, where a slow consumer causes data loss or crashes.</p>
-<div class="callout note"><span class="lbl">Key insight</span>A durable log decouples producer and consumer rates and turns backpressure into a <em>lag metric</em> rather than a failure. "Consumer lag" is the single most important streaming health signal &mdash; rising lag means you are falling behind real time; flat lag means you are keeping up. See <a href="08.html">Queues</a> and <a href="50.html">Observability</a>.</div>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They separate the three Dataflow questions &mdash; <em>what / where in event time / when in processing time</em> &mdash; instead of conflating windowing with triggering. They reach for event time and watermarks by default for analytics, and can articulate the latency&ndash;completeness trade-off with a concrete watermark strategy. They know "exactly-once" means exactly-once <em>effect</em>, achieved via checkpointing plus idempotent or transactional sinks, not magic. They propose log-based CDC + the outbox pattern to kill the dual-write problem rather than hand-waving "and then publish to Kafka." And they treat consumer lag and replication-slot lag as first-class operational SLOs.</div>
+<h3 id="impl-flink">Apache Flink</h3>
 <ul>
-<li>You're counting unique users per minute over a stream where mobile clients can be offline for 6 hours. How do you set watermarks, and what happens to a click that arrives 6 hours late? Walk me through allowed lateness vs side outputs vs dropping.</li>
-<li>Your Flink job claims exactly-once but the downstream database shows duplicate rows after a failover. Where would you look, and what makes a sink truly exactly-once?</li>
-<li>Design the order-service write path so that a crash can never leave the database and Kafka inconsistent. Why not just use a distributed transaction across both?</li>
-<li>Contrast log-based and query-based CDC. When would query-based actually be the right call, and what's the operational risk of a Postgres logical replication slot?</li>
-<li>You're adding a new read model to an event-sourced system with two years of history. How do you build it, and how do you bound replay time?</li>
-<li>Consumer lag on one partition is climbing while others are flat. What does that tell you, and how does backpressure relate to lag?</li>
+<li><b>Model.</b> True per-event stream processor (not micro-batch); rich event-time semantics.</li>
+<li><b>Time/state.</b> First-class event time, watermarks, all window types; distributed checkpoints (Chandy-Lamport snapshots) give exactly-once with offset rewind.</li>
+<li><b>The failure to watch.</b> Large state needs careful state-backend + checkpoint tuning; checkpoints competing with throughput.</li>
 </ul>
 
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2023-04-03 at 9.57.29 PM.png" alt="Batch vs stream processing" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Text-only post comparing Batch vs Stream processing across input, timeliness, output, and fault tolerance. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Stream processing</td><td>Kinesis Data Analytics, Managed Flink</td><td>Dataflow (Apache Beam)</td><td>Stream Analytics</td></tr><tr><td>Change data capture</td><td>DMS</td><td>Datastream</td><td>Data Factory / Debezium on AKS</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="39.html">&lsaquo; Prev: Kafka and Log-based Messaging</a><a class="nx" href="41.html">Next: Batch and Big Data Processing &rsaquo;</a></div>
+<h3 id="impl-kstreams">Kafka Streams</h3>
+<ul>
+<li><b>Model.</b> A library (not a cluster) embedded in your app; reads/writes <a href="39.html">Kafka</a> topics; stream&ndash;table duality (a changelog is a table).</li>
+<li><b>Time/state.</b> Event-time windows; local state stores (<a href="38.html">RocksDB</a>) backed by Kafka changelog topics for fault-tolerant exactly-once within Kafka.</li>
+<li><b>The failure to watch.</b> Inherits Kafka's <a href="39.html">rebalance</a> behavior; state restore from changelog can be slow on large state.</li>
+</ul>
+
+<h3 id="impl-debezium">Debezium (CDC)</h3>
+<ul>
+<li><b>Model.</b> Tails database WALs (MySQL binlog, Postgres logical replication, MongoDB oplog) and emits change events to Kafka.</li>
+<li><b>Time/state.</b> Commit-ordered change stream; the implementation of the outbox/CDC pattern (Scenario 2's fix).</li>
+<li><b>The failure to watch.</b> At-least-once (consumers must dedupe); snapshot phase + WAL pressure under bursty load; connector lag drift if not monitored.</li>
+</ul>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you design the pipeline. Work each before opening the approach.</p>
+
+<h3 id="ex-window">Count events per minute, correctly, with late data</h3>
+<p>Build a per-minute purchase counter from a mobile stream where events can arrive minutes late and out of order. Which time, which window, and how do you decide when a minute's count is final?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Use <b>event time</b> (each event's source timestamp) with <b>tumbling 1-minute windows</b>, so every purchase lands in the minute it actually happened regardless of arrival. Track a <b>watermark</b> = max-seen-event-time minus an allowed-lateness slack (say 2 minutes, sized to your real tail). Emit a minute's count when the watermark passes the end of that minute; keep accepting late events for the allowed-lateness window and emit updates, then drop (or side-output) anything later. Result: correct, replay-stable counts, finalized after a bounded delay &mdash; the freshness-vs-completeness trade made explicit. Contrast with processing-time windows, which would be wrong the moment anything arrived late (Scenario 1).</p>
+</div></details>
+
+<h3 id="ex-cdc">Stream database changes to a search index with CDC</h3>
+<p>Your orders live in Postgres; a search service needs them indexed within seconds, and they must never silently drift from the database. Design the pipeline without dual writes.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Run <b>CDC</b> (Debezium) tailing Postgres's logical-replication WAL &rarr; emit each committed change to a Kafka topic in commit order &rarr; a consumer applies them to the search index. The application <i>only</i> writes to Postgres; the index is derived from the committed log, so it can't diverge from the source of truth (no <a href="#dual-write">dual write</a>). If you also need to emit semantic events (not raw row changes), use the <b>outbox</b>: write an <code>outbox</code> row in the same transaction as the order, and have CDC publish that. Delivery is at-least-once, so make the index-apply idempotent (upsert by primary key). To rebuild the index, replay the topic from the start &mdash; the log <i>is</i> the history.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Design real-time + correct (Lambda/Kappa).</b> You need a fast approximate count now and an exact count later. Decide whether to run a streaming + batch layer (Lambda) or a single replayable stream (Kappa). &rarr; <a href="41.html">Batch &amp; Big Data</a>, <a href="63.html">Ad Click Aggregation</a>.</li>
+<li><b>Handle a bursty source without OOM.</b> A producer occasionally 10&times;es its rate. Design the pipeline so the backlog sits durably and operators backpressure instead of crashing. &rarr; <a href="51.html">Resilience Patterns</a>.</li>
+<li><b>Build event sourcing + CQRS.</b> Store all state changes as an event log and derive read models from it. Design the write log, the projections, and how you rebuild a read model. &rarr; <a href="46.html">Event-Driven Architecture</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="39.html">&lsaquo; Prev: Kafka &amp; Log Messaging</a><a class="nx" href="41.html">Next: Batch &amp; Big Data &rsaquo;</a></div>
 </div>
 </div>
 </div>

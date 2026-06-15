@@ -111,127 +111,145 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Architecture &amp; Technology Choices &nbsp;&rsaquo;&nbsp; Domain-Driven Design</div>
-
 <h1>Domain-Driven Design</h1>
-<p class="sub"><em>DDD as the bridge between business domains and service boundaries &mdash; the discipline behind getting microservice decomposition right.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Operability.</b> <span>drawing boundaries that match the business, so services/teams/transactions align — paid in modeling discipline.</span></div>
+<p class="sub"><em>DDD belongs in a system-design course for one reason: it gives you a principled way to decide <b>where the boundaries go</b> &mdash; which is the hardest and most consequential decision in <a href="44.html">microservices</a>. Its core ideas (bounded contexts, ubiquitous language, aggregates) are really about drawing lines that match how the business actually works, so your services and teams fall along seams that don't tear. Used well it's a boundary-finding discipline; used as dogma it's over-engineering.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#why">Why DDD belongs in a system-design course</a></li>
-<li><a href="#strategic">Strategic DDD: domains, contexts, language</a></li>
-<li><a href="#mapping">Context mapping: how contexts relate</a></li>
-<li><a href="#tactical">Tactical DDD: the building blocks</a></li>
-<li><a href="#drives">How DDD drives system design</a></li>
-<li><a href="#misuse">Common misuse and over-engineering</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Boundaries that match the business, so services and teams split cleanly &mdash; in exchange for the upfront work of modeling the domain and the discipline to apply it only where complexity warrants.</b> <span>Get the boundaries right and your architecture has natural seams: services own coherent capabilities, teams own services, and changes stay local. You pay with domain-modeling effort and the judgment to <i>not</i> over-apply DDD's heavy tactical patterns to a simple CRUD app.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Domain-Driven Design</b>
+│
+├─ <a href="#root"><b>What DDD is (for system design)</b></a>  &mdash; a boundary-finding discipline
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+│
+├─ <a href="#ideas"><b>The 4 ideas to understand</b></a>  &mdash; each has a misconception to avoid
+│   ├─ <a href="#i1">1. Bounded context (the central idea)</a> trap → <a href="#one-model">"one model for the whole system"</a>
+│   ├─ <a href="#i2">2. Ubiquitous language</a>               trap → <a href="#translation">"names don't matter"</a>
+│   ├─ <a href="#i3">3. Aggregates (consistency boundary)</a>  trap → <a href="#huge-aggregate">"big aggregates are fine"</a>
+│   └─ <a href="#i4">4. Context mapping &amp; domain events</a>   trap → <a href="#shared-everything">"contexts share a database"</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; how DDD maps to system design
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the scenarios?
+├─ <a href="#implementations"><b>DDD in real systems</b></a>  &mdash; the concepts applied
+└─ <a href="#build"><b>Apply it yourself</b></a>  &mdash; reason it out, then design
+</pre>
 </div>
 
-<h2 id="why">Why DDD belongs in a system-design course</h2>
-<p>Most system-design failures are not about the wrong database or the wrong queue &mdash; they are about <em>boundaries drawn in the wrong place</em>. A team splits services along technical layers, or along whatever the org chart looked like that quarter, and ends up with a distributed monolith: every feature requires a synchronized deploy across five services, and a single "order" concept means four different things in four codebases. <span class="key">Domain-Driven Design</span> (Eric Evans, 2003) is the discipline that gives you a principled answer to the question that dominates every architecture review: <em>where do the seams go?</em></p>
-<p>DDD operates at two altitudes. <span class="key">Strategic DDD</span> is about carving the problem space into bounded contexts and deciding how they relate &mdash; this is the part that directly produces service and team boundaries. <span class="key">Tactical DDD</span> is the in-the-small modeling toolkit (entities, value objects, aggregates) that determines your transaction boundaries and consistency model. A principal engineer uses the strategic half to defend a decomposition and the tactical half to defend a data model.</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What DDD is (for system design)</h2>
+<p><b>Domain-Driven Design</b> (Eric Evans) is a way to build software around a deep model of the <b>business domain</b>. For a <i>system-design</i> course, strip it to its most useful core: <b>DDD is the discipline that tells you where to draw boundaries</b> &mdash; between models, between services, between teams &mdash; so they fall along the natural seams of the business rather than arbitrary technical lines. It splits into <b>strategic</b> DDD (the big-picture boundaries: bounded contexts, ubiquitous language, context maps) and <b>tactical</b> DDD (the building blocks inside a context: aggregates, entities, value objects, domain events).</p>
+<p>Why it matters here: the single hardest question in <a href="44.html">microservices</a> is "where do the service boundaries go?" &mdash; and getting it wrong gives you a <a href="44.html">distributed monolith</a>. DDD's strategic patterns are the best-known answer, which is why it shows up at the architecture level, not just in code.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>DDD trades <b>upfront domain-modeling effort and the judgment to apply it selectively</b> for <b>boundaries that match reality</b> &mdash; services and teams that own coherent capabilities and can evolve independently. It is a boundary-finding tool, not a ceremony; its value is concentrated in the <i>strategic</i> ideas, and its biggest risk is dogmatic over-application of the tactical patterns where they aren't needed.</div>
 
-<h2 id="strategic">Strategic DDD: domains, contexts, language</h2>
-<p>A <span class="key">domain</span> is the overall problem space your business operates in &mdash; ride-hailing, payments, e-commerce. It decomposes into <span class="key">subdomains</span>, and the single most leverage-producing act in strategic DDD is classifying them:</p>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">how DDD maps to system design</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the one giant "Customer" model that no one can change</span>
+A company models "Customer" once, globally, with every attribute any team ever needed &mdash; sales fields, support fields, billing fields, shipping fields &mdash; in one shared model. Now every team is coupled to it: a change for billing breaks support, and no one can evolve their part. <b>What DDD idea says this is the wrong approach, and how should "Customer" actually be modeled across the business?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the team that drew service boundaries by database table</span>
+A team splits a monolith into microservices &mdash; one service per database table (UserService, OrderService, OrderLineService, AddressService) &mdash; and ends up with services so chatty and interdependent they must deploy together. <b>Why did "boundaries by table" fail, and what should the boundaries have followed?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; DDD applied to a simple CRUD admin tool</span>
+A team builds an internal CRUD admin tool and applies the full DDD tactical playbook &mdash; aggregates, repositories, domain events, value objects, layers of abstraction &mdash; for what is essentially forms over a database. It takes 5&times; longer and no one understands it. <b>When is DDD's heavy machinery appropriate, and when is it over-engineering?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#one-model">bounded contexts</a>. Scenario 2 is <a href="#shared-everything">context mapping / boundaries</a> + <a href="#i1">bounded contexts</a>. Scenario 3 is the <a href="#huge-aggregate">over-engineering misconception</a>. Each maps to an idea below.</i></p>
+
+<!-- ============ BRANCH 1: THE IDEAS ============ -->
+<h2 id="ideas">The four ideas to understand</h2>
+<p>DDD has many concepts; for system design these four carry the weight. Each is guarded by a misconception.</p>
+
+<h3 id="i1">Idea 1 &mdash; Bounded context (the central idea)</h3>
+<p>A <b>bounded context</b> is an explicit boundary within which a particular model and language apply consistently. The key insight: <b>the same word means different things in different parts of the business</b>, and trying to force one universal model is the root of coupling. "Customer" in <i>Sales</i> (a lead with a pipeline stage) is a different model than "Customer" in <i>Shipping</i> (an address + delivery preferences) or <i>Billing</i> (a payment method + invoices). Each context has its <i>own</i> model of Customer, tailored to its needs, with a clear boundary between them. Bounded contexts are the natural unit that <a href="44.html">microservice and team boundaries</a> should follow.</p>
+<div class="callout warn"><span class="lbl" id="one-model">The misconception to avoid &mdash; "one model for the whole system"</span>
+This is <b>Scenario 1</b>. The instinct to build a single, canonical, enterprise-wide model of each concept ("the one true Customer") seems clean but is the deepest source of coupling: every team depends on it, every change ripples, and the model bloats trying to serve everyone (and serves no one well). DDD says the opposite: <b>let each bounded context have its own model</b> of the concept, sized to that context's needs, with explicit boundaries and translation between them. Sales' Customer, Shipping's Customer, and Billing's Customer are <i>different models</i> that may share only an identifier. Accepting that "one concept &ne; one model" is the central mental shift &mdash; and it's what lets services and teams decouple.</div>
+
+<h3 id="i2">Idea 2 &mdash; Ubiquitous language</h3>
+<p>Within a bounded context, everyone &mdash; engineers, product, domain experts &mdash; uses the <b>same precise vocabulary</b>, and that language is reflected directly in the code (class names, methods, events). The point is to eliminate the lossy translation between "what the business says" and "what the code calls it," which is where bugs and misunderstandings breed. The language is <i>ubiquitous</i> within its context but doesn't have to match other contexts' language &mdash; that's fine, because contexts are bounded.</p>
+<div class="callout warn"><span class="lbl" id="translation">The misconception to avoid &mdash; "names don't matter / we'll translate"</span>
+Treating the domain vocabulary as cosmetic &mdash; engineers using their own terms, a constant mental translation between business-speak and code-speak &mdash; quietly corrodes a system: requirements get mistranslated, the same thing has three names, and the model drifts from what the business actually means. <b>The language <i>is</i> part of the model.</b> When the code says <code>policy.renew()</code> and the domain expert says "renew the policy," there's no translation gap to introduce errors. The misconception that naming is bikeshedding misses that consistent, business-aligned language is what keeps the model correct and the team aligned &mdash; especially across the engineer/expert divide.</div>
+
+<h3 id="i3">Idea 3 &mdash; Aggregates (the consistency boundary)</h3>
+<p>The most system-design-relevant <i>tactical</i> idea. An <b>aggregate</b> is a cluster of related objects treated as a single unit for data changes, with one <b>aggregate root</b> as the entry point, and &mdash; crucially &mdash; <b>the aggregate is the transactional consistency boundary</b>: changes within one aggregate are atomic and strongly consistent; changes <i>across</i> aggregates are eventually consistent (via <a href="#i4">domain events</a>). This directly shapes your data and <a href="32.html">transaction</a> design: an aggregate maps to "what must be consistent together," which maps to "what lives in one service / one transaction."</p>
+<div class="callout warn"><span class="lbl" id="huge-aggregate">The misconception to avoid &mdash; "bigger aggregates are simpler" (and over-engineering)</span>
+Two related traps. First, making aggregates <b>too large</b> (e.g. an "Order" aggregate that includes the entire customer and product catalog) means every change locks a huge object, killing concurrency and forcing unrelated things to be transactionally consistent &mdash; aggregates should be the <i>smallest</i> cluster that must change together. Second, and the broader <b>Scenario 3</b> trap: applying aggregates/repositories/domain-events <b>everywhere</b>, including simple CRUD where there's no real domain complexity, is pure over-engineering &mdash; you've added layers of abstraction to forms-over-a-database. <b>DDD's tactical patterns earn their cost only in genuinely complex domains</b> (rich business rules, invariants, behavior); for simple CRUD, skip them. Match the tool to the complexity.</div>
+
+<h3 id="i4">Idea 4 &mdash; Context mapping &amp; domain events</h3>
+<p>Contexts must relate without re-coupling. <b>Context mapping</b> names the relationships (e.g. an <span class="gl" data-def="Anti-corruption layer &mdash; a translation layer one bounded context puts in front of another, converting the other's model into its own, so the foreign model can't leak in and corrupt this context's clean model.">anti-corruption layer</span> that translates another context's model so it can't pollute yours; or a published interface a context exposes). And <b>domain events</b> ("OrderPlaced", "PaymentReceived") are the integration mechanism <i>between</i> contexts: instead of one context reaching into another's data, it reacts to events &mdash; which is exactly <a href="46.html">event-driven integration</a>, with each context owning its own data.</p>
+<div class="callout warn"><span class="lbl" id="shared-everything">The misconception to avoid &mdash; "contexts can share a database"</span>
+This is half of <b>Scenario 2</b>. If two bounded contexts read and write the same database tables, the boundary is fake &mdash; they're coupled at the deepest level, schema changes break both, and you've recreated the <a href="44.html">shared-database</a> coupling DDD exists to eliminate. Each context (and the service that implements it) must <b>own its data</b> and integrate via <b>well-defined interfaces or domain events</b>, not shared tables. Context mapping makes these relationships explicit (who depends on whom, who translates), and domain events let contexts collaborate while staying decoupled &mdash; the bridge from DDD to <a href="44.html">microservices</a> and <a href="46.html">event-driven architecture</a>. Boundaries that don't extend to the data aren't boundaries.</div>
+
+<!-- ============ AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; how DDD maps to system design</h2>
 <table>
-<tr><th>Subdomain type</th><th>What it is</th><th>Investment strategy</th></tr>
-<tr><td><span class="key">Core</span></td><td>Your competitive differentiator &mdash; the reason customers choose you (e.g. Uber's matching/dispatch, Netflix's recommendations)</td><td>Best engineers, deepest modeling, build in-house, never outsource</td></tr>
-<tr><td><span class="key">Supporting</span></td><td>Necessary but not differentiating (e.g. a driver-rating workflow)</td><td>Build pragmatically, lower polish, often a good place for off-the-shelf plus glue</td></tr>
-<tr><td><span class="key">Generic</span></td><td>Solved problems everyone needs (auth, billing, notifications)</td><td>Buy or adopt &mdash; Auth0, Stripe, SendGrid; do not reinvent</td></tr>
+<tr><th>DDD concept</th><th>System-design consequence</th></tr>
+<tr><td>Bounded context</td><td>The natural <b>service boundary</b> (and team boundary, via <a href="44.html">Conway's law</a>)</td></tr>
+<tr><td>Ubiquitous language</td><td>API/event names + the model stay aligned with the business</td></tr>
+<tr><td>Aggregate</td><td>The <b>transactional consistency boundary</b> &mdash; what's in one transaction/service</td></tr>
+<tr><td>Domain events</td><td><a href="46.html">Event-driven integration</a> between services; cross-aggregate = eventual consistency</td></tr>
+<tr><td>Context map / anti-corruption layer</td><td>How services depend on &amp; translate between each other without coupling</td></tr>
 </table>
-<p>This classification is a strategic resourcing tool: it tells you where to spend your strongest people and where a SaaS vendor is the right answer. Spending your best modelers on a generic subdomain is a classic waste, and outsourcing your core subdomain is how companies lose their moat.</p>
+<div class="callout note"><span class="lbl">The rule in one line</span>Use DDD's <b>strategic</b> ideas to find boundaries: each <b>bounded context</b> becomes a service owning its own model, language, and data; <b>aggregates</b> set the consistency boundary (in-aggregate = atomic, cross-aggregate = <a href="46.html">events</a> + eventual consistency); contexts integrate via <b>domain events</b>, never a shared database. Apply the heavy <b>tactical</b> patterns only where domain complexity warrants &mdash; not to simple CRUD.</div>
 
-<h3>Bounded contexts &mdash; the central idea</h3>
-<p>The keystone of all of DDD is the <span class="key">bounded context</span>: an explicit boundary within which a particular domain model is defined and internally consistent. The crucial insight is that <em>a model is only valid within its context.</em> The word "Customer" in a Sales context (a lead with a pipeline stage) is a genuinely different concept from "Customer" in a Billing context (an account with a payment method and tax ID) or a Support context (a ticket history). Trying to build one canonical, organization-wide "Customer" model is the anti-pattern DDD was invented to kill &mdash; it produces a bloated god-object that no team fully owns and every team is afraid to change.</p>
-<p>Within a bounded context the team shares a <span class="key">ubiquitous language</span>: the same terms are used by domain experts, in conversation, in the code, and in the schema. If the business says "settlement," the class is <code>Settlement</code>, not <code>TransactionFinalizer</code>. The point is to eliminate the translation layer between how the business talks and how the code is written, because that translation layer is where bugs and misunderstandings breed.</p>
-
-<div class="callout note"><span class="lbl">Key insight</span>A bounded context is a <em>linguistic and model</em> boundary, not a deployment artifact. It maps naturally onto a service, but the boundary exists conceptually even inside a monolith (as a module with its own model). Get the context right first; the service split is a downstream packaging decision.</div>
-
-<h2 id="mapping">Context mapping: how contexts relate</h2>
-<p>Real systems have many contexts that must integrate. A <span class="key">context map</span> documents the relationships and, critically, the <em>power dynamics</em> between teams. The standard patterns:</p>
+<!-- ============ SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">Partnership</span> &mdash; two contexts succeed or fail together; teams coordinate planning and releases as peers.</li>
-<li><span class="key">Customer&ndash;Supplier</span> &mdash; an upstream context provides for a downstream one, and the downstream's needs are a prioritized input to the upstream's backlog.</li>
-<li><span class="key">Conformist</span> &mdash; the downstream simply accepts the upstream's model wholesale (no negotiating power), e.g. integrating with a large external API you cannot influence.</li>
-<li><span class="key">Anti-Corruption Layer (ACL)</span> &mdash; the downstream builds a translation layer that maps the foreign model into its own clean model, protecting it from upstream changes and leaky abstractions. This is the most important defensive pattern and the standard way to integrate with legacy systems.</li>
-<li><span class="key">Shared Kernel</span> &mdash; two teams share a small common model/codebase; powerful but creates tight coupling, so it must be tiny and jointly governed.</li>
-<li><span class="key">Open-Host Service / Published Language</span> &mdash; an upstream exposes a well-documented, stable protocol (a public API with a versioned schema) so many downstreams can integrate without bespoke deals.</li>
+<li><b>Scenario 1 (one giant Customer):</b> Why is a single universal model the root of coupling, and how do bounded contexts model "Customer" instead?</li>
+<li><b>Scenario 2 (boundaries by table):</b> Why did per-table boundaries fail, and what should they follow (bounded contexts) &mdash; including data ownership?</li>
+<li><b>Scenario 3 (DDD on CRUD):</b> When do the tactical patterns earn their cost, and when are they over-engineering?</li>
+<li>What is an aggregate, and why is it the transactional consistency boundary that shapes service/transaction design?</li>
+<li>How do domain events let bounded contexts integrate without coupling, and why no shared database?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>4 ideas</b> &mdash; <a href="#i1">bounded context (own model)</a>, <a href="#i2">ubiquitous language</a>, <a href="#i3">aggregate (consistency boundary)</a>, <a href="#i4">context map + domain events</a> &mdash; each guarded by a misconception; DDD's value is in finding <i>boundaries</i>, applied selectively.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="44.html">Microservices &amp; Service Mesh</a>, <a href="46.html">Event-Driven Architecture</a>, <a href="32.html">Distributed Transactions (aggregate &rarr; saga)</a>, <a href="66.html">Architectural Styles</a>, <a href="11.html">CAP (eventual consistency)</a>.</p>
+
+<!-- ============ IMPLEMENTATIONS ============ -->
+<h2 id="implementations">DDD in real systems &mdash; the concepts applied</h2>
+<p>The ideas made concrete in how real systems are built. Same facets &mdash; the concept, how it shows up, the pitfall.</p>
+<h3 id="impl-micro">Bounded contexts &rarr; microservice boundaries</h3>
+<ul>
+<li><b>How it shows up.</b> Well-designed <a href="44.html">microservice</a> systems draw one service per bounded context (Orders, Payments, Inventory) &mdash; each owns its model, language, and database.</li>
+<li><b>Why it works.</b> Boundaries fall on business seams that change together, so a feature touches one service and teams align with services (<a href="44.html">Conway's law</a>).</li>
+<li><b>The pitfall.</b> Boundaries drawn by technical layer or table instead of context &rarr; <a href="44.html">distributed monolith</a> (Scenario 2).</li>
+</ul>
+<h3 id="impl-events">Aggregates + domain events &rarr; sagas &amp; eventual consistency</h3>
+<ul>
+<li><b>How it shows up.</b> An aggregate = one local <a href="32.html">transaction</a>; a business process spanning aggregates/services becomes a <a href="32.html">saga</a> driven by <a href="46.html">domain events</a> ("OrderPlaced" &rarr; reserve inventory &rarr; charge).</li>
+<li><b>Why it works.</b> In-aggregate changes are strongly consistent; cross-aggregate are eventually consistent &mdash; matching what's actually achievable across services (<a href="11.html">CAP</a>).</li>
+<li><b>The pitfall.</b> Aggregates too large (concurrency death) or expecting cross-service ACID (you get sagas + eventual consistency instead).</li>
+</ul>
+<h3 id="impl-acl">Context maps / anti-corruption layers</h3>
+<ul>
+<li><b>How it shows up.</b> When integrating a legacy system or third party, a context puts an <b>anti-corruption layer</b> in front to translate the foreign model into its own clean model.</li>
+<li><b>Why it works.</b> The foreign/legacy model can't leak in and corrupt your domain; the boundary stays clean as systems evolve (key during a <a href="44.html">strangler-fig migration</a>).</li>
+<li><b>The pitfall.</b> Skipping it &rarr; the external model's quirks infect your core, re-coupling you to what you were trying to isolate.</li>
 </ul>
 
-<h3>Why contexts map to service and team boundaries</h3>
-<p><span class="key">Conway's Law</span> states that systems mirror the communication structure of the organizations that build them. DDD turns this from a curse into a design tool (the <span class="key">Inverse Conway Maneuver</span>): if you want a clean service boundary, you give one team full ownership of one bounded context, end to end. Because the team shares a ubiquitous language and a single model, the cognitive load stays bounded and they can evolve their service independently. A bounded context that spans two teams will accumulate coordination overhead and erode; two contexts crammed into one team's service will entangle. This is precisely the decomposition logic behind <a href="44.html">Microservices &amp; Service Mesh</a>, and it is the lens to apply when reading <a href="66.html">Architectural Styles &amp; How to Choose</a> &mdash; the choice between monolith, modular monolith, and microservices is really a choice about how many contexts share a deployable.</p>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>A modular monolith keeps bounded contexts as in-process modules with enforced boundaries &mdash; you get the model clarity of DDD without the operational cost of a distributed system. Split a module into its own service only when its scaling, deployment cadence, or team-ownership needs genuinely diverge. "One context = one module" is cheap; "one context = one service" buys independence at the cost of network calls, distributed transactions, and operational surface.</div>
-
-<h2 id="tactical">Tactical DDD: the building blocks</h2>
-<p>Inside a single bounded context, tactical patterns shape the model:</p>
+<!-- ============ APPLY IT YOURSELF ============ -->
+<h2 id="build">Apply it yourself</h2>
+<p>DDD sticks when you draw the boundaries. Work each before opening the approach.</p>
+<h3 id="ex-contexts">Find the bounded contexts for an e-commerce system</h3>
+<p>You have Users, Products, Carts, Orders, Payments, Inventory, Shipping, Reviews, Support tickets. Group them into bounded contexts and decide how "Customer/User" is modeled in each.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Group by business capability, not entity: e.g. <b>Catalog</b> (Products, Reviews), <b>Ordering</b> (Carts, Orders), <b>Payments</b>, <b>Fulfillment</b> (Inventory, Shipping), <b>Identity</b> (Users/auth), <b>Support</b> (tickets). Each is a bounded context that becomes a service owning its data. Crucially, <b>"Customer" is a different model in each</b> (Scenario 1): in Ordering it's a buyer with a cart and order history; in Payments it's a billing profile + payment methods; in Fulfillment it's a shipping address + delivery prefs; in Support it's a person with a ticket history. They share only a customer <i>id</i> &mdash; no single universal Customer model. Contexts integrate via <a href="46.html">domain events</a> ("OrderPlaced" &rarr; Fulfillment reserves inventory) and each owns its tables. The test of good boundaries: a typical change touches one context, and contexts don't share a database (Scenario 2's fix). This is exactly the <a href="44.html">service-boundary exercise</a>, with DDD as the method.</p>
+</div></details>
+<h3 id="ex-aggregate">Size an aggregate as a consistency boundary</h3>
+<p>For an Order with line items, a shipping address, and a link to the customer and products, decide what belongs <i>inside</i> the Order aggregate and what doesn't &mdash; and why.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Ask "what must change together, atomically, to keep an invariant true?" The Order aggregate should include the things whose consistency is intrinsic to the order: the <b>order itself + its line items</b> (the invariant "order total = sum of line items" must hold atomically) and maybe a snapshot of the shipping address <i>at order time</i>. It should <b>not</b> include the full Customer or Product entities &mdash; reference them by <b>id</b> only. Why: making the aggregate huge (embedding customer + catalog) would mean every order change locks those, killing concurrency and forcing unrelated consistency (Scenario 3's "too big" trap). Cross-aggregate consistency (e.g. decrement Inventory when an Order is placed) is handled by a <a href="46.html">domain event</a> + <a href="32.html">saga</a>, accepting eventual consistency &mdash; because Inventory is a <i>different</i> aggregate (and context). So: smallest cluster that must be atomic = the aggregate; reference other aggregates by id; integrate across them with events. The aggregate boundary directly becomes your transaction and service boundary.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
 <ul>
-<li><span class="key">Entity</span> &mdash; an object defined by identity and continuity over time, not its attributes. A <code>User</code> with id <code>42</code> is the same user even after they change their name.</li>
-<li><span class="key">Value Object</span> &mdash; defined entirely by its attributes, immutable, no identity. <code>Money(amount, currency)</code>, <code>Address</code>, <code>DateRange</code>. Two value objects with equal fields are interchangeable. Pushing logic into value objects shrinks entities and removes a huge class of bugs.</li>
-<li><span class="key">Aggregate</span> &mdash; a cluster of entities and value objects treated as a single unit, with one <span class="key">aggregate root</span> as the only entry point. Outsiders reference the aggregate only by the root's id.</li>
-<li><span class="key">Repository</span> &mdash; the collection-like abstraction for loading and persisting whole aggregates, hiding the storage mechanism behind a domain-shaped interface.</li>
-<li><span class="key">Domain Service</span> &mdash; stateless domain logic that doesn't naturally belong to any single entity (e.g. a <code>TransferService</code> coordinating two accounts).</li>
-<li><span class="key">Factory</span> &mdash; encapsulates complex aggregate construction so an aggregate is never created in an invalid state.</li>
-<li><span class="key">Domain Event</span> &mdash; a record that something meaningful happened in the domain (<code>OrderPlaced</code>, <code>PaymentSettled</code>), expressed in the ubiquitous language and past-tense.</li>
+<li><b>Decide where DDD pays off.</b> For a system with one genuinely complex domain (insurance underwriting) and several simple CRUD areas (admin, settings), decide where to apply tactical DDD and where to skip it. &rarr; <a href="66.html">Architectural Styles</a>.</li>
+<li><b>Integrate a legacy system cleanly.</b> Design an anti-corruption layer so a messy legacy model can't corrupt a new bounded context during a migration. &rarr; <a href="44.html">Microservices (strangler-fig)</a>.</li>
+<li><b>Turn contexts into an event-driven system.</b> Take your bounded contexts and design the domain events that integrate them, with each owning its data. &rarr; <a href="46.html">Event-Driven Architecture</a>.</li>
 </ul>
 
-<h3>The aggregate as a consistency boundary</h3>
-<p>The deepest tactical insight, and the one that connects DDD to distributed systems, is this: <strong>an aggregate is the unit of transactional consistency.</strong> The rule is "one aggregate, one transaction" &mdash; a single command modifies exactly one aggregate atomically, and invariants are enforced only <em>within</em> that aggregate. Anything spanning multiple aggregates is updated <em>eventually</em>, not in the same transaction.</p>
-<p>This is not bureaucracy; it is what makes a system scalable. If your aggregate boundaries are correct, every write is a local, single-row-or-document transaction &mdash; which is exactly why an aggregate maps cleanly onto a row in a relational DB or a document in a document store, and why aggregates shard well. The moment you need a single transaction across two aggregates (or two services), you have left the world of local ACID and entered <a href="32.html">Distributed Transactions</a>: you reach for the <span class="key">saga</span> pattern, where a business process becomes a sequence of local transactions, each emitting a domain event that triggers the next, with compensating actions to undo on failure. Designing aggregates well is therefore the act of deciding what must be strongly consistent versus what can be eventually consistent &mdash; the most consequential decision in the whole data model.</p>
-
-<pre><code>// Aggregate root enforces invariants; outsiders only touch the root.
-class Order {                       // aggregate root (Entity)
-    private OrderId id;
-    private List&lt;OrderLine&gt; lines;  // child entities, no external refs
-    private Money total;            // Value Object, recomputed internally
-    private CustomerId customerId;  // reference OTHER aggregate by id only
-
-    void addLine(ProductId p, int qty) {
-        if (this.status != DRAFT) throw new IllegalState();
-        // invariant (e.g. max 50 lines) enforced here, atomically
-        lines.add(new OrderLine(p, qty));
-        this.total = recomputeTotal();
-    }
-}
-// Repository persists the WHOLE aggregate in one transaction.
-orderRepository.save(order);        // single atomic write</code></pre>
-
-<h3>Domain events as the integration mechanism</h3>
-<p>A <span class="key">domain event</span> emitted inside a context (e.g. <code>OrderPlaced</code>) often needs to reach other contexts. The pattern is to translate an internal domain event into an <span class="key">integration event</span> published on a broker, which downstream contexts subscribe to and react to within their own model. This is the bridge from tactical DDD straight into <a href="46.html">Event-Driven Architecture</a>: events become the loose-coupling glue between bounded contexts, letting each context maintain its own data and react asynchronously rather than calling the source service synchronously. The <span class="key">outbox pattern</span> (write the event to a table in the same local transaction as the aggregate, then relay it) is the standard way to publish events reliably without a distributed transaction.</p>
-
-<h2 id="drives">How DDD drives system design</h2>
-<p>The throughline of this lesson is a chain of three mappings that turn domain modeling directly into architecture:</p>
-<ol>
-<li><span class="key">Bounded context &rarr; service.</span> Each context becomes a service (or a module in a modular monolith) owned by one team, with its own ubiquitous language and model. This is your decomposition.</li>
-<li><span class="key">Aggregate &rarr; transaction boundary.</span> Each aggregate is the unit of local ACID consistency. Anything bigger needs a saga. This determines your consistency model and where eventual consistency is acceptable.</li>
-<li><span class="key">Domain event &rarr; integration event.</span> Cross-context communication is event-driven and asynchronous, decoupling services in time and at deploy boundaries.</li>
-</ol>
-<p>A direct and famous consequence is <span class="key">database-per-service</span>. If a bounded context owns its model, no other context may reach into its tables &mdash; shared databases are the back door that re-couples "independent" services and re-creates the distributed monolith. Each context owns its persistence; integration happens only through published APIs and events. This is also why DDD interacts with <a href="67.html">choosing a database</a>: different contexts may legitimately choose different stores (a graph DB for one, a document store for another) because nothing else depends on their internal schema.</p>
-
-<div class="callout ok"><span class="lbl">The payoff</span>When the three mappings hold, a feature that lives entirely in one context is a single-team, single-service, single-deploy change with a local transaction. That is the operational definition of a "good" boundary &mdash; and the thing a distributed monolith can never deliver.</div>
-
-<h2 id="misuse">Common misuse and over-engineering</h2>
-<p>DDD is a force multiplier on complex core domains and pure overhead everywhere else. The dominant failure mode is <span class="key">ceremony on a CRUD app</span>: wrapping a simple admin tool or a thin data-entry form in aggregates, repositories, domain services, and an event bus when the entire "domain logic" is validate-and-save. For genuine CRUD and generic subdomains, a transaction-script or active-record style is faster to build and easier to maintain &mdash; reserve the full tactical toolkit for the core subdomain where the business rules are actually rich and changing.</p>
-<div class="callout warn"><span class="lbl">Anti-patterns to avoid</span>Anemic domain models (entities that are bags of getters/setters with all logic in services &mdash; the opposite of DDD's intent); aggregates so large they become contention hotspots and serialize unrelated writes; a single "enterprise canonical model" spanning every context; and treating DDD as a tactical-patterns checklist while skipping the strategic context mapping &mdash; the strategic half is where the real value lives.</div>
-<p>The other common error is starting with tactical patterns. Strategic design comes first: you cannot draw correct aggregates until you know which context you are in, because the same business concept has different invariants in different contexts.</p>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They justify every service boundary by naming the bounded context and its ubiquitous language &mdash; "this is the Pricing context, it owns these invariants, it integrates with Catalog via published events." They use aggregates to explain exactly where they need strong consistency and where they accept eventual consistency via sagas, and they classify subdomains (core/supporting/generic) to explain build-vs-buy. They resist premature service splits, defaulting to a modular monolith and splitting only when ownership or scaling diverges.</div>
-<p>Probing questions to ask engineers:</p>
-<ul>
-<li>"You've drawn five services. For each, what is the bounded context and who owns it &mdash; and where does the word 'Customer' mean different things?"</li>
-<li>"Walk me through one write that must be strongly consistent and one that can be eventual. What's your aggregate, and where does a saga begin?"</li>
-<li>"These two services share a database table. Why is that a problem, and how would you untangle it?"</li>
-<li>"This is a basic CRUD admin panel &mdash; would you still apply aggregates and repositories here? Why or why not?"</li>
-<li>"How do you keep two bounded contexts from coupling when they clearly need each other's data?"</li>
-<li>"Your org has three teams but you've proposed eight microservices. How will Conway's Law fight you here?"</li>
-</ul>
-
-<div class="navfoot"><a href="68.html">&lsaquo; Prev: Choosing a Message Broker</a><a class="nx" href="70.html">Next: Designing a Recommendation System &rsaquo;</a></div>
+<div class="navfoot"><a href="68.html">&lsaquo; Prev: Choosing a Message Broker</a><a class="nx" href="70.html">Next: Recommendation &amp; ML Systems &rsaquo;</a></div>
 </div>
 </div>
 </div>

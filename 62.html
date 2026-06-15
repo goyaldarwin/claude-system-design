@@ -111,192 +111,191 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing Collaborative Editing (Google Docs)</div>
-
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Collaborative Editing</div>
 <h1>Designing Collaborative Editing (Google Docs)</h1>
-<p class="sub">How dozens of people type into the same document at the same time and converge on identical, intention-preserving state &mdash; the canonical hard problem of conflict resolution at low latency.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth.</b> <span>concurrent conflict-free edits, paid in OT/CRDT machinery and real-time transport.</span></div>
+<p class="sub"><em>Many people edit the same document at the same time and everyone sees a consistent result within milliseconds &mdash; no "merge conflict" dialogs, no lost keystrokes. The core problem is reconciling <b>concurrent edits to the same shared state</b>, which has exactly two serious answers (<a href="35.html">Operational Transformation</a> and <a href="35.html">CRDTs</a>), each with sharp trade-offs &mdash; and a real-world third way (server-authoritative) that companies like Figma actually chose.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#req">Requirements &amp; scope</a></li>
-<li><a href="#core">The core problem: concurrent conflicting edits</a></li>
-<li><a href="#ot">Operational Transformation (OT)</a></li>
-<li><a href="#crdt">CRDTs for text</a></li>
-<li><a href="#vs">OT vs CRDT trade-offs</a></li>
-<li><a href="#transport">Real-time transport &amp; presence</a></li>
-<li><a href="#persist">Persistence, snapshots &amp; scaling</a></li>
-<li><a href="#arch">End-to-end architecture</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Real-time concurrent editing that always converges to the same document &mdash; in exchange for a hard conflict-resolution algorithm (OT or CRDT), per-character bookkeeping, and presence/cursor sync.</b> <span>Everyone edits freely and the document stays consistent. You pay with one of two intricate algorithms to merge concurrent ops, metadata to make positions stable under concurrent inserts, and the machinery to broadcast edits and presence in real time.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; we walk the design top to bottom, then deep-dive the hard parts</div>
+<pre class="tree">
+<b>Designing Collaborative Editing</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>
+├─ <a href="#api"><b>3. The API</b></a>  &mdash; edit ops over a connection
+├─ <a href="#highlevel"><b>4. High-level design</b></a>  &mdash; clients + sync server
+├─ <a href="#datamodel"><b>5. Document model</b></a>  &mdash; ops, not snapshots
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+│
+├─ <a href="#subproblems"><b>The 4 hard sub-problems</b></a>
+│   ├─ <a href="#s1">1. Concurrent edits: OT vs CRDT</a>     fail → <a href="#position-clash">the position clash</a>
+│   ├─ <a href="#s2">2. Convergence guarantee</a>             fail → <a href="#divergence">replicas diverge</a>
+│   ├─ <a href="#s3">3. Real-time transport, presence, offline</a> fail → <a href="#lost-edit">lost edits on reconnect</a>
+│   └─ <a href="#s4">4. Persistence &amp; history</a>             fail → <a href="#unbounded">unbounded op-log growth</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; OT vs CRDT vs server-authoritative
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; Google Docs / Figma / Yjs
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
 </div>
 
-<h2 id="req">Requirements &amp; scope</h2>
-<p>The problem: "design Google Docs." The trap is jumping to OT or CRDT vocabulary in the first minute. A principal scopes first, because the answer changes dramatically with the requirements.</p>
+<!-- ============ 1. REQUIREMENTS ============ -->
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> multiple users edit one document concurrently; each sees others' changes in <b>real time</b> (sub-second); the document <b>always converges</b> to the same state for everyone; show <b>presence</b> (who's here) and live <b>cursors/selections</b>; support <b>offline</b> editing that syncs on reconnect; keep <b>history</b> (undo, version restore).</p>
+<p><b>Non-functional:</b> <b>low latency</b> (your own keystrokes feel instant; others' appear in &lt;1s), <b>strong eventual convergence</b> (no permanent divergence, no lost edits), <b>scalable</b> to many concurrent editors per document and many documents, <b>available</b> (keep working through brief disconnects).</p>
 
-<h3>Functional</h3>
+<!-- ============ 2. CAPACITY ============ -->
+<h2 id="capacity">2. Capacity estimate</h2>
+<p>Say <b>10M active documents</b>, average <b>5 concurrent editors</b> on active ones, an editor emits an op every <b>~0.5s</b> while typing. Work it:</p>
 <ul>
-<li><span class="key">Real-time multi-user editing</span>: many users type into the same document; each sees others' edits within ~100&ndash;200 ms.</li>
-<li><span class="key">Conflict-free convergence</span>: after all edits propagate, every replica shows byte-identical content. No edit silently lost, no character duplicated.</li>
-<li><span class="key">Intention preservation</span>: if Alice bolds "hello" while Bob inserts "X" before it, both intentions survive &mdash; not just "some" consistent state.</li>
-<li><span class="key">Offline support</span>: edit on a plane, reconnect, and have local changes merge cleanly.</li>
-<li><span class="key">Presence / awareness</span>: live cursors, selections, "who is here" avatars.</li>
-<li><span class="key">History &amp; undo</span>: per-user undo (undo <em>my</em> last edit, not the last global edit) and a revision timeline.</li>
+<li><b>Op rate per doc:</b> 5 editors &times; 2 ops/s = <b>10 ops/s/doc</b>, each broadcast to the other 4 &rarr; ~40 messages/s/doc. Small per doc &mdash; <b>the challenge is the <i>number</i> of docs and live connections, not per-doc throughput.</b></li>
+<li><b>Connections:</b> millions of concurrent <a href="13.html">WebSocket</a> connections (persistent, one per editor). <b>Consequence: you need a connection layer that holds millions of long-lived connections, and a way to route an op to exactly the editors of <i>that</i> document.</b></li>
+<li><b>The real wall &mdash; editors per doc:</b> conflict-resolution and per-character metadata cost grows with concurrent editors on <i>one</i> doc. Etherpad got inconsistent past ~150 editors on a single pad; Figma engineered for ~200. <b>Consequence: there's a practical ceiling on editors-per-document set by the algorithm and metadata, and it's a deliberate design target, not infinity.</b></li>
 </ul>
 
-<h3>Non-functional &amp; back-of-envelope</h3>
+<!-- ============ 3. API ============ -->
+<h2 id="api">3. The API</h2>
+<pre class="tree" style="border:none;background:var(--code-bg,#f6f8fa);padding:12px;border-radius:8px">
+// over a persistent WebSocket connection per editor:
+join(docId)                      -> initial document state + version
+sendOp(docId, op, baseVersion)   // op = insert/delete/format at a position/id
+// server broadcasts:
+applyOp(docId, transformedOp, version)   // others' ops, ready to apply
+presence(docId, [{userId, cursor}])      // who's here + cursors
+</pre>
+<p>Edits travel as small <b>operations</b> (insert "x" at position p; delete range; apply bold) with a <b>base version</b> (what the client had seen), not as whole-document snapshots &mdash; ops are tiny and are what the conflict algorithm transforms/merges.</p>
+
+<!-- ============ 4. HIGH-LEVEL ============ -->
+<h2 id="highlevel">4. High-level design</h2>
+<p>Each client holds a local copy and applies its own edits <span class="gl" data-def="Optimistic apply &mdash; the client shows its own edit immediately (assuming it will succeed) for instant feedback, then reconciles with the server's authoritative ordering when it arrives.">optimistically</span> (instant local feedback), sending ops to a <b>sync server</b> over a persistent <a href="13.html">WebSocket</a>. The sync server is the per-document coordination point: it <b>orders</b> incoming ops, resolves concurrency (via <a href="#s1">OT or CRDT</a>), and broadcasts the resolved ops to all other editors of that document, who apply them. Documents are sharded across sync servers (by docId); a <a href="36.html">coordination layer</a> routes each doc's editors to the same server (its owner) so there's a single ordering authority per doc. Ops are persisted to a durable <b>op log</b>; periodic <b>snapshots</b> bound replay time.</p>
+
+<!-- ============ 5. DOCUMENT MODEL ============ -->
+<h2 id="datamodel">5. Document model &mdash; ops, not snapshots</h2>
+<p>A document is represented as an initial state plus a <b>sequence of operations</b> &mdash; this is what makes real-time merge and history possible. The crucial sub-decision is how an op <b>addresses a position</b>: a naive numeric index (insert at character 5) breaks under concurrency (everyone's indices shift differently). The robust answer (used by CRDTs and modern editors) is to give each character a <b>stable, unique, densely-orderable identifier</b> so an op references an <i>identity</i>, not a shifting offset. Formatting is often modeled as attributes over ranges/ids.</p>
+
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; two people type at the same spot</span>
+The document is "Hello world". User A inserts "X" at index 5; <i>simultaneously</i> User B inserts "Y" at index 5. Both ops say "insert at 5," but after A's insert, B's "5" no longer means the same place. <b>If you naively apply both, the two clients end up with different documents. What are the two algorithms that fix this, and how does each think about it?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; Etherpad past 150 editors / Figma's choice (real)</span>
+Etherpad (OT-based) became inconsistent past ~150 concurrent editors on one pad despite no resource pressure. Figma evaluated pure CRDTs <i>and</i> OT, rejected both, and built a <b>server-authoritative</b> system with CRDT-inspired last-writer-wins registers, scaling to ~200 editors. <b>Why is OT hard to get right at scale, why are pure CRDTs heavy, and why did having a server change the calculus?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; you edited offline, then reconnected</span>
+A user edits on a flaky connection / fully offline for 10 minutes, making 50 edits, while others changed the doc too. On reconnect, all those edits must merge in without losing any &mdash; theirs or others'. <b>How do you guarantee no edit is lost and everyone converges, and what does the client need to track while offline?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#position-clash">concurrent edits (OT vs CRDT)</a>. Scenario 2 is <a href="#divergence">convergence + the algorithm trade-off</a>. Scenario 3 is <a href="#lost-edit">transport, presence &amp; offline</a>. Each maps to a sub-problem.</i></p>
+
+<!-- ============ SUB-PROBLEMS ============ -->
+<h2 id="subproblems">The four hard sub-problems</h2>
+<p>The transport is the easy part. These four are the real difficulty &mdash; each with a nested failure.</p>
+
+<h3 id="s1">Sub-problem 1 &mdash; Resolving concurrent edits: OT vs CRDT</h3>
+<p>Two genuine approaches to merging concurrent ops on shared ordered text:</p>
 <ul>
-<li>Latency budget: keystroke echo locally must be <strong>0 ms</strong> (optimistic local apply); remote propagation P99 &lt; 200 ms.</li>
-<li>Concurrency: a single doc rarely has &gt;50 simultaneous active editors; the system has millions of docs, mostly idle. This shapes sharding: <span class="key">partition by document</span>, one coordinator per active doc.</li>
-<li>Edit volume: a fast typist emits ~8&ndash;10 ops/sec. 50 editors &times; 10 ops/sec = 500 ops/sec per hot doc &mdash; tiny per doc, but the fan-out and the persistence log dominate.</li>
-<li>Durability: an acknowledged edit must never be lost. This pushes us toward an append-only operation log before we ack the client.</li>
+<li><b>Operational Transformation (OT)</b> &mdash; <i>transform</i> each incoming op against the concurrent ops that already applied, adjusting its position so the result is consistent (A's "insert at 5" and B's "insert at 5" become "insert at 5" and "insert at 6"). Powers Google Docs. Needs a central server to order ops and is famously tricky to prove correct (many transform-function edge cases).</li>
+<li><b>CRDTs</b> &mdash; give each character a stable unique id with a dense order, so concurrent inserts reference identities, not offsets, and merge <i>commutatively</i> with no transform. Powers Yjs/Automerge. No central transform needed (works peer-to-peer), but carries more metadata.</li>
 </ul>
-<div class="callout note"><span class="lbl">Key insight</span>The defining constraint is the combination of <em>optimistic local editing</em> (zero perceived latency) with <em>guaranteed eventual convergence</em>. You cannot lock the document and wait for a round trip per keystroke &mdash; that is what makes naive last-write-wins or pessimistic locking unacceptable, and what forces OT or CRDTs.</div>
+<div class="callout warn"><span class="lbl" id="position-clash">The failure that happens when you get this wrong &mdash; the position clash</span>
+This is <b>Scenario 1</b>. If you treat edits as "apply this op at this numeric index" and just relay them, concurrent inserts/deletes make the indices mean different things on different clients &rarr; the documents <b>diverge</b> (A sees "HelloXY world", B sees "HelloYX world"). Both OT and CRDT solve it, differently: <b>OT</b> rewrites the op's position relative to concurrent ops (server-coordinated); <b>CRDT</b> avoids positions entirely by using stable per-character ids with a dense total order, so "where" is unambiguous regardless of concurrency. Pick the model first &mdash; everything else (transport, persistence) depends on it. Numeric indices over a relayed channel is the naive trap that never converges.</div>
 
-<h2 id="core">The core problem: concurrent conflicting edits</h2>
-<p>Forget the network for a second. The whole difficulty is one scenario. The document is <code>"abc"</code>. Two users act on it concurrently, each against their <em>own local copy</em>:</p>
-<pre><code>Start:  "abc"
-Alice:  insert("X", pos=0)   ->  "Xabc"
-Bob:    delete(pos=2)        ->  "ab"   (deleting 'c')
-</code></pre>
-<p>Each user applies their own op locally with no delay, then ships it to the other. If the server (or peer) naively replays the <em>raw</em> ops in the order received, you get garbage. Bob's <code>delete(pos=2)</code> was authored against <code>"abc"</code> where index 2 was <code>'c'</code>. But after Alice's insert shifts everything right by one, index 2 in <code>"Xabc"</code> is <code>'b'</code>. Applying Bob's op verbatim deletes the wrong character, and the two replicas diverge permanently.</p>
-<p>This is the heart of it: <span class="key">an operation's positional intent is relative to the state it was authored against.</span> When concurrent operations interleave, positions become stale. Two families of algorithms solve this differently:</p>
-<ul>
-<li><span class="key">Operational Transformation (OT)</span> &mdash; <em>rewrite</em> each operation so it applies correctly against the state the receiver actually has.</li>
-<li><span class="key">CRDTs</span> &mdash; redesign the data model so operations <em>commute</em> and no rewriting is ever needed.</li>
-</ul>
+<h3 id="s2">Sub-problem 2 &mdash; The convergence guarantee (and choosing the algorithm)</h3>
+<p>The non-negotiable property: after all ops propagate, <b>every client's document is identical</b> (strong eventual convergence), with no lost edits. OT guarantees it via correct transform functions + a server ordering; CRDTs guarantee it mathematically (commutative/associative/idempotent merge &mdash; see <a href="35.html">CRDTs</a>). The choice between them (and a third option) is the central engineering decision.</p>
+<div class="callout warn"><span class="lbl" id="divergence">The failure that happens when you get this wrong &mdash; replicas diverge (and the OT-vs-CRDT-vs-server trade)</span>
+This is <b>Scenario 2</b>. If convergence isn't guaranteed, clients permanently disagree about the document &mdash; the worst possible bug. The trade-offs that decide the algorithm: <b>OT</b> is memory-light but the transform functions are <i>notoriously hard to get correct</i> &mdash; subtle concurrency cases cause divergence (Etherpad's inconsistency past ~150 editors is this class of problem). <b>Pure CRDTs</b> are provably convergent but carry <i>heavy per-character metadata</i> (ids + tombstones), costly for large/long-lived docs. <b>The third way &mdash; server-authoritative</b> (Figma): because you have a trusted central server (which most products do), you can use the <i>simplest</i> CRDT-flavored scheme &mdash; property-level <b>last-writer-wins registers</b> with fractional indexing &mdash; letting the server be the ordering authority and skipping both OT's transform complexity and pure-CRDT's full machinery. Figma rejected both pure approaches for exactly this reason and scaled to ~200 editors. The lesson: pure peer-to-peer CRDTs shine when there's <i>no</i> trusted server (true local-first); when you have a server, lean on it to simplify.</div>
 
-<h2 id="ot">Operational Transformation (OT)</h2>
-<p>OT is the technique that originally powered Google Docs, Etherpad, and Apache Wave. The idea: maintain a function <code>transform(opA, opB)</code> that takes two concurrent operations and rewrites <code>opA</code> so it can be applied <em>after</em> <code>opB</code> while preserving both intentions.</p>
+<h3 id="s3">Sub-problem 3 &mdash; Real-time transport, presence &amp; offline</h3>
+<p>Edits and presence flow over a persistent <a href="13.html">WebSocket</a> (low-latency bidirectional). The client applies its own ops <b>optimistically</b> for instant feedback, then reconciles with the server's ordering. Presence/cursors are broadcast as ephemeral state. And the client must survive disconnects: buffer local ops while offline and sync on reconnect.</p>
+<div class="callout warn"><span class="lbl" id="lost-edit">The failure that happens when you get this wrong &mdash; lost edits on reconnect</span>
+This is <b>Scenario 3</b>. If the client doesn't durably buffer its offline ops (with their base versions/ids), a disconnect drops them &mdash; the user's 10 minutes of work vanishes. The fix: the client <b>queues local ops</b> while offline (persisted locally), and on reconnect <b>replays</b> them to the server, which merges them via the chosen <a href="#s1">OT/CRDT</a> mechanism against whatever changed meanwhile &mdash; so neither the returning user's edits nor the others' are lost (convergence handles the merge). This is exactly where CRDTs are strong (offline-first merges are their native case). Also handle: optimistic local apply + server reordering (the user might briefly see their op move as the authoritative order arrives), and presence cleanup (a disconnected user's cursor must disappear). Treating the connection as always-on, or not buffering offline ops, is the lost-work trap.</div>
 
-<h3>The transform function</h3>
-<p>For our example, the server has already applied Alice's <code>insert("X", 0)</code>. Bob's <code>delete(2)</code> arrives, authored against the pre-insert state. We transform it:</p>
-<pre><code>transform(delete(pos=2), insert("X", pos=0)):
-    # an insert at or before delete's position shifts it right
-    if insert.pos &lt;= delete.pos:
-        return delete(pos = 2 + len("X"))   # -> delete(pos=3)
-    else:
-        return delete(pos = 2)              # unaffected
-</code></pre>
-<p>Now <code>delete(pos=3)</code> applied to <code>"Xabc"</code> removes <code>'c'</code> &mdash; exactly Bob's intent. Both replicas converge to <code>"Xab"</code>. The transform must satisfy the <span class="key">TP1 property</span>: <code>apply(apply(s, a), transform(b, a)) == apply(apply(s, b), transform(a, b))</code> &mdash; transforming in either order yields the same state. Systems that allow peer-to-peer reordering also need <span class="key">TP2</span>, which is notoriously hard to get right and was a major reason Google Wave's OT engine was so complex.</p>
+<h3 id="s4">Sub-problem 4 &mdash; Persistence &amp; history</h3>
+<p>The document must be durable, restorable to any past version (history/undo), and loadable fast for a new joiner. Store the <b>op log</b> (the sequence of operations &mdash; the source of truth, enabling history and replay) plus periodic <b>snapshots</b> (a materialized document state at a point in time) so loading doesn't require replaying from the beginning.</p>
+<div class="callout warn"><span class="lbl" id="unbounded">The failure that happens when you get this wrong &mdash; unbounded growth / slow loads</span>
+The op log grows forever, and CRDT documents accumulate <a href="34.html">tombstones</a> (deleted characters linger as metadata). Without management, loading a long-lived document means replaying millions of ops (slow joins) and carrying ever-growing metadata (Scenario 2's "CRDTs are heavy"). The fix: take periodic <b>snapshots</b> so a new editor loads "snapshot + ops since" instead of the full history; <b>compact/garbage-collect</b> old ops and CRDT tombstones once they're safely behind a snapshot all clients have seen; and keep the full op log (or version checkpoints) separately for history/restore if you need long-term undo. The tension &mdash; keep history vs bound size &mdash; is resolved by snapshotting + GC, not by keeping everything forever in the live structure.</div>
 
-<h3>Why OT effectively needs a central server</h3>
-<p>OT in its practical form (Jupiter algorithm, used by Google Docs) sidesteps TP2 by funneling everything through a <span class="key">single server that imposes a total order</span>. Each client keeps a <em>revision number</em>; the server is the authority on "what revision are we at." The protocol per client looks like this:</p>
-<pre><code>client state: { revision, pending[], buffer[] }
-
-on local edit op:
-    apply op locally (optimistic, 0 latency)
-    if no op is in-flight:  send op tagged with current revision; move to pending
-    else:                   queue op in buffer
-
-on server ACK (revision r):
-    revision = r
-    flush next buffered op as pending
-
-on remote op from server (authored at revision r):
-    op' = op
-    for each o in (pending + buffer):     # transform against my unacked ops
-        op', o = transform(op', o)
-    apply op' locally
-</code></pre>
-<p>The server does the symmetric transform against every op it has accepted since the client's stated revision. Because the server linearizes all ops, every client transforms against the same canonical history and convergence is guaranteed without TP2. The price: OT does not work well for true peer-to-peer or fully decentralized topologies &mdash; you need that authoritative serialization point. (This is closely related to why ordering is so fundamental &mdash; see <a href="33.html">Time, Clocks &amp; Ordering</a>.)</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>OT's correctness lives entirely in the transform functions, and the matrix grows with the number of operation types (insert, delete, retain/format, attribute changes). Each pair must satisfy TP1, and bugs manifest as rare, data-corrupting divergence that is brutal to reproduce. Treat the transform suite as the highest-risk code in the system and fuzz it relentlessly with randomized concurrent op sequences.</div>
-
-<h2 id="crdt">CRDTs for text</h2>
-<p>CRDTs (Conflict-free Replicated Data Types) attack the same problem from the data-model side: design the structure so that concurrent operations <em>commute by construction</em>. Apply them in any order and you converge &mdash; no transform function, no central serializer required. See <a href="35.html">CRDTs</a> for the general theory; here we focus on the sequence variant for text.</p>
-
-<h3>The key idea: stable, dense identifiers instead of integer positions</h3>
-<p>The reason OT needs transforms is that integer positions are <em>relative</em>. CRDT text types replace them with <span class="key">globally unique, immutable, totally-orderable identifiers</span> for each character. A character is never "position 2"; it is "the element with id <code>(0.5, siteA, 7)</code>, which sorts between these two neighbors." Insertion means "create an id strictly between my left and right neighbor's ids." Deletion is a <span class="key">tombstone</span> (mark removed, don't physically delete) so concurrent inserts referencing it still resolve.</p>
-
-<h3>RGA and the common sequence CRDTs</h3>
-<ul>
-<li><span class="key">RGA (Replicated Growable Array)</span>: each element holds a unique <code>(timestamp, siteId)</code> and a reference to the element it was inserted after. Concurrent inserts at the same spot are ordered deterministically by timestamp, breaking ties by siteId. Widely used because operations are compact and it handles the insert-after model cleanly.</li>
-<li><span class="key">LSEQ / Logoot / Treedoc</span>: use fractional or path-based positions &mdash; an id is a list of digits forming a dense, infinitely divisible order between neighbors.</li>
-<li><span class="key">Yjs (YATA) and Automerge</span>: the dominant production libraries. Yjs uses a doubly-linked-list CRDT with an integer-pair clock and aggressive run-length encoding of contiguous inserts; Automerge is columnar-encoded and history-complete.</li>
-</ul>
-<pre><code>// RGA-style insert: place "X" between left and right neighbors
-insert(value, leftId):
-    id = (lamportClock++, mySiteId)        // unique, monotone
-    node = { id, value, after: leftId, deleted: false }
-    // among elements sharing the same 'after', order by id descending
-    linkInOrder(node)
-    broadcast(node)                        // commutes: any apply order converges
-
-delete(targetId):
-    nodes[targetId].deleted = true         // tombstone, not physical removal
-    broadcast(tombstone(targetId))
-</code></pre>
-<div class="callout note"><span class="lbl">Key insight</span>Because every element id is globally unique and the merge rule is deterministic, CRDT ops are <em>idempotent and commutative</em>. That means you can deliver them out of order, duplicate them, gossip them peer-to-peer, or apply a batch after a week offline &mdash; convergence still holds. This is what makes CRDTs the natural fit for true offline-first and decentralized editing (see <a href="34.html">Anti-Entropy &amp; Gossip</a>).</div>
-<div class="callout warn"><span class="lbl">Pitfall</span>Tombstones never go away on their own. A heavily-edited document accumulates deleted-but-retained elements, bloating memory and the on-wire payload. Production CRDTs need a <span class="key">garbage-collection / compaction</span> strategy &mdash; safe only once you can prove no concurrent op could still reference a tombstone (e.g., once a causal stability watermark passes it). Underestimating tombstone growth is the classic CRDT scaling mistake.</div>
-
-<h2 id="vs">OT vs CRDT trade-offs</h2>
+<!-- ============ AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; OT vs CRDT vs server-authoritative</h2>
 <table>
-<tr><th>Dimension</th><th>Operational Transformation</th><th>CRDT (sequence)</th></tr>
-<tr><td>Topology</td><td>Needs an authoritative server (Jupiter) to serialize</td><td>Works peer-to-peer, server-relay, or hybrid</td></tr>
-<tr><td>Correctness burden</td><td>O(n&sup2;) transform-function matrix; TP1/TP2 proofs</td><td>Correctness proven once in the data type</td></tr>
-<tr><td>Per-character overhead</td><td>Low &mdash; ops are tiny, state is plain text</td><td>Higher &mdash; unique id + metadata per element, plus tombstones</td></tr>
-<tr><td>Offline / long divergence</td><td>Painful &mdash; must transform against large op history</td><td>Natural &mdash; merge any time, any order</td></tr>
-<tr><td>Memory footprint</td><td>Just the document string</td><td>Document + ids + tombstones (needs GC)</td></tr>
-<tr><td>Maturity in practice</td><td>Google Docs, Etherpad, ShareDB</td><td>Figma, Yjs ecosystem, Automerge, Apple Notes</td></tr>
+<tr><th>Approach</th><th>How it converges</th><th>Needs a server?</th><th>Metadata</th><th>Used by</th></tr>
+<tr><td><b>OT</b></td><td>Transform ops vs concurrent ops</td><td>Yes (ordering)</td><td>Light</td><td>Google Docs</td></tr>
+<tr><td><b>Pure CRDT</b></td><td>Commutative merge via stable ids</td><td>No (P2P-capable)</td><td>Heavy (ids + tombstones)</td><td>Yjs, Automerge</td></tr>
+<tr><td><b>Server-authoritative (CRDT-inspired LWW)</b></td><td>Server orders; per-property last-writer-wins + fractional index</td><td>Yes (authority)</td><td>Moderate</td><td>Figma</td></tr>
 </table>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>The decision is really about <em>where complexity lives and what topology you need</em>. If you already have a strong central server and want minimal per-op bytes &mdash; OT (Google's bet for Docs in 2010). If you want offline-first, peer-to-peer, or to avoid an ever-growing transform matrix and are willing to pay metadata + GC cost &mdash; CRDTs (the modern default for new systems like Figma multiplayer and the Yjs ecosystem). Neither is "more consistent"; both target <span class="key">strong eventual consistency</span> &mdash; see <a href="31.html">Consistency Models &amp; PACELC</a>.</div>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They don't religiously pick one. They say: "I'd use a server-authoritative CRDT (Yjs-style) &mdash; it gives me the offline and out-of-order resilience of CRDTs while still routing through a relay server I control for auth, persistence, and presence fan-out. I get the best of both rather than forcing a pure topology."</div>
+<div class="callout note"><span class="lbl">The rule in one line</span>Pick the convergence model first: <b>OT</b> (server-coordinated, light, hard to prove), <b>pure CRDT</b> (P2P/offline-first, convergent, heavy), or &mdash; if you have a trusted server, which you usually do &mdash; a <b>server-authoritative CRDT-inspired LWW</b> scheme (Figma) that's simplest. Then layer <b>optimistic local apply + WebSocket sync + offline op buffering</b> for UX, and <b>snapshots + GC</b> for persistence. There's a real <b>editors-per-doc ceiling</b> &mdash; design for a target (≈100&ndash;200), not infinity.</div>
 
-<h2 id="transport">Real-time transport &amp; presence</h2>
-<h3>Transport choice</h3>
-<p>Editing is bidirectional and low-latency, so the transport must push server-&gt;client without polling. The right primitive is <span class="key">WebSockets</span> &mdash; full-duplex, persistent, low per-message overhead. SSE is one-directional (server-&gt;client only) so it can't carry the client's keystrokes; long-polling adds a round trip per message. See <a href="13.html">Long-Polling vs WebSockets vs SSE</a> for the full comparison. Production reality: keep a WebSocket per active editor, with an HTTP fallback for hostile proxies, and reconnect-with-backoff carrying the client's last-known revision/vector so the server can replay the gap.</p>
-
-<h3>Presence / awareness</h3>
-<p>Cursor positions, selections, and "who's online" are <span class="key">ephemeral, high-frequency, and disposable</span> &mdash; you do not want them in the durable op log. Model presence as a separate channel with last-write-wins-per-user semantics and a TTL (heartbeat every few seconds; expire a cursor after ~30 s of silence). Yjs ships this as a dedicated "awareness" protocol precisely so cursor spam never touches the document CRDT. Cursor positions are expressed as <span class="key">relative positions</span> (anchored to a character id) so that a remote insert above your cursor moves it correctly instead of leaving it pointing at a stale integer offset.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>Broadcasting raw cursor moves to all N peers is O(N&sup2;) chatter on a busy doc. Throttle/debounce presence to ~10&ndash;20 Hz, batch into a single periodic frame, and never persist it. Conflating presence durability with edit durability is a common design smell.</div>
-
-<h2 id="persist">Persistence, snapshots &amp; scaling</h2>
-<h3>The operation log is the source of truth</h3>
-<p>Before the server ACKs an edit, it must durably append the op to a <span class="key">per-document append-only log</span> (think a partitioned commit log, conceptually like <a href="39.html">Kafka</a> keyed by docId). Reconstructing a document = replay the log from revision 0. This gives you the revision history and timeline "for free," and is the durability boundary: ACK only after the log write is fsynced/replicated.</p>
-
-<h3>Snapshotting</h3>
-<p>Replaying millions of ops to open a doc is too slow, so periodically write a <span class="key">snapshot</span> of materialized state (the plain text for OT, or the compacted CRDT structure) plus the revision it corresponds to. Open = load latest snapshot + replay only the tail of ops after it. Snapshots also enable CRDT tombstone GC (a snapshot past a causal-stability watermark can drop tombstones) and OT history truncation.</p>
-
-<h3>Scaling to many documents</h3>
+<!-- ============ SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">Partition by document.</span> Each active doc has exactly one <span class="key">authoritative coordinator</span> (a single process/actor) that owns serialization, presence fan-out, and write batching. This single-owner-per-doc model is what makes OT's total order trivial and prevents two servers from racing on the same doc.</li>
-<li><span class="key">Route via consistent hashing.</span> Map docId &rarr; coordinator node with <a href="12.html">consistent hashing</a> so the same doc always lands on the same owner; a thin gateway holds the WebSocket and forwards to the owner.</li>
-<li><span class="key">Handle owner failover.</span> The hard part. If a coordinator dies, a new one must take ownership without two owners existing simultaneously (split-brain). Use a lease/lock from a coordination service (see <a href="64.html">Distributed Locking Service</a> and <a href="36.html">Leader Election</a>). The new owner rebuilds state from snapshot + log tail; in-flight clients reconnect and replay from their last revision.</li>
-<li><span class="key">Cold docs cost nothing.</span> Idle docs hold no coordinator &mdash; they are just a snapshot + log at rest. Spin up a coordinator lazily on first connect.</li>
+<li><b>Scenario 1 (same spot):</b> Why do numeric indices diverge under concurrency, and how do OT and CRDT each fix it?</li>
+<li><b>Scenario 2 (Etherpad/Figma):</b> Why is OT hard to get right, why are pure CRDTs heavy, and why did a server let Figma pick a simpler LWW scheme?</li>
+<li><b>Scenario 3 (offline edits):</b> How do you guarantee no edit is lost on reconnect, and what must the client buffer while offline?</li>
+<li>Why represent the document as ops (not snapshots), and why stable character ids over numeric indices?</li>
+<li>Why is there an editors-per-doc ceiling, and how do snapshots + GC bound growth?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> 4 sub-problems &mdash; <a href="#s1">OT vs CRDT</a>, <a href="#s2">convergence (algorithm choice)</a>, <a href="#s3">transport + offline</a>, <a href="#s4">persistence + history</a>.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="35.html">CRDTs</a>, <a href="13.html">Long-Poll / WS / SSE</a>, <a href="33.html">Clocks (ordering)</a>, <a href="34.html">Anti-Entropy (tombstones)</a>, <a href="19.html">Messenger</a>.</p>
+
+<!-- ============ CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<table>
+<tr><th>Need</th><th>Options</th></tr>
+<tr><td>Real-time connection layer</td><td>WebSocket via API Gateway / AppSync subscriptions; Ably, Pusher, PartyKit, Liveblocks</td></tr>
+<tr><td>CRDT sync engine (library)</td><td>Yjs, Automerge (open-source); Liveblocks / PartyKit (managed CRDT)</td></tr>
+<tr><td>Op log / snapshot storage</td><td>Append store (Kafka/DB) for ops; object storage / DB for snapshots</td></tr>
+<tr><td>Per-doc routing / ownership</td><td>Consistent-hash docId &rarr; sync server; a coordination kernel for ownership</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>Managed real-time platforms (Liveblocks, PartyKit, Ably) and CRDT libraries (Yjs, Automerge) let you adopt the hard convergence machinery without building it &mdash; especially the server-authoritative CRDT-inspired path. They handle the WebSocket fan-out, presence, and merge; you decide the document model and persistence/GC strategy. For a Google-Docs-scale custom build, OT + a sharded sync-server tier is the classic route; for most products, a CRDT library + a managed connection layer is far less risky.</div>
+
+<!-- ============ IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>Same facets &mdash; approach, mechanism, and the failure to watch.</p>
+<h3 id="impl-gdocs">Google Docs (OT)</h3>
+<ul>
+<li><b>Approach.</b> Operational Transformation with a central server ordering ops.</li>
+<li><b>Mechanism.</b> Clients send ops + revision; server transforms against concurrent ops and broadcasts; optimistic local apply.</li>
+<li><b>The failure to watch.</b> Transform-function correctness is genuinely hard; the server is required for ordering (no true P2P).</li>
+</ul>
+<h3 id="impl-figma">Figma (server-authoritative, CRDT-inspired)</h3>
+<ul>
+<li><b>Approach.</b> A central server is the authority; document objects use property-level <b>last-writer-wins registers</b> with <span class="gl" data-def="Fractional indexing &mdash; giving each item a fractional position (a number or string that can always have another value inserted between any two), so concurrent inserts never need renumbering.">fractional indexing</span> for ordering &mdash; CRDT <i>ideas</i>, simplified by the server.</li>
+<li><b>Mechanism.</b> Clients send changes; server resolves per-property LWW and broadcasts; scales to ~200 concurrent editors.</li>
+<li><b>The failure to watch.</b> LWW means a true simultaneous edit to the same property has one winner (fine for design objects, not for a counter); relies on the trusted server.</li>
+</ul>
+<h3 id="impl-yjs">Yjs / Automerge (CRDT)</h3>
+<ul>
+<li><b>Approach.</b> Pure CRDT sequence types; convergent with or without a central server.</li>
+<li><b>Mechanism.</b> Stable per-character ids, commutative merge; great for offline-first and P2P.</li>
+<li><b>The failure to watch.</b> Metadata/tombstone growth on long-lived docs &mdash; needs snapshotting + GC (Scenario's sub-problem 4).</li>
 </ul>
 
-<h2 id="arch">End-to-end architecture</h2>
-<pre><code>             WebSocket (edits + presence)
- [Browser] &lt;-----------------------------------&gt; [Edge Gateway]
-   |  local CRDT/OT state, optimistic apply           |
-   |                                                   v  (route by docId, consistent hash)
-   |                                          [Doc Coordinator (1 per active doc)]
-   |                                            - serializes / merges ops
-   |                                            - transforms (OT) or merges (CRDT)
-   |                                            - presence fan-out (ephemeral)
-   |                                            - batches writes
-   |                                            |              |
-   |                                            v              v
-   |                                   [Op Log: append-only]  [Snapshot store]
-   |                                    (durable, replicated)  (object storage)
-</code></pre>
-<p>Request path for one keystroke: apply locally (0 ms) &rarr; send op + revision over WebSocket &rarr; gateway forwards to the doc's coordinator &rarr; coordinator transforms/merges, appends to op log, fans out the canonical op to all other connected clients and ACKs the author. Each receiving client transforms/merges the incoming op against its own unacked ops and applies it.</p>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They separate the three planes explicitly: the <em>edit plane</em> (durable, ordered, converging), the <em>presence plane</em> (ephemeral, lossy, TTL'd), and the <em>transport plane</em> (WebSocket with reconnect/replay). Muddling them &mdash; e.g., persisting cursors, or routing edits without a single per-doc owner &mdash; is what produces divergence and split-brain in real systems.</div>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They scope before naming algorithms, reproduce the concurrent-edit divergence with a concrete 3-character example to prove they understand <em>why</em> the problem is hard, then justify OT vs CRDT against the actual requirements (topology, offline, team familiarity) rather than reciting a preference. They explicitly call out the single-owner-per-doc invariant and how failover preserves it, treat presence as a separate ephemeral plane, and name the durability boundary (ACK only after the op log persists). They acknowledge the unglamorous risks &mdash; transform-matrix correctness, tombstone GC, cursor chatter &mdash; instead of hand-waving "and then it just converges."</div>
+<!-- ============ BUILD ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Work each before opening the approach.</p>
+<h3 id="ex-converge">Make two concurrent same-spot inserts converge</h3>
+<p>"Hello world"; A inserts "X" at index 5 and B inserts "Y" at index 5 concurrently. Show how OT and how a CRDT each make both clients end up identical.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p><b>OT:</b> the server picks an order (say A then B). A's op applies as "insert X at 5". B's op was written against the <i>pre-A</i> document, so the server <b>transforms</b> it against A's op: since A inserted one char at &le; B's position, B's "insert at 5" becomes "insert at 6". Result on everyone: "HelloXY world" &mdash; both clients converge because the same transformed ops apply in the same order. <b>CRDT:</b> there are no numeric positions &mdash; each existing character has a stable id, and a new character gets a <i>fractional</i> id <i>between</i> two neighbors. A's "X" and B's "Y" each get an id between the ids of "o"(4) and " "(5); when they tie on the same gap, a deterministic tiebreak (e.g. by author id) orders them consistently &mdash; so every replica independently computes the same order ("HelloXY world" or "HelloYX world", but the <i>same</i> everywhere) with no transform and no server coordination. Both converge; OT does it by rewriting positions, CRDT by never using positions.</p>
+</div></details>
+<h3 id="ex-offline">Sync 10 minutes of offline edits without loss</h3>
+<p>A user made 50 edits offline while others changed the doc. Design the client + server behavior so nothing is lost on reconnect.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>While offline, the client applies edits locally (instant UX) and <b>durably queues</b> each op (persisted to local storage, with the version/ids it was based on) &mdash; so a crash or refresh doesn't lose them. On reconnect, the client <b>replays</b> its queued ops to the server in order; the server merges each via the chosen <a href="#s1">OT/CRDT</a> mechanism against everything that changed meanwhile, and broadcasts the results. Because the convergence algorithm guarantees no lost edits, both the returning user's 50 edits and the others' concurrent edits all survive and everyone converges (Scenario 3). CRDTs make this especially clean (offline merge is their native case &mdash; ops commute regardless of when they arrive). The client also reconciles its optimistic local state with the authoritative order (it may briefly see its edits shift). The essentials: <b>persist offline ops locally, replay on reconnect, let convergence merge</b> &mdash; never assume the connection was up, and never discard unsynced ops.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
 <ul>
-<li>Walk me through two concurrent ops &mdash; an insert and a delete at overlapping positions &mdash; and show exactly how OT transforms them and how a CRDT avoids the transform entirely. Where does the determinism come from in each?</li>
-<li>You picked CRDTs. Tombstones grow without bound. When is it provably safe to garbage-collect one, and how do you compute that watermark across clients that may be offline for days?</li>
-<li>A document coordinator crashes mid-edit while 40 people are connected. Walk me through failover without ever allowing two owners. What's your fencing mechanism and how do reconnecting clients avoid losing or duplicating their in-flight ops?</li>
-<li>How do you implement <em>per-user</em> undo (undo my last edit, not the global last edit) on top of an OT or CRDT log? Why is this harder than it sounds?</li>
-<li>Why can't you use SSE here, and what specifically breaks if you tried last-write-wins per field instead of OT/CRDT? Tie it to the consistency model you're actually guaranteeing.</li>
-<li>How does cursor/presence propagation differ from edit propagation in durability, ordering, and fan-out cost &mdash; and what goes wrong if you treat them the same way?</li>
+<li><b>Choose the convergence model for your product.</b> A design tool (Figma-like) vs a P2P offline notes app &mdash; pick OT / pure CRDT / server-authoritative for each and justify. &rarr; <a href="35.html">CRDTs</a>.</li>
+<li><b>Scale past one sync server.</b> Route millions of docs across a sync-server tier so each doc has one ordering authority; handle a server's failure. &rarr; <a href="36.html">Coordination</a>, <a href="05.html">Sharding</a>.</li>
+<li><b>Add rich history / version restore.</b> Design op-log + snapshot storage so a user can restore any past version and undo across sessions, without unbounded growth. &rarr; <a href="46.html">Event sourcing</a>.</li>
 </ul>
 
-<div class="navfoot"><a href="61.html">&lsaquo; Prev: Designing a Payment System</a><a class="nx" href="63.html">Next: Designing Ad Click Aggregation &rsaquo;</a></div>
+<div class="navfoot"><a href="61.html">&lsaquo; Prev: Payment System</a><a class="nx" href="63.html">Next: Ad Click Aggregation &rsaquo;</a></div>
 </div>
 </div>
 </div>

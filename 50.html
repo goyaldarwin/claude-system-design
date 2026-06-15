@@ -111,180 +111,181 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Reliability &amp; Operations &nbsp;&rsaquo;&nbsp; Observability</div>
-
 <h1>Observability</h1>
-<p class="sub"><em>Understanding systems you cannot fully predict: the three pillars, what they cost, and how to alert without drowning your on-call.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Operability.</b> <span>understanding a system you can't predict, paid in metrics/logs/traces cardinality and cost.</span></div>
+<p class="sub"><em>Monitoring tells you <i>that</i> something is wrong; observability lets you ask <i>why</i> &mdash; including questions you never thought to pre-define. In a distributed system where one user request fans out across dozens of services, you can't debug by SSH-ing into a box. The three pillars (metrics, logs, traces) plus correlation are how you reconstruct what happened &mdash; and the hidden tax that breaks observability budgets is <b>cardinality</b>.</em></p>
 
-<div class="toc"><h4>In this lesson</h4>
-<ul>
-<li><a href="#monitoring-vs-observability">Monitoring vs Observability</a></li>
-<li><a href="#metrics">Pillar 1: Metrics</a></li>
-<li><a href="#logs">Pillar 2: Logs</a></li>
-<li><a href="#traces">Pillar 3: Traces</a></li>
-<li><a href="#cardinality">The Cardinality Cost</a></li>
-<li><a href="#correlation">Correlating Across Pillars</a></li>
-<li><a href="#alerting">Alerting That Pages a Human</a></li>
-<li><a href="#otel">OpenTelemetry and the Wire</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>The ability to ask arbitrary questions about your running system &mdash; in exchange for the storage, ingestion, and cardinality cost of the telemetry you emit.</b> <span>Rich telemetry lets you diagnose novel failures without redeploying. You pay in data volume: metrics, logs, and traces cost money to store and query, and high-cardinality labels can explode that cost exponentially &mdash; so observability is a deliberate sampling and dimensionality budget, not "log everything."</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Observability</b>
+│
+├─ <a href="#root"><b>What observability is</b></a>  &mdash; vs monitoring; the three pillars
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>The 4 decisions that define an observability design</b></a>
+│   ├─ <a href="#d1">1. Metrics: what to count &amp; the cardinality budget</a> fail → <a href="#cardinality">the cardinality explosion</a>
+│   ├─ <a href="#d2">2. Logs &amp; traces: connecting the dots</a>  fail → <a href="#no-trace">the un-correlatable request</a>
+│   ├─ <a href="#d3">3. How much to sample?</a>                fail → <a href="#sampling-trap">sampling away the error</a>
+│   └─ <a href="#d4">4. What pages a human?</a>                fail → <a href="#cause-alert">cause-based alert noise</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; the three pillars compared
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; observability stacks
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; the tools
+│   ├─ <a href="#impl-prom">Metrics: Prometheus</a>
+│   ├─ <a href="#impl-trace">Traces: Jaeger / OTel</a>
+│   └─ <a href="#impl-stack">Stacks: ELK / Datadog</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-red">Instrument a service with RED</a>
+    ├─ <a href="#ex-trace">Propagate a trace across services</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="monitoring-vs-observability">Monitoring vs Observability</h2>
-<p>The distinction is not marketing, even though vendors have abused it into mush. <span class="key">Monitoring</span> answers <em>known-unknowns</em>: you decided in advance which questions matter, instrumented them, and built dashboards and alerts around them. "Is CPU above 80%? Is p99 latency above 300ms? Is the error rate above 1%?" These are questions you knew to ask before the incident.</p>
-<p><span class="key">Observability</span> is the property that lets you answer <em>unknown-unknowns</em> &mdash; questions you did not anticipate &mdash; <strong>without shipping new code</strong>. The classic formulation: can you debug a novel failure mode purely from the telemetry you already emit? "Why are requests from Android 13 clients in ap-south-1 hitting checkout v2 with coupon codes timing out, but only after 14:00 UTC?" Nobody built that dashboard. If your data has enough dimensionality and is queryable arbitrarily, you can slice your way to the answer. If not, you are flying blind and your only recourse is to add instrumentation and wait for it to happen again.</p>
-
-<div class="callout note"><span class="lbl">Key insight</span> Observability is fundamentally about <strong>high-dimensional, arbitrarily-queryable data</strong>. The reason distributed systems made this urgent is combinatorial: a monolith has a handful of failure modes you can enumerate; a mesh of 200 microservices has a failure surface no human can pre-enumerate. You cannot predict the failures, so you must be able to interrogate the system after the fact.</p></div>
-
-<p>The three pillars &mdash; <span class="pill">metrics</span> <span class="pill">logs</span> <span class="pill">traces</span> &mdash; are the three data shapes that, combined, give you that property. They are not interchangeable; each occupies a distinct point on the cost / cardinality / queryability spectrum, and a mature system uses all three with deliberate boundaries. This ties directly into how you measure reliability &mdash; see <a href="49.html">SLI, SLO, SLA and Error Budgets</a> &mdash; because your SLIs are computed <em>from</em> this telemetry.</p>
-
-<h2 id="metrics">Pillar 1: Metrics</h2>
-<p>A metric is a numeric measurement aggregated over time: a counter, a gauge, or a histogram, tagged with a small set of labels, sampled at a fixed interval (commonly 10s&ndash;60s). The defining property is that metrics are <span class="key">pre-aggregated and cheap</span>. A counter incrementing a million times per second still costs one number per scrape interval. This is why metrics are the substrate for dashboards, SLO burn-rate calculations, and almost all alerting.</p>
-
-<h3>Storage model: time-series</h3>
-<p>Systems like Prometheus, VictoriaMetrics, and Cortex/Mimir store a <span class="key">time series</span> per unique combination of metric name and label set. <code>http_requests_total{method="GET", status="200", route="/checkout"}</code> is one series. Storage and query cost scale with the <strong>number of active series</strong>, not the number of events &mdash; this is the crux of the cardinality problem we hit below.</p>
-
-<h3>RED and USE: the two canonical methods</h3>
-<p>You should be able to recite both and know when each applies.</p>
-<table>
-<tr><th>Method</th><th>For</th><th>The three signals</th></tr>
-<tr><td><span class="key">RED</span></td><td>Request-driven services (APIs, RPC endpoints)</td><td><strong>R</strong>ate (req/s), <strong>E</strong>rrors (failed req/s), <strong>D</strong>uration (latency distribution)</td></tr>
-<tr><td><span class="key">USE</span></td><td>Resources (CPU, disk, queues, connection pools)</td><td><strong>U</strong>tilization (% busy), <strong>S</strong>aturation (queue depth / wait), <strong>E</strong>rrors (e.g. ECC, dropped packets)</td></tr>
-</table>
-<p>RED (Tom Wilkie) is what you put on every service dashboard; it maps cleanly onto the Google SRE "Four Golden Signals" (latency, traffic, errors, saturation). USE (Brendan Gregg) is the bottom-up resource view. The skill is knowing that <strong>saturation</strong> &mdash; the depth of a queue, the wait time on a lock, the fraction of a connection pool in use &mdash; is the leading indicator that predicts the latency cliff <em>before</em> errors appear. Most teams alert on utilization and get surprised; the strong ones alert on saturation.</p>
-
-<div class="callout warn"><span class="lbl">Pitfall</span> Latency is a <strong>distribution, not a number</strong>. Averaging latency is malpractice &mdash; a p50 of 40ms can hide a p99 of 8s that is destroying 1% of your users. Worse, you cannot average percentiles across instances (the average of two p99s is not the fleet p99). Use histograms (Prometheus <code>histogram</code> or native histograms; HDR histograms) and aggregate the <em>buckets</em>, then compute the quantile. And remember the long tail: at p99.9, the user often hits several services in series, so tail latencies compound multiplicatively.</p></div>
-
-<h2 id="logs">Pillar 2: Logs</h2>
-<p>A log is a timestamped record of a discrete event, ideally <span class="key">structured</span> (JSON or a typed key-value format), not a free-text string. Logs are where <strong>high cardinality lives cheaply at write time and expensively at query time</strong> &mdash; the inverse of metrics. You can attach a <code>user_id</code>, <code>request_id</code>, <code>trace_id</code>, <code>coupon_code</code>, full request context, and it costs nothing extra to write one more field. The cost shows up in storage volume and in the indexing/scanning required to query.</p>
-
-<pre><code>// Don't do this:
-log.info("user " + userId + " failed checkout: " + err.getMessage());
-
-// Do this &mdash; structured, queryable, correlatable:
-log.info("checkout_failed", Map.of(
-    "user_id",    userId,
-    "order_id",   orderId,
-    "trace_id",   ctx.traceId(),      // the join key to traces
-    "amount_cents", amountCents,
-    "error_code", err.code(),
-    "payment_provider", provider,
-    "duration_ms", elapsed
-));</code></pre>
-
-<p>The two architectural camps:</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What observability is &mdash; vs monitoring</h2>
+<p><b>Monitoring</b> watches a fixed set of pre-defined signals and tells you when one crosses a threshold &mdash; it answers questions you knew to ask in advance ("is CPU &gt; 80%?"). <b>Observability</b> is the property of being able to ask <i>arbitrary, new</i> questions about your system's internal state from its outputs &mdash; to debug a failure you've never seen before, without shipping new code to investigate. Monitoring is a subset; observability is the broader capability you need when systems are too complex to predict every failure mode.</p>
+<p>It rests on <b>three pillars</b>, each answering a different question:</p>
 <ul>
-<li><span class="key">Index-everything</span> (Elasticsearch / OpenSearch): fast arbitrary search, but indexing is CPU- and storage-hungry; ingest cost dominates and clusters fall over under log floods.</li>
-<li><span class="key">Index-nothing / label-and-scan</span> (Grafana Loki): only index a tiny set of labels (stream selectors), store the log body compressed in object storage, and brute-force scan at query time. Dramatically cheaper to ingest; queries over wide time ranges are slower but parallelizable. The discipline is keeping label cardinality low &mdash; the same cardinality trap as metrics.</li>
+<li><b>Metrics</b> &mdash; cheap, aggregated numbers over time (request rate, error rate, latency percentiles). Great for "is something wrong, and roughly where?" Low storage cost, but limited detail.</li>
+<li><b>Logs</b> &mdash; discrete, timestamped event records (ideally structured/JSON). Great for "what exactly happened in this event?" High detail, higher cost.</li>
+<li><b>Traces</b> &mdash; the path of a single request across all the services it touched (a <span class="gl" data-def="Distributed trace &mdash; the end-to-end record of one request as it flows across many services, stitched together by a shared trace ID, with a timed span per hop.">trace</span>), with timing per hop. Great for "where did this request spend its time / where did it fail?" in a distributed system.</li>
+</ul>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Observability trades <b>telemetry cost (storage, ingest, cardinality)</b> for <b>the ability to diagnose the unknown</b>. The skill isn't emitting everything &mdash; it's choosing metrics with bounded cardinality, sampling traces/logs intelligently, and correlating the three pillars so that when something breaks you can go from "users are erroring" to "this line in this service" in minutes, not hours.</div>
+
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the pillars compared</a>.</p>
+
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the metrics bill that 100&times;'d overnight</span>
+A developer adds a label to a metric &mdash; <code>user_id</code> &mdash; to "make debugging easier." The next day the observability bill explodes and queries crawl. The metric that had a few hundred time-series now has millions. <b>What is the property that exploded, why does adding that one label multiply cost, and what should carry per-user detail instead?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the request that vanished across services</span>
+A user reports a checkout that failed. You have logs in all 12 services the request touched, but no way to find <i>which</i> log lines belonged to <i>that user's request</i> &mdash; they're interleaved with millions of others, and the failure happened three services deep. <b>What single mechanism would let you follow one request's entire journey across every service, and what must be passed for it to work?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the error that got sampled away</span>
+To control cost, you sample 1% of traces at the point each request <i>enters</i> the system. A rare, important error happens in 0.1% of requests &mdash; and almost none of those error traces survive sampling, so you can never find an example to debug. <b>Why did head-based sampling lose exactly the traces you needed, and what sampling strategy keeps the interesting ones?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#cardinality">metrics &amp; the cardinality budget</a>. Scenario 2 is <a href="#no-trace">traces &amp; context propagation</a>. Scenario 3 is <a href="#sampling-trap">sampling (head vs tail)</a>. Each maps to a decision below.</i></p>
+
+<!-- ============ BRANCH 1: THE DECISIONS ============ -->
+<h2 id="decisions">The four decisions that define an observability design</h2>
+<p>Designing observability is these four choices. Each has a named failure nested under it.</p>
+
+<h3 id="d1">Decision 1 &mdash; Metrics: what to count, and the cardinality budget</h3>
+<p>Metrics are stored as <b>time-series</b>: a unique series exists for <i>every combination of label values</i>. Use proven frameworks to pick what to count: <b>RED</b> (Rate, Errors, Duration &mdash; for request-driven services) and <b>USE</b> (Utilization, Saturation, Errors &mdash; for resources like CPU/disk). The critical constraint is <b><span class="gl" data-def="Cardinality &mdash; the number of distinct time-series, which equals the product of the number of distinct values of every label on a metric; high-cardinality labels (user IDs, request IDs) multiply this explosively.">cardinality</span></b>: each label multiplies the series count, so labels must be low-cardinality (status code, endpoint, region &mdash; tens of values), never unbounded (user IDs, request IDs &mdash; millions).</p>
+<div class="callout warn"><span class="lbl" id="cardinality">The failure that happens when you get this wrong &mdash; the cardinality explosion</span>
+This is <b>Scenario 1</b>. Time-series count = the <i>product</i> of every label's distinct values. Add a high-cardinality label like <code>user_id</code> (millions of values) and you multiply your series count by millions &mdash; storage and ingestion cost explode, and queries slow to a crawl. This "label explosion" is the single biggest cost driver in metrics-based observability. The rule: <b>metrics labels must be bounded</b> (status, route, instance &mdash; the small set you'd group-by). Per-request or per-user detail belongs in <b>logs or traces</b> (which are indexed differently), not in metric labels. Watch out: even an endpoint label can explode if your routes contain IDs (<code>/users/12345</code>) &mdash; normalize to <code>/users/:id</code>.</div>
+
+<h3 id="d2">Decision 2 &mdash; Logs &amp; traces: connecting the dots</h3>
+<p>In a distributed system, the killer capability is following <i>one request</i> across <i>every</i> service. That requires <b>distributed tracing</b>: assign each incoming request a <b>trace ID</b>, and <b>propagate</b> it (plus a per-hop span ID) through every downstream call &mdash; in HTTP headers, message metadata, etc. Each service emits <b>spans</b> (timed operations) tagged with the trace ID; a tracing backend stitches them into one waterfall. Tag your structured logs with the same trace ID so logs, traces, and metrics correlate.</p>
+<div class="callout warn"><span class="lbl" id="no-trace">The failure that happens when you get this wrong &mdash; the un-correlatable request</span>
+This is <b>Scenario 2</b>. Without a propagated trace ID, your logs and metrics are per-service islands &mdash; you can see that <i>some</i> requests failed in service X, but not <i>which user-request</i>, nor its path before/after X. Debugging becomes archaeology across 12 log streams. The fix is <b>context propagation</b>: generate a trace ID at the edge and pass it through every call (and into async <a href="46.html">messages</a>), so one ID ties together the whole journey across services and pillars. The hard part is making propagation universal &mdash; one service that drops the header breaks the trace &mdash; which is why standards like <a href="#impl-trace">OpenTelemetry</a> exist to do it consistently.</div>
+
+<h3 id="d3">Decision 3 &mdash; How much do you sample?</h3>
+<p>Tracing every request at full detail is expensive at scale, so you <b>sample</b>. <b>Head-based sampling</b> decides at the <i>start</i> of a request (e.g. keep 1%) &mdash; cheap and simple, but blind to what happens later. <b>Tail-based sampling</b> decides at the <i>end</i>, after seeing the whole trace &mdash; so you can keep all errors and slow requests and sample the boring fast-success ones &mdash; more useful but needs buffering and more infrastructure.</p>
+<div class="callout warn"><span class="lbl" id="sampling-trap">The failure that happens when you get this wrong &mdash; sampling away the evidence</span>
+This is <b>Scenario 3</b>. <b>Head-based sampling at a flat rate discards traces before it knows they're interesting</b> &mdash; so a rare error (0.1% of requests) sampled at 1% leaves you almost no error traces to debug, exactly when you need them most. <b>Tail-based sampling</b> fixes this: buffer the full trace, then keep it if it errored or was slow, and sample down only the uninteresting successes. You retain the signal (errors, tail latency) while still cutting volume on the noise. The cost is the buffering infrastructure; the payoff is that your sampled data actually contains the failures you'll be asked to explain.</div>
+
+<h3 id="d4">Decision 4 &mdash; What pages a human?</h3>
+<p>Alerting policy determines whether on-call is effective or burned out. Two rules: alert on <b>symptoms, not causes</b> (page when <i>users</i> are affected &mdash; high error rate, SLO burn &mdash; not on every internal cause like "CPU high," which may not affect anyone), and make <b>every page actionable and documented</b> (a runbook link; if there's nothing a human can do, it shouldn't page). Tie alerts to your <a href="49.html">SLO burn rate</a> so pages mean "users are being hurt fast."</p>
+<div class="callout warn"><span class="lbl" id="cause-alert">The failure that happens when you get this wrong &mdash; cause-based alert noise</span>
+<b>Cause-based alerting</b> &mdash; paging on every internal condition (CPU spike, a single retry, disk 70% full) &mdash; floods on-call with pages that often correspond to <i>no user impact</i>, because the system absorbed the cause (autoscaling kicked in, a replica took over). The result is <b>alert fatigue</b>: real pages get lost in the noise and ignored, and the genuinely-bad incident is missed. Alert on <b>symptoms</b> (the user-facing SLI is breaching / burning budget fast) so a page always means real harm; route cause signals to dashboards/tickets for investigation, not to a pager. Every page must be urgent, real, and have a documented action &mdash; otherwise delete it.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the three pillars</h2>
+<table>
+<tr><th>Pillar</th><th>Answers</th><th>Cost / cardinality</th><th>Watch out for</th></tr>
+<tr><td><b>Metrics</b></td><td>"Is something wrong, roughly where?" (rates, percentiles)</td><td>Cheap if low-cardinality; explodes with bad labels</td><td>High-cardinality labels (Scenario 1)</td></tr>
+<tr><td><b>Logs</b></td><td>"What exactly happened in this event?"</td><td>Higher; volume-driven</td><td>Unstructured logs you can't query; no trace ID</td></tr>
+<tr><td><b>Traces</b></td><td>"Where did this request go / spend time / fail?"</td><td>High at full rate &rarr; sample</td><td>Broken context propagation; head-sampling away errors</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The rule in one line</span>Use <b>metrics</b> (RED/USE, bounded cardinality) to detect, <b>traces</b> (propagated trace ID, tail-sampled) to localize, and <b>structured logs</b> (tagged with the trace ID) to get the detail &mdash; all correlated by a shared trace ID. Alert on <b>symptoms</b> tied to SLO burn, and keep metric labels low-cardinality or your bill explodes.</div>
+
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
+<ul>
+<li><b>Scenario 1 (bill explodes):</b> Why does adding <code>user_id</code> as a metric label multiply cost, and where should per-user detail go instead?</li>
+<li><b>Scenario 2 (vanished request):</b> What mechanism follows one request across all services, and what must be propagated for it to work?</li>
+<li><b>Scenario 3 (sampled-away error):</b> Why does head-based sampling lose rare errors, and how does tail-based sampling keep them?</li>
+<li>Monitoring vs observability &mdash; what's the difference, and why do complex systems need the latter?</li>
+<li>Why alert on symptoms not causes, and what makes a page legitimate?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>4 decisions</b> &mdash; <a href="#d1">metrics &amp; cardinality</a>, <a href="#d2">traces &amp; context propagation</a>, <a href="#d3">sampling (head vs tail)</a>, <a href="#d4">symptom-based alerting</a> &mdash; each with a nested failure: cardinality explosion, un-correlatable request, sampled-away error, cause-based noise.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="49.html">SLI/SLO/SLA</a>, <a href="51.html">Resilience Patterns</a>, <a href="42.html">Probabilistic (histograms/percentiles)</a>, <a href="65.html">Metrics &amp; Monitoring (design)</a>, <a href="44.html">Microservices</a>.</p>
+
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<table>
+<tr><th>Pillar</th><th>AWS</th><th>GCP</th><th>Azure / OSS</th></tr>
+<tr><td>Metrics</td><td>CloudWatch</td><td>Cloud Monitoring</td><td>Azure Monitor; Prometheus</td></tr>
+<tr><td>Logs</td><td>CloudWatch Logs</td><td>Cloud Logging</td><td>Azure Monitor Logs; ELK/Loki</td></tr>
+<tr><td>Traces</td><td>X-Ray</td><td>Cloud Trace</td><td>App Insights; Jaeger/Tempo</td></tr>
+<tr><td>Unified / instrumentation</td><td colspan="3">OpenTelemetry (vendor-neutral); Datadog, Grafana, Honeycomb, New Relic</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span><b>OpenTelemetry (OTel)</b> is the emerging standard for emitting metrics/logs/traces in a vendor-neutral way &mdash; instrument once, ship anywhere &mdash; and it handles <a href="#no-trace">context propagation</a> consistently across languages. Managed backends (Datadog, Honeycomb, Cloud Trace) bill heavily on <b>cardinality and volume</b>, so the cardinality budget (Decision 1) and sampling (Decision 3) are directly cost-control decisions, not just engineering ones.</div>
+
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The tools made concrete. Same facets &mdash; what it is, the model, and the failure to watch.</p>
+
+<h3 id="impl-prom">Metrics &mdash; Prometheus</h3>
+<ul>
+<li><b>What it is.</b> The de-facto open-source metrics system; pull-based scraping of time-series with a label model and PromQL.</li>
+<li><b>Model.</b> Each label combination is a series; histograms enable percentile queries; alertmanager + recording rules drive alerts.</li>
+<li><b>The failure to watch.</b> Cardinality explosion (Scenario 1) &mdash; a high-cardinality label can OOM the server; long-term storage needs Thanos/Cortex/Mimir.</li>
 </ul>
 
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> Logs give you the richest per-event detail, which is exactly why they are the most expensive pillar to retain at full fidelity. At scale (millions of req/s) you cannot log every request body. The mature move is <strong>tiered retention and sampling</strong>: log 100% of errors and a small sample (e.g. 1%) of successes, keep hot logs for 7 days and cold/archived in object storage (S3 + Parquet, queryable via Athena/ClickHouse) for compliance. Never log PII without tokenization &mdash; see <a href="54.html">Security in System Design</a>.</p></div>
-
-<h2 id="traces">Pillar 3: Traces</h2>
-<p>Distributed tracing reconstructs the path of a single request as it fans out across services. A <span class="key">trace</span> is a tree (technically a DAG) of <span class="key">spans</span>; each span is one unit of work (an RPC, a DB query, a cache lookup) with a start time, duration, a <code>span_id</code>, a <code>parent_span_id</code>, and attributes. All spans for one request share a <code>trace_id</code>. This is the pillar that answers "where did the 800ms go?" by showing you the waterfall.</p>
-
-<h3>Context propagation: the hard part</h3>
-<p>Tracing only works if the <code>trace_id</code> and current <code>span_id</code> travel with the request across every process and protocol boundary. This is <span class="key">context propagation</span>, standardized by the W3C <code>traceparent</code> header:</p>
-<pre><code>traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
-             ^  ^                                ^                ^
-          version  trace-id (16 bytes)      parent-span-id    trace-flags
-                                              (8 bytes)        (sampled?)</code></pre>
-<p>Every hop &mdash; HTTP, gRPC, a Kafka message header, a Thrift call &mdash; must extract the incoming context and inject it into outgoing calls. Miss one boundary (an async job that drops the header, a thread-pool handoff that loses the thread-local) and the trace fractures into disconnected fragments. Async and message-driven flows are the usual culprits; you must propagate context through the message envelope &mdash; relevant when you read <a href="39.html">Kafka and Log-based Messaging</a> and <a href="46.html">Event-Driven Architecture</a>. A <a href="44.html">service mesh</a> can propagate the standard headers for you at the sidecar, but it cannot create application-level child spans &mdash; only your code knows that.</p>
-
-<h3>Sampling: head vs tail</h3>
-<p>You cannot store a trace for every request at scale &mdash; the storage and the per-request overhead are prohibitive. The decision is <em>when</em> and <em>how</em> you sample:</p>
-<table>
-<tr><th>Strategy</th><th>Decision point</th><th>Pro / Con</th></tr>
-<tr><td><span class="key">Head-based</span></td><td>At the first service, before the request is processed (e.g. keep 1%)</td><td>Cheap, stateless, decision propagates in <code>trace-flags</code>. But it's blind &mdash; it discards 99% <em>including the slow and failing ones</em> you actually want.</td></tr>
-<tr><td><span class="key">Tail-based</span></td><td>After the full trace completes, at a collector that has buffered all spans</td><td>Can keep 100% of errors and slow traces and 1% of the rest. But the collector must buffer all spans for a trace until it's done &mdash; stateful, memory-hungry, and routing-sensitive (all spans of a trace must reach the same collector).</td></tr>
-</table>
-
-<div class="callout note"><span class="lbl">Key insight</span> The whole point of tracing is debugging the <em>anomalous</em> request, so uniform head sampling defeats the purpose &mdash; it throws away the needles and keeps the hay. Production-grade setups use tail-based sampling (or a hybrid: cheap head sampling to thin the firehose, tail decision for the keep/drop) so that <strong>every error and every p99+ outlier is retained</strong>. This is the single highest-leverage tracing decision you will make.</p></div>
-
-<h2 id="cardinality">The Cardinality Cost</h2>
-<p><span class="key">Cardinality</span> is the number of distinct values a dimension can take. It is the dominant cost driver in observability and the source of the most expensive operational mistakes. The killer arithmetic: in a time-series database, every unique label combination is a separate series, and the cost is <strong>multiplicative across labels</strong>.</p>
-<pre><code>http_requests_total{
-  route,          //   200 routes
-  status,         //     5 status classes
-  region,         //    10 regions
-  instance        //   500 pods
-}
-//  200 x 5 x 10 x 500 = 5,000,000 active series &mdash; from ONE metric
-
-// Now someone adds user_id as a label (10M users):
-//  -&gt; 5,000,000 x 10,000,000  ===  CARDINALITY EXPLOSION
-//  the TSDB OOMs, ingestion stalls, queries time out</code></pre>
-
-<div class="callout warn"><span class="lbl">Pitfall</span> The number-one way teams take down their metrics backend is putting an <strong>unbounded-cardinality field as a metric label</strong>: <code>user_id</code>, <code>request_id</code>, <code>email</code>, full URL with query string, raw error message. These belong in <em>logs and traces</em>, never in metric labels. The rule of thumb: a label is safe only if its value set is small and bounded (enum-like). If you cannot enumerate the values, it is not a label.</p></div>
-
-<p>This is precisely the division of labor between the pillars: <strong>metrics for low-cardinality aggregates, logs/traces for high-cardinality detail.</strong> When you need high-cardinality <em>analytics</em> (e.g. "p99 latency grouped by customer_id"), that is a columnar store problem (ClickHouse, Honeycomb's Retriever, Druid) &mdash; a wide-event model that indexes nothing and scans columns fast &mdash; not a time-series database problem.</p>
-
-<h2 id="correlation">Correlating Across Pillars</h2>
-<p>Three pillars are only worth their cost if you can <strong>jump between them</strong>. The on-call workflow you are designing for:</p>
-<ol>
-<li>A <strong>metric/SLO alert</strong> fires: checkout error rate crossed the burn-rate threshold. (Tells you <em>something</em> is wrong, fleet-wide.)</li>
-<li>You pivot to <strong>traces</strong> for the failing requests in that window and find the latency is in the <code>payment-gateway</code> span. (Tells you <em>where</em>.)</li>
-<li>You jump from an exemplar trace to the <strong>logs</strong> for those exact spans via the shared <code>trace_id</code> and read the error: <code>provider_timeout: connect ETIMEDOUT</code>. (Tells you <em>why</em>.)</li>
-</ol>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They make the join keys explicit and non-negotiable: a <code>trace_id</code> on every log line, <span class="key">exemplars</span> on histograms (a metric bucket carries a sample <code>trace_id</code>, so you click a latency spike and land on the trace that caused it), and consistent <code>service.name</code> / <code>region</code> labels across all three pillars so a single dashboard variable filters everything coherently. The pillars are not three silos &mdash; they are three indexes over the same underlying events, stitched by shared identifiers.</p></div>
-
-<h2 id="alerting">Alerting That Pages a Human</h2>
-<p>The purpose of a page is to summon a human to fix something a machine cannot. Every page that does not meet that bar erodes trust and causes <span class="key">alert fatigue</span> &mdash; the state where on-call reflexively acks and ignores, and the one real page gets lost in the noise. Two principles separate good alerting from bad:</p>
-
-<h3>Symptom-based, not cause-based</h3>
-<p>Alert on what the <strong>user experiences</strong> (symptoms), not on every internal condition that <em>might</em> cause it (causes). "p99 checkout latency &gt; 1s for 5 minutes" is a symptom &mdash; it is true exactly when users are hurting, regardless of root cause. "Node 7's CPU is at 95%" is a cause; it may be totally benign (a batch job) or already mitigated by autoscaling. Cause-based alerts proliferate, fire on non-problems, and miss novel failure modes that present the same symptom through a new cause.</p>
-
-<div class="callout note"><span class="lbl">Key insight</span> Tie your paging alerts to <strong>SLO burn rate</strong>, not raw thresholds. Multi-window, multi-burn-rate alerting (the Google SRE pattern) pages fast on a severe burn (e.g. 14.4&times; the budget over 1h, exhausting a month of budget in ~2 days) and pages slow on a sustained mild burn, while suppressing brief blips that don't threaten the budget. This is the bridge from <a href="49.html">error budgets</a> to a pager that fires precisely when the budget is actually at risk.</p></div>
-
-<h3>Every page must be actionable and documented</h3>
-<p>If a human is woken at 3am, the alert must (a) reflect a real, user-facing problem, (b) require human judgment (not something autoscaling/retries already handle), and (c) link to a runbook. Anything that fails these is a candidate for deletion or for downgrading to a <em>ticket</em> (non-paging) or a dashboard. Three severity tiers is a healthy model: <span class="pill">page</span> (act now), <span class="pill">ticket</span> (act this week), <span class="pill">log/dashboard</span> (look when investigating). A useful audit: track your alert-to-action ratio &mdash; if &gt;50% of pages resolve with "no action needed," your signal-to-noise is broken.</p>
-
-<div class="callout warn"><span class="lbl">Pitfall</span> Beware alerting on <strong>predicted</strong> conditions and on tightly-coupled cascades. A single upstream failure can fan out into 200 simultaneous downstream pages, burying the root cause. Alert grouping/deduplication (Alertmanager inhibition rules), dependency-aware suppression, and alerting on the <em>edge</em> (the user-facing symptom) rather than every internal hop are the countermeasures. Retries and circuit breakers also generate misleading signals &mdash; understand how they shape your error metrics; see <a href="51.html">Resilience Patterns</a>.</p></div>
-
-<h2 id="otel">OpenTelemetry and the Wire</h2>
-<p><span class="key">OpenTelemetry (OTel)</span> is the CNCF standard that ended the era of vendor-specific agents and per-vendor instrumentation. It defines: a data model (metrics, logs, traces, and the unifying concept of <em>context</em>), a wire protocol (<span class="key">OTLP</span>, over gRPC/HTTP), language SDKs, and the <span class="key">Collector</span> &mdash; a vendor-neutral pipeline of receivers &rarr; processors &rarr; exporters.</p>
-
-<pre><code># otel-collector pipeline: instrument once, route anywhere
-receivers:
-  otlp: { protocols: { grpc: {}, http: {} } }
-processors:
-  batch: {}
-  tail_sampling:                 # keep all errors + slow, 1% of the rest
-    policies:
-      - { name: errors, type: status_code, status_code: { status_codes: [ERROR] } }
-      - { name: slow,   type: latency,     latency: { threshold_ms: 500 } }
-      - { name: sample, type: probabilistic, probabilistic: { sampling_percentage: 1 } }
-exporters:
-  prometheus: {}                 # metrics here
-  loki: {}                       # logs here
-  otlphttp/tempo: {}             # traces here
-service:
-  pipelines:
-    traces:  { receivers: [otlp], processors: [batch, tail_sampling], exporters: [otlphttp/tempo] }
-    metrics: { receivers: [otlp], processors: [batch], exporters: [prometheus] }</code></pre>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They treat OTel as the <strong>decoupling layer</strong>: instrument the application once against a stable API, and let the Collector handle sampling, redaction (drop PII attributes), batching, and fan-out to backends. This means you can swap Jaeger for Tempo, or move from Datadog to a self-hosted stack, <em>without touching application code</em> &mdash; the same dependency-inversion argument you'd make for any abstraction boundary. They also run the Collector as both a sidecar/agent (for fast local egress) and a gateway tier (for tail sampling, which needs all spans of a trace co-located).</p></div>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They never recite "the three pillars" as a checklist. They reason about <strong>cost vs. cardinality vs. queryability</strong> and place each signal deliberately &mdash; low-cardinality aggregates in metrics, high-cardinality context in logs/traces, request topology in traces &mdash; and they can quantify the cardinality blast radius of a bad label choice. They connect alerting to <em>error budgets</em> and <em>symptoms</em>, not arbitrary thresholds, and they treat alert fatigue as a first-class reliability risk. They know context propagation is the thing that actually breaks (especially across async boundaries), and they default to tail-based sampling because the point of a trace is the anomaly, not the average. They name OTel as the decoupling layer and the Collector as where sampling and redaction belong.</p></div>
-
-<p>Sharp questions to test your own understanding:</p>
+<h3 id="impl-trace">Traces &mdash; Jaeger / OpenTelemetry</h3>
 <ul>
-<li>You want to break down p99 latency by <code>customer_id</code> across 50M customers. Walk me through why you would <em>not</em> do this with metric labels, and what storage model you'd reach for instead.</li>
-<li>Your tracing covers synchronous HTTP calls but traces fracture the moment a request enters your job queue. What broke, and how do you propagate context through a Kafka/SQS hop?</li>
-<li>On-call says "we get 400 pages a week and ignore most of them." Diagnose the failure and redesign the alerting strategy. Where does burn-rate alerting fit, and what gets downgraded from a page to a ticket?</li>
-<li>Defend head-based vs tail-based sampling. At 2M req/s, which do you pick, what does the failure mode of each look like, and how does tail sampling complicate your collector topology?</li>
-<li>An incident is in progress: error-rate SLO alert just fired. Walk me through the exact sequence of pillar-to-pillar pivots you'd make to get from "something's wrong" to root cause in under 10 minutes. What join keys make that possible?</li>
-<li>You're told to cut the observability bill by 40% without losing the ability to debug production incidents. What do you cut first, and what is non-negotiable?</li>
+<li><b>What it is.</b> Distributed tracing &mdash; Jaeger/Tempo as backends, OpenTelemetry as the instrumentation + propagation standard.</li>
+<li><b>Model.</b> Trace ID + spans propagated via standard headers (W3C Trace Context); head- or tail-based sampling.</li>
+<li><b>The failure to watch.</b> One un-instrumented hop breaks the trace; head sampling drops rare errors (Scenario 3) &mdash; prefer tail-based for error retention.</li>
 </ul>
 
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Metrics & monitoring</td><td>CloudWatch</td><td>Cloud Monitoring</td><td>Azure Monitor</td></tr><tr><td>Distributed tracing</td><td>X-Ray</td><td>Cloud Trace</td><td>Application Insights</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="49.html">&lsaquo; Prev: SLI SLO SLA and Error Budgets</a><a class="nx" href="51.html">Next: Resilience Patterns &rsaquo;</a></div>
+<h3 id="impl-stack">Stacks &mdash; ELK / Datadog / Grafana</h3>
+<ul>
+<li><b>What it is.</b> Unified observability: ELK/Loki for logs, Grafana for dashboards, Datadog/Honeycomb/New Relic as all-in-one SaaS.</li>
+<li><b>Model.</b> Correlate the three pillars by trace ID; high-cardinality querying (Honeycomb's strength) for exploratory debugging.</li>
+<li><b>The failure to watch.</b> Volume/cardinality-based billing makes "log everything" financially ruinous; sample and structure deliberately.</li>
+</ul>
 
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you instrument something. Work each before opening the approach.</p>
+
+<h3 id="ex-red">Instrument a service with RED, with bounded cardinality</h3>
+<p>Add metrics to an HTTP service so you can see its health and debug issues, without blowing up cardinality. What do you emit, with what labels?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Emit <b>RED</b>: <b>Rate</b> (requests/sec counter), <b>Errors</b> (error count / error ratio), <b>Duration</b> (a latency <a href="42.html">histogram</a>, so you can query p50/p99). Label with <i>low-cardinality</i> dimensions only: <code>route</code> (normalized &mdash; <code>/users/:id</code>, never the raw ID), <code>method</code>, <code>status_class</code> (2xx/4xx/5xx), <code>instance</code>. That's maybe a few hundred series &mdash; cheap and groupable. Do <b>not</b> add <code>user_id</code>, <code>request_id</code>, or full URLs as labels (Scenario 1 &mdash; cardinality explosion). When you need per-request detail, attach it to the <b>trace</b>/structured log keyed by trace ID, not to a metric. From these RED metrics you can detect and roughly localize any problem; traces/logs take it the rest of the way.</p>
+</div></details>
+
+<h3 id="ex-trace">Propagate a trace across three services</h3>
+<p>A request hits service A, which calls B, which calls C (and also enqueues a message processed later by D). Design how you follow the whole thing as one trace.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>At the edge (A), generate a <b>trace ID</b> (or adopt an incoming one). For each outbound call, A creates a <b>span</b> and injects the trace context (trace ID + current span ID) into the request &mdash; HTTP headers (W3C <code>traceparent</code>) for A&rarr;B&rarr;C, and into the <a href="46.html">message</a> metadata for the async A&rarr;D hop. Each service starts a child span with the received parent, does its work, and reports its span (with timing, status) to the tracing backend, which stitches them into one waterfall by trace ID. Tag every <b>structured log</b> line with the trace ID too, so logs join the trace. Now one user request &mdash; sync and async parts &mdash; is a single navigable timeline (Scenario 2's fix). Use <a href="#impl-trace">OpenTelemetry</a> so propagation is automatic and consistent; the one rule is that <i>every</i> hop must forward the context or the trace breaks there.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Cut an observability bill in half.</b> Your telemetry cost doubled. Find the cardinality and volume offenders and redesign labels + sampling without losing debuggability. &rarr; <a href="71.html">Cost-Aware System Design</a>.</li>
+<li><b>Design tail-based sampling.</b> You must keep all error/slow traces but sample successes to 1%. Design the buffering and decision pipeline. &rarr; <a href="40.html">Stream Processing</a>.</li>
+<li><b>Build a symptom-based alert set.</b> Replace a noisy cause-based alert list with a small set tied to SLO burn rate, each with a runbook. &rarr; <a href="49.html">SLI/SLO/SLA</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="49.html">&lsaquo; Prev: SLI/SLO/SLA &amp; Error Budgets</a><a class="nx" href="51.html">Next: Resilience Patterns &rsaquo;</a></div>
 </div>
 </div>
 </div>

@@ -111,185 +111,207 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Consistency Models &amp; PACELC</div>
+<h1>Consistency Models &amp; PACELC</h1>
+<p class="sub"><em>"Consistency" is the most overloaded word in distributed systems. A consistency model is a <b>precise contract</b> between a data store and its clients: given concurrent reads and writes across replicas, which results are legal and which are forbidden? Pick a strong model and you reason simply but pay in latency; pick a weak one and you go fast but must handle surprises. PACELC names that trade-off in both the failure and the normal case.</em></p>
 
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Consistency Models and PACELC</div>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>A simpler mental model and fewer surprising reads &mdash; in exchange for coordination latency on every operation.</b> <span>The stronger the model, the more replicas must agree before a read or write returns, so the more it costs. Weaker models return faster but allow stale, out-of-order, or conflicting reads you must design around.</span></div>
 
-<h1>Consistency Models and PACELC</h1>
-<p class="sub"><em>A precise map of what "consistency" actually means, what it costs, and how to choose the right guarantee per use case.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth.</b> <span>stronger consistency costs latency (and availability under partition) — PACELC makes the bill explicit.</span></div>
-
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#why">Why "consistency" is an overloaded word</a></li>
-<li><a href="#spectrum">The consistency spectrum</a></li>
-<li><a href="#client">Client-centric (session) guarantees</a></li>
-<li><a href="#lin-vs-ser">Linearizability vs serializability</a></li>
-<li><a href="#pacelc">PACELC: CAP, refined</a></li>
-<li><a href="#classify">Classifying real systems</a></li>
-<li><a href="#cost">The cost of strong consistency</a></li>
-<li><a href="#choosing">Choosing per use case</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Consistency Models &amp; PACELC</b>
+│
+├─ <a href="#root"><b>What a consistency model is</b></a>  &mdash; a contract about legal reads
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#ideas"><b>The 5 ideas to understand</b></a>  &mdash; each has a misconception to avoid
+│   ├─ <a href="#i1">1. The strength ladder</a>            trap → <a href="#binary-trap">"strong vs eventual is the choice"</a>
+│   ├─ <a href="#i2">2. Linearizability</a>                trap → <a href="#lin-trap">"linearizable = serializable"</a>
+│   ├─ <a href="#i3">3. Session guarantees</a>             trap → <a href="#session-trap">"clients see global state"</a>
+│   ├─ <a href="#i4">4. PACELC (partition AND else)</a>    trap → <a href="#pacelc-trap">"CAP covers it"</a>
+│   └─ <a href="#i5">5. The cost of strong consistency</a> trap → <a href="#cost-trap">"just use strong everywhere"</a>
+│
+├─ <a href="#decision-table"><b>Classifying real systems</b></a>  &mdash; the PACELC class of the big stores
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; the consistency knobs you actually get
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; models made concrete
+│   ├─ <a href="#impl-strong">Strong: Spanner</a>
+│   ├─ <a href="#impl-tunable">Tunable: Cassandra / DynamoDB</a>
+│   └─ <a href="#impl-causal">Causal: COPS-style stores</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; classify, reason, design
+    ├─ <a href="#ex-classify">Pick a model per feature</a>
+    ├─ <a href="#ex-quorum">Quorum math</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="why">Why "consistency" is an overloaded word</h2>
-<p>The word <span class="key">consistency</span> is used for at least three different things, and conflating them is the single most common source of confusion in design discussions:</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What a consistency model is</h2>
+<p>A <b>consistency model</b> is a contract: it defines, for a system with multiple replicas serving concurrent clients, exactly which read results are <i>legal</i>. It answers "if I write X and then read, am I guaranteed to see X? What if someone else reads at the same time &mdash; can they see an older value? Can two readers see writes in different orders?"</p>
+<p>Models form a ladder from strongest (most constraining, most expensive) to weakest (most permissive, cheapest):</p>
 <ul>
-<li><strong>The C in ACID</strong> — a database keeps invariants (constraints, foreign keys, triggers) satisfied across a transaction. This is an application-level property and is mostly orthogonal to distributed-systems consistency.</li>
-<li><strong>The C in CAP</strong> — specifically <em>linearizability</em>, a strong single-object guarantee. See <a href="11.html">CAP Theorem</a>.</li>
-<li><strong>A consistency model</strong> — a contract between a replicated/concurrent system and its clients about which orderings of reads and writes are observable. This lesson is about this third meaning.</li>
+<li><b><span class="gl" data-def="Linearizable &mdash; the strongest single-object consistency: every operation appears to take effect instantaneously at one point between its start and end, in real-time order, as if there were a single copy.">Linearizable</span></b> &mdash; the system behaves as if there's one copy and every operation happens atomically at a single instant in real time. The gold standard, the costliest.</li>
+<li><b>Sequential</b> &mdash; all clients see operations in the <i>same</i> order, but that order need not match real time.</li>
+<li><b>Causal</b> &mdash; operations that are causally related (this write read that one) are seen in order by everyone; unrelated (concurrent) operations may be seen in different orders. Often the practical sweet spot.</li>
+<li><b>Eventual</b> &mdash; if writes stop, all replicas eventually converge. Says nothing about what you read in the meantime.</li>
 </ul>
-<p>A consistency model answers one question: <em>given a set of concurrent operations across replicas, which results is a client allowed to see?</em> Stronger models forbid more "surprising" outcomes but cost more in latency, availability, and coordination. Weaker models permit anomalies but are cheap and partition-tolerant. Everything below is a point on that trade-off curve.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>A consistency model trades <b>coordination latency</b> for <b>predictability</b>. Strong models make your code simple &mdash; you reason as if there's one copy &mdash; but force replicas to agree before answering. Weak models answer instantly from the nearest replica but hand you stale, reordered, or conflicting reads to cope with. <b>The skill is choosing the weakest model your feature can tolerate.</b></div>
 
-<div class="callout note"><span class="lbl">Key insight</span> Consistency models form a hierarchy ordered by <em>strength</em>. A system that provides a stronger model automatically provides all weaker ones below it. Your job as a designer is to pick the <em>weakest model that still satisfies the application's invariants</em> — not the strongest available.</div>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide your answer first. If you know all three cold, skip to <a href="#decision-table">classifying real systems</a>.</p>
 
-<h2 id="spectrum">The consistency spectrum</h2>
-<p>From strongest to weakest, the canonical models for replicated data:</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; Jepsen vs MongoDB 4.2.6 (real finding)</span>
+Kyle Kingsbury's Jepsen tested MongoDB 4.2.6 at its <i>strongest</i> read and write concern. Under a network partition, transactions that updated several documents were <b>acknowledged as successful, then the writes vanished</b> &mdash; and in some cases a read saw the result of a write that "happened later." <b>Which consistency guarantee was being violated, and what's the difference between a system that's slow and one that lies about acknowledged writes?</b></div>
 
-<table>
-<thead>
-<tr><th>Model</th><th>Guarantee</th><th>Forbids</th><th>Typical cost</th></tr>
-</thead>
-<tbody>
-<tr><td><strong>Strict serializability</strong></td><td>Transactions appear in a single total order consistent with real time</td><td>Stale reads, lost updates, all serialization anomalies, real-time order violations</td><td>Consensus + synchronized clocks or global ordering</td></tr>
-<tr><td><strong>Linearizable</strong></td><td>Each single-object op appears instantaneous at some point between its invocation and response; total order respects real time</td><td>Stale reads after a completed write</td><td>Quorum reads/writes or consensus per op</td></tr>
-<tr><td><strong>Sequential</strong></td><td>All clients see the same total order; each client's ops keep program order. The order need NOT match real time</td><td>Reordering within a single client</td><td>Total order broadcast, no clock sync needed</td></tr>
-<tr><td><strong>Causal</strong></td><td>Operations related by happens-before are seen in that order by all; concurrent ops may be seen in any order</td><td>Effect visible before cause</td><td>Track causal metadata (vector/version clocks); no global coordination</td></tr>
-<tr><td><strong>Eventual</strong></td><td>If writes stop, all replicas converge to the same value eventually</td><td>Nothing about <em>ordering</em> or <em>recency</em></td><td>Anti-entropy / gossip; cheapest, most available</td></tr>
-</tbody>
-</table>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; "read your own write"</span>
+A user updates their profile photo, the write succeeds, they reload the page &mdash; and see the <i>old</i> photo. The system is "eventually consistent" and their read hit a replica that hadn't caught up. <b>Which weaker-than-strong guarantee would fix exactly this, without paying for full linearizability?</b></div>
 
-<p><strong>Linearizability</strong> is the gold standard for single objects. Once a write completes (the client gets an ack), every subsequent read — by any client — must return that value or a newer one. There is no "stale read" window. The price is that reads and writes must coordinate: classically via a quorum (<span class="pill">W + R &gt; N</span>) with read-repair, or via routing all ops through a consensus leader. See <a href="30.html">Consensus and Raft</a> — Raft gives you a linearizable replicated log; reads must go through the leader (or use leader leases / ReadIndex) to stay linearizable.</p>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the healthy-network tax</span>
+Your network has no partition &mdash; everything's fine, which is true 99.9% of the time. A strongly consistent read still takes longer than an eventually consistent one because replicas must coordinate. <b>CAP says nothing about this case. What are you still choosing on every single read?</b></div>
 
-<p><strong>Sequential consistency</strong> drops the real-time requirement. Everyone agrees on <em>one</em> order of operations and each process's own operations appear in the order it issued them, but that global order need not match wall-clock reality. A read issued after a write completed (in real time) might legally return the old value because the system placed the read "earlier" in the agreed order. This is strictly weaker than linearizability and cheaper, but the distinction trips up many engineers.</p>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#lin-trap">linearizability vs serializability</a> &mdash; what "strong" really promises. Scenario 2 is <a href="#session-trap">session guarantees</a>. Scenario 3 is <a href="#pacelc-trap">PACELC's else-branch</a>. Each maps to an idea below.</i></p>
 
-<p><strong>Causal consistency</strong> is the strongest model that remains <em>available under partition</em> (a key result). It only orders operations that have a <span class="key">happens-before</span> relationship — if write B was made after the client observed write A, everyone must see A before B. Independent, concurrent writes can be observed in different orders by different clients. Causal metadata (version vectors) is tracked per key or per session. This is what most "collaborative" systems lean on; see <a href="33.html">Time, Clocks, and Ordering</a> for the underlying logical-clock machinery and <a href="35.html">CRDTs</a> for the convergence layer that pairs naturally with it.</p>
+<!-- ============ BRANCH 1: THE IDEAS ============ -->
+<h2 id="ideas">The five ideas to understand</h2>
+<p>This is theory, not knobs to configure &mdash; a set of ideas to hold correctly, each guarded by a misconception.</p>
 
-<p><strong>Eventual consistency</strong> is the weakest commonly-named model: it says nothing about what you read <em>now</em>, only that absent new writes, replicas converge. Dynamo-style stores live here by default. The convergence is achieved through <a href="34.html">anti-entropy and gossip</a> plus conflict resolution (last-writer-wins, vector clocks, or CRDTs).</p>
+<h3 id="i1">Idea 1 &mdash; The strength ladder is a spectrum, not a switch</h3>
+<p>Between "strong" and "eventual" lies a whole ladder (listed above). Each rung adds a constraint and a cost. <b>Causal consistency</b> is the most-loved middle rung: it guarantees that if operation B depends on A (someone read A before writing B), everyone sees A before B &mdash; while letting genuinely concurrent operations be reordered. It's strong enough to kill the most jarring anomalies (comments appearing before the post they reply to) yet cheap enough to stay available under partition.</p>
+<div class="callout warn"><span class="lbl" id="binary-trap">The misconception to avoid &mdash; "the choice is strong vs eventual"</span>
+Framing it as a binary throws away the rung you usually want. Most "we need strong consistency" requirements are really "we need <i>causal</i>" or "we need <i>read-your-writes</i>" &mdash; far cheaper guarantees that still feel correct to users. <b>Name the exact anomaly you can't tolerate</b> (stale read? reordered writes? lost update?) and pick the weakest rung that forbids it.</div>
 
-<div class="callout warn"><span class="lbl">Pitfall</span> "Eventual consistency" with no further qualification is almost useless as a contract — "eventually" can mean milliseconds or, during a partition, hours. Strong engineers always ask: <em>eventual, but with which client-centric guarantees layered on top?</em> A pure eventual store can show a user their own write disappearing on the next request, which is unacceptable for most UX.</div>
-
-<h2 id="client">Client-centric (session) guarantees</h2>
-<p>The models above are <em>data-centric</em> — they describe the global behavior of the store. <span class="key">Client-centric guarantees</span> describe what a single client/session observes across its own sequence of operations, and they can be layered on top of an eventually-consistent store cheaply (usually by routing a session to the same replica or carrying a version token). They are the practical glue that makes "eventual" usable:</p>
-
+<h3 id="i2">Idea 2 &mdash; Linearizability is about recency; serializability is about transactions</h3>
+<p>These two "strong" words mean different things and are often conflated:</p>
 <ul>
-<li><strong>Read-your-writes (read-after-write):</strong> after a client writes a value, its own subsequent reads see that value or newer. Prevents the "I posted a comment and it vanished" anomaly. Cheapest implementation: pin the session to the primary or to the replica that accepted the write; or pass the write's version and read only from replicas caught up to it.</li>
-<li><strong>Monotonic reads:</strong> if a client reads value v, later reads never return an <em>older</em> value. Prevents time going backwards. Implemented by pinning a session to one replica (or a replica set ordered by version).</li>
-<li><strong>Monotonic writes:</strong> writes from a single client are applied in the order they were issued. Without this, a "set name=A" then "set name=B" can land as B-then-A on a replica.</li>
-<li><strong>Writes-follow-reads (causal session):</strong> a write that depends on a value the client read is ordered after that value's write everywhere. This is the per-session building block of causal consistency.</li>
+<li><b>Linearizability</b> (a consistency model) &mdash; about <i>single operations</i> on <i>single objects</i>: once a write completes, every later read sees it; the system acts like one copy in real-time order.</li>
+<li><b>Serializability</b> (an isolation level) &mdash; about <i>transactions</i> grouping multiple operations: the result is equivalent to <i>some</i> serial order of the transactions, but that order need not match real time.</li>
+<li><b>Strict serializability</b> = both at once (serializable + real-time order). This is what Spanner offers and what you informally mean by "fully consistent."</li>
 </ul>
+<div class="callout warn"><span class="lbl" id="lin-trap">The misconception to avoid &mdash; "strongest settings can't lose data"</span>
+This is <b>Scenario 1</b>. MongoDB at max concern was supposed to give <span class="gl" data-def="Snapshot isolation &mdash; a transaction reads from a consistent snapshot taken at its start, so it never sees others' in-flight changes; weaker than serializability (it permits write-skew).">snapshot isolation</span>; Jepsen showed it didn't &mdash; acknowledged writes disappeared and a read saw a "future" write (a retrocausal anomaly). The lesson: <b>a model is only as strong as the implementation actually delivers</b>, and "we set it to the strongest level" is not the same as "it is linearizable / strictly serializable." A correct strong system may be <i>slow or unavailable</i> under partition; it must never <i>acknowledge a write and then lose it</i>. Verify with tests like Jepsen, not vendor labels.</div>
 
-<div class="callout note"><span class="lbl">Key insight</span> Together, these four session guarantees compose into <em>causal consistency</em>. That is the bridge between the cheap eventual world and the expensive strongly-consistent world: causal+session guarantees give you most of what users perceive as "correct" without paying for global coordination.</div>
-
-<h2 id="lin-vs-ser">Linearizability vs serializability (and strict serializability)</h2>
-<p>These two are routinely confused because both are "the strong one." They are different axes:</p>
-
-<table>
-<thead>
-<tr><th></th><th>Linearizability</th><th>Serializability</th></tr>
-</thead>
-<tbody>
-<tr><td>Scope</td><td>Single object / single operation</td><td>Multi-object transactions</td></tr>
-<tr><td>Property</td><td>Recency &amp; real-time order of ops</td><td>Equivalence to <em>some</em> serial execution of transactions</td></tr>
-<tr><td>Real-time?</td><td>Yes — respects wall-clock order</td><td>No — any serial order is acceptable</td></tr>
-<tr><td>Field</td><td>Distributed systems</td><td>Database isolation (the I in ACID)</td></tr>
-</tbody>
-</table>
-
-<p>Serializability says a set of concurrent transactions produces a result equivalent to running them one at a time in <em>some</em> order. But it does not require that order to match real time. Two serializable transactions T1 (commits at 10:00) and T2 (commits at 10:01) could be serialized as "T2 then T1" — legal under serializability, even though T2 happened later. That's fine for isolation correctness but can violate user expectations.</p>
-
-<p><span class="key">Strict serializability</span> = serializability + linearizability's real-time constraint. It is the strongest practical model for a transactional distributed database: transactions appear in a single total order that is consistent with the real-time order in which they committed. This is what Google Spanner provides, and it is exactly why Spanner needs TrueTime — it must reason about real-time bounds to assign commit timestamps that respect actual ordering. See <a href="32.html">Distributed Transactions</a> for the 2PC/commit-protocol mechanics underneath.</p>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> Snapshot isolation (Postgres, MySQL-InnoDB default-ish, many distributed SQL engines) is <em>weaker</em> than serializability — it permits write-skew anomalies. It's popular because it gives non-blocking consistent reads and is far cheaper. The principal move is knowing your engine's default isolation level and whether your invariants survive write skew (e.g., "two on-call doctors, both check ≥1 other is on duty, both go off-duty" — classic write skew that SI allows and serializability forbids).</div>
-
-<h2 id="pacelc">PACELC: CAP, refined</h2>
-<p><a href="11.html">CAP</a> is famously incomplete: it only tells you what happens <em>during a network partition</em> (choose Consistency or Availability), and partitions are rare. It says nothing about the steady-state trade-off that dominates day-to-day design. <span class="key">PACELC</span> (Abadi, 2012) fixes this:</p>
-
-<pre><code>if (Partition) {
-    choose between Availability (A) and Consistency (C)
-} else {   // normal operation, the 99.99% case
-    choose between Latency (L) and Consistency (C)
-}</code></pre>
-
-<p>The "else" clause is the important addition. Even with zero partitions, a replicated system faces a fundamental tension: to guarantee a linearizable read you must contact a quorum (or the leader), which adds round trips and latency. To serve a read from the nearest replica with low latency, you risk returning stale data. <strong>You pay for consistency in latency on every single request, not just during failures.</strong></p>
-
-<p>PACELC classifies a system with a pair: its partition behavior and its normal-operation behavior. The two halves are independent — a system can be PA/EC (sacrifice consistency under partition, but prefer consistency over latency normally).</p>
-
-<div class="callout note"><span class="lbl">Key insight</span> CAP made partition tolerance look like the central trade-off. PACELC reveals that for most systems most of the time, the real, continuous decision is <em>latency vs consistency</em>. Spanner's whole engineering effort (TrueTime, atomic clocks, commit-wait) is fundamentally about paying a small bounded latency cost to deliver EC — consistency in the no-partition case.</div>
-
-<h2 id="classify">Classifying real systems</h2>
-<table>
-<thead>
-<tr><th>System</th><th>PACELC</th><th>Behavior</th></tr>
-</thead>
-<tbody>
-<tr><td><strong>DynamoDB / Dynamo</strong></td><td>PA/EL</td><td>Stays available under partition; prefers low latency normally (eventually consistent reads by default). Optional strongly-consistent reads flip it toward EC per-request.</td></tr>
-<tr><td><strong>Cassandra</strong></td><td>PA/EL (tunable)</td><td>Tunable per query via consistency levels. ONE = PA/EL; QUORUM/QUORUM with W+R&gt;N approximates linearizability per key; LOCAL_QUORUM tunes the latency/consistency knob.</td></tr>
-<tr><td><strong>Riak / Voldemort</strong></td><td>PA/EL</td><td>Dynamo lineage; sloppy quorums + hinted handoff favor availability and latency.</td></tr>
-<tr><td><strong>Google Spanner</strong></td><td>PC/EC</td><td>Consistency over availability under partition; consistency over latency normally. TrueTime + commit-wait + Paxos groups give strict serializability. Pays a latency cost (commit-wait ~ a few ms).</td></tr>
-<tr><td><strong>MongoDB</strong></td><td>PA/EC (default)</td><td>Single-primary replica set; under partition the minority side loses its primary and goes read-only (availability sacrificed on the minority); normally favors consistency by routing reads to primary. Read/write concerns tune both axes.</td></tr>
-<tr><td><strong>HBase / BigTable</strong></td><td>PC/EC</td><td>Single region server owns a region; strongly consistent; partition can make a region unavailable until reassigned.</td></tr>
-<tr><td><strong>etcd / ZooKeeper</strong></td><td>PC/EC</td><td>Raft/Zab consensus; refuses writes (and linearizable reads) on the minority side of a partition. Built for correctness, not availability. See <a href="36.html">Leader Election and Coordination</a>.</td></tr>
-</tbody>
-</table>
-
-<div class="callout warn"><span class="lbl">Pitfall</span> Beware single-letter labels applied to a whole product. Cassandra, DynamoDB, and MongoDB all expose <em>per-operation</em> tuning (consistency levels, read/write concerns, consistent-read flags). The PACELC label describes the <em>default</em> or the dominant design bias — the right answer in practice is "it depends on the consistency level configured for that query," with the default stated.</div>
-
-<h2 id="cost">The cost of strong consistency</h2>
-<p>Strong consistency is never free. Where, precisely, does the cost show up?</p>
+<h3 id="i3">Idea 3 &mdash; Session (client-centric) guarantees</h3>
+<p>Full linearizability is global and expensive. Often you only need guarantees <i>relative to one client's own session</i> &mdash; far cheaper because they involve no global agreement:</p>
 <ul>
-<li><strong>Latency on the hot path.</strong> A linearizable read needs a quorum round trip or a leader hop. Cross-region, that's tens of milliseconds added to <em>every</em> read, not just writes. Spanner's commit-wait deliberately stalls a commit for the TrueTime uncertainty window (ε, typically a few ms) to guarantee timestamp ordering.</li>
-<li><strong>Availability under partition.</strong> A CP system rejects writes (and linearizable reads) on the minority side. If you require strong consistency, a partition that isolates a quorum makes part of your system unavailable — by design. See <a href="11.html">CAP Theorem</a>.</li>
-<li><strong>Throughput ceiling.</strong> A single consensus leader (Raft/Paxos) is a serialization point. You scale by sharding into independent consensus groups (Spanner's "Paxos groups," CockroachDB's "ranges"), which then reintroduces the distributed-transaction problem across shards.</li>
-<li><strong>Coordination amplifies tail latency.</strong> Quorum operations are gated by the <em>slowest</em> of the required replicas. A single slow node (GC pause, disk hiccup) inflates p99. Dynamo-style sloppy quorums trade consistency to dodge exactly this.</li>
+<li><b>Read-your-writes</b> &mdash; you always see your own latest write (fixes Scenario 2).</li>
+<li><b>Monotonic reads</b> &mdash; you never see time go backwards (a later read won't show an older value than an earlier one).</li>
+<li><b>Monotonic writes</b> &mdash; your writes apply in the order you issued them.</li>
+<li><b>Writes-follow-reads</b> &mdash; a write you make after reading X is ordered after X everywhere.</li>
 </ul>
+<div class="callout warn"><span class="lbl" id="session-trap">The misconception to avoid &mdash; "clients observe one global state"</span>
+This is <b>Scenario 2</b>. The user doesn't need the whole world to be consistent &mdash; they need <i>their own session</i> to make sense. Routing a client's reads to a replica that has its recent writes (sticky routing, or read-from-primary-after-write) delivers read-your-writes at a fraction of linearizability's cost. <b>Most "consistency bugs" users actually notice are session-guarantee violations, not global ones.</b></div>
 
-<pre><code>// Quorum knobs (N replicas, W write quorum, R read quorum)
-// Linearizable-ish per key requires:  W + R &gt; N   AND   W &gt; N/2
-// Examples for N=3:
-//   W=3, R=1  -> fast reads, slow/fragile writes (any node down blocks writes)
-//   W=1, R=3  -> fast writes, slow reads, write survives 1 ack only
-//   W=2, R=2  -> balanced, tolerates 1 node down, overlap guaranteed</code></pre>
+<h3 id="i4">Idea 4 &mdash; PACELC: the trade-off has two halves</h3>
+<p><a href="11.html">CAP</a> only describes the rare partition. Daniel Abadi's <b>PACELC</b> (2010) spells out both regimes:</p>
+<blockquote><b>P</b>artition &rarr; choose <b>A</b>vailability or <b>C</b>onsistency; <b>E</b>lse (normal operation) &rarr; choose <b>L</b>atency or <b>C</b>onsistency.</blockquote>
+<p>The <b>ELC</b> leg is the part that runs 99.9% of the time. Even with a perfectly healthy network, a strongly consistent system must coordinate &mdash; a quorum, a leader round-trip, a <a href="33.html">commit-wait</a> &mdash; before it can answer, and that's latency. Relax consistency and you answer from the nearest replica instantly.</p>
+<div class="callout warn"><span class="lbl" id="pacelc-trap">The misconception to avoid &mdash; "CAP covers consistency choices"</span>
+This is <b>Scenario 3</b>. Leaning on CAP is the junior tell: it's silent about the latency-vs-consistency choice you make on <i>every</i> request, partition or not &mdash; the cost that actually dominates your latency budget. <b>State systems in PACELC terms:</b> "Spanner is PC/EC &mdash; consistent under partition and normally, paying latency for it" is a far sharper statement than "Spanner is CP."</div>
 
-<p>The deeper point: strong consistency converts a <em>physics problem</em> (speed of light across regions) into a <em>latency budget</em>. There is no algorithm that removes the round trips; you can only hide them (caching, leases, local reads with bounded staleness) or push the consistency decision to the client. See <a href="37.html">Replication Deep Dive</a> for sync vs async replication mechanics that sit underneath all of this.</p>
+<h3 id="i5">Idea 5 &mdash; What strong consistency actually costs</h3>
+<p>The price of a rung up the ladder is concrete: more replicas on the critical path of every operation. Linearizable reads can't be served from a stale local replica &mdash; they need a quorum read or a leader round-trip. This is why low-latency global apps lean on weaker models plus session guarantees, and reserve linearizability for the few operations that truly need it (account balances, inventory counts, lock acquisition).</p>
+<div class="callout warn"><span class="lbl" id="cost-trap">The misconception to avoid &mdash; "just make everything strongly consistent"</span>
+Blanket strong consistency turns every read into a coordination event &mdash; you've paid global-agreement latency for a "likes" counter where a few seconds of staleness is invisible. <b>Consistency is per-operation, not per-database.</b> Tunable stores let you dial it per request precisely so you spend the latency only where correctness demands it.</div>
 
-<h2 id="choosing">Choosing per use case</h2>
-<p>The principal skill is decomposing one product into many consistency decisions. The same app rarely needs one global model.</p>
-
+<!-- ============ BRANCH 2: CLASSIFY ============ -->
+<h2 id="decision-table">Classifying real systems (PACELC)</h2>
+<p>The two-letter class &mdash; one letter per leg &mdash; is how engineers actually describe a store:</p>
 <table>
-<thead>
-<tr><th>Use case</th><th>Right model</th><th>Why</th></tr>
-</thead>
-<tbody>
-<tr><td>Account balance / payments / inventory decrement</td><td>Strict serializability (or at least linearizable + transactions)</td><td>Double-spend and oversell are correctness failures, not UX warts. See <a href="32.html">Distributed Transactions</a>.</td></tr>
-<tr><td>Distributed lock / leader election / config</td><td>Linearizable (consensus)</td><td>Two leaders or a stale lock = split brain. Use etcd/ZooKeeper. See <a href="36.html">Leader Election and Coordination</a>.</td></tr>
-<tr><td>Social feed, likes, view counts</td><td>Eventual + read-your-writes</td><td>A like count off by a few for a second is invisible; availability and latency matter far more.</td></tr>
-<tr><td>Collaborative editing / chat ordering</td><td>Causal consistency (+ CRDTs)</td><td>Cause must precede effect; concurrent edits merge. See <a href="35.html">CRDTs</a>.</td></tr>
-<tr><td>Shopping cart</td><td>Eventual, merge on conflict (Dynamo's original use case)</td><td>Adds should never be lost; "merge carts" beats "reject add." Availability prioritized.</td></tr>
-<tr><td>User profile / settings</td><td>Eventual + read-your-writes + monotonic reads</td><td>User must see their own edit immediately and never see it regress.</td></tr>
-</tbody>
+<tr><th>System</th><th>PACELC class</th><th>Reading</th></tr>
+<tr><td>Google Spanner</td><td><b>PC/EC</b></td><td>Strictly serializable under partition and normally; pays <a href="33.html">TrueTime</a> commit-wait latency to stay consistent everywhere.</td></tr>
+<tr><td>DynamoDB / Cassandra</td><td><b>PA/EL</b> (tunable)</td><td>Available under partition, low-latency normally &mdash; per-request quorum knobs dial toward consistency when needed.</td></tr>
+<tr><td>MongoDB</td><td><b>PC/EC</b></td><td>Minority primary steps down under partition; normally reads from primary for consistency (with the Jepsen caveat that the implementation must actually deliver it).</td></tr>
+<tr><td>Default async-replicated SQL (read replicas)</td><td><b>PC/EL</b></td><td>Primary failover under partition; normally serves fast, possibly-stale reads from replicas.</td></tr>
 </table>
+<div class="callout note"><span class="lbl">There is no "CA" class</span>Every networked store has a P-clause answer whether or not its designers chose one. The interesting, ever-present leg is <b>E</b>: what do you do on the 99.9% of requests with no partition?</div>
 
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They never say "we'll use strong consistency" as a blanket. They name the specific invariant that demands it (no oversell, no double-spend, exactly-one leader), apply the minimum sufficient model <em>there</em>, and explicitly relax everything else to eventual + session guarantees to recover latency and availability. They also state the PACELC posture per data domain, not per system.</div>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They treat consistency as a per-domain budget, not a global switch. They distinguish linearizability (single object, real-time) from serializability (multi-object isolation) without prompting, reach for causal + session guarantees as the pragmatic middle, and quantify the cost ("strong reads add a cross-region quorum hop, ~40&nbsp;ms to p99"). When they say "eventually consistent" they immediately specify the client-centric guarantees layered on top, and they cite PACELC's else-branch as the real day-to-day trade-off rather than fixating on CAP partitions.</div>
-
-<p>Sharp questions to test your own understanding:</p>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li>"You said the store is eventually consistent. A user updates their profile photo and refreshes — they see the old photo. Is that acceptable? If not, which exact guarantee fixes it, and what does it cost to implement?"</li>
-<li>"Your design uses snapshot isolation. Walk me through a write-skew anomaly that could violate a business invariant here, and tell me whether you'd pay for serializability or guard it another way."</li>
-<li>"Classify your primary datastore in PACELC and defend both letters. Now change the consistency level / read concern on the critical read path — how does the classification and the p99 move?"</li>
-<li>"You need linearizable reads from a Raft cluster. Why isn't reading from the leader's local state automatically safe, and what mechanism (ReadIndex, lease, log barrier) makes it correct?"</li>
-<li>"Two regions, 80&nbsp;ms RTT apart. Product wants strong consistency and sub-20&nbsp;ms reads in both regions. Explain why that's physically impossible and what you'd negotiate instead (bounded staleness? read-local writes-global? Spanner-style?)."</li>
-<li>"Where in this design would causal consistency be both sufficient and strictly cheaper than linearizability, and how would you track the causal metadata at scale without it blowing up?"</li>
+<li><b>Scenario 1 (Jepsen/MongoDB):</b> What's the difference between linearizability and serializability, and what does it mean that a system "labeled strong" lost acknowledged writes? Why is "slow" acceptable but "lost an acked write" never is?</li>
+<li><b>Scenario 2 (old photo):</b> Which session guarantee fixes "I don't see my own write," and how do you implement it cheaply without full linearizability?</li>
+<li><b>Scenario 3 (healthy-network tax):</b> What does PACELC's ELC leg add over CAP, and why does it dominate your latency budget?</li>
+<li>Name the consistency ladder strongest to weakest, and the rung that's usually the practical sweet spot.</li>
+<li>Why is consistency a per-operation choice, not a per-database one?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>5 ideas</b> &mdash; <a href="#i1">it's a ladder, not a switch</a>, <a href="#i2">linearizable ≠ serializable</a>, <a href="#i3">session guarantees are the cheap win</a>, <a href="#i4">PACELC has two legs</a>, <a href="#i5">strong consistency costs a round-trip</a> &mdash; each guarded by a misconception.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="11.html">CAP Theorem</a>, <a href="30.html">Consensus &amp; Raft</a>, <a href="33.html">Time, Clocks &amp; Ordering</a>, <a href="09.html">Replication</a>, <a href="67.html">Choosing a Database</a>.</p>
+
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks &mdash; the knobs you actually get</h2>
+<p>Managed databases expose consistency as a setting. Know the default and the dial:</p>
+<table>
+<tr><th>System</th><th>Default</th><th>The consistency knob</th></tr>
+<tr><td>DynamoDB</td><td>Eventually consistent reads</td><td><code>ConsistentRead=true</code> per read for strong (≈2× the cost, higher latency)</td></tr>
+<tr><td>Azure Cosmos DB</td><td>Session consistency</td><td>5 explicit levels: Strong, Bounded-staleness, Session, Consistent-prefix, Eventual</td></tr>
+<tr><td>Cloud Spanner</td><td>Strong (strict serializable)</td><td>Opt into bounded-staleness/stale reads for lower latency</td></tr>
+<tr><td>Cassandra / Keyspaces</td><td>Per-request</td><td><code>ONE / QUORUM / LOCAL_QUORUM / ALL</code> on each read and write</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>Cosmos DB is the clearest teaching tool here &mdash; it makes you pick one of five named rungs of the ladder explicitly, and bills/latency-charges you accordingly. Most other systems give you the two endpoints (eventual / strong) plus a quorum dial.</div>
+
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The models made concrete. Same facets &mdash; the model offered, the mechanism, the cost, and the failure to watch.</p>
+
+<h3 id="impl-strong">Strong &mdash; Google Spanner</h3>
+<ul>
+<li><b>Model offered.</b> Strict serializability (linearizable + serializable) globally.</li>
+<li><b>Mechanism.</b> <a href="33.html">TrueTime</a> &mdash; GPS/atomic-clock-bounded time &mdash; lets every node agree on global ordering; a transaction waits out the clock uncertainty ("commit-wait") before acknowledging, then runs <a href="30.html">Paxos</a> per shard.</li>
+<li><b>The cost.</b> A few milliseconds of commit-wait on every write, plus a quorum round-trip. PC/EC.</li>
+<li><b>The failure to watch.</b> Latency is non-negotiable &mdash; you can't make Spanner writes faster than its consistency guarantee allows; if you don't need the guarantee, you're overpaying.</li>
 </ul>
 
-<div class="navfoot"><a href="30.html">&lsaquo; Prev: Consensus and Raft</a><a class="nx" href="32.html">Next: Distributed Transactions &rsaquo;</a></div>
+<h3 id="impl-tunable">Tunable &mdash; Cassandra / DynamoDB</h3>
+<ul>
+<li><b>Model offered.</b> Anything from eventual to strong, chosen per request.</li>
+<li><b>Mechanism.</b> The quorum rule <code>R + W &gt; N</code> &mdash; if read replicas + write replicas exceed total replicas, every read overlaps the latest write. <code>QUORUM/QUORUM</code> = strong-ish; <code>ONE/ONE</code> = fast and eventual.</li>
+<li><b>The cost.</b> Whatever you dial &mdash; you pay latency only on the requests where you ask for consistency.</li>
+<li><b>The failure to watch.</b> There's no single right setting; a wrong knob silently gives you staleness or latency you didn't intend. Read-your-writes needs deliberate quorum or routing.</li>
+</ul>
 
+<h3 id="impl-causal">Causal &mdash; COPS-style stores</h3>
+<ul>
+<li><b>Model offered.</b> Causal consistency &mdash; related operations ordered everywhere, concurrent ones free.</li>
+<li><b>Mechanism.</b> Track causal dependencies (often via <a href="33.html">version vectors</a>) and don't expose a write until its dependencies are visible locally.</li>
+<li><b>The cost.</b> Metadata overhead to track dependencies; far cheaper than global coordination, and stays available under partition.</li>
+<li><b>The failure to watch.</b> Causal is the academic sweet spot but rare as a turnkey product &mdash; in practice you often approximate it with session guarantees in a tunable store.</li>
+</ul>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Models stick when you apply them. Work each before opening the approach.</p>
+
+<h3 id="ex-classify">Pick the weakest model per feature</h3>
+<p>For a social app, choose a consistency model for each: the account balance in its wallet, the feed of posts, the follower count, the user's own profile edits. Justify each by naming the anomaly you can't tolerate.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Wallet balance: <b>linearizable / strict serializable</b> &mdash; a stale or lost balance is money; pay the latency. Feed: <b>eventual</b> &mdash; a few seconds of staleness is invisible. Follower count: <b>eventual</b> &mdash; off-by-a-few is fine. Own profile edits: <b>read-your-writes</b> (a session guarantee) &mdash; the user must see their own change immediately, but the world doesn't need it instantly. The skill is naming the intolerable anomaly per feature and picking the cheapest rung that forbids it &mdash; not blanketing everything in "strong."</p>
+</div></details>
+
+<h3 id="ex-quorum">Work the quorum math</h3>
+<p>For N=3 replicas, which (R, W) give strong consistency and which give low latency? Why does <code>R + W &gt; N</code> guarantee a read sees the latest write?</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p><code>W=2, R=2</code> &rarr; <code>R+W=4 &gt; 3</code>: any read quorum and any write quorum share at least one replica, so the read is guaranteed to touch a node holding the latest write &mdash; strong, but every op waits for 2 nodes. <code>W=1, R=1</code> (<code>R+W=2 ≤ 3</code>): fastest, but read and write sets may not overlap, so reads can be stale. The overlap is the trick &mdash; the same quorum-overlap idea behind <a href="30.html">consensus</a>, used here as a per-request consistency dial.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Implement read-your-writes cheaply.</b> Your app reads from async replicas (fast, stale). Design how a user always sees their own just-made write without making every read strongly consistent. &rarr; <a href="09.html">Replication</a>.</li>
+<li><b>Defend a "we need strong consistency" requirement.</b> A product manager insists the whole app be strongly consistent. Decompose it feature-by-feature and show which parts genuinely need it. &rarr; <a href="11.html">CAP</a>, <a href="67.html">Choosing a Database</a>.</li>
+<li><b>Resolve concurrent writes.</b> Two replicas accept conflicting writes to the same key under an AP model. Design conflict resolution that doesn't silently lose data. &rarr; <a href="35.html">CRDTs</a>, <a href="33.html">version vectors</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="30.html">&lsaquo; Prev: Consensus &amp; Raft</a><a class="nx" href="32.html">Next: Distributed Transactions &rsaquo;</a></div>
 </div>
 </div>
 </div>

@@ -111,192 +111,193 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing a Notification System</div>
-
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Notification System</div>
 <h1>Designing a Notification System</h1>
-<p class="sub">A multi-channel fan-out platform &mdash; push, SMS, email, in-app &mdash; that must be reliable, idempotent, preference-aware, and survive flaky third-party providers at billions of messages a day.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; partial failure.</b> <span>fan-out delivery across providers, paid in retries, dedup, and per-channel rate limits.</span></div>
+<p class="sub"><em>Send the right message to the right user on the right channel &mdash; push, SMS, email &mdash; at the scale of millions per second, reliably, without spamming anyone twice or melting a third-party gateway. The design is a fan-out pipeline of queues and workers; the hard parts are <b>reliability</b> (deliver despite a flaky external provider), <b>not duplicating</b>, and <b>respecting user limits</b>.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#requirements">Requirements &amp; scale estimation</a></li>
-<li><a href="#architecture">High-level architecture</a></li>
-<li><a href="#fanout">Fan-out on write vs read &amp; the celebrity problem</a></li>
-<li><a href="#providers">Provider abstraction &amp; third-party integration</a></li>
-<li><a href="#reliability">Reliability: retries, DLQ, idempotency</a></li>
-<li><a href="#ratelimit">Rate limiting &amp; prioritization</a></li>
-<li><a href="#preferences">Preferences, templating &amp; opt-out at scale</a></li>
-<li><a href="#tracking">Delivery tracking &amp; read state</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Reliable, scalable, multi-channel delivery decoupled from the services that trigger it &mdash; in exchange for handling provider failures, deduplication, rate limits, and user preferences in the pipeline.</b> <span>A queue-based fan-out lets any service fire a notification and forget it, absorbing bursts. You pay by owning retries against unreliable external gateways, idempotent dedup so users aren't double-notified, and per-user throttling/preferences so you don't spam or get rate-limited.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; we walk the design top to bottom, then deep-dive the hard parts</div>
+<pre class="tree">
+<b>Designing a Notification System</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>
+├─ <a href="#api"><b>3. The API</b></a>  &mdash; send(notification)
+├─ <a href="#highlevel"><b>4. High-level design</b></a>  &mdash; queues + channel workers
+├─ <a href="#datamodel"><b>5. Data model</b></a>  &mdash; templates, prefs, status
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+│
+├─ <a href="#subproblems"><b>The 4 hard sub-problems</b></a>
+│   ├─ <a href="#s1">1. Reliability vs an unreliable provider</a> fail → <a href="#provider-fail">lost on provider error</a>
+│   ├─ <a href="#s2">2. Deduplication / exactly-once-ish</a>  fail → <a href="#dup">the double notification</a>
+│   ├─ <a href="#s3">3. Rate limiting &amp; user preferences</a> fail → <a href="#spam">spamming &amp; gateway throttling</a>
+│   └─ <a href="#s4">4. Fan-out &amp; priority</a>               fail → <a href="#head-of-line">low-priority blocks urgent</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
 </div>
 
-<h2 id="requirements">Requirements &amp; scale estimation</h2>
-<p>A notification system accepts <span class="key">trigger events</span> from upstream services (a new message, an order shipped, a price drop, a marketing blast) and delivers the right message to the right user over the right channel. The interesting engineering is almost entirely in the non-functional requirements.</p>
+<!-- ============ 1. REQUIREMENTS ============ -->
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> any service can trigger a notification to a user; support multiple <b>channels</b> (push (<span class="gl" data-def="APNs / FCM &mdash; Apple Push Notification service and Firebase Cloud Messaging; the OS-level gateways that actually deliver push notifications to iOS and Android devices.">APNs+FCM</span>), SMS, email, in-app); use <b>templates</b> with personalization; respect <b>user preferences</b> (opt-outs, quiet hours, per-channel settings); track <b>delivery status</b>.</p>
+<p><b>Non-functional:</b> <b>high throughput</b> (millions/sec at peak &mdash; a marketing blast or a breaking-news alert), <b>reliable</b> (don't lose a notification a service asked to send), <b>no duplicates</b> (don't notify a user twice for one event), <b>low latency</b> for urgent notifications, <b>decoupled</b> (triggering services don't wait on delivery).</p>
 
-<h3>Functional</h3>
+<!-- ============ 2. CAPACITY ============ -->
+<h2 id="capacity">2. Capacity estimate</h2>
+<p>Say <b>100M users</b>, average <b>10 notifications/user/day</b>, with bursty peaks. Work it:</p>
 <ul>
-<li>Multiple channels: <span class="pill">push (APNs/FCM)</span> <span class="pill">SMS</span> <span class="pill">email</span> <span class="pill">in-app</span> <span class="pill">webhook</span>.</li>
-<li>Two traffic shapes: <span class="key">transactional</span> (1:1, latency-sensitive &mdash; OTP, password reset) and <span class="key">bulk/marketing</span> (1:N fan-out, throughput-sensitive).</li>
-<li>Templating with localization and variable substitution.</li>
-<li>User preferences and opt-out, honored per channel and per category.</li>
-<li>Delivery and read-state tracking, plus analytics.</li>
+<li><b>Average rate:</b> 100M &times; 10 = 1B/day &asymp; <b>~11,500/sec average</b>. But notifications are <i>bursty</i> &mdash; a "breaking news" or marketing send can target tens of millions at once.</li>
+<li><b>Peak fan-out:</b> a single send to 50M users in 5 minutes = <b>~167,000/sec</b> &mdash; 14&times; the average. <b>Consequence: the system must absorb huge bursts &mdash; a queue between trigger and delivery is mandatory, sized for peak not average.</b></li>
+<li><b>Provider limits:</b> external gateways (APNs, Twilio, SES) have their <i>own</i> rate limits. If you push 167k/sec at a provider rate-limited to 10k/sec, you'll be throttled/blocked. <b>Consequence: you must rate-limit your outbound calls to each provider &mdash; the queue is also a buffer that smooths to the provider's pace.</b></li>
 </ul>
 
-<h3>Non-functional</h3>
-<ul>
-<li><span class="key">Reliability:</span> at-least-once delivery with no duplicate sends &mdash; sending an OTP twice or a bill reminder five times is a reputational and cost problem.</li>
-<li><span class="key">Scalability:</span> elastic fan-out; a single marketing campaign may target 50M users.</li>
-<li><span class="key">Low latency for transactional:</span> p99 &lt; a few seconds end-to-end; bulk can tolerate minutes.</li>
-<li><span class="key">Provider isolation:</span> a degraded SMS vendor must not stall push or email.</li>
-</ul>
+<!-- ============ 3. API ============ -->
+<h2 id="api">3. The API</h2>
+<pre class="tree" style="border:none;background:var(--code-bg,#f6f8fa);padding:12px;border-radius:8px">
+send({ userId, templateId, data, channels, priority, dedupeKey })
+// async: returns immediately with a notificationId; delivery happens in the pipeline
+getStatus(notificationId) -> { channel: state }   // queued | sent | delivered | failed
+</pre>
+<p><code>send</code> is <b>fire-and-forget</b> (enqueue and return) so triggering services never block on delivery. <code>dedupeKey</code> is the caller-supplied idempotency key (see <a href="#s2">sub-problem 2</a>); <code>priority</code> routes urgent vs bulk (<a href="#s4">sub-problem 4</a>).</p>
 
-<div class="callout note"><span class="lbl">Key insight</span>The single most important framing move: separate the <em>transactional</em> path (low-latency, small fan-out, strict idempotency) from the <em>bulk</em> path (high-throughput, batched, rate-shaped). They share the provider layer but have different SLOs, different queues, and different backpressure behavior. Conflating them is the most common junior mistake.</div>
+<!-- ============ 4. HIGH-LEVEL ============ -->
+<h2 id="highlevel">4. High-level design</h2>
+<p>A pipeline: <b>(1)</b> services call <code>send</code> &rarr; a <b>notification service</b> validates, applies templates + user preferences, and enqueues per-channel messages onto <a href="08.html">queues</a> (one per channel/priority). <b>(2)</b> Per-channel <b>worker pools</b> consume their queue and call the external provider (APNs/FCM for push, Twilio for SMS, SES for email) &mdash; with retries, rate limiting, and dedup. <b>(3)</b> Delivery status (and provider webhooks for delivered/bounced) update a status store. The queue between trigger and workers is what decouples, absorbs bursts, and lets you throttle to each provider's pace.</p>
 
-<h3>Back-of-envelope</h3>
-<p>Assume 100M DAU, average 10 notifications/user/day &rarr; <span class="key">1B notifications/day</span> &asymp; 11.6K/s average, with peaks of 5&ndash;10&times; (say 100K/s) during campaign bursts or breaking-news fan-out. If 20% carry a ~1&nbsp;KB payload for tracking and the rest are references, the metadata store ingests roughly 1B rows/day &mdash; squarely a partitioned NoSQL or time-series workload, not a single relational table. See <a href="10.html">SQL vs. NoSQL</a> and <a href="05.html">Sharding</a>.</p>
-
-<h2 id="architecture">High-level architecture</h2>
-<p>The backbone is an event-driven pipeline. Producers never call providers directly; they emit an intent, and the platform owns the messy delivery semantics. This is a textbook application of <a href="46.html">Event-Driven Architecture</a> built on durable logs (<a href="39.html">Kafka</a>) and worker queues (<a href="08.html">Queues</a>).</p>
-
-<pre><code>Producer services
-      |  emit NotificationRequest {userId|segment, templateId, payload, category, priority, dedupeKey}
-      v
-[ Ingestion API / Gateway ]  --auth, validation, schema, idempotency check
-      |
-      v
-[ Notification Service ]  --hydrate recipients, check preferences, render template, pick channels
-      |
-      +--> Kafka topic: notifications.high   (transactional)
-      +--> Kafka topic: notifications.bulk    (marketing, lower priority)
-      |
-      v
-[ Channel Workers ]   push-worker | sms-worker | email-worker | inapp-worker
-      |   (rate-limited, batched, retry-aware)
-      v
-[ Provider Adapters ]  APNs | FCM | Twilio | SES | internal WebSocket gateway
-      |
-      v
-[ Delivery callbacks / receipts ]  --> Tracking store + analytics + retry/DLQ feedback</code></pre>
-
-<p>Key decomposition decisions:</p>
-<ul>
-<li>The <span class="key">Notification Service</span> does recipient hydration, preference filtering, deduplication, and template rendering &mdash; the CPU-light but fan-out-heavy work &mdash; <em>before</em> anything hits a per-channel queue. By the time a message lands on <code>notifications.high</code> it is a fully-resolved, single-recipient, single-channel unit of work.</li>
-<li><span class="key">Channel workers</span> are independent consumer groups. Each scales on its own lag, owns its own retry policy, and is the natural place to enforce per-provider rate limits. A Twilio outage backs up only the SMS worker's lag; push keeps flowing.</li>
-<li>Separate <span class="key">priority topics</span> (or a priority-aware queue) prevent a 50M-user marketing campaign from starving an OTP. Cheaper than a single queue with reordering logic.</li>
-</ul>
-
-<h2 id="fanout">Fan-out on write vs read &amp; the celebrity problem</h2>
-<p>When a single event targets many recipients (a sports score to 20M fans, a creator posting to 30M followers), you face the same fan-out dilemma as <a href="20.html">Designing Twitter</a> and <a href="26.html">Facebook&#8217;s Newsfeed</a>.</p>
-
+<!-- ============ 5. DATA MODEL ============ -->
+<h2 id="datamodel">5. Data model</h2>
 <table>
-<tr><th>Strategy</th><th>How it works</th><th>Good for</th><th>Cost</th></tr>
-<tr><td><span class="key">Fan-out on write (push)</span></td><td>At event time, expand the audience into N per-recipient messages and enqueue each.</td><td>Most notifications &mdash; recipients expect timely delivery.</td><td>Write amplification; a 20M fan-out is 20M queue messages.</td></tr>
-<tr><td><span class="key">Fan-out on read (pull)</span></td><td>Store the event once; recipients materialize their feed of pending in-app notifications on open.</td><td>In-app inboxes for very-high-fan-out, low-open-rate content.</td><td>Read-time cost; useless for push/SMS which must be pushed.</td></tr>
+<tr><th>Store</th><th>Holds</th></tr>
+<tr><td><b>Templates</b></td><td>Per-channel message templates with placeholders (versioned)</td></tr>
+<tr><td><b>User preferences / devices</b></td><td>Opt-ins per channel, quiet hours, device tokens (APNs/FCM), verified email/phone</td></tr>
+<tr><td><b>Notification log / status</b></td><td>Each notification's id, channel, state, provider response, timestamps</td></tr>
+<tr><td><b>Dedup store</b></td><td>Seen dedupeKeys (TTL'd) for idempotency</td></tr>
 </table>
+<p>Preferences and device tokens are read on every send (cache them); the status log is write-heavy and append-style (a <a href="38.html">time-series</a>/wide-column store fits).</p>
 
-<div class="callout warn"><span class="lbl">Pitfall</span>The <span class="key">celebrity / thundering-herd problem</span>: naively expanding a 30M-follower fan-out inline blocks the producer for minutes and floods queues in one burst. <em>Async, chunked expansion</em> is the fix &mdash; the ingestion API records the intent and returns immediately; a dedicated fan-out service reads the audience in pages (e.g. 10K recipients per chunk), enqueues each chunk as a sub-job, and applies a token-bucket so the burst is smeared over time. This also makes the job resumable: store a cursor so a worker crash mid-fan-out resumes rather than re-sends from the start.</div>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the SMS provider is down for 2 minutes</span>
+Your SMS gateway (Twilio) returns errors for 2 minutes during a deploy on their side. During that window you must send 100,000 SMS. <b>What happens to those notifications &mdash; lost? &mdash; and how does the pipeline guarantee they're eventually delivered without overwhelming the provider when it recovers?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the user got the same alert 3 times</span>
+A triggering service retried its <code>send</code> call after a timeout (not sure the first worked), and a worker reprocessed a redelivered queue message &mdash; so the user received the identical "your order shipped" push three times. <b>Where do the duplicates come from, and how do you ensure one event = one notification?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the marketing blast delayed the 2FA code</span>
+A 40-million-user marketing campaign floods the queue. Meanwhile, a user's time-sensitive <b>2FA login code</b> is stuck <i>behind</i> the marketing messages and arrives 4 minutes late &mdash; useless. <b>What's this problem called, and how do you make urgent notifications jump the bulk ones?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#provider-fail">reliability vs the provider</a>. Scenario 2 is <a href="#dup">deduplication</a>. Scenario 3 is <a href="#head-of-line">fan-out &amp; priority</a>. Each maps to a sub-problem.</i></p>
 
-<p>For physical push (APNs/FCM/SMS), <span class="key">fan-out on write is effectively mandatory</span> &mdash; you cannot "pull" a push notification. Fan-out on read only applies to the in-app inbox channel, where you can store one event and let clients query it. A strong design often uses a <span class="key">hybrid</span>: push a lightweight "you have updates" signal eagerly, but materialize the rich in-app list on read.</p>
+<!-- ============ SUB-PROBLEMS ============ -->
+<h2 id="subproblems">The four hard sub-problems</h2>
+<p>The pipeline is the easy part. These four are where notification systems live or die &mdash; each with a nested failure.</p>
 
-<h2 id="providers">Provider abstraction &amp; third-party integration</h2>
-<p>Every channel terminates at a third party you do not control: <span class="key">APNs</span> (Apple), <span class="key">FCM</span> (Android/web), <span class="key">Twilio/MessageBird</span> (SMS), <span class="key">SES/SendGrid</span> (email). They differ in auth (APNs JWT/p8 tokens vs FCM OAuth), payload limits (APNs 4KB), rate limits, error taxonomies, and async vs sync receipts. Hide all of it behind a uniform adapter interface.</p>
+<h3 id="s1">Sub-problem 1 &mdash; Reliability against an unreliable provider</h3>
+<p>The external gateways (APNs, Twilio, SES) <i>will</i> have outages, throttle you, and return transient errors. Your job is to deliver eventually anyway. The queue makes notifications durable (a provider outage doesn't lose them &mdash; they wait in the queue); workers <b>retry with exponential backoff + jitter</b>, and after repeated failures route to a <span class="gl" data-def="Dead-letter queue (DLQ) &mdash; a separate queue where messages that fail processing after max retries are parked for inspection/replay, so they stop blocking the main queue.">dead-letter queue</span> for inspection.</p>
+<div class="callout warn"><span class="lbl" id="provider-fail">The failure that happens when you get this wrong &mdash; lost on provider error</span>
+This is <b>Scenario 1</b>. If you call the provider synchronously from the trigger (no queue) and it's down, the notification is <b>lost</b> &mdash; and a retry storm of 100k synchronous calls would hammer the provider when it recovers (and your own threads while it's down, a <a href="51.html">cascade</a>). The queue-based design fixes both: messages sit durably in the queue during the 2-minute outage; workers retry with <b>backoff + jitter</b> (so recovery isn't a synchronized stampede) and rate-limit to the provider's capacity; a <a href="51.html">circuit breaker</a> stops hammering a clearly-down provider. When the provider recovers, the backlog drains at its allowed rate &mdash; nothing lost, nothing overwhelmed. Permanent failures (invalid token, bounced email) go to a DLQ, not infinite retry.</div>
 
-<pre><code>interface ProviderAdapter {
-    SendResult send(RenderedMessage msg);   // maps to provider-specific call
-    // classifies provider errors into a normalized enum:
-    //   PERMANENT  (invalid token, unsubscribed, bad number)  -> drop + mark device dead
-    //   TRANSIENT  (429, 5xx, timeout)                        -> retry with backoff
-    //   THROTTLED  (provider rate limit)                       -> slow down, requeue
-}</code></pre>
+<h3 id="s2">Sub-problem 2 &mdash; Deduplication (one event, one notification)</h3>
+<p>Duplicates arise from two places: the <i>caller</i> retries <code>send</code> (network timeout &mdash; did it go through?), and the <i>queue</i> redelivers (at-least-once delivery + a worker crash before ack). Both are inherent to a reliable distributed pipeline. You make delivery idempotent with a <b>dedup key</b>: the caller supplies a stable key per logical notification; the system records seen keys (with a TTL) and drops a repeat.</p>
+<div class="callout warn"><span class="lbl" id="dup">The failure that happens when you get this wrong &mdash; the double (triple) notification</span>
+This is <b>Scenario 2</b>. Because both the caller and the queue can re-deliver (you <i>want</i> at-least-once so nothing is lost), without dedup the user gets the same alert multiple times &mdash; annoying for marketing, alarming for "payment received." The fix is an <b>idempotency/dedup key</b> derived from the event (e.g. <code>orderId + "shipped"</code>): before sending, atomically check-and-set the key in a dedup store (Redis with TTL); if it was already there, drop this one. This converts at-least-once delivery into one-notification-per-event (exactly-once <i>effect</i>, since exactly-once delivery is <a href="39.html">impossible</a>). Choose the dedup key carefully &mdash; too broad and you suppress legitimately-distinct notifications.</div>
 
-<ul>
-<li><span class="key">Normalize errors.</span> The retry logic must never see provider-specific codes. An APNs <code>410 Unregistered</code> and an FCM <code>NotRegistered</code> both map to PERMANENT &mdash; delete the device token, never retry.</li>
-<li><span class="key">Multi-provider failover.</span> For SMS/email, keep two vendors behind the adapter. If the primary trips a <a href="51.html">circuit breaker</a> (error rate over threshold), shift traffic to the secondary. This also enables least-cost routing for SMS by country.</li>
-<li><span class="key">Async receipts.</span> Most providers report final delivery via webhook/callback, not the send response. The send call only confirms <em>acceptance</em>. Reconcile the true delivered/bounced state from the receipt stream into the tracking store.</li>
-<li><span class="key">Connection management.</span> APNs uses long-lived HTTP/2 connections; pool and reuse them &mdash; churning TLS handshakes per message destroys throughput.</li>
-</ul>
+<h3 id="s3">Sub-problem 3 &mdash; Rate limiting &amp; user preferences</h3>
+<p>Two kinds of limits. <b>User-facing:</b> respect opt-outs, quiet hours, and frequency caps (don't send a user 50 notifications in an hour) &mdash; checked against the preferences store before sending. <b>Provider-facing:</b> stay under each gateway's <a href="23.html">rate limit</a> so you aren't throttled or banned &mdash; a <a href="23.html">token-bucket</a> limiter per provider paces outbound calls.</p>
+<div class="callout warn"><span class="lbl" id="spam">The failure that happens when you get this wrong &mdash; spamming users &amp; getting throttled</span>
+This is <b>Scenario 3</b>'s sibling. Skip <b>user preferences/frequency caps</b> and you spam people (they disable notifications entirely, or your domain gets marked spam &mdash; a lasting deliverability hit). Skip <b>provider rate limiting</b> and a burst (Scenario 3's 40M blast) exceeds the gateway's limit &rarr; the provider throttles or blocks you, delaying <i>everything</i> including urgent messages. Both fixes live in the pipeline: enforce per-user frequency caps + quiet hours + opt-outs at enqueue time, and <a href="23.html">token-bucket</a> rate-limit each provider's worker pool so you send at exactly the provider's allowed pace. The queue buffers the difference between burst input and metered output.</div>
 
-<h2 id="reliability">Reliability: retries, dead-letter, idempotency</h2>
-<p>The contract is <span class="key">at-least-once delivery, exactly-once effect</span>. Queues give you at-least-once for free (a worker can crash after sending but before ack, causing redelivery). The hard half is suppressing the duplicate <em>visible</em> send.</p>
+<h3 id="s4">Sub-problem 4 &mdash; Fan-out &amp; priority</h3>
+<p>A single trigger may fan out to millions of users (a broadcast), and notifications have wildly different urgency (a 2FA code vs a "we miss you" email). You need to fan out efficiently and ensure urgent messages aren't stuck behind bulk ones.</p>
+<div class="callout warn"><span class="lbl" id="head-of-line">The failure that happens when you get this wrong &mdash; head-of-line blocking (urgent stuck behind bulk)</span>
+This is <b>Scenario 3</b>. With a single queue, a 40M-message marketing blast sits ahead of an urgent 2FA code &mdash; classic <b>head-of-line blocking</b> &mdash; and the time-sensitive notification arrives uselessly late. The fix: <b>separate queues by priority</b> (urgent / transactional / bulk), with workers servicing high-priority queues first (or with dedicated capacity), so a 2FA code skips the marketing backlog. For fan-out, expand a broadcast into per-user messages <i>asynchronously</i> (a fan-out worker reads "send to segment X" and enqueues individual sends) so the trigger returns instantly and the expansion is itself parallelized. Never let bulk volume share a lane with latency-critical sends.</div>
 
-<h3>Idempotency</h3>
-<p>Every notification carries a deterministic <span class="key">idempotency / dedupe key</span> &mdash; ideally supplied by the producer (e.g. <code>order-4821-shipped</code>), otherwise derived as <code>hash(userId, templateId, contentHash, timeWindow)</code>. Before dispatching, the worker does an atomic check-and-set against a fast store:</p>
-
-<pre><code>// SETNX with TTL in Redis (or a conditional insert in a dedup table)
-key = "notif:dedupe:" + dedupeKey
-if (redis.set(key, channel, NX, EX=86400)) {
-    dispatch(msg);          // first time we've seen this key -> send
-} else {
-    metrics.inc("dedupe.suppressed");   // already sent (or in flight) -> drop
-}</code></pre>
-
-<div class="callout warn"><span class="lbl">Pitfall</span>The check-and-send is not truly atomic with the external provider call &mdash; you can SETNX, then crash before the provider accepts, leaving a key set for a message never sent. Mitigate by writing the dedupe key only <em>after</em> the provider returns acceptance, and accepting that the window between SETNX-on-attempt and confirmation is the residual duplicate risk. For high-value sends, store dispatch state (ATTEMPTED &rarr; SENT) rather than a boolean, and let retries re-send only ATTEMPTED entries. There is no perfect exactly-once across a system boundary you don't control &mdash; you minimize, not eliminate.</div>
-
-<h3>Retries &amp; dead-letter</h3>
-<ul>
-<li><span class="key">Exponential backoff with jitter</span> for TRANSIENT/THROTTLED errors, capped at a max attempt count. Don't retry PERMANENT errors &mdash; that just burns quota and annoys users.</li>
-<li>Use a <span class="key">delay queue / retry topic</span> rather than blocking the worker (e.g. publish to <code>notifications.retry.5m</code> consumed after a delay). Tail-latency-friendly and keeps the main consumer draining.</li>
-<li>After N failed attempts, route to a <span class="key">dead-letter queue (DLQ)</span> with full context. The DLQ is monitored, alertable, and replayable &mdash; a poison message or a vendor outage shows up as DLQ growth, not silent loss. See <a href="56.html">Designing a Distributed Message Queue</a>.</li>
-</ul>
-
-<h2 id="ratelimit">Rate limiting &amp; prioritization</h2>
-<p>Two distinct rate-limiting concerns, both built on the algorithms from <a href="23.html">Designing an API Rate Limiter</a>:</p>
-
+<!-- ============ AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the design decisions</h2>
 <table>
-<tr><th>Limit</th><th>Why</th><th>Mechanism</th></tr>
-<tr><td><span class="key">Per-provider</span></td><td>Twilio/APNs enforce hard QPS; exceeding it gets you 429'd or banned.</td><td>Distributed token bucket in Redis, keyed per provider (and per region/sender ID). Workers acquire a token before sending.</td></tr>
-<tr><td><span class="key">Per-user / frequency cap</span></td><td>Don't send a user 40 pushes in an hour &mdash; they'll uninstall or report spam, hurting sender reputation.</td><td>Sliding-window counter per (userId, category); drop or coalesce when over cap.</td></tr>
+<tr><th>Concern</th><th>Mechanism</th></tr>
+<tr><td>Decouple trigger from delivery</td><td>Fire-and-forget <code>send</code> &rarr; durable <a href="08.html">queue</a></td></tr>
+<tr><td>Reliability vs flaky provider</td><td>Queue durability + retry/backoff/jitter + circuit breaker + DLQ</td></tr>
+<tr><td>No duplicates</td><td>Caller dedup key + check-and-set dedup store (TTL)</td></tr>
+<tr><td>Don't spam / get throttled</td><td>User prefs + frequency caps; per-provider <a href="23.html">token-bucket</a> limiting</td></tr>
+<tr><td>Urgent beats bulk</td><td>Priority queues; async fan-out for broadcasts</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The rule in one line</span>Make <code>send</code> <b>fire-and-forget into a durable queue</b>; deliver via <b>per-channel, per-priority workers</b> that <b>retry against flaky providers</b>, <b>dedup by key</b>, <b>respect user + provider rate limits</b>, and keep <b>urgent notifications in their own lane</b>. The queue is the heart: it decouples, absorbs bursts, and meters output to each provider.</div>
 
-<p><span class="key">Prioritization:</span> transactional messages must preempt bulk. Implement with separate topics/consumer groups (high vs bulk), giving the high path more workers and reserved provider token budget. Within bulk, a marketing campaign can be deliberately <span class="key">paced</span> &mdash; spread 50M sends over 30 minutes &mdash; both to respect provider limits and to avoid a self-inflicted traffic spike on your own downstream (e.g. a deep-link landing page).</p>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>When the per-provider token bucket is exhausted, do you <em>drop</em>, <em>delay</em>, or <em>shed by priority</em>? For SMS OTPs you delay briefly and fail fast (a 30s-late OTP is useless &mdash; better to error so the user retries). For marketing you delay freely. For breaking news you may drop the tail rather than deliver hours late. The right answer is per-category policy, not a single global setting &mdash; surface this explicitly in the design.</div>
-
-<h2 id="preferences">Preferences, templating &amp; opt-out at scale</h2>
-
-<h3>Preferences &amp; opt-out</h3>
-<p>Users control notifications along several axes: per <span class="key">channel</span> (no SMS, push OK), per <span class="key">category</span> (security alerts always, marketing off), and <span class="key">quiet hours</span> by timezone. Plus legal opt-out (CAN-SPAM unsubscribe, TCPA for SMS, GDPR consent) which is non-negotiable.</p>
+<!-- ============ SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li>Store preferences in a read-optimized store keyed by userId; cache hot entries (<a href="04.html">Caching</a>). The preference check sits on the fan-out hot path, so it must be a single fast lookup, not a join.</li>
-<li>Evaluate preferences <em>during</em> hydration in the Notification Service, before enqueueing &mdash; never generate work that will be discarded downstream.</li>
-<li>Maintain a global <span class="key">suppression list</span> (hard bounces, unsubscribes, complaint feedback loops from ISPs). A hard bounce or spam complaint must immediately suppress that address &mdash; ISP reputation systems punish repeat sends to dead addresses.</li>
+<li><b>Scenario 1 (provider down):</b> Why does a synchronous design lose notifications, and how does queue + backoff/jitter + circuit breaker deliver eventually without overwhelming recovery?</li>
+<li><b>Scenario 2 (triple notification):</b> Where do duplicates come from (caller retry + queue redelivery), and how does a dedup key give one-per-event?</li>
+<li><b>Scenario 3 (2FA delayed):</b> What is head-of-line blocking, and how do priority queues + async fan-out fix it?</li>
+<li>Why must you rate-limit per provider, and what does the queue buffer between?</li>
+<li>Why is <code>send</code> fire-and-forget, and what does that decouple?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> 4 sub-problems &mdash; <a href="#s1">reliability vs provider</a>, <a href="#s2">dedup</a>, <a href="#s3">rate limits &amp; prefs</a>, <a href="#s4">fan-out &amp; priority</a>.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="08.html">Queues</a>, <a href="46.html">Event-Driven Architecture (DLQ)</a>, <a href="23.html">Rate Limiter</a>, <a href="51.html">Resilience Patterns</a>, <a href="19.html">Messenger</a>, <a href="26.html">Newsfeed (fan-out)</a>.</p>
+
+<!-- ============ CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<table>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure / 3rd-party</th></tr>
+<tr><td>Push</td><td>SNS (mobile push) / Pinpoint</td><td>Firebase Cloud Messaging</td><td>Notification Hubs; APNs/FCM direct</td></tr>
+<tr><td>SMS</td><td>SNS / Pinpoint</td><td>(Twilio)</td><td>Twilio, Vonage</td></tr>
+<tr><td>Email</td><td>SES</td><td>(SendGrid)</td><td>SendGrid, Mailgun</td></tr>
+<tr><td>Pipeline (queues, fan-out)</td><td>SQS + Lambda; EventBridge</td><td>Pub/Sub + Cloud Functions</td><td>Service Bus + Functions</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>Managed senders (SNS, SES, FCM, Twilio) handle the channel + provider relationship, and the cloud queues/functions give you the durable, bursty pipeline. But the <i>orchestration</i> &mdash; dedup keys, per-user preferences/frequency caps, priority lanes, and per-provider rate limiting &mdash; is your application logic; the platform delivers the message, it doesn't decide <i>whether</i> or <i>not to duplicate</i> it.</div>
+
+<!-- ============ IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>Same facets &mdash; what it is, the model, and the failure to watch.</p>
+<h3 id="impl-fcm">APNs / FCM (push providers)</h3>
+<ul>
+<li><b>What it is.</b> Apple Push Notification service / Firebase Cloud Messaging &mdash; the OS-level gateways that actually deliver push to devices.</li>
+<li><b>Model.</b> You send to the provider with a device token; they deliver to the device and report success/failure (invalid token &rarr; prune it).</li>
+<li><b>The failure to watch.</b> Stale/invalid device tokens (clean them up from feedback), per-app rate limits, and provider outages &mdash; the reason your pipeline must retry + DLQ.</li>
+</ul>
+<h3 id="impl-twilio">Twilio / SES (SMS &amp; email)</h3>
+<ul>
+<li><b>What it is.</b> Managed SMS (Twilio) and email (SES/SendGrid) providers.</li>
+<li><b>Model.</b> REST API to send; webhooks report delivered/bounced/complained; sender reputation matters for email.</li>
+<li><b>The failure to watch.</b> Rate limits + spam/reputation (mind frequency caps and opt-outs); transient errors need backoff retries.</li>
+</ul>
+<h3 id="impl-platform">In-house platforms (queue + workers)</h3>
+<ul>
+<li><b>What it is.</b> The orchestration layer big products build atop providers (e.g. Uber/Netflix-style notification platforms).</li>
+<li><b>Model.</b> <a href="39.html">Kafka</a>/queues + per-channel workers + dedup + preference service + priority lanes &mdash; exactly the design above.</li>
+<li><b>The failure to watch.</b> Dedup-key design, preference-store latency on the hot path (cache it), and priority isolation.</li>
 </ul>
 
-<h3>Templating</h3>
+<!-- ============ BUILD ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Work each before opening the approach.</p>
+<h3 id="ex-dedup">Guarantee one notification per event</h3>
+<p>A service may retry <code>send</code>, and your queue is at-least-once. Design dedup so the user gets exactly one "order shipped" notification per order.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Require a <b>dedup key</b> on <code>send</code> that's stable for the logical event &mdash; e.g. <code>"shipped:" + orderId</code> (not a random per-call id, or retries wouldn't match). Just before dispatching to the provider, do an atomic <b>check-and-set</b> in a dedup store: <code>SET dedup:{key} NX EX {ttl}</code> in Redis &mdash; if it succeeds (key was new), send; if it fails (key existed), drop as a duplicate. The TTL bounds memory and matches how long retries could plausibly arrive (e.g. hours). This collapses both caller retries and queue redeliveries into one delivery (Scenario 2). Edge case: do the check-and-set as close to the actual send as possible, and only mark "sent" after the provider accepts, so a crash before sending doesn't suppress a real delivery.</p>
+</div></details>
+<h3 id="ex-priority">Keep 2FA codes ahead of marketing</h3>
+<p>A 40M marketing blast and time-critical 2FA codes share the system. Design so 2FA is never delayed by bulk.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Use <b>separate queues by priority</b>: <code>urgent</code> (2FA, security), <code>transactional</code> (order updates), <code>bulk</code> (marketing). Worker pools service higher-priority queues first &mdash; either strict priority (always drain urgent before bulk) or dedicated capacity per lane (a reserved pool for urgent that bulk can't starve). Now a 2FA code lands in the urgent queue and is sent within ms regardless of a 40M backlog in the bulk queue (fixing head-of-line blocking, Scenario 3). Expand the marketing broadcast <b>asynchronously</b> via a fan-out worker (reads "segment X," enqueues per-user bulk messages) so it never blocks the trigger or the urgent lane. Also apply per-provider <a href="23.html">rate limiting</a> per lane so the bulk drain can't consume the provider quota the urgent lane needs.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
 <ul>
-<li>Versioned templates with variable interpolation and localization (i18n). Render server-side in the Notification Service so workers handle opaque, finished payloads.</li>
-<li>Separate <span class="key">content</span> (template + variables) from <span class="key">presentation</span> per channel &mdash; the same "order shipped" event renders to a 160-char SMS, a rich push, and an HTML email from one logical template family.</li>
-<li>Validate at template-publish time, not send time, so a broken template fails for the author rather than silently corrupting a million messages.</li>
+<li><b>Add scheduled / quiet-hours delivery.</b> Support "send at 9am in the user's timezone" and suppress during quiet hours. Design the scheduling. &rarr; <a href="60.html">Job Scheduler</a>.</li>
+<li><b>Reliable trigger &rarr; notification.</b> A service must enqueue a notification atomically with its DB write (no dual-write drift). Design it. &rarr; <a href="32.html">Outbox</a>, <a href="40.html">CDC</a>.</li>
+<li><b>Aggregate/digest notifications.</b> Instead of 50 separate "X liked your post," send one digest. Design the batching window. &rarr; <a href="26.html">Newsfeed</a>.</li>
 </ul>
 
-<h2 id="tracking">Delivery tracking &amp; read state</h2>
-<p>The lifecycle of a notification is a small state machine: <code>CREATED &rarr; QUEUED &rarr; SENT &rarr; DELIVERED &rarr; OPENED/READ</code> (or <code>FAILED/BOUNCED</code>). State transitions arrive from two sources: the send path and async provider receipts.</p>
-<ul>
-<li>Persist events to a high-write-throughput store (Cassandra/DynamoDB partitioned by userId or notificationId, or a time-series log). At 1B/day this is append-heavy &mdash; an <a href="38.html">LSM-tree</a> store fits far better than a B-tree relational table.</li>
-<li>Drive analytics (delivery rate, open rate, per-provider failure rate) from a stream pipeline rather than querying the operational store &mdash; see <a href="40.html">Stream Processing &amp; CDC</a>.</li>
-<li>For <span class="key">in-app read state</span>, store unread counts per user and update on read. This is the channel where fan-out-on-read shines: keep an inbox per user and a badge count, materialized lazily.</li>
-<li>Real-time in-app delivery rides a persistent connection &mdash; <a href="13.html">WebSockets/SSE</a> through a connection gateway, the same primitive used in <a href="19.html">Facebook Messenger</a>.</li>
-</ul>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat delivery receipts as a first-class, eventually-consistent feedback stream &mdash; reconciling provider webhooks back into state, feeding bounce/complaint data into the suppression list, and closing the loop so a dead token gets pruned automatically. They don't assume "send returned 200" means "user saw it."</div>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They split transactional and bulk paths early, push all preference/dedup work upstream of the per-channel queues, hide every provider behind a normalized adapter with circuit-breaking and failover, and are explicit that "exactly-once" across a third-party boundary is a best-effort property &mdash; they design for at-least-once with aggressive dedup, not a fantasy of perfect delivery. They quantify: queue depth, provider QPS budgets, fan-out chunk sizes, retry caps.</div>
-<p>Probing questions to ask engineers:</p>
-<ul>
-<li>"A creator with 30M followers posts. Walk me through exactly what happens from the API call to the first push landing &mdash; and what happens if a fan-out worker crashes halfway."</li>
-<li>"Twilio starts returning 429 for 20% of requests. What does your system do in the next 60 seconds, and what does the user experience?"</li>
-<li>"Your worker sends an OTP, then crashes before acking the queue. The message is redelivered. How do you guarantee the user doesn't get two OTPs &mdash; and where exactly is the residual duplicate window?"</li>
-<li>"How do you stop a runaway marketing campaign from delaying password-reset emails by 20 minutes?"</li>
-<li>"A user reports they're still getting marketing SMS after opting out. Where in the pipeline could the opt-out have been missed, and how do you make that check authoritative?"</li>
-<li>"You're at 100K notifications/sec peak. Which component breaks first, and what's your scaling lever &mdash; and which part of this is genuinely a strong-consistency problem versus eventually-consistent?"</li>
-</ul>
-
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Push / SMS / email delivery</td><td>SNS, Pinpoint, SES</td><td>(FCM), (SendGrid via marketplace)</td><td>Notification Hubs, Communication Services</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="58.html">&lsaquo; Prev: Designing a Unique ID Generator</a><a class="nx" href="60.html">Next: Designing a Distributed Job Scheduler &rsaquo;</a></div>
+<div class="navfoot"><a href="58.html">&lsaquo; Prev: Unique ID Generator</a><a class="nx" href="60.html">Next: Distributed Job Scheduler &rsaquo;</a></div>
 </div>
 </div>
 </div>

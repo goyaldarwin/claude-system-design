@@ -111,160 +111,180 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Reliability &amp; Operations &nbsp;&rsaquo;&nbsp; Multi-Region and Disaster Recovery</div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Reliability &amp; Operations &nbsp;&rsaquo;&nbsp; Multi-Region &amp; DR</div>
+<h1>Multi-Region &amp; Disaster Recovery</h1>
+<p class="sub"><em>An entire cloud region can disappear &mdash; a fire, a fiber cut, a botched config, a natural disaster. Surviving that means running in more than one region, which is the hardest reliability problem there is: it forces you to confront <a href="11.html">CAP</a> across continents, replicate data over high-latency links, fail over without splitting your brain, and prove it all works <i>before</i> the disaster. Two numbers &mdash; how much data and how much time you can lose &mdash; drive every decision.</em></p>
 
-<h1>Multi-Region and Disaster Recovery</h1>
-<p class="sub">Surviving the loss of an entire region &mdash; and proving you can &mdash; without quietly buying yourself a split-brain or a six-figure replication bill.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Partial failure &amp; latency.</b> <span>surviving a whole region, paid in a consistency/latency price and a cost multiplier.</span></div>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Survival of a whole-region failure &mdash; in exchange for cross-region replication latency, multi-region complexity and cost, and the consistency compromises CAP forces across continents.</b> <span>Multiple regions let you ride out a regional outage and serve users closer to home. You pay with the latency and cost of replicating data across the planet, the operational complexity of failover, and the hard CAP trade-offs that geographic distance makes unavoidable.</span></div>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#why">Why a region disappears</a></li>
-<li><a href="#rporto">RPO and RTO drive everything</a></li>
-<li><a href="#topologies">Active-passive vs active-active</a></li>
-<li><a href="#replication">Cross-region replication and the consistency cost</a></li>
-<li><a href="#routing">Global routing: GeoDNS and anycast</a></li>
-<li><a href="#strategies">The four DR strategies</a></li>
-<li><a href="#failover">Failover orchestration and split-brain</a></li>
-<li><a href="#residency">Data residency and sovereignty</a></li>
-<li><a href="#testing">Testing DR: game days</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Multi-Region &amp; Disaster Recovery</b>
+│
+├─ <a href="#root"><b>What multi-region &amp; DR are</b></a>  &mdash; surviving a region loss
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>The 4 decisions that define a DR design</b></a>
+│   ├─ <a href="#d1">1. RPO &amp; RTO (how much can you lose?)</a> fail → <a href="#hidden-dep">the hidden single-region dependency</a>
+│   ├─ <a href="#d2">2. Active-passive or active-active?</a>    fail → <a href="#untested-failover">the untested failover</a>
+│   ├─ <a href="#d3">3. How does data replicate cross-region?</a> fail → <a href="#data-loss">async lag data loss</a>
+│   └─ <a href="#d4">4. How do you route &amp; fail over safely?</a> fail → <a href="#split-brain">cross-region split-brain</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; the four DR strategies
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; multi-region services
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; multi-region in practice
+│   ├─ <a href="#impl-routing">Global routing: GeoDNS / anycast</a>
+│   ├─ <a href="#impl-active">Active-active stores</a>
+│   └─ <a href="#impl-gameday">DR game days</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-strategy">Pick a DR strategy from RPO/RTO</a>
+    ├─ <a href="#ex-failover">Design a failover that can't split-brain</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="why">Why a region disappears</h2>
-<p>A <span class="key">region</span> is a cluster of physically separate data centers (availability zones) close enough to share single-digit-millisecond links. Multi-AZ redundancy &mdash; the subject of <a href="09.html">Redundancy and Replication</a> &mdash; protects you from a rack, a switch, or a whole building burning down. It does <em>not</em> protect you from the events that take a region offline as a unit:</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What multi-region &amp; DR are &mdash; surviving a region loss</h2>
+<p>A cloud <b>region</b> is a geographic cluster of datacenters. Running across multiple <span class="gl" data-def="Availability zone (AZ) &mdash; an isolated datacenter (or cluster) within a cloud region with independent power/network; multi-AZ survives one datacenter failing but NOT a whole-region event.">availability zones</span> within one region survives a single-datacenter failure &mdash; but <b>not</b> a whole-region event (a regional network/power/config failure, a disaster). <b>Disaster recovery (DR)</b> and <b>multi-region</b> architecture are about surviving that: keeping a copy of your system and data in another region so you can continue (or recover quickly) when one region goes dark.</p>
+<p>Everything is driven by two numbers you must set with the business <i>before</i> designing:</p>
 <ul>
-<li><span class="key">Correlated infrastructure failure:</span> a fiber cut, a power-grid event, or a cooling failure that hits multiple AZs at once.</li>
-<li><span class="key">Control-plane outages:</span> the region's API, IAM, or DNS layer fails so you cannot even launch capacity &mdash; the most common real-world &ldquo;region down&rdquo; scenario.</li>
-<li><span class="key">Bad deploys and poisoned data:</span> a config push or schema migration that replicates instantly to every AZ. Note this is a <em>logical</em> disaster &mdash; a hot standby that faithfully replicated the corruption is no help.</li>
-<li><span class="key">Regional capacity exhaustion</span> during a large-scale event affecting many tenants simultaneously.</li>
+<li><b><span class="gl" data-def="RPO &mdash; Recovery Point Objective; the maximum amount of data, measured in time, you can afford to lose in a disaster (RPO=0 means not a single committed write).">RPO &mdash; Recovery Point Objective</span>:</b> how much <i>data</i> you can afford to lose, measured in time. RPO = 0 means "not a single committed write"; RPO = 5 min means "up to 5 minutes of recent writes may be lost."</li>
+<li><b><span class="gl" data-def="RTO &mdash; Recovery Time Objective; the maximum amount of downtime you can afford before the system must be recovered (RTO=0 means no downtime).">RTO &mdash; Recovery Time Objective</span>:</b> how much <i>time</i> you can afford to be down. RTO = 0 means "no downtime"; RTO = 1 hour means "back within an hour."</li>
 </ul>
-<div class="callout note"><span class="lbl">Key insight</span>Multi-region is not &ldquo;more redundancy.&rdquo; It is a categorically different problem because the failure unit (the region) now has wide-area latency &mdash; 140&ndash;180&nbsp;ms round-trip between continents &mdash; which makes synchronous replication across regions a non-starter for most write paths. Everything downstream is a consequence of that latency.</div>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Multi-region trades <b>cross-region latency, cost, and complexity</b> for <b>survival of a region-level disaster</b>. The tighter your RPO/RTO (toward zero data loss and zero downtime), the more you pay &mdash; synchronous cross-region replication, active-active everywhere, constant failover testing. The numbers are a business decision; the architecture follows from them, and the cruelest failures are the dependencies you forgot were single-region.</div>
 
-<h2 id="rporto">RPO and RTO drive everything</h2>
-<p>Before drawing any boxes, a principal pins down two numbers per workload. They are the contract that dictates topology and cost.</p>
-<ul>
-<li><span class="key">RPO (Recovery Point Objective):</span> how much <em>data</em> you can afford to lose, measured in time. RPO = 0 means not a single committed write may be lost. RPO = 5&nbsp;min means losing the last five minutes of writes is acceptable.</li>
-<li><span class="key">RTO (Recovery Time Objective):</span> how long the service may be <em>down</em> before it must be serving again.</li>
-</ul>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the DR strategies</a>.</p>
+
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; AWS S3 us-east-1, 28 February 2017 (real incident)</span>
+A typo in an operational command took down a large chunk of S3 in <b>us-east-1</b> for hours. The damage spread far beyond S3: countless apps that <i>assumed</i> S3 was always there broke, and even AWS's own status dashboard couldn't update &mdash; because it depended on the very S3 region that was down. Yet some companies (e.g. Netflix) sailed through. <b>Why did one region's outage break so many "multi-region" systems, and what made the survivors different?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the failover that had never been tried</span>
+You have a passive standby region, replicated and ready. The primary region fails for real &mdash; and now you discover the failover runbook is stale, DNS TTLs are too long, the standby's capacity was never scaled for full load, and a config secret was only in the primary. Recovery takes hours instead of minutes. <b>Why do untested failovers fail, and what practice ensures the standby actually works when you need it?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; both regions think they're primary</span>
+Your active-passive setup fails over to the standby during a network partition between regions &mdash; but the original primary didn't actually die, it was just unreachable. Now <b>both</b> regions accept writes, and they diverge. When the partition heals, you have conflicting data in two places and no automatic way to reconcile. <b>What is this, and how do you fail over without it?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#hidden-dep">RPO/RTO &amp; hidden single-region dependencies</a>. Scenario 2 is <a href="#untested-failover">testing failover (game days)</a>. Scenario 3 is <a href="#split-brain">failover &amp; split-brain</a>. Each maps to a decision below.</i></p>
+
+<!-- ============ BRANCH 1: THE DECISIONS ============ -->
+<h2 id="decisions">The four decisions that define a DR design</h2>
+<p>Designing for region failure is these four choices. Each has a named failure nested under it.</p>
+
+<h3 id="d1">Decision 1 &mdash; Set RPO and RTO (and find every dependency)</h3>
+<p>Before any architecture, the business sets <b>RPO</b> (tolerable data loss) and <b>RTO</b> (tolerable downtime). These two numbers determine everything downstream &mdash; a 0/0 target demands active-active with synchronous replication (expensive); a "few hours / few minutes of data" target allows a cheap warm standby. Equally important: <b>inventory every dependency</b> and confirm each is regionally resilient &mdash; databases, queues, secrets, config, DNS, and third-party services. A multi-region app is only as resilient as its <i>least</i> resilient dependency.</p>
+<div class="callout warn"><span class="lbl" id="hidden-dep">The failure that happens when you get this wrong &mdash; the hidden single-region dependency</span>
+This is <b>Scenario 1</b>. The S3 us-east-1 outage broke systems that <i>thought</i> they were resilient because they had an undiscovered hard dependency on that one region &mdash; an S3 bucket, a control-plane API, a secret, even AWS's own status dashboard (which depended on the down region). The lesson: <b>a single forgotten single-region dependency makes your whole system single-region.</b> Survivors like Netflix had genuinely region-independent architectures and could shift traffic to healthy regions. You must enumerate dependencies and verify each fails over &mdash; including control-plane calls (e.g. some global services' control planes live in us-east-1, so don't depend on them <i>during</i> a us-east-1 failover). Multi-AZ is not multi-region; assuming it covers a regional event is the trap.</div>
+
+<h3 id="d2">Decision 2 &mdash; Active-passive or active-active?</h3>
+<p>Two topologies. <b>Active-passive (failover):</b> one region serves; a standby is kept ready (cold/warm/hot) and takes over on disaster. Simpler, cheaper, but has failover time (RTO) and possible data loss (RPO). <b>Active-active:</b> all regions serve traffic simultaneously, replicating to each other. Lowest RTO (a region loss just sheds its share of traffic) and serves users locally &mdash; but you must handle <a href="37.html">multi-leader write conflicts</a> and the full <a href="11.html">CAP</a> trade-off, and it's the most complex/costly.</p>
+<div class="callout warn"><span class="lbl" id="untested-failover">The failure that happens when you get this wrong &mdash; the untested failover</span>
+This is <b>Scenario 2</b>. An active-passive standby that's never exercised is <b>Schr&ouml;dinger's DR</b> &mdash; you don't know if it works until disaster forces the test, and that's when you discover stale runbooks, too-long DNS TTLs, an under-scaled standby, missing secrets, or replication that silently stopped. The fix is <b>DR game days</b>: regularly and deliberately fail over to the standby (ideally in production, like Netflix's region-evacuation exercises), measure actual RTO/RPO against targets, and fix what breaks &mdash; so the real failover is a rehearsed routine, not a first attempt under fire. Active-active sidesteps much of this because the "standby" is always serving real traffic, so it can't silently rot.</div>
+
+<h3 id="d3">Decision 3 &mdash; How does data replicate across regions?</h3>
+<p>Cross-region links have high latency (tens to hundreds of ms) and can partition. <b>Synchronous</b> replication (wait for the remote region to confirm) gives RPO=0 but adds that latency to every write and stalls if the remote is unreachable. <b>Asynchronous</b> replication (confirm locally, ship to the remote in the background) keeps writes fast but means recent writes can be lost on a sudden region loss (RPO &gt; 0). This is the <a href="37.html">sync-vs-async durability knob</a> stretched across continents, where the latency cost is brutal.</p>
+<div class="callout warn"><span class="lbl" id="data-loss">The failure that happens when you get this wrong &mdash; async-lag data loss (or sync-latency stalls)</span>
+With <b>async</b> cross-region replication, a region that fails takes its un-replicated recent writes with it &mdash; your real RPO equals the replication lag at the moment of failure (could be seconds to minutes of acknowledged writes <i>gone</i>). With <b>sync</b>, you avoid the loss but pay cross-region latency on <i>every</i> write and risk write-unavailability when the remote region is slow/unreachable &mdash; <a href="11.html">CAP</a> biting at continental scale. The resolution is to match the choice to RPO per dataset: synchronous (or quorum across regions, like <a href="33.html">Spanner</a>) only for data that truly can't lose a write (payments, ledgers); asynchronous for data where seconds of loss is acceptable (most things). You rarely want one global setting &mdash; classify by how much each dataset can afford to lose.</div>
+
+<h3 id="d4">Decision 4 &mdash; How do you route traffic and fail over safely?</h3>
+<p>Two routing tools: <b>GeoDNS</b> (DNS returns a region based on the user's location &mdash; simple, but DNS caching/TTL slows failover) and <b>anycast</b> (the same IP announced from many locations; the network routes to the nearest &mdash; fast failover, used by CDNs/global load balancers). Failover orchestration must decide a region is <i>really</i> dead and promote another &mdash; and crucially, must prevent two regions from both acting as primary.</p>
+<div class="callout warn"><span class="lbl" id="split-brain">The failure that happens when you get this wrong &mdash; cross-region split-brain</span>
+This is <b>Scenario 3</b>. If failover promotes the standby because the primary is <i>unreachable</i> &mdash; but the primary is actually alive (just partitioned) &mdash; <b>both regions accept writes and diverge</b> (<a href="37.html">split-brain</a> at continental scale), producing conflicting data that needs painful manual reconciliation on heal (like <a href="32.html">GitHub 2018</a>). Prevention: use a <a href="30.html">consensus</a>-based / quorum decision for promotion (a majority &mdash; often a third witness region/zone &mdash; must agree the primary is gone, so a partitioned primary can't keep its role), <b>fence</b> the old primary (revoke its ability to accept writes, e.g. via a global lock or its replication being cut), and for active-active, design conflict resolution (<a href="35.html">CRDTs</a> / clear per-region data ownership) up front. Never let "I can't reach it" alone trigger promotion to a second writer.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the four DR strategies (by RPO/RTO &amp; cost)</h2>
 <table>
-<tr><th>Workload</th><th>Realistic RPO</th><th>Realistic RTO</th><th>Implied architecture</th></tr>
-<tr><td>Payment ledger</td><td>0</td><td>&lt; 1 min</td><td>Synchronous quorum or active-active with conflict-free design</td></tr>
-<tr><td>User-facing SaaS app</td><td>seconds&ndash;1 min</td><td>1&ndash;5 min</td><td>Warm standby, async replication</td></tr>
-<tr><td>Analytics / reporting</td><td>hours</td><td>hours</td><td>Pilot light or backup-restore</td></tr>
-<tr><td>Internal batch jobs</td><td>1 day</td><td>1 day</td><td>Backup-restore from object storage</td></tr>
+<tr><th>Strategy</th><th>RPO / RTO</th><th>Cost</th><th>How</th></tr>
+<tr><td><b>Backup &amp; restore</b></td><td>Hours / hours</td><td>Lowest</td><td>Periodic backups to another region; restore on disaster</td></tr>
+<tr><td><b>Pilot light</b></td><td>Minutes / ~tens of min</td><td>Low</td><td>Core (DB replica) always on in standby; scale up the rest on failover</td></tr>
+<tr><td><b>Warm standby</b></td><td>Seconds&ndash;min / minutes</td><td>Medium</td><td>A scaled-down full copy running; scale up + redirect on failover</td></tr>
+<tr><td><b>Active-active (hot)</b></td><td>~0 / ~0</td><td>Highest</td><td>All regions serve + replicate; a region loss just sheds its share</td></tr>
 </table>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>RPO and RTO are bought with money and complexity, and the cost curve is steep near zero. Going from RPO = minutes (async replica) to RPO = 0 (synchronous quorum) often means accepting cross-region write latency on every transaction &mdash; <a href="31.html">PACELC</a>, discussed in the next section. The principal's job is to push back on a blanket &ldquo;everything needs RPO 0&rdquo; and tie each target to actual business loss.</div>
+<div class="callout note"><span class="lbl">The rule in one line</span>Let <b>RPO/RTO</b> (a business decision) pick the strategy &mdash; cheaper/slower (backup&rarr;pilot-light&rarr;warm&rarr;active-active) as your tolerance for loss/downtime shrinks. Then: enumerate <b>every dependency</b> for hidden single-region traps, choose <b>sync vs async</b> replication per dataset by RPO, prevent <b>split-brain</b> with quorum-based promotion + fencing, and <b>game-day test</b> the failover until it's routine.</div>
 
-<h2 id="topologies">Active-passive vs active-active</h2>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
+<ul>
+<li><b>Scenario 1 (S3 us-east-1):</b> Why did one region's outage break "resilient" systems, and what made survivors different? Why isn't multi-AZ the same as multi-region?</li>
+<li><b>Scenario 2 (untested failover):</b> Why do untested failovers fail, and what practice (and why active-active helps) ensures the standby works?</li>
+<li><b>Scenario 3 (both primary):</b> What is cross-region split-brain, and how do quorum-based promotion + fencing prevent it?</li>
+<li>Define RPO and RTO, and how they drive the strategy choice.</li>
+<li>Sync vs async cross-region replication &mdash; what does each cost, and how do you choose per dataset?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>4 decisions</b> &mdash; <a href="#d1">RPO/RTO + dependency audit</a>, <a href="#d2">active-passive vs active-active</a>, <a href="#d3">cross-region replication</a>, <a href="#d4">routing &amp; failover</a> &mdash; each with a nested failure: hidden single-region dep, untested failover, async data loss, split-brain.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="11.html">CAP</a>, <a href="37.html">Replication</a>, <a href="30.html">Consensus</a>, <a href="35.html">CRDTs</a>, <a href="51.html">Resilience Patterns</a>, <a href="48.html">Object Storage &amp; CDN</a>.</p>
 
-<h3>Active-passive (failover)</h3>
-<p>One region serves all traffic; a second region holds a replica that is idle (or serves only reads). On disaster you <span class="key">promote</span> the standby and redirect traffic. Simpler to reason about &mdash; there is exactly one writer, so no cross-region conflict resolution &mdash; but you pay for capacity you rarely use, and the standby is exercised only during the rare, high-stress moment you can least afford surprises.</p>
-
-<h3>Active-active</h3>
-<p>Both (or all) regions serve live traffic concurrently. Capacity is utilized, latency is low because users hit the nearest region, and a region loss removes only its share of traffic. The cost is brutal: with more than one writer you must solve <span class="key">cross-region write conflicts</span>. Your options are (a) partition the keyspace so each region owns a disjoint set of write keys (sticky routing / cell-based, no real conflicts), (b) a globally-consistent store that runs consensus across regions (Spanner-class, paying the latency &mdash; see <a href="30.html">Consensus and Raft</a>), or (c) <a href="35.html">CRDTs</a> / last-writer-wins for genuinely commutative data.</p>
-
-<div class="callout warn"><span class="lbl">Pitfall</span>&ldquo;Active-active&rdquo; with naive bidirectional async replication on a normal RDBMS is a trap. Two regions accept conflicting writes to the same row, replication carries both, and you silently corrupt data or deadlock. Active-active demands a conflict strategy <em>by design</em>, not bolted on. If you cannot name yours, you have active-passive with extra steps.</div>
-
-<h2 id="replication">Cross-region replication and the consistency cost</h2>
-<p>The unavoidable physics: a packet between, say, us-east and eu-west takes ~70&ndash;90&nbsp;ms one way. <span class="key">Synchronous</span> replication across that link means every write waits a full round trip for the remote ack &mdash; 150+&nbsp;ms added to <em>every</em> commit. <span class="key">Asynchronous</span> replication acks locally and ships the change in the background, keeping writes fast but creating <span class="key">replication lag</span> &mdash; the window of data you lose if the primary dies mid-flight. That window <em>is</em> your RPO.</p>
-
-<p>This is exactly <a href="31.html">PACELC</a> stated operationally: <strong>P</strong>artition &rarr; choose <strong>A</strong>vailability or <strong>C</strong>onsistency; <strong>E</strong>lse (normal operation) &rarr; choose <strong>L</strong>atency or <strong>C</strong>onsistency. Cross-region replication forces the &ldquo;E&rdquo; clause into your face on the steady-state path, not just during failures.</p>
-
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
 <table>
-<tr><th>Mode</th><th>Write latency</th><th>RPO on region loss</th><th>Conflict risk</th></tr>
-<tr><td>Sync (quorum across regions)</td><td>High (+WAN RTT)</td><td>0</td><td>None (single agreed order)</td></tr>
-<tr><td>Semi-sync (1 remote ack)</td><td>Medium</td><td>~0 if remote survives</td><td>Low</td></tr>
-<tr><td>Async (log shipping)</td><td>Low</td><td>= replication lag</td><td>Medium (on failover)</td></tr>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Global routing / failover</td><td>Route 53 (health-checked failover) / Global Accelerator</td><td>Cloud DNS / Global LB (anycast)</td><td>Traffic Manager / Front Door</td></tr>
+<tr><td>Multi-region database</td><td>Aurora Global, DynamoDB global tables</td><td>Cloud Spanner</td><td>Cosmos DB multi-region</td></tr>
+<tr><td>Cross-region replication (storage)</td><td>S3 CRR</td><td>GCS dual/multi-region</td><td>Blob geo-replication (GRS/RA-GRS)</td></tr>
+<tr><td>DR / chaos testing</td><td>Fault Injection Simulator; Resilience Hub</td><td>(custom game days)</td><td>Chaos Studio</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The takeaway</span>Managed global databases (Spanner, DynamoDB global tables, Cosmos) handle cross-region replication and conflict resolution for you &mdash; but you still own the RPO/RTO target, the dependency audit, and the failover test. Note the Scenario 1 trap baked into the cloud itself: some <b>global control planes live in us-east-1</b>, so don't make your <i>failover</i> depend on a service whose control plane is in the region you're failing away from.</div>
 
-<p>Patterns that get used in practice (covered in depth in <a href="37.html">Replication Deep Dive</a>): a single global write leader with regional read replicas (low write availability, simple); leaderless quorum tuned with R + W &gt; N spanning regions; or change-data-capture streaming (<a href="40.html">Stream Processing and CDC</a>) onto a durable log like <a href="39.html">Kafka</a> with MirrorMaker replicating topics region-to-region.</p>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The pieces made concrete. Same facets &mdash; what it is, the mechanism, and the failure to watch.</p>
 
-<div class="callout note"><span class="lbl">Key insight</span>Decouple replication of the <em>durable log</em> from replication of <em>materialized state</em>. If your source of truth is an append-only log replicated cross-region, every regional store is a deterministic projection you can rebuild. This converts &ldquo;restore the database&rdquo; into &ldquo;replay from the last offset,&rdquo; which is far more testable and bounds RPO to log-replication lag.</div>
-
-<h2 id="routing">Global routing: GeoDNS and anycast</h2>
-<p>Surviving a region is useless if traffic keeps arriving at the dead one. Two mechanisms steer it:</p>
+<h3 id="impl-routing">Global routing &mdash; GeoDNS / anycast</h3>
 <ul>
-<li><span class="key">GeoDNS / latency-based DNS</span> (Route&nbsp;53, NS1, Cloudflare): the DNS resolver returns a region-specific IP based on the client's location or measured latency, with health checks that withdraw a region's records when it fails. Cheap and simple, but bounded by <span class="key">DNS TTL</span> and client/resolver caching &mdash; a 60&nbsp;s TTL still leaves stragglers for minutes, so DNS failover RTO is rarely better than a few minutes.</li>
-<li><span class="key">Anycast</span>: the same IP is announced via BGP from multiple regions; the network routes each client to the topologically nearest one. Failover is near-instant (BGP withdrawal) and there is no TTL problem, but you need control of the IP space / a provider that offers it, and in-flight TCP connections still break on reroute. This is how global load balancers and CDNs front their edges.</li>
-</ul>
-<p>In a real stack these compose: anycast (or a global LB) at the edge for fast steering, GeoDNS for coarse region selection, and <a href="03.html">regional load balancers</a> behind that. Health-check thresholds matter more than people expect &mdash; too sensitive and a transient blip triggers a needless, risky regional failover; too lax and you bleed errors for minutes.</p>
-
-<h2 id="strategies">The four DR strategies</h2>
-<p>The canonical spectrum, ordered by decreasing RTO/RPO and increasing cost. Map each workload's targets to the cheapest tier that meets them.</p>
-<table>
-<tr><th>Strategy</th><th>What's running in DR region</th><th>Typical RTO</th><th>Typical RPO</th><th>Cost</th></tr>
-<tr><td><span class="key">Backup &amp; restore</span></td><td>Nothing; backups in cross-region object storage</td><td>Hours</td><td>Hours (last backup)</td><td>$</td></tr>
-<tr><td><span class="key">Pilot light</span></td><td>Core data replicating; everything else off, infra as code ready to scale up</td><td>Tens of min</td><td>Minutes</td><td>$$</td></tr>
-<tr><td><span class="key">Warm standby</span></td><td>Scaled-down full stack, live but small</td><td>Minutes</td><td>Seconds&ndash;min</td><td>$$$</td></tr>
-<tr><td><span class="key">Hot / multi-site (active-active)</span></td><td>Full capacity serving live traffic</td><td>Near-zero</td><td>Near-zero</td><td>$$$$</td></tr>
-</table>
-<p>A mature organization rarely picks one tier for everything. The payment ledger is hot/multi-site; the user app is warm standby; the data warehouse is pilot light; internal tooling is backup-restore. Tiering by RPO/RTO is how you keep the DR bill sane while still being able to honor your <a href="49.html">SLAs</a>.</p>
-
-<div class="callout warn"><span class="lbl">Pitfall</span>Backups are not DR until you have <em>restored</em> from them, cross-region, on a clean account, and measured how long it took. Untested backups have a habit of being unrestorable: missing encryption keys, IAM roles that only exist in the primary region, or a restore that takes 9 hours when your RTO is 1. The restore path is the deliverable, not the backup.</div>
-
-<h2 id="failover">Failover orchestration and split-brain</h2>
-<p>Failover is where most DR plans die. The hard part is not promoting the standby &mdash; it is deciding <em>whether</em> to, automatically, under uncertainty, without creating two primaries.</p>
-
-<h3>The split-brain problem</h3>
-<p>A network partition between regions looks identical to a dead primary from the standby's point of view. If the standby promotes itself while the original primary is actually alive but unreachable, you now have <span class="key">two writers</span> diverging. When the partition heals you have irreconcilable history. This is the single most dangerous failure mode in multi-region.</p>
-<p>Defenses, in order of robustness:</p>
-<ol>
-<li><span class="key">External arbiter / quorum witness:</span> place a tiebreaker in a <em>third</em> region. Promotion requires majority agreement, so a partitioned minority cannot promote itself. This is the consensus answer &mdash; see <a href="36.html">Leader Election and Coordination</a> and <a href="64.html">Distributed Locking Service</a>.</li>
-<li><span class="key">Fencing / STONITH:</span> before the new primary accepts writes, the old one must be conclusively isolated (revoke its DB credentials, withdraw its routes, fence its storage). A fencing token (monotonic epoch) attached to every write lets storage reject a stale, deposed leader.</li>
-<li><span class="key">Human-gated failover</span> for the highest-stakes systems: automation gathers evidence and stages everything, a human pulls the trigger. Slower RTO, but eliminates the &ldquo;flapping health check triggered a 3 a.m. unnecessary failover&rdquo; class of self-inflicted outages.</li>
-</ol>
-
-<pre><code>def maybe_failover(primary_health, witness):
-    # Never promote on local opinion alone.
-    if primary_health.is_unreachable():
-        if not witness.confirms_primary_down():   # 3rd-region arbiter
-            return STAY_PASSIVE        # likely a partition, not a death
-        if not fence(old_primary):     # revoke creds, withdraw routes
-            return STAY_PASSIVE        # cannot guarantee single writer
-        epoch = bump_epoch()           # monotonic fencing token
-        promote_standby(epoch)
-        repoint_traffic()              # DNS/anycast/global LB
-        return PROMOTED
-    return STAY_PASSIVE</code></pre>
-
-<div class="callout note"><span class="lbl">Key insight</span>Failback is the forgotten second half. After the original region recovers it is now <em>behind</em> and may contain writes that never replicated. You cannot just flip traffic back. You need a controlled resync (often a full reseed) and a re-validated data reconciliation before the old primary rejoins. Plan failback at design time or you will improvise it during an incident.</div>
-
-<h2 id="residency">Data residency and sovereignty</h2>
-<p>Geography is no longer just a latency knob; it is a legal constraint. <span class="key">GDPR</span> (EU), and analogous laws in India, China, Brazil, and others, restrict where personal data may be <em>stored and processed</em>. This collides head-on with naive multi-region replication: replicating EU customer PII into a US region for DR may itself be the violation.</p>
-<ul>
-<li><span class="key">Data partitioning by residency:</span> shard such that an EU user's data lives only in EU regions, with its own intra-EU DR pairing (e.g. eu-west &harr; eu-central). The DR topology must respect the residency boundary &mdash; you get a separate DR domain per jurisdiction.</li>
-<li><span class="key">Right to erasure</span> complicates backups: a user requesting deletion must be erased from backups and replicas too, which is hard with immutable backup snapshots. Crypto-shredding (per-user keys you can destroy) is a common pattern.</li>
-<li><span class="key">Control vs data plane:</span> often you can run a global control plane while keeping the data plane pinned per region &mdash; a cell-based architecture aligns naturally with this.</li>
+<li><b>What it is.</b> How users reach the nearest healthy region &mdash; GeoDNS (location-based DNS answers) and anycast (one IP, nearest network path).</li>
+<li><b>Mechanism.</b> Health-checked DNS failover (Route 53) reroutes on region failure; anycast reroutes at the network layer near-instantly (CDNs, Global Accelerator).</li>
+<li><b>The failure to watch.</b> DNS TTL/caching delays GeoDNS failover (set short TTLs for failover records); clients caching old IPs slow recovery.</li>
 </ul>
 
-<h2 id="testing">Testing DR: game days</h2>
-<p>A DR plan that has never been exercised is a hypothesis, not a capability. The discipline is <span class="key">game days</span> &mdash; scheduled exercises that actually trigger the failure.</p>
+<h3 id="impl-active">Active-active stores &mdash; Spanner / DynamoDB global tables / Cosmos</h3>
 <ul>
-<li><span class="key">Regional evacuation drills:</span> deliberately fail a region out of rotation (block its traffic, fence it) during business hours and confirm the others absorb the load within RTO. Netflix's Chaos Kong popularized killing an entire region on purpose.</li>
-<li><span class="key">Restore drills:</span> restore production backups into an isolated account on a cadence and time it against RPO/RTO. Automate it &mdash; a green check on a dashboard is the only proof that matters.</li>
-<li><span class="key">Failback drills:</span> the half everyone skips. Rehearse the resync-and-return path.</li>
-<li><span class="key">Dependency mapping:</span> game days surface hidden coupling &mdash; the &ldquo;independent&rdquo; DR region that secretly calls a service still living only in the primary.</li>
-</ul>
-<p>Tie the outcomes into your <a href="50.html">observability</a> and <a href="49.html">error budget</a> practice: a failed game day spends budget on hardening before it spends it on an outage. Also revisit <a href="51.html">Resilience Patterns</a> (bulkheads, circuit breakers) &mdash; multi-region only helps if a region's failure does not cascade through shared dependencies before you can evacuate it.</p>
-
-<div class="callout warn"><span class="lbl">Pitfall</span>Beware the shared global dependency that quietly defeats your whole design: one DNS provider, one IAM control plane, one shared message bus, one global config service. If a single component spans all regions and it fails, your beautiful multi-region topology fails as one unit. Map every global singleton and ask &ldquo;what is its blast radius?&rdquo;</div>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They start from RPO/RTO numbers tied to business impact and let those derive the topology &mdash; never reaching for &ldquo;active-active everywhere&rdquo; reflexively. They immediately name the cross-region latency cost and which write paths can or cannot pay it. They proactively raise split-brain and propose a third-region arbiter plus fencing rather than waiting to be prompted. They distinguish physical disasters (region loss) from logical ones (bad deploys, data corruption) and note that replication does not protect against the latter. And they treat failback and DR testing as first-class deliverables, not afterthoughts.</div>
-<ul>
-<li>Your standby promotes itself during a network partition while the primary is actually alive. Walk me through exactly how your design prevents the resulting split-brain &mdash; and how it reconciles state when the partition heals.</li>
-<li>Marketing pushes a config that corrupts a key table; it replicates to every region in 200&nbsp;ms. Your hot standby is now corrupted too. What in your architecture saves you, and what is your real RPO for <em>logical</em> disasters?</li>
-<li>You're told payments need RPO 0 and RTO under a minute across continents. Quantify the steady-state write-latency cost of synchronous cross-region commit, and propose an alternative that meets the intent without it.</li>
-<li>GDPR says EU user data cannot leave the EU. How does that constraint reshape your DR topology, your backups, and your handling of a right-to-erasure request?</li>
-<li>What is the difference between failover RTO with GeoDNS versus anycast, and what specifically determines each? When would you still gate failover behind a human?</li>
-<li>You've had clean multi-region for two years and never failed over for real. How confident are you it works, and what concrete evidence would you produce to a board after an audit?</li>
+<li><b>What it is.</b> Databases that natively replicate and serve across regions.</li>
+<li><b>Mechanism.</b> Spanner: synchronous <a href="30.html">Paxos</a> + <a href="33.html">TrueTime</a> for global strong consistency (RPO≈0, latency cost). DynamoDB global tables / Cosmos: multi-leader async with last-write-wins or custom conflict resolution (low latency, conflict risk).</li>
+<li><b>The failure to watch.</b> Strong (Spanner) pays write latency; LWW multi-leader (DynamoDB/Cosmos) can silently drop concurrent writes &mdash; know which you have (<a href="11.html">PACELC</a>).</li>
 </ul>
 
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Global DNS / traffic routing</td><td>Route 53</td><td>Cloud DNS + global LB</td><td>Traffic Manager / Front Door</td></tr><tr><td>Multi-region data replication</td><td>DynamoDB Global Tables, Aurora Global</td><td>Spanner (multi-region), Bigtable repl.</td><td>Cosmos DB (multi-region)</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
+<h3 id="impl-gameday">DR game days (Netflix region evacuation)</h3>
+<ul>
+<li><b>What it is.</b> Deliberately exercising regional failover &mdash; Netflix famously evacuates an entire AWS region as a test.</li>
+<li><b>Mechanism.</b> Regularly redirect all traffic away from a region in production, measure real RTO/RPO, and fix what breaks &mdash; turning failover into a rehearsed routine.</li>
+<li><b>The failure to watch.</b> Skipping this is Scenario 2 &mdash; the failover you never test is the one that fails when it counts.</li>
+</ul>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you reason from the numbers. Work each before opening the approach.</p>
+
+<h3 id="ex-strategy">Pick a DR strategy from RPO/RTO</h3>
+<p>For three systems &mdash; (a) a payments ledger, (b) a user-facing web app, (c) an internal analytics warehouse &mdash; set RPO/RTO and choose a DR strategy for each, justifying the cost.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p><b>(a) Payments ledger:</b> RPO ≈ 0 (can't lose a committed transfer), RTO low &rarr; <b>active-active or synchronous multi-region</b> (Spanner-style quorum) for the ledger &mdash; pay the write latency because a lost or double payment is unacceptable. <b>(b) Web app:</b> RPO seconds&ndash;minutes, RTO minutes &rarr; <b>warm standby or active-active</b> with async replication &mdash; losing a few seconds of non-critical writes on a rare regional disaster is acceptable; prioritize fast recovery and local latency. <b>(c) Analytics warehouse:</b> RPO/RTO of hours is fine (it's derived, rebuildable, not user-facing) &rarr; <b>backup-and-restore or pilot light</b> &mdash; cheapest, since you can re-derive from sources. The discipline: <b>let the business set RPO/RTO per system</b>, then pick the cheapest strategy that meets it &mdash; don't pay active-active prices for data that tolerates hours of loss.</p>
+</div></details>
+
+<h3 id="ex-failover">Design a failover that can't split-brain</h3>
+<p>Active-passive across two regions. Design failover so a network partition between regions never makes both accept writes, while still failing over for a real disaster.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Don't let "primary unreachable from the standby" alone trigger promotion &mdash; that's how a partitioned-but-alive primary becomes a second writer (Scenario 3). Use a <b>quorum decision with a third site</b>: a witness/arbiter in a <i>third</i> region (or a <a href="30.html">consensus</a> service) must agree the primary is gone before the standby is promoted &mdash; so during a two-region partition, only the side with the witness majority can hold/claim primary; the isolated old primary loses quorum and <b>steps down / fences itself</b> (stops accepting writes). Combine with: a <b>fencing</b> mechanism (the promoted region gets a higher epoch/token; storage rejects the old primary's writes &mdash; <a href="36.html">36</a>), short DNS TTLs / anycast for fast traffic shift, and ensuring the standby has secrets/capacity ready. For a real disaster (primary truly gone), the witness sees it's gone and promotion proceeds. Net: failover happens for real failures, never for a mere partition &mdash; one writer at all times.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Audit for hidden single-region dependencies.</b> Take a "multi-region" service and hunt for the S3-style traps &mdash; buckets, secrets, control-plane calls, DNS, third parties pinned to one region. &rarr; <a href="48.html">Object Storage &amp; CDN</a>.</li>
+<li><b>Design a region-evacuation game day.</b> Plan a production exercise that shifts all traffic out of one region, with hypothesis, blast-radius limits, success criteria (meet RTO/RPO), and abort plan. &rarr; <a href="51.html">Resilience Patterns</a>.</li>
+<li><b>Choose data residency-aware regions.</b> Some users' data must stay in-country (GDPR/sovereignty). Design multi-region replication that respects residency while still surviving a region loss. &rarr; <a href="54.html">Security</a>.</li>
+</ul>
+
 <div class="navfoot"><a href="52.html">&lsaquo; Prev: Deployment Strategies</a><a class="nx" href="54.html">Next: Security in System Design &rsaquo;</a></div>
 </div>
 </div>

@@ -111,183 +111,194 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing a Payment System</div>
-
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Payment System</div>
 <h1>Designing a Payment System</h1>
-<p class="sub">Money is the one domain where "eventually consistent and probably correct" is a resignation letter &mdash; how to build a ledger that never loses, double-counts, or invents a cent.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Concurrency &amp; no shared truth.</b> <span>never losing/duplicating money, paid in idempotency, ledgers, and the orchestration saga.</span></div>
+<p class="sub"><em>Move money correctly &mdash; charge a card, credit a merchant, never lose or duplicate a cent &mdash; across your services and external processors that can time out at the worst moment. Correctness, not throughput, is the whole game: a double charge or a lost payment is a real-world, regulator-visible failure. The two pillars are <b>idempotency</b> (a retry must never charge twice) and a <b>double-entry ledger</b> (an immutable, always-balanced record of every money movement).</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#requirements">Step 1: Requirements &amp; scope</a></li>
-<li><a href="#scale">Step 2: Scale &amp; non-functional targets</a></li>
-<li><a href="#ledger">Step 3: The double-entry ledger</a></li>
-<li><a href="#idempotency">Step 4: Idempotency &amp; exactly-once</a></li>
-<li><a href="#flow">Step 5: End-to-end payment flow</a></li>
-<li><a href="#dualwrite">Step 6: The dual-write problem &amp; the outbox</a></li>
-<li><a href="#recon">Step 7: Reconciliation with PSPs</a></li>
-<li><a href="#consistency">Step 8: Consistency choices &amp; failure modes</a></li>
-<li><a href="#security">Step 9: PCI &amp; security</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Correct, auditable, exactly-once money movement &mdash; in exchange for idempotency everywhere, a strongly-consistent ledger, and reconciliation against external processors you don't control.</b> <span>Get money movement provably right and auditable. You pay by making every operation idempotent (retries are inevitable and must be safe), keeping an immutable double-entry ledger as the source of truth, and reconciling with banks/processors whose async, sometimes-failing responses you must absorb.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; we walk the design top to bottom, then deep-dive the hard parts</div>
+<pre class="tree">
+<b>Designing a Payment System</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>
+├─ <a href="#api"><b>3. The API</b></a>  &mdash; charge with idempotency key
+├─ <a href="#highlevel"><b>4. High-level design</b></a>  &mdash; payment service + ledger + PSP
+├─ <a href="#datamodel"><b>5. Data model</b></a>  &mdash; the double-entry ledger
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+│
+├─ <a href="#subproblems"><b>The 4 hard sub-problems</b></a>
+│   ├─ <a href="#s1">1. Idempotency (no double charge)</a>     fail → <a href="#double-charge">the double charge</a>
+│   ├─ <a href="#s2">2. The double-entry ledger</a>            fail → <a href="#unbalanced">money created/destroyed</a>
+│   ├─ <a href="#s3">3. Talking to the external processor</a>  fail → <a href="#unknown">the unknown outcome</a>
+│   └─ <a href="#s4">4. Reconciliation &amp; consistency</a>      fail → <a href="#drift">silent drift vs the bank</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
 </div>
 
-<h2 id="requirements">Step 1: Requirements &amp; scope</h2>
-<p>A "payment system" is an overloaded phrase. Pin the scope first. The classic problem is the <span class="key">money-movement core</span>: a service that accepts a request to move funds, talks to one or more external <span class="key">Payment Service Providers</span> (PSPs) such as Stripe, Adyen, or a card network, records the result in an internal ledger, and notifies downstream systems. We are <em>not</em> building a card network or an acquiring bank; we are the orchestration and accounting layer on top of one.</p>
-<p>Functional requirements:</p>
+<!-- ============ 1. REQUIREMENTS ============ -->
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> charge a customer (card / wallet), credit a merchant, support refunds and reversals; record every money movement; integrate with external <span class="gl" data-def="PSP &mdash; Payment Service Provider; a company (Stripe, Adyen) that handles the actual card/bank money movement and compliance on your behalf via an API.">payment service providers / PSPs</span> (Stripe, Adyen, card networks, banks); produce an auditable history.</p>
+<p><b>Non-functional:</b> <b>correctness above all</b> &mdash; <b>no double charge, no lost payment</b> (exactly-once <i>effect</i>); <span class="gl" data-def="Strong consistency &mdash; every read reflects the most recent committed write; required for money so two concurrent operations can never both spend the same balance.">strong consistency</span> for balances (no <a href="11.html">eventual-consistency</a> on money); <b>durable &amp; auditable</b> (immutable record, regulatory compliance); <b>secure</b> (PCI, see <a href="54.html">Security</a>); <b>available</b>, but correctness wins ties &mdash; better to reject a payment than to process it wrong.</p>
+
+<!-- ============ 2. CAPACITY ============ -->
+<h2 id="capacity">2. Capacity estimate</h2>
+<p>Say <b>10,000 payments/sec</b> at peak, each touching multiple ledger entries, retained <b>7+ years</b> (regulatory). Work it:</p>
 <ul>
-<li>Accept a <span class="key">pay-in</span> (customer charged) and <span class="key">pay-out</span> (merchant/seller credited) request.</li>
-<li>Integrate with multiple PSPs, route a payment to the right one, and handle their asynchronous webhooks.</li>
-<li>Maintain an internal <span class="key">ledger</span> that is the single source of truth for every balance.</li>
-<li>Support <span class="key">refunds, reversals, and disputes/chargebacks</span>.</li>
-<li>Reconcile internal records against the PSP's settlement reports daily.</li>
-</ul>
-<div class="callout note"><span class="lbl">Key insight</span>The functional list is the easy part. The design is won or lost on the <em>correctness</em> properties. State them explicitly and unprompted: <span class="key">no money is ever created or destroyed</span> (conservation), <span class="key">every state change is auditable and immutable</span>, <span class="key">retries never double-charge</span> (idempotency), and <span class="key">the system can prove its state to an auditor</span>. Correctness dominates latency, throughput, and availability &mdash; a payment system that is fast and wrong is worthless.</div>
-
-<h2 id="scale">Step 2: Scale &amp; non-functional targets</h2>
-<p>Get the orders of magnitude on the table so you can justify architectural choices. A mid-to-large processor:</p>
-<ul>
-<li><span class="key">Volume:</span> ~10&nbsp;000 payments/sec peak, ~1&nbsp;000/sec average. Tens of millions of transactions/day.</li>
-<li><span class="key">Latency:</span> the synchronous portion (accept, validate, persist intent) under ~200&nbsp;ms p99. The actual PSP authorization is often seconds and is best modeled <em>asynchronously</em>.</li>
-<li><span class="key">Durability:</span> zero tolerance for lost committed writes. This forces synchronous replication and <span class="key">CP</span> behavior &mdash; never ack a payment that isn't durably committed to a quorum. See <a href="11.html">CAP Theorem</a> and <a href="37.html">Replication Deep Dive</a>.</li>
-<li><span class="key">Retention:</span> ledger entries are kept for 7&ndash;10 years for regulatory/audit purposes &mdash; append-only and effectively infinite-growth, so partitioning and cold storage matter.</li>
-</ul>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Payments are the canonical case for choosing <span class="key">consistency over availability</span>. If the ledger's primary region is partitioned, you stop accepting writes rather than risk two regions independently debiting the same balance. A few minutes of unavailability is recoverable; a double-spend is a regulatory incident and a real financial loss.</div>
-
-<h2 id="ledger">Step 3: The double-entry ledger</h2>
-<p>The heart of the system is the ledger, and the single most important design decision is to model it as a <span class="key">double-entry, append-only</span> accounting system &mdash; the same invariant banks have used for centuries.</p>
-<p>In double-entry bookkeeping, every transaction is recorded as a set of <span class="key">postings</span> (debits and credits) across <span class="key">accounts</span>, and the postings of a single transaction <em>must sum to zero</em>. Money is never created; it only moves between accounts. This gives you a checkable invariant: at any instant, the sum of all postings in the system is exactly zero, and the sum of postings to any account equals its balance.</p>
-
-<h3>Core schema</h3>
-<pre><code>accounts
-  account_id      PK
-  type            asset | liability | revenue | ...
-  currency        ISO-4217 (no mixed-currency accounts)
-  -- balance is DERIVED, not stored authoritatively
-
-transactions          -- one business event (a "transfer")
-  txn_id          PK   (UUID/ULID)
-  idempotency_key UNIQUE
-  status          pending | posted | failed
-  created_at
-
-postings              -- the immutable, append-only entries
-  posting_id      PK
-  txn_id          FK
-  account_id      FK
-  direction       DEBIT | CREDIT
-  amount          BIGINT   -- minor units (cents), NEVER float
-  created_at
-  -- INVARIANT: SUM(signed amount) over a txn_id = 0</code></pre>
-<div class="callout warn"><span class="lbl">Pitfall</span>Never represent money as a floating-point number. <code>0.1 + 0.2 != 0.3</code> in IEEE-754, and rounding drift is a fraud-audit nightmare. Store integer <span class="key">minor units</span> (cents, satoshis) or a fixed-precision decimal, and keep currency on the account so you never silently add USD to EUR.</div>
-
-<h3>Why append-only</h3>
-<p>Postings are <span class="key">immutable</span>. You never <code>UPDATE</code> or <code>DELETE</code> a posting. A correction is a new, compensating transaction (e.g. a reversal that credits what was debited). This makes the ledger an <span class="key">audit log by construction</span> &mdash; you can replay it to reconstruct any balance at any point in time, and an auditor can verify there are no silent edits. This is exactly the <span class="key">event-sourcing</span> pattern (see <a href="46.html">Event-Driven Architecture</a>): the postings are the events, balances are the materialized projection.</p>
-<p>For balances, the principal-level nuance is the read pattern. Recomputing a balance by summing millions of postings on every read is unacceptable. The standard answer is a <span class="key">balance snapshot</span>: periodically (or per-N-postings) write a checkpoint row holding the running balance and the last posting id; a balance read = latest snapshot + sum of postings since. This bounds read cost while preserving the append-only audit trail.</p>
-
-<h2 id="idempotency">Step 4: Idempotency &amp; exactly-once</h2>
-<p>Networks retry. A client times out and resends; a queue redelivers a message; a PSP fires a webhook twice. Without protection, each retry is a duplicate charge. <span class="key">Idempotency</span> is the discipline that makes a repeated request a no-op that returns the original result.</p>
-
-<h3>Idempotency keys</h3>
-<p>The client generates a unique <span class="key">idempotency key</span> per logical operation (not per HTTP attempt) and sends it on every retry, typically as an <code>Idempotency-Key</code> header (this is how Stripe's API works &mdash; see <a href="45.html">API Design</a>). The server stores it with a uniqueness constraint:</p>
-<pre><code>BEGIN;
-  INSERT INTO idempotency_keys (key, request_hash, status)
-    VALUES (:key, :hash, 'in_progress')
-    ON CONFLICT (key) DO NOTHING;
-  -- 0 rows affected -> this is a retry
-  IF row_was_inserted:
-     ... perform the payment, write postings ...
-     UPDATE idempotency_keys SET status='done', response=:resp WHERE key=:key;
-  ELSE:
-     row = SELECT * FROM idempotency_keys WHERE key=:key;
-     IF row.request_hash != :hash: return 422  -- key reused with different body
-     IF row.status='done':        return row.response  -- replay stored result
-     ELSE:                        return 409  -- still in flight; client should retry later
-COMMIT;</code></pre>
-<div class="callout note"><span class="lbl">Key insight</span>The uniqueness constraint must live in the <em>same transactional store</em> as the ledger write, so the "did I already do this?" check and the side effect commit atomically. An idempotency cache in Redis that is separate from the ledger DB reintroduces a race: crash between cache-set and DB-write and you've lost the dedupe guarantee. Co-locate them, or use the DB's unique index as the source of truth.</div>
-
-<h3>"Exactly-once" in practice</h3>
-<p>True exactly-once delivery is impossible over an unreliable network (the two-generals problem). What you actually engineer is <span class="key">at-least-once delivery + idempotent processing = effectively exactly-once</span>. Every consumer and every external call must be idempotent. For PSP calls, pass an idempotency key <em>to the PSP too</em>, so that even your own retry of an authorization doesn't double-charge at the network level.</p>
-
-<h2 id="flow">Step 5: End-to-end payment flow</h2>
-<p>Model the long-running, multi-party nature of a payment explicitly as a <span class="key">state machine</span>, not a single synchronous request. A pay-in moves through states: <code>CREATED &rarr; AUTHORIZING &rarr; AUTHORIZED &rarr; CAPTURING &rarr; CAPTURED</code> (or <code>FAILED</code>/<code>DECLINED</code>/<code>REVERSED</code> branches).</p>
-<ol>
-<li><span class="key">Accept &amp; persist intent.</span> The API validates the request, checks the idempotency key, and durably writes a <code>payment</code> row in <code>CREATED</code> plus a <code>pending</code> ledger transaction. It returns <code>202</code> immediately. Nothing irreversible has happened yet.</li>
-<li><span class="key">Authorize.</span> A worker calls the PSP (with an idempotency key). The PSP holds funds. On success, move to <code>AUTHORIZED</code>.</li>
-<li><span class="key">Capture.</span> Either immediately or later (e.g. on shipment), capture the authorized amount. The ledger transaction is now <code>posted</code> &mdash; debit the customer's payable account, credit the merchant's receivable account.</li>
-<li><span class="key">Confirm asynchronously.</span> The authoritative result frequently arrives via a PSP <span class="key">webhook</span> minutes later. Webhooks are idempotent (dedupe on the PSP's event id), out-of-order, and must be reconciled against your state machine &mdash; never trust the webhook blindly; verify its signature and look it up.</li>
-</ol>
-<div class="callout warn"><span class="lbl">Pitfall</span>A naive design does the synchronous PSP call inside the request thread and writes the ledger in the same transaction as the order/inventory update. When the PSP takes 8 seconds, your connection pool exhausts and the whole service collapses under load. Decouple the synchronous "record intent" path from the slow "talk to the outside world" path with a durable queue (see <a href="08.html">Queues</a> and <a href="39.html">Kafka</a>).</div>
-
-<h2 id="dualwrite">Step 6: The dual-write problem &amp; the outbox</h2>
-<p>A payment is rarely a single write. Completing a checkout typically must: (1) post to the ledger, (2) update the order to <code>PAID</code>, and (3) emit a notification. These often live in different services and stores. The naive code &mdash; write to the DB, then publish to Kafka &mdash; is the <span class="key">dual-write problem</span>: there is no atomicity across the two systems. If the process crashes after the DB commit but before the publish, the ledger says PAID but no one downstream knows; the inverse loses money the other way.</p>
-
-<h3>The transactional outbox</h3>
-<p>The standard fix is the <span class="key">outbox pattern</span>. In the <em>same local DB transaction</em> that writes the ledger postings, insert a row into an <code>outbox</code> table describing the event to publish. Because it's one transaction, the event is persisted atomically with the state change. A separate relay process (or <span class="key">Change Data Capture</span> tailing the DB log &mdash; see <a href="40.html">Stream Processing &amp; CDC</a>) reads the outbox and publishes to Kafka, marking rows as sent. Delivery is at-least-once; consumers dedupe by event id.</p>
-<pre><code>BEGIN;
-  INSERT INTO postings (...);                 -- the ledger write
-  UPDATE payments SET status='CAPTURED' ...;
-  INSERT INTO outbox (event_id, type, payload, status)
-    VALUES (:eid, 'payment.captured', :json, 'pending');
-COMMIT;
--- async relay / Debezium CDC: SELECT pending -> publish to Kafka -> mark 'sent'</code></pre>
-
-<h3>Sagas for cross-service orchestration</h3>
-<p>When the workflow spans services that each own their data, you cannot use a distributed ACID transaction (2PC is a liveness and availability liability at this scale). Instead use a <span class="key">Saga</span>: a sequence of local transactions, each with a <span class="key">compensating action</span> to undo it. Reserve inventory &rarr; charge payment &rarr; confirm order; if the charge fails, run the compensation that releases the reserved inventory. Crucially, the ledger's compensation is <em>not</em> a delete &mdash; it's a new reversing transaction, preserving the append-only audit trail. This is covered in depth in <a href="32.html">Distributed Transactions</a>.</p>
-<div class="callout note"><span class="lbl">Key insight</span>Outbox and Saga solve different layers: the <span class="key">outbox</span> guarantees that a state change and its event are atomic <em>within one service</em>; the <span class="key">Saga</span> coordinates a multi-step business workflow <em>across services</em> with compensation. A real payment flow uses both &mdash; each Saga step is a local transaction that uses the outbox to reliably emit its completion event.</div>
-
-<h2 id="recon">Step 7: Reconciliation with PSPs</h2>
-<p>No matter how careful the live path is, your internal record and the PSP's record <em>will</em> drift &mdash; webhooks get lost, a capture succeeds at the PSP but your ack is dropped, fees and FX are applied on the PSP side. <span class="key">Reconciliation</span> is the offline truth-check that catches and resolves these discrepancies, and it is non-negotiable in a payment system.</p>
-<p>Each PSP publishes a daily (or intraday) <span class="key">settlement report</span> &mdash; the authoritative list of what actually moved, net of fees. A batch job (see <a href="41.html">Batch &amp; Big Data Processing</a>) loads it and performs a three-way match against your ledger and your PSP-side transaction log:</p>
-<ul>
-<li><span class="key">Matched:</span> internal and external agree &mdash; no action.</li>
-<li><span class="key">In ledger, not in settlement:</span> you think it succeeded but the PSP didn't settle it &mdash; flag for investigation, possibly post a reversal.</li>
-<li><span class="key">In settlement, not in ledger:</span> the PSP moved money you never recorded (a lost webhook) &mdash; post the missing transaction.</li>
-<li><span class="key">Amount/fee mismatch:</span> book the difference to a fee or FX account.</li>
-</ul>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat reconciliation as a first-class subsystem, not an afterthought, and they make the live path <em>self-healing</em>: discrepancies feed an automated repair pipeline, with a human-reviewed exception queue for the residue. They also instrument a real-time invariant check &mdash; periodically asserting the ledger sums to zero &mdash; so corruption is detected in minutes, not at the next audit.</div>
-
-<h2 id="consistency">Step 8: Consistency choices &amp; failure modes</h2>
-<p>Through the lens of <a href="31.html">PACELC</a>, the ledger is firmly <span class="key">PC/EC</span>: on a partition it sacrifices availability for consistency, and even in normal operation it favors consistency (strong, linearizable writes) over latency. You cannot afford a stale read that lets two concurrent withdrawals both see a sufficient balance.</p>
-<p>Concretely, that means:</p>
-<ul>
-<li>The ledger's authoritative writes go through a single primary per shard with synchronous quorum replication, or a consensus-backed store (Raft/Paxos &mdash; see <a href="30.html">Consensus and Raft</a>) such as CockroachDB or Spanner.</li>
-<li>Balance-affecting operations use either <span class="key">serializable isolation</span> or explicit optimistic concurrency (a <code>version</code> column / conditional update) to prevent lost-update races on a balance.</li>
-<li><span class="key">Sharding</span> (see <a href="05.html">Sharding</a>) is by <code>account_id</code> so that all postings for one account &mdash; and the consistency boundary they need &mdash; live on one shard. Cross-shard transfers become a Saga, not a distributed lock.</li>
-</ul>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>You can relax consistency for <em>derived, non-authoritative</em> views &mdash; a customer-facing "recent activity" feed can be eventually consistent and served from a read replica. The discipline is to draw a hard line: the <span class="key">ledger of record</span> is strongly consistent; everything projected from it may lag. Never let an eventually-consistent projection authorize a money movement.</div>
-<p>Failure modes to articulate without prompting: a worker crashes mid-Saga (recover from the durable state machine + outbox, idempotency makes re-execution safe); a PSP double-fires a webhook (dedupe on event id); a region fails over (the new primary must have all committed postings &mdash; this is exactly why synchronous replication, not async, is required for the ledger; see <a href="53.html">Multi-Region &amp; Disaster Recovery</a>).</p>
-
-<h2 id="security">Step 9: PCI &amp; security</h2>
-<p>Touching card data drops you into <span class="key">PCI-DSS</span> scope, which is expensive and audited. The architectural move that matters most is to <em>minimize scope</em>: never let raw PANs (card numbers) touch your servers. Use the PSP's client-side <span class="key">tokenization</span> &mdash; the card is captured by a Stripe/Adyen iframe or SDK in the browser, exchanged for a token, and your backend only ever handles the opaque token. This shrinks PCI scope from your whole estate to almost nothing.</p>
-<ul>
-<li><span class="key">Encryption everywhere:</span> TLS in transit, encryption at rest for any sensitive fields, with keys in an HSM/KMS. See <a href="54.html">Security in System Design</a>.</li>
-<li><span class="key">Least privilege &amp; segregation of duties:</span> the service that initiates payouts should not be the same identity that can edit ledger rows. Combined with the append-only ledger, this makes fraud detectable.</li>
-<li><span class="key">Immutable audit log:</span> who initiated what, when &mdash; the ledger already gives you the financial trail; add an access/admin audit log for operator actions.</li>
-<li><span class="key">Webhook authenticity:</span> verify HMAC signatures on every inbound PSP webhook; treat the network as hostile.</li>
-<li><span class="key">Idempotency keys as security:</span> they also blunt accidental and malicious replay of payment requests.</li>
+<li><b>Throughput:</b> 10k payments/sec is <i>modest</i> by web standards &mdash; this is <b>not</b> a throughput problem. <b>Consequence: optimize for correctness and consistency, not raw QPS; a strongly-consistent SQL database easily handles this.</b></li>
+<li><b>Ledger writes:</b> each payment writes ≥2 ledger entries (debit + credit), often more (fees, taxes) &mdash; say ~5 entries &rarr; ~50k ledger writes/sec, all of which must be <b>atomic and balanced</b>. <b>Consequence: the ledger needs ACID transactions; you can't tolerate a partial write that leaves money unaccounted.</b></li>
+<li><b>Storage &amp; audit:</b> billions of immutable entries over 7 years &mdash; large but cheap; the entries are <b>append-only and never updated</b> (corrections are new compensating entries). <b>Consequence: design the ledger as immutable, which also gives you the audit trail for free.</b></li>
 </ul>
 
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They lead with correctness invariants &mdash; double-entry, append-only, idempotency &mdash; before drawing a single box, and they can name the exact failure that each mechanism prevents. They never propose deleting or mutating a ledger entry; corrections are always reversing transactions. They distinguish the strongly-consistent <em>ledger of record</em> from eventually-consistent projections, and they treat reconciliation as a designed subsystem that makes the whole thing self-healing rather than relying on the live path being perfect.</div>
-<p>Probing questions to ask engineers:</p>
+<!-- ============ 3. API ============ -->
+<h2 id="api">3. The API</h2>
+<pre class="tree" style="border:none;background:var(--code-bg,#f6f8fa);padding:12px;border-radius:8px">
+POST /charges   { amount, currency, source, idempotencyKey }  -> { chargeId, status }
+POST /refunds   { chargeId, amount, idempotencyKey }          -> { refundId, status }
+GET  /charges/{id}                                            -> { status, ledgerRefs }
+</pre>
+<p>The <b><a href="45.html">idempotency key</a></b> is mandatory on every mutating call &mdash; it is the single most important field in the whole API (Stripe requires it). <code>status</code> is explicit (<code>pending</code> &rarr; <code>succeeded</code>/<code>failed</code>) because external processing is asynchronous and an outcome may be momentarily unknown (<a href="#s3">sub-problem 3</a>).</p>
+
+<!-- ============ 4. HIGH-LEVEL ============ -->
+<h2 id="highlevel">4. High-level design</h2>
+<p>A <b>payment service</b> receives the charge, deduplicates on the idempotency key, writes a <code>pending</code> record + ledger entries in a local transaction, then calls the external <b>PSP</b> (Stripe/Adyen/card network) to actually move money. The PSP responds (or via webhook) with success/failure; the payment service updates the status and finalizes ledger entries. A <b>double-entry ledger</b> (its own strongly-consistent store) is the source of truth for all balances. A <b>reconciliation</b> process continuously compares the ledger against the PSP's/bank's settlement reports to catch any discrepancy. The database is the coordination point: commit state locally <i>before</i> the external call so there's always a durable record to recover from.</p>
+
+<!-- ============ 5. DATA MODEL ============ -->
+<h2 id="datamodel">5. Data model &mdash; the double-entry ledger</h2>
+<p>The heart is a <b>double-entry ledger</b>: every money movement creates <i>at least two</i> entries &mdash; a <b>debit</b> from one account and a matching <b>credit</b> to another &mdash; and <b>the sum of all entries is always zero</b>. Money is never created or destroyed, only moved between accounts. Entries are <b>immutable</b> (append-only); a correction is a new compensating pair, never an edit.</p>
+<table>
+<tr><th>Concept</th><th>Meaning</th></tr>
+<tr><td>Account</td><td>A balance bucket (customer, merchant, fees, cash, payable)</td></tr>
+<tr><td>Transaction</td><td>A group of entries that must balance to zero, applied atomically</td></tr>
+<tr><td>Entry</td><td>(account, debit/credit, amount, currency) &mdash; immutable</td></tr>
+<tr><td>Idempotency record</td><td>(key &rarr; result) so a retry returns the original outcome</td></tr>
+</table>
+<p>Example charge: debit "customer cash" $100, credit "merchant payable" $97, credit "platform fees" $3 &mdash; sums to zero. Balances are derived by summing an account's entries (or kept as a running materialized balance).</p>
+
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; Stripe's idempotency (real design)</span>
+A client sends "charge $50," the network times out before the response arrives, so the client &mdash; not knowing if it worked &mdash; retries. Stripe (and every serious payment API) guarantees the card is charged <b>exactly once</b> regardless. <b>What mechanism makes the retry safe, and why can't you solve this with "exactly-once delivery"?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the balance that doesn't add up</span>
+A bug debits the customer but a crash happens before crediting the merchant &mdash; so $100 left the customer's account but never arrived anywhere. The books don't balance; money has effectively vanished. <b>What data model makes this structurally impossible, and how is it enforced?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the PSP timed out &mdash; did the charge happen?</span>
+You call the external processor to charge the card, and the call <b>times out</b>. Maybe the charge went through; maybe it didn't. You cannot tell from the timeout. <b>How do you avoid both double-charging (if it succeeded) and losing the payment (if it failed), when the outcome is genuinely unknown?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#double-charge">idempotency</a>. Scenario 2 is <a href="#unbalanced">the double-entry ledger</a>. Scenario 3 is <a href="#unknown">talking to the external processor</a>. Each maps to a sub-problem.</i></p>
+
+<!-- ============ SUB-PROBLEMS ============ -->
+<h2 id="subproblems">The four hard sub-problems</h2>
+<p>The flow is simple; correctness is everything. These four are the hard core &mdash; each with a nested failure.</p>
+
+<h3 id="s1">Sub-problem 1 &mdash; Idempotency (never charge twice)</h3>
+<p>In a distributed system, retries are inevitable &mdash; timeouts make "did it succeed?" unanswerable, so clients <i>will</i> resend. An operation is idempotent if doing it twice equals doing it once. The mechanism: every mutating request carries a client-generated <b><a href="45.html">idempotency key</a></b>; the payment service records <code>(key &rarr; result)</code> the first time and, on any retry with the same key, <b>returns the stored result without re-executing</b> the charge.</p>
+<div class="callout warn"><span class="lbl" id="double-charge">The failure that happens when you get this wrong &mdash; the double charge</span>
+This is <b>Scenario 1</b>, the cardinal payment sin. Without idempotency, a retried "charge $50" charges twice &mdash; a real customer loses real money and you owe a refund + trust. You <b>cannot</b> fix this with "exactly-once delivery," which is <a href="39.html">impossible</a> over a network. The fix is the idempotency key: on first receipt, the service <i>atomically</i> records the key and its result (e.g. a unique constraint on the key in the same DB transaction as the charge); a retry with that key finds the existing record and returns the original result, never re-charging. Handle the in-flight case too (a retry arrives while the first is still processing &rarr; return "in progress," don't start a second). Scope keys per account, expire them after a window (Stripe: ~24h&ndash;30d). This is exactly-once <i>effect</i> via idempotency &mdash; the foundation of the whole system.</div>
+
+<h3 id="s2">Sub-problem 2 &mdash; The double-entry ledger</h3>
+<p>The ledger is the source of truth for money, and its structure <i>enforces</i> correctness: every transaction is a set of entries that must <b>sum to zero</b> (debits = credits), applied <b>atomically</b> (all or nothing). Money only moves between accounts; it's never created or destroyed. Entries are immutable; corrections are new compensating entries.</p>
+<div class="callout warn"><span class="lbl" id="unbalanced">The failure that happens when you get this wrong &mdash; money created or destroyed</span>
+This is <b>Scenario 2</b>. A single-entry model (just "subtract from A," "add to B" as independent updates) lets a crash between them leave the books unbalanced &mdash; money vanishes or is conjured, and you may not notice for days. The <b>double-entry</b> design makes this structurally impossible: a transaction's entries must sum to zero and are committed in <b>one atomic ACID transaction</b> &mdash; so you can never debit without the matching credit; either both land or neither does. Because entries are <b>immutable and append-only</b>, you also get a complete, tamper-evident audit trail (regulators require it) and can always recompute any balance from history. This is why payment systems use a strongly-consistent (often relational) store for the ledger, not an <a href="11.html">eventually-consistent</a> one &mdash; money demands ACID.</div>
+
+<h3 id="s3">Sub-problem 3 &mdash; Talking to the external processor</h3>
+<p>You don't actually move money &mdash; an external PSP / card network / bank does, asynchronously, and its responses can time out, arrive late (webhooks), or be lost. You must handle the case where you called it but <i>don't know the outcome</i>, without double-charging or losing the payment.</p>
+<div class="callout warn"><span class="lbl" id="unknown">The failure that happens when you get this wrong &mdash; the unknown outcome</span>
+This is <b>Scenario 3</b>. A timeout from the PSP is genuinely ambiguous &mdash; the charge may have succeeded or failed. The disciplined pattern: (1) <b>persist intent first</b> &mdash; write a <code>pending</code> charge + ledger entries locally <i>before</i> calling the PSP, so a crash leaves a durable record to recover from. (2) Pass <i>your</i> <b>idempotency key to the PSP too</b> (Stripe accepts one) &mdash; so when you retry the call after a timeout, the PSP recognizes it and doesn't charge twice (it returns the original result). (3) On unknown outcome, <b>don't guess</b> &mdash; query the PSP for the charge's status by your key (or wait for its webhook), and only then finalize as succeeded/failed. (4) Finalize ledger entries based on the <i>confirmed</i> outcome. So even a timed-out call is safe: retry with the same key (no double charge), then reconcile to the true result (no lost payment). Never mark succeeded on a timeout, and never blindly retry without an idempotency key the PSP honors.</div>
+
+<h3 id="s4">Sub-problem 4 &mdash; Reconciliation &amp; consistency</h3>
+<p>Even with idempotency and a ledger, your records and the PSP's/bank's can diverge &mdash; a webhook was missed, a dispute/chargeback occurred, a settlement differs by a fee. <b>Reconciliation</b> is the continuous process of comparing your ledger against the processor's settlement reports and flagging/fixing discrepancies. And throughout, balances must be <b>strongly consistent</b> &mdash; no reading a stale balance and overspending.</p>
+<div class="callout warn"><span class="lbl" id="drift">The failure that happens when you get this wrong &mdash; silent drift vs the bank</span>
+This is the failure of <i>not</i> reconciling. Distributed systems and external processors mean your view and the bank's view <i>will</i> occasionally disagree (missed webhook, chargeback, timing). Without <b>reconciliation</b>, this drift is silent and compounds &mdash; you think you're owed X, the bank settled Y, and you discover it weeks later during an audit (or a regulator does). The fix: a scheduled reconciliation job that ingests the PSP's settlement reports and matches every transaction against your ledger, surfacing mismatches for investigation; missing webhooks are caught by also <i>polling</i> the PSP for status (don't rely on webhooks alone &mdash; they get lost). On the consistency side, balance checks (e.g. "do they have enough?") must read a <b>strongly-consistent</b> balance and update it atomically (often with <a href="11.html">optimistic locking</a> / a transaction), never an eventually-consistent read &mdash; or two concurrent spends can overdraw. Money is the canonical case where you choose consistency over availability.</div>
+
+<!-- ============ AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the design decisions</h2>
+<table>
+<tr><th>Concern</th><th>Mechanism</th></tr>
+<tr><td>No double charge</td><td>Idempotency key (your API <i>and</i> passed to the PSP)</td></tr>
+<tr><td>Books always balance</td><td>Double-entry ledger, atomic, immutable, sums to zero</td></tr>
+<tr><td>Unknown PSP outcome</td><td>Persist intent first; retry with key; query status; finalize on confirmed result</td></tr>
+<tr><td>Match the bank</td><td>Continuous reconciliation (settlement reports + status polling)</td></tr>
+<tr><td>Correct balances</td><td>Strong consistency + atomic balance updates (consistency &gt; availability)</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The rule in one line</span>Make every operation <b>idempotent</b> (the key is everything), record money in an <b>atomic, immutable, double-entry ledger</b> that can't go unbalanced, treat the <b>external PSP outcome as confirmable-not-assumable</b> (persist intent, retry with key, query status), and <b>reconcile continuously</b> against the bank. Correctness beats throughput and availability &mdash; this is the one system where you'd rather fail than guess.</div>
+
+<!-- ============ SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li>"Your service writes the ledger and then publishes a Kafka event. The process crashes in between. Walk me through exactly what's now inconsistent and how the outbox fixes it &mdash; including how the relay avoids publishing twice or losing an event."</li>
-<li>"A customer is double-charged. Trace every layer where idempotency should have caught it, and tell me which one failed if it didn't."</li>
-<li>"How do you guarantee a balance check and a debit are atomic under concurrent withdrawals? What isolation level or concurrency control, and what's the throughput cost?"</li>
-<li>"The PSP says a payment settled but your ledger has no record. How does reconciliation detect this, and what's the automated repair vs. the human-in-the-loop boundary?"</li>
-<li>"Why is this system PC/EC and not AP? Give me a concrete scenario where choosing availability would lose real money."</li>
-<li>"Where, if anywhere, in this design is it acceptable to be eventually consistent &mdash; and how do you stop that relaxed path from ever authorizing a money movement?"</li>
+<li><b>Scenario 1 (double charge):</b> How does an idempotency key make a retried charge safe, and why is exactly-once <i>delivery</i> not the answer?</li>
+<li><b>Scenario 2 (unbalanced books):</b> How does a double-entry ledger make "money vanishing" structurally impossible, and why does the ledger need ACID?</li>
+<li><b>Scenario 3 (PSP timeout):</b> How do you handle a genuinely-unknown outcome without double-charging or losing the payment (persist intent, retry with key, query status)?</li>
+<li>Why is reconciliation necessary even with idempotency + ledger, and why poll as well as use webhooks?</li>
+<li>Why does a payment system choose consistency over availability?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> 4 sub-problems &mdash; <a href="#s1">idempotency</a>, <a href="#s2">double-entry ledger</a>, <a href="#s3">external processor</a>, <a href="#s4">reconciliation + consistency</a>.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="45.html">API Design (idempotency keys)</a>, <a href="32.html">Distributed Transactions (saga/outbox)</a>, <a href="11.html">CAP</a>, <a href="54.html">Security (PCI)</a>, <a href="39.html">Kafka (exactly-once effect)</a>.</p>
+
+<!-- ============ CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<table>
+<tr><th>Need</th><th>Options</th></tr>
+<tr><td>Payment processor (PSP)</td><td>Stripe, Adyen, Braintree, card networks; the thing that actually moves money</td></tr>
+<tr><td>Strongly-consistent ledger store</td><td>PostgreSQL/Aurora (ACID), Spanner (global strong), TigerBeetle (purpose-built ledger DB)</td></tr>
+<tr><td>Idempotency / dedup store</td><td>The DB (unique constraint) or Redis with persistence</td></tr>
+<tr><td>Orchestration / reconciliation jobs</td><td>Step Functions / Temporal (sagas); scheduled reconciliation</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>You almost never build the money-movement layer &mdash; a PSP (Stripe/Adyen) handles cards, compliance, and bank connections. What <i>you</i> build and own is the correctness layer: the <b>idempotency keys</b>, the <b>double-entry ledger</b> (in an ACID store &mdash; or a purpose-built ledger DB like TigerBeetle), and the <b>reconciliation</b>. Purpose-built ledger databases exist precisely because the double-entry + strong-consistency requirements are demanding enough to warrant specialized engines.</div>
+
+<!-- ============ IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>Same facets &mdash; what it is, the mechanism, and the failure to watch.</p>
+<h3 id="impl-stripe">Stripe / Adyen (PSPs)</h3>
+<ul>
+<li><b>What it is.</b> Payment processors that move money and expose idempotent APIs.</li>
+<li><b>Mechanism.</b> Mandatory idempotency keys, immutable double-entry ledgers internally, webhooks + status APIs for async outcomes; ~99.999% consistency targets.</li>
+<li><b>The failure to watch.</b> You must still pass idempotency keys, handle webhook loss (poll too), and reconcile your ledger against their settlement reports.</li>
+</ul>
+<h3 id="impl-ledger">Ledger databases (TigerBeetle)</h3>
+<ul>
+<li><b>What it is.</b> A database purpose-built for double-entry accounting at high throughput with strict correctness.</li>
+<li><b>Mechanism.</b> Transactions of balanced debit/credit entries applied atomically; designed for the exact ledger invariants money needs.</li>
+<li><b>The failure to watch.</b> Specialized &mdash; you still design account structure and reconciliation; most teams use Postgres/Aurora unless throughput demands a dedicated engine.</li>
+</ul>
+<h3 id="impl-saga">Saga / workflow orchestration</h3>
+<ul>
+<li><b>What it is.</b> For multi-step payment flows (authorize &rarr; capture &rarr; payout) across services, a <a href="32.html">saga</a> with compensations.</li>
+<li><b>Mechanism.</b> Orchestrator drives each step idempotently; on failure, runs compensating entries (a refund is a compensating ledger transaction, not a delete).</li>
+<li><b>The failure to watch.</b> No isolation between steps &mdash; intermediate states are visible; design statuses (pending/authorized/captured) accordingly.</li>
 </ul>
 
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1680848127774.jpeg" alt="Card payment flow and fee settlement between parties" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A diagram of how VISA makes money, showing cardholder, merchant, acquiring bank, card network, issuing bank, and the fee flows (interchange fee, merchant discount fee, assessments). <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1681363545670.jpeg" alt="Payment system registration and bank linking flow (UPI)" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A diagram of UPI registration and linking to a bank account, showing user Bob, payment apps (GPay, PhonePe, Paytm), acquiring banks, NPCI, and issuing banks with numbered steps. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/1681363656522.png" alt="Real-time payment transaction routing flow (UPI)" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A diagram of UPI direct payment flow between Alice and Bob across payment apps, acquiring banks, NPCI switch, and issuing banks with numbered transaction steps. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
-<div class="navfoot"><a href="60.html">&lsaquo; Prev: Designing a Distributed Job Scheduler</a><a class="nx" href="62.html">Next: Designing Collaborative Editing &rsaquo;</a></div>
+<!-- ============ BUILD ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Work each before opening the approach.</p>
+<h3 id="ex-idem">Make a charge endpoint exactly-once</h3>
+<p>Design <code>POST /charges</code> so a client can safely retry after a timeout and the card is charged at most once &mdash; including the in-flight-retry edge case.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Require an <b>idempotency key</b> per logical charge. On receipt: in one DB transaction, attempt to <i>insert</i> a row keyed by the idempotency key (a unique constraint) in <code>pending</code> state plus the <code>pending</code> ledger entries. <b>If the insert succeeds</b> (key was new): call the PSP <i>passing the same key</i>, then on confirmed success finalize the row + ledger to <code>succeeded</code> and store the result. <b>If the insert fails</b> (key exists): the request is a retry &mdash; if the existing row is <code>succeeded</code>/<code>failed</code>, return its stored result (no re-charge); if it's still <code>pending</code> (a concurrent in-flight retry), return "in progress" / wait, don't start a second charge. Because you persisted intent before calling the PSP and passed the key to the PSP too, even a crash or PSP timeout is recoverable: a retry re-finds the row and the PSP recognizes the key. Result: exactly-once effect end to end (Scenario 1 + 3).</p>
+</div></details>
+<h3 id="ex-ledger">Model a charge-with-fee as balanced ledger entries</h3>
+<p>A customer pays $100; the merchant gets $97 and your platform keeps a $3 fee. Write the ledger transaction and explain why it can't leave money unaccounted.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>One atomic transaction with entries that <b>sum to zero</b>: <code>DEBIT customer_cash $100</code>, <code>CREDIT merchant_payable $97</code>, <code>CREDIT platform_fee_revenue $3</code> (&minus;100 + 97 + 3 = 0). All three are written in a single ACID transaction &mdash; so it's impossible to debit the customer without also crediting the merchant and fee accounts (Scenario 2 can't happen). To refund, you don't edit these immutable entries &mdash; you append a <i>new</i> balanced transaction reversing them (<code>DEBIT merchant_payable $97</code>, <code>DEBIT platform_fee_revenue $3</code>, <code>CREDIT customer_cash $100</code>). Every account's balance is the sum of its entries; the grand total across all accounts is always zero (money is conserved). The immutability gives the audit trail, and the sum-to-zero invariant is checkable &mdash; a transaction that doesn't balance is rejected before commit.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<ul>
+<li><b>Handle chargebacks &amp; disputes.</b> A customer disputes a charge weeks later. Design the ledger movements and state transitions, and how reconciliation catches it. &rarr; <a href="32.html">Sagas</a>.</li>
+<li><b>Multi-currency.</b> Support payments and balances in many currencies with FX. Design how the ledger represents currency and conversion without rounding losses. &rarr; <a href="11.html">Consistency</a>.</li>
+<li><b>Reconcile against a PSP.</b> Design the daily reconciliation that ingests settlement files, matches them to your ledger, and surfaces discrepancies. &rarr; <a href="60.html">Job Scheduler</a>, <a href="41.html">Batch</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="60.html">&lsaquo; Prev: Distributed Job Scheduler</a><a class="nx" href="62.html">Next: Collaborative Editing &rsaquo;</a></div>
 </div>
 </div>
 </div>

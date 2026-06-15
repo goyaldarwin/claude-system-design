@@ -111,142 +111,182 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Reliability &amp; Operations &nbsp;&rsaquo;&nbsp; SLI, SLO, SLA and Error Budgets</div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Reliability &amp; Operations &nbsp;&rsaquo;&nbsp; SLI/SLO/SLA &amp; Error Budgets</div>
+<h1>SLI, SLO, SLA &amp; Error Budgets</h1>
+<p class="sub"><em>"Make it reliable" is meaningless until you can measure it and agree on how much reliability is enough. SLIs, SLOs, and SLAs turn reliability into numbers; the <b>error budget</b> turns those numbers into a control system that arbitrates the eternal fight between shipping features and staying up. The counterintuitive core: 100% reliability is the wrong target, and a service that's <i>too</i> reliable is a problem.</em></p>
 
-<h1>SLI, SLO, SLA and Error Budgets</h1>
-<p class="sub">The vocabulary that turns "is the service reliable?" into a number you can measure, alert on, and trade against feature velocity.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Operability.</b> <span>you cannot afford 100% — error budgets price reliability against feature velocity.</span></div>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>An explicit, agreed reliability target that lets you ship fast inside it &mdash; in exchange for accepting (and budgeting for) a measured amount of failure rather than chasing perfection.</b> <span>Defining an SLO gives you a shared, data-driven line: above it you ship features freely; below it you stop and stabilize. You pay by giving up the comfortable fiction of "100% uptime" and committing to act on a budget &mdash; which only works if everyone honors it.</span></div>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#vocab">The vocabulary: SLI, SLO, SLA</a></li>
-<li><a href="#sli">Choosing good SLIs</a></li>
-<li><a href="#slo">Setting SLOs: percentiles, not averages</a></li>
-<li><a href="#budget">Error budgets as a control system</a></li>
-<li><a href="#burn">Burn-rate alerting</a></li>
-<li><a href="#nines">The fallacy of 100% and the cost of each nine</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>SLI/SLO/SLA &amp; Error Budgets</b>
+│
+├─ <a href="#root"><b>What these terms are</b></a>  &mdash; SLI, SLO, SLA, error budget
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>The 4 decisions that define a reliability target</b></a>
+│   ├─ <a href="#d1">1. What do you measure? (the SLI)</a>      fail → <a href="#avg-trap">the average-hides-pain trap</a>
+│   ├─ <a href="#d2">2. How high do you set it? (the SLO)</a>    fail → <a href="#hundred-trap">chasing 100%</a>
+│   ├─ <a href="#d3">3. How does the budget govern velocity?</a> fail → <a href="#budget-ignored">the ignored budget</a>
+│   └─ <a href="#d4">4. How do you alert on it? (burn rate)</a> fail → <a href="#alert-trap">slow/noisy budget alerts</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; the nines and what they cost
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; SLO tooling
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; SLOs in practice
+│   ├─ <a href="#impl-google">Google SRE error budgets</a>
+│   ├─ <a href="#impl-burn">Multi-window burn-rate alerts</a>
+│   └─ <a href="#impl-sla">SLAs &amp; their consequences</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-sli">Define an SLI &amp; SLO for an API</a>
+    ├─ <a href="#ex-burn">Design burn-rate alerts</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="vocab">The vocabulary: SLI, SLO, SLA</h2>
-<p>These three terms come from Google's SRE practice and are constantly confused, including by senior engineers. Getting them straight is the price of admission to any serious reliability conversation.</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What these terms are</h2>
+<p>Three nested terms, plus the budget they imply:</p>
 <ul>
-<li><span class="key">SLI &mdash; Service Level Indicator:</span> a <em>measurement</em>. A quantitative metric of some aspect of the service, almost always expressed as a ratio of good events to total events over a window. Example: "the proportion of HTTP requests served in under 300&nbsp;ms." An SLI is a number between 0 and 100%.</li>
-<li><span class="key">SLO &mdash; Service Level Objective:</span> a <em>target</em> for an SLI. "99.9% of requests served in under 300&nbsp;ms over a rolling 28-day window." The SLO is an internal commitment the team holds itself to. It has no direct external consequence.</li>
-<li><span class="key">SLA &mdash; Service Level Agreement:</span> a <em>contract</em> with a customer that includes consequences &mdash; service credits, refunds, penalties &mdash; if the objective is missed. An SLA is a business and legal artifact, not an engineering one.</li>
+<li><b><span class="gl" data-def="SLI &mdash; Service Level Indicator; a measured ratio of good events to valid events (e.g. fraction of requests under 300ms) that quantifies one aspect of service health.">SLI &mdash; Service Level Indicator</span>.</b> A <i>measured</i> number about your service's behavior: the ratio of good events to valid events. E.g. "proportion of HTTP requests served in &lt;300ms," "proportion of requests that return non-5xx." It's a fraction, almost always expressed as a percentage.</li>
+<li><b>SLO &mdash; Service Level Objective.</b> The <i>target</i> for an SLI over a window: "99.9% of requests succeed over 28 days." This is your internal reliability goal &mdash; the line you manage to.</li>
+<li><b>SLA &mdash; Service Level Agreement.</b> A <i>contract</i> with customers that includes consequences (refunds, credits) if you miss a threshold. Always looser than your SLO &mdash; you alert yourself (SLO) well before you breach the promise (SLA).</li>
+<li><b>Error budget.</b> The flip side of an SLO: if your SLO is 99.9%, your error budget is 0.1% &mdash; the amount of failure you're <i>allowed</i> to spend per window. It's permission to fail that much.</li>
 </ul>
-<div class="callout note"><span class="lbl">Key insight</span>The relationship is a strict hierarchy: <span class="key">SLA &lt; SLO &lt; the reliability you actually deliver</span>. Your internal SLO is deliberately tighter than the SLA you sign, so that when you start trending toward an SLO breach you still have a buffer of weeks before you owe anyone money. If your SLA is 99.9% and your SLO is also 99.9%, you have no margin and will be writing refund checks the first time the SLO wobbles. A common rule of thumb: set the SLO one extra nine tighter, or at least add a comfortable gap.</div>
-<p>One subtle but important point: <span class="key">not every service needs an SLA, but every user-facing service should have an SLO.</span> Internal services frequently have SLOs and no SLA at all &mdash; the "contract" is just the expectation other teams build against. Conversely, signing an SLA without an internal SLO to back it is how organizations sleepwalk into penalty payments.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>SLIs/SLOs trade <b>the fantasy of perfect reliability</b> for <b>an explicit, measured budget you can spend</b>. The error budget reframes reliability from "never fail" to "fail no more than X" &mdash; and that remaining X becomes currency: spend it on faster feature releases, or save it by slowing down. The whole system only works because the target is deliberately <i>below</i> 100%.</div>
 
-<h2 id="sli">Choosing good SLIs</h2>
-<p>An SLI is only useful if it correlates with what users actually experience. A CPU-utilization graph is a fine operational metric but a terrible SLI &mdash; users do not care about your CPU, they care whether their request succeeded and was fast. Good SLIs measure the <span class="key">user-visible boundary</span> of the service. The canonical SLI categories:</p>
-<ul>
-<li><span class="key">Availability:</span> the fraction of valid requests that succeed. For request-driven services this is the workhorse SLI.</li>
-<li><span class="key">Latency:</span> the fraction of requests served faster than a threshold. Almost always the most user-impactful SLI for interactive systems.</li>
-<li><span class="key">Throughput / freshness:</span> for pipelines and streaming systems, how much data is processed and how stale the output is. See <a href="40.html">Stream Processing and CDC</a> and <a href="41.html">Batch and Big Data Processing</a>.</li>
-<li><span class="key">Error rate:</span> the inverse framing of availability &mdash; the fraction of requests that fail with 5xx, timeouts, or malformed responses.</li>
-<li><span class="key">Correctness / durability:</span> the fraction of operations that return the right answer, or the fraction of stored objects not lost. Often the hardest to measure but the most damaging to violate. S3 advertises "eleven nines" of durability, which is a correctness SLI, not an availability one.</li>
-</ul>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the nines</a>.</p>
 
-<h3>The good-events / valid-events ratio</h3>
-<p>The most durable way to specify an SLI is as a ratio with carefully defined numerator and denominator:</p>
-<pre><code>SLI = good events / valid events
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; Google's Chubby planned outages (real practice)</span>
+Google's <a href="36.html">Chubby</a> lock service became <i>so</i> reliable that teams started assuming it would never go down and stopped designing for its failure &mdash; building fragile, hidden dependencies on it. Google's response was startling: in any quarter Chubby exceeds its availability target, they <b>deliberately take it down</b> to burn the remaining error budget and flush out those bad assumptions. <b>Why is a service being "too reliable" actually a problem, and what does this say about the right reliability target?</b></div>
 
-availability_sli = (count of requests with status &lt; 500 and not timeout)
-                 / (count of all requests, excluding client errors we don't own)
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the SLO that says "fine" while users suffer</span>
+Your dashboard shows "average response time: 180ms &mdash; well within target." Yet support is flooded with complaints about slowness. It turns out 1% of requests take 8 seconds, and that 1% includes your biggest customers' heaviest queries. <b>Why did the average hide the pain, and what should the SLI have measured instead?</b></div>
 
-latency_sli      = (count of requests faster than 300ms)
-                 / (count of all valid requests)</code></pre>
-<p>The hard, interesting work is in the definitions. <span class="key">What counts as "valid"?</span> A 400 caused by a malformed client request is usually <em>not</em> your fault and should be excluded from the denominator &mdash; otherwise a buggy client tanks your SLO. A 429 from your own <a href="23.html">rate limiter</a> is arguably a <em>success</em> (the system worked as designed) and might be excluded too. Where you measure also matters: at the load balancer, you miss failures that never reached it; at the client, you capture the true experience but conflate it with the user's own network. Principal engineers debate the denominator as hard as the numerator.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>Measuring availability at the server misses the failures that matter most: the requests that timed out before your server logged anything, or that failed at a CDN/<a href="03.html">load balancer</a> hop you don't instrument. The infamous failure mode is a service reporting "99.99% availability" from its own logs while users see a hard outage, because the requests never arrived to be counted. Where you measure is a design decision, not a detail.</div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the budget that's almost gone, mid-quarter</span>
+Three weeks into a 28-day window, a series of incidents has burned 90% of your error budget &mdash; you have 10% left for the remaining week. Product wants to ship three risky features. <b>What should the error budget <i>do</i> in this moment, and who does it let you say "no" to without it being a political fight?</b></div>
 
-<h2 id="slo">Setting SLOs: percentiles, not averages</h2>
-<p>The single most important SLI discipline is to <span class="key">specify latency as a percentile, never as an average</span>. The mean is actively misleading for latency because the distribution is heavily right-skewed: a handful of multi-second requests barely move the mean while ruining the experience for real users.</p>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#hundred-trap">why 100% is the wrong target</a>. Scenario 2 is <a href="#avg-trap">choosing a good SLI (percentiles, not averages)</a>. Scenario 3 is <a href="#budget-ignored">the budget as a control system</a>. Each maps to a decision below.</i></p>
+
+<!-- ============ BRANCH 1: THE DECISIONS ============ -->
+<h2 id="decisions">The four decisions that define a reliability target</h2>
+<p>Setting up reliability targets is these four choices. Each has a named failure nested under it.</p>
+
+<h3 id="d1">Decision 1 &mdash; What do you measure? (choosing the SLI)</h3>
+<p>A good SLI measures what <b>users actually experience</b>, as a <b>good-events / valid-events ratio</b>. The canonical categories: <b>availability</b> (fraction of requests that succeed), <b>latency</b> (fraction served faster than a threshold), <b>quality/correctness</b> (fraction returning correct data), and for pipelines, <b>freshness/throughput</b>. Pick a small number of SLIs that map to user happiness &mdash; not internal metrics like CPU that users never feel.</p>
+<div class="callout warn"><span class="lbl" id="avg-trap">The failure that happens when you get this wrong &mdash; the average that hides the pain</span>
+This is <b>Scenario 2</b>. Measuring <b>average</b> latency (or any mean) hides the tail: a 180ms average can contain a 1% of requests taking 8 seconds &mdash; and that slow tail is exactly what users notice and complain about, often your biggest/heaviest customers. <b>Define latency SLIs as percentiles</b> ("99% of requests &lt; 300ms"), not averages, so the SLI tracks the worst experiences. (Computing global percentiles correctly needs mergeable <a href="42.html">histograms</a>, never averaged per-host percentiles.) And measure as close to the user as possible (at the load balancer / client), not deep in a backend that misses upstream failures.</div>
+
+<h3 id="d2">Decision 2 &mdash; How high do you set it? (the SLO, and the cost of nines)</h3>
+<p>The SLO target is a business decision, not "as high as possible." Each additional <b>nine</b> (99% &rarr; 99.9% &rarr; 99.99%) costs exponentially more in engineering and infrastructure while delivering diminishing user-perceptible value. Set the SLO at the point where users <i>stop noticing</i> improvement &mdash; usually well below 100%. A user on a flaky mobile network can't even tell the difference between 99.9% and 99.99% backend availability.</p>
+<div class="callout warn"><span class="lbl" id="hundred-trap">The failure that happens when you get this wrong &mdash; chasing 100%</span>
+This is <b>Scenario 1</b>. <b>100% is the wrong target for essentially everything.</b> First, it's unachievable and absurdly expensive &mdash; each nine multiplies cost. Second, and subtler: a service that's <i>more</i> reliable than its SLO trains its dependents to assume it <i>never</i> fails, so they stop handling its failure &mdash; turning it into a hidden <a href="36.html">single point of failure</a> for everyone. Google deliberately takes Chubby down when it's been too reliable, precisely to break those unsafe assumptions. The target reliability should match what users need and no more; the leftover unreliability (the error budget) is a feature, not a bug.</div>
+
+<h3 id="d3">Decision 3 &mdash; How does the error budget govern velocity?</h3>
+<p>The error budget turns the reliability number into a <b>control system</b> arbitrating the structural conflict between dev teams (want to ship features &mdash; risk) and SRE/ops (want stability). The policy: <b>budget remaining &rarr; ship freely; budget exhausted &rarr; feature freeze, all hands on reliability</b> until the budget recovers. This makes the reliability/velocity trade objective and automatic instead of a recurring argument.</p>
+<div class="callout warn"><span class="lbl" id="budget-ignored">The failure that happens when you get this wrong &mdash; the budget nobody honors</span>
+This is <b>Scenario 3</b>. An error budget only works if there's an agreed, enforced <b>error-budget policy</b>: when 90% is burned with a week left, the budget's job is to <i>halt risky releases</i> and redirect effort to stability &mdash; and crucially, it lets engineering say "no" to that risky launch as a <b>data-driven decision, not a political fight</b> ("we're out of budget" beats "I think it's too risky"). If leadership routinely overrides the budget to ship anyway, the SLO is theater &mdash; you've measured reliability but built no mechanism to act on it. The budget must have teeth (a freeze) that everyone, including product, has pre-agreed to honor.</div>
+
+<h3 id="d4">Decision 4 &mdash; How do you alert on it? (burn-rate alerting)</h3>
+<p>You don't want to be paged the instant a single request fails, nor find out you blew the budget only at month-end. <b>Burn-rate alerting</b> watches how fast you're consuming the budget: a <span class="gl" data-def="Burn rate &mdash; how fast you are consuming the error budget relative to the SLO window; a burn rate of N exhausts the whole budget N times faster than the window allows.">burn rate</span> of 1 means you'll exactly exhaust the budget by window's end; a burn rate of 10 means you'll exhaust it 10&times; too fast. Alert on <b>fast burn</b> (page now &mdash; a major incident eating the budget in hours) and <b>slow burn</b> (ticket &mdash; a chronic low-grade issue that'll exhaust it over days), typically with multi-window checks to avoid false alarms.</p>
+<div class="callout warn"><span class="lbl" id="alert-trap">The failure that happens when you get this wrong &mdash; alerts too slow, too noisy, or both</span>
+Naive alerting fails two ways. <b>Threshold-on-instantaneous-errors</b> pages on every transient blip (noise &rarr; alert fatigue &rarr; ignored pages). <b>Alert only when the SLO is already breached</b> and you find out too late to act. <b>Multi-window, multi-burn-rate alerting</b> fixes both: a high burn rate over a short window (e.g. 14&times; over 1h) pages immediately for fast emergencies; a moderate burn rate over a long window (e.g. 3&times; over 6h) opens a ticket for slow leaks; requiring a short <i>and</i> long window to agree suppresses transient false positives. The goal: every page is real, urgent, and budget-relevant.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the nines and what they cost</h2>
 <table>
-<tr><th>Statistic</th><th>What it tells you</th><th>Why it misleads</th></tr>
-<tr><td>Mean (average)</td><td>Central tendency</td><td>A 10&nbsp;ms median and a 5&nbsp;s tail can average to a "fine" number; hides the tail entirely</td></tr>
-<tr><td>p50 (median)</td><td>Typical experience</td><td>Says nothing about the unhappy half-percent</td></tr>
-<tr><td>p99</td><td>Tail latency &mdash; the slow 1%</td><td>The right target for most user-facing SLOs</td></tr>
-<tr><td>p99.9</td><td>Worst-case tail</td><td>Where retries, GC pauses, cold caches, and tail amplification show up</td></tr>
+<tr><th>SLO (availability)</th><th>Error budget / 30 days</th><th>Roughly</th></tr>
+<tr><td>99% ("two nines")</td><td>~7.2 hours</td><td>Internal tools, batch</td></tr>
+<tr><td>99.9% ("three nines")</td><td>~43 minutes</td><td>Most web services &mdash; common default</td></tr>
+<tr><td>99.99% ("four nines")</td><td>~4.3 minutes</td><td>Critical services; expensive</td></tr>
+<tr><td>99.999% ("five nines")</td><td>~26 seconds</td><td>Very few systems truly need this</td></tr>
+<tr><td>100%</td><td>0 &mdash; impossible &amp; counterproductive</td><td>Never the target</td></tr>
 </table>
-<p><span class="key">Why p99 (and p99.9) matter so much:</span> in a system that fans out a single user action into many backend calls &mdash; a typical microservices request hitting dozens of services &mdash; the user waits for the <em>slowest</em> of those calls. This is <span class="key">tail latency amplification</span>: if each backend has a 1% chance of being slow, a request touching 100 backends has roughly a 63% chance of hitting at least one slow one. So the <em>median</em> user experience is governed by your backends' <em>p99</em>, not their median. Jeff Dean's "The Tail at Scale" is the canonical reference. This is also why <a href="51.html">resilience patterns</a> like hedged requests and timeouts exist &mdash; to cut the tail.</p>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They never say "the SLO is 200&nbsp;ms latency." They say "the SLO is p99 latency under 200&nbsp;ms, measured at the edge, over a rolling 28-day window, excluding requests that 4xx for client reasons." Every clause &mdash; the percentile, the threshold, the measurement point, the window, the exclusions &mdash; is a deliberate choice that changes what the number means.</div>
+<div class="callout note"><span class="lbl">The rule in one line</span>Measure user-perceived SLIs as <b>percentiles</b>, set the SLO at the <b>fewest nines users actually need</b> (not 100%), spend the resulting <b>error budget</b> on velocity via an enforced policy, and alert on <b>burn rate</b> (multi-window) so pages are timely and real. Each extra nine roughly 10&times;es cost for shrinking user-visible benefit.</div>
 
-<h3>The measurement window</h3>
-<p>SLOs are defined over a window, typically a <span class="key">rolling 28 days</span> (four weeks captures weekly cyclicality and is divisible cleanly). A rolling window is preferred over a calendar month because it avoids the perverse incentive of "we already blew the budget on the 3rd, so reliability doesn't matter for the rest of the month." With a rolling window, every bad day ages out 28 days later, so the budget continuously replenishes.</p>
-
-<h2 id="budget">Error budgets as a control system</h2>
-<p>The <span class="key">error budget</span> is the inverse of the SLO. If your SLO is 99.9% availability, your error budget is 0.1% &mdash; the amount of unreliability you are <em>allowed</em> to spend. Over a 28-day window:</p>
-<pre><code>error budget = (1 - SLO) &times; total events
-
-For 99.9% over 28 days at 1000 req/s:
-  total requests   = 1000 &times; 86400 &times; 28  &asymp; 2.42 billion
-  budget (0.1%)    &asymp; 2.42 million failed requests allowed
-
-Expressed as time (a simplification, see warning below):
-  99.9%  over 28 days  &rarr;  ~40 minutes of downtime
-  99.99% over 28 days  &rarr;  ~4 minutes
-  99.999% over 28 days &rarr;  ~24 seconds</code></pre>
-<div class="callout warn"><span class="lbl">Pitfall</span>"Minutes of downtime" is a lossy way to express an error budget. A request-ratio budget and a time budget diverge under partial failure: if 5% of requests fail continuously, you are never "down" but you burn budget steadily. Prefer the <span class="key">request-success ratio</span> as the source of truth and treat time-based figures as intuition pumps only.</div>
-
-<h3>How the budget arbitrates velocity vs. reliability</h3>
-<p>This is the real reason error budgets exist, and the part most often misunderstood. The eternal tension is between product teams (who want to ship features fast) and SRE/ops (who want stability). Without a shared number, this is a religious war settled by whoever shouts loudest. The error budget makes it a <span class="key">data-driven contract</span>:</p>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">Budget remaining:</span> the team ships freely. Risky changes, faster rollouts, more experiments &mdash; the budget is there to be spent. An <em>unused</em> error budget is a signal you are being too conservative and shipping too slowly.</li>
-<li><span class="key">Budget exhausted:</span> a pre-agreed policy kicks in &mdash; typically a <span class="key">feature freeze</span>. All engineering effort redirects to reliability work until the budget recovers. No debate, no escalation, the policy was agreed in advance when everyone was calm.</li>
+<li><b>Scenario 1 (Chubby):</b> Why is being too reliable a problem, what does Google do about it, and why is 100% the wrong target?</li>
+<li><b>Scenario 2 (average hides pain):</b> Why did the average mislead, and how should the latency SLI have been defined (and measured)?</li>
+<li><b>Scenario 3 (budget almost gone):</b> What should the error budget do mid-quarter, and how does it let engineering say "no" without a political fight?</li>
+<li>Define SLI, SLO, SLA and why the SLA is looser than the SLO.</li>
+<li>What's a burn rate, and how do fast/slow multi-window alerts avoid being too slow or too noisy?</li>
 </ul>
-<p>The genius is that it aligns incentives: the product team now <em>owns</em> reliability, because their feature velocity is gated by it. They stop treating outages as "ops' problem." This is why <a href="52.html">deployment strategies</a> like canary and progressive rollout matter &mdash; they let you spend budget in small, observable increments rather than betting it all on a big-bang release. The budget also funds deliberate risk: planned <a href="09.html">failover</a> drills and chaos experiments are legitimate budget expenditures.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>An error budget makes the velocity/reliability trade-off explicit but it is only as good as the policy attached to it and the leadership willingness to enforce a freeze. The most common failure is a budget that everyone watches and no one acts on &mdash; "we're over budget but we have a launch, so we'll ship anyway." A budget with no teeth is just a dashboard.</div>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>4 decisions</b> &mdash; <a href="#d1">choose the SLI (percentiles)</a>, <a href="#d2">set the SLO (not 100%)</a>, <a href="#d3">budget governs velocity</a>, <a href="#d4">burn-rate alerting</a> &mdash; each with a nested failure: average hides pain, chasing 100%, ignored budget, bad alerts.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="50.html">Observability</a>, <a href="51.html">Resilience Patterns</a>, <a href="42.html">Probabilistic (percentiles)</a>, <a href="65.html">Metrics &amp; Monitoring</a>, <a href="53.html">Multi-Region &amp; DR</a>.</p>
 
-<h2 id="burn">Burn-rate alerting</h2>
-<p>Naively, you might alert "fire when the 28-day SLO is breached." That is useless &mdash; by the time the rolling window crosses the threshold, you have already been failing for a long time. The modern approach, from the Google SRE Workbook, is <span class="key">multi-window, multi-burn-rate alerting</span>.</p>
-<p>The <span class="key">burn rate</span> is how fast you are consuming the error budget relative to the rate that would exhaust it exactly at the end of the window. A burn rate of 1 means you'll spend the whole budget over 28 days. A burn rate of 14.4 means you'll exhaust the entire 28-day budget in 2 days.</p>
-<pre><code>burn_rate = (observed error rate) / (1 - SLO)
-
-# Example: SLO 99.9%, so budget error rate = 0.001
-# If current error rate = 0.014, burn_rate = 14
-# That burns the full 28-day budget in 28/14 = 2 days</code></pre>
-<p>You configure multiple alerts at different burn rates and time windows, trading off how much budget you're willing to lose before paging against how many false pages you tolerate:</p>
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
 <table>
-<tr><th>Burn rate</th><th>Long window</th><th>Short window (guard)</th><th>Budget consumed before page</th><th>Severity</th></tr>
-<tr><td>14.4&times;</td><td>1 hour</td><td>5 min</td><td>~2%</td><td>Page immediately</td></tr>
-<tr><td>6&times;</td><td>6 hours</td><td>30 min</td><td>~5%</td><td>Page</td></tr>
-<tr><td>1&times;</td><td>3 days</td><td>6 hours</td><td>~10%</td><td>Ticket (no page)</td></tr>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure / other</th></tr>
+<tr><td>SLO definition &amp; tracking</td><td>CloudWatch (custom)</td><td>Cloud Monitoring SLOs (native)</td><td>Azure Monitor; Nobl9, Datadog SLOs</td></tr>
+<tr><td>Burn-rate alerting</td><td>CloudWatch alarms</td><td>Cloud Monitoring burn-rate alerts</td><td>Datadog / Grafana SLO + burn rate</td></tr>
+<tr><td>Histograms for percentile SLIs</td><td>CloudWatch (percentile stats)</td><td>Cloud Monitoring distributions</td><td>Prometheus histograms / Datadog</td></tr>
 </table>
-<p>The <span class="key">short window acts as a guard</span>: the alert only fires if both the long window <em>and</em> the recent short window are burning hot. This stops a long-window alert from continuing to page for an hour after the incident has already been fixed (good for fast reset) and stops a brief blip from tripping the slow-burn alert. Fast burns page a human; slow burns open a ticket. Tying alerts to budget burn rather than raw thresholds is what keeps on-call humane and meaningful &mdash; see <a href="50.html">Observability</a> for how these signals are collected and surfaced.</p>
-<div class="callout note"><span class="lbl">Key insight</span>Burn-rate alerting solves the classic alerting dilemma. Threshold alerts ("error rate &gt; 1%") are either too sensitive (page on every blip) or too slow (miss a sustained slow bleed). Symptom-based, budget-relative alerting pages proportional to <em>user harm per unit time</em>, which is exactly what you want a human woken up for.</div>
+<div class="callout note"><span class="lbl">The takeaway</span>GCP Cloud Monitoring has first-class SLOs and burn-rate alerts modeled directly on Google's SRE book; tools like Nobl9, Datadog, and Grafana add SLO tracking on top of any backend. Whatever you use, ensure your latency SLIs are computed from <a href="42.html">histograms/distributions</a> (true percentiles), not averaged metrics &mdash; the tool won't fix a badly-chosen SLI.</div>
 
-<h2 id="nines">The fallacy of 100% and the cost of each nine</h2>
-<p>The most important reliability insight, and the one that separates principal engineers from the rest: <span class="key">100% is the wrong target for almost everything.</span> The reasons are both economic and physical.</p>
-<ul>
-<li><span class="key">The user can't tell.</span> Between the service and the user sits the user's WiFi, their ISP, DNS, their phone's flaky radio, and the public internet &mdash; a chain that is itself maybe 99.9% reliable. Pushing your service from 99.99% to 99.999% is invisible to a user whose own connection is the bottleneck. You are spending fortunes on reliability the user physically cannot perceive.</li>
-<li><span class="key">Each nine costs roughly an order of magnitude more.</span> Going from 99.9% to 99.99% typically means redundant everything, multi-AZ then <a href="53.html">multi-region</a>, automated failover, and far more sophisticated <a href="51.html">resilience patterns</a>. The next nine after that may require active-active across regions, removal of every shared dependency, and a doubling of operational maturity.</li>
-<li><span class="key">100% forbids change.</span> You cannot deploy, patch, or experiment if you have zero budget for error. A 100% target is a velocity freeze in disguise. The error budget exists precisely to <em>spend</em> on the risk of shipping.</li>
-</ul>
-<table>
-<tr><th>Availability</th><th>Downtime / 30 days</th><th>Downtime / year</th><th>Typical cost tier</th></tr>
-<tr><td>99% (two nines)</td><td>~7.2 hours</td><td>~3.65 days</td><td>Single node, best-effort</td></tr>
-<tr><td>99.9% (three nines)</td><td>~43 minutes</td><td>~8.76 hours</td><td>Redundant, single region</td></tr>
-<tr><td>99.99% (four nines)</td><td>~4.3 minutes</td><td>~52.6 minutes</td><td>Multi-AZ, automated failover</td></tr>
-<tr><td>99.999% (five nines)</td><td>~26 seconds</td><td>~5.26 minutes</td><td>Multi-region active-active</td></tr>
-</table>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They ask "what reliability does this service actually need?" before quoting a number. A payment authorization path (<a href="61.html">payment system</a>) may justify five nines and the cost that comes with it; an internal analytics dashboard is fine at 99%. They right-size the target to the user impact and the cost of the next nine, rather than reflexively chasing 100%. They also distinguish criticality <em>within</em> a service &mdash; the read path and the write path often warrant different SLOs.</div>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The practice made concrete. Same facets &mdash; what it is, the mechanism, and the failure to watch.</p>
 
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>Strong engineers treat reliability as a quantified, negotiable budget rather than a vibe. They define SLIs as good/valid ratios with explicit numerators, denominators, and measurement points; they always specify latency SLOs as percentiles with a window; they connect the error budget to a concrete velocity policy with leadership buy-in; and they reflexively question whether more nines are worth the cost. They know the difference between an internal SLO and a customer SLA, and they design the gap between them deliberately.</div>
+<h3 id="impl-google">Google SRE error budgets</h3>
 <ul>
-<li>A team tells you their service is "99.99% available" based on their server access logs, but customers report frequent outages. Walk me through every reason those two facts can both be true, and how you'd fix the measurement.</li>
-<li>Your service fans out each user request to 30 backend microservices. Each backend has a p99 of 50&nbsp;ms. What is the user-facing latency distribution, and what techniques would you use to control the tail?</li>
-<li>You're signing an SLA with a customer for 99.9% availability. What internal SLO would you set, why the gap, and how would you structure burn-rate alerts to give your team time to react before you owe service credits?</li>
-<li>The product team has blown through the error budget two weeks into a 28-day window but has a major launch scheduled. The pre-agreed policy is a feature freeze. What do you actually do, and how do you keep the budget from becoming a dashboard nobody respects?</li>
-<li>How would you define SLIs for a system that isn't request/response &mdash; say a <a href="39.html">Kafka</a>-based pipeline or a <a href="60.html">job scheduler</a>? What replaces availability and latency?</li>
-<li>Leadership wants to "add another nine" to a service. How do you estimate the cost, identify which dependency is the limiting factor, and decide whether it's worth it?</li>
+<li><b>What it is.</b> The originating framework (the SRE book): SLOs + error budgets as the contract between dev velocity and reliability.</li>
+<li><b>Mechanism.</b> Budget remaining &rarr; ship; budget exhausted &rarr; freeze; and the Chubby practice of <i>synthesizing</i> outages when a service is too reliable, to flush hidden dependencies.</li>
+<li><b>The failure to watch.</b> A budget with no enforced policy is theater; an SLO measured on averages or internal metrics tracks the wrong thing.</li>
 </ul>
 
-<div class="navfoot"><a href="48.html">&lsaquo; Prev: Object Storage and CDN</a><a class="nx" href="50.html">Next: Observability &rsaquo;</a></div>
+<h3 id="impl-burn">Multi-window burn-rate alerting</h3>
+<ul>
+<li><b>What it is.</b> The standard way to page on SLO consumption (SRE workbook).</li>
+<li><b>Mechanism.</b> Combine a fast-burn alert (high rate, short window &rarr; page) and a slow-burn alert (moderate rate, long window &rarr; ticket); require short+long windows to agree to suppress blips.</li>
+<li><b>The failure to watch.</b> Single-window threshold alerts are either noisy or too late; tune burn-rate thresholds to your budget and window.</li>
+</ul>
+
+<h3 id="impl-sla">SLAs &amp; their consequences</h3>
+<ul>
+<li><b>What it is.</b> The external contract (e.g. "99.9% monthly uptime or service credits").</li>
+<li><b>Mechanism.</b> Set the SLA <i>looser</i> than your internal SLO so your alerts fire and you remediate well before you owe customers credits.</li>
+<li><b>The failure to watch.</b> An SLA equal to or tighter than your SLO leaves no margin &mdash; you breach the contract the moment you miss your own goal.</li>
+</ul>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you write the actual numbers. Work each before opening the approach.</p>
+
+<h3 id="ex-sli">Define an SLI and SLO for a checkout API</h3>
+<p>Your checkout API must feel fast and reliable. Define an availability SLI, a latency SLI, an SLO for each over a window, and explain how you'd measure them.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p><b>Availability SLI:</b> (count of requests with non-5xx, non-timeout responses) / (count of valid requests), measured <i>at the load balancer</i> (closest to the user, captures backend failures). <b>Latency SLI:</b> proportion of requests served in &lt; 300ms, as a <b>percentile</b> from a <a href="42.html">histogram</a> &mdash; e.g. "p99 &lt; 300ms" &mdash; never an average (Scenario 2). <b>SLOs:</b> "99.9% availability over 28 days" and "99% of requests &lt; 300ms over 28 days." Pick 28 days (rolling) so the window is stable and matches a billing cycle. Exclude invalid requests (4xx from bad client input) from the denominator &mdash; they're not your failures. The error budget is the 0.1% (≈40 min/month) you may spend on releases.</p>
+</div></details>
+
+<h3 id="ex-burn">Design burn-rate alerts for that SLO</h3>
+<p>For the 99.9%/28-day availability SLO, design alerts that page for a fast emergency but only ticket for a slow leak, without paging on every transient blip.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Compute burn rate = (observed error rate) / (allowed error rate, 0.1%). <b>Fast-burn page:</b> burn rate &ge; ~14 sustained over both a 1-hour <i>and</i> a 5-minute window &mdash; at 14&times; you'd exhaust the whole 28-day budget in ~2 days, clearly an emergency; requiring two windows to agree filters out 1-minute blips. <b>Slow-burn ticket:</b> burn rate &ge; ~3 over a 6-hour <i>and</i> 30-minute window &mdash; a chronic leak that'd exhaust the budget in ~9 days; ticket, don't page. This multi-window/multi-burn-rate scheme (from the SRE workbook) makes every page urgent and real while catching slow erosion before it blows the budget &mdash; avoiding both alert fatigue and finding out too late (Scenario's Decision 4).</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Write an error-budget policy with teeth.</b> Draft the policy that everyone (incl. product) pre-agrees to: what happens at 50%/90%/100% burn, who can override, and how the freeze lifts. &rarr; <a href="51.html">Resilience Patterns</a>.</li>
+<li><b>Pick SLOs for a dependency chain.</b> Service A depends on B and C. Given their SLOs, compute A's achievable SLO and decide where to add resilience. &rarr; <a href="44.html">Microservices</a>.</li>
+<li><b>Flush hidden dependencies (the Chubby move).</b> Design a safe way to periodically prove your service's dependents handle its failure, without causing a real incident. &rarr; <a href="51.html">Chaos engineering</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="48.html">&lsaquo; Prev: Object Storage &amp; CDN</a><a class="nx" href="50.html">Next: Observability &rsaquo;</a></div>
 </div>
 </div>
 </div>

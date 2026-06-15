@@ -111,180 +111,195 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Anti-Entropy and Gossip</div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Anti-Entropy &amp; Gossip</div>
+<h1>Anti-Entropy &amp; Gossip</h1>
+<p class="sub"><em>A leaderless cluster of hundreds of nodes has no boss to tell everyone the truth. So how do they all learn who's alive, agree on data, and heal divergence &mdash; without a central coordinator that would be a bottleneck and a single point of failure? They <b>gossip</b>: each node periodically tells a few random peers what it knows, and information spreads like an epidemic until everyone converges.</em></p>
 
-<h1>Anti-Entropy and Gossip</h1>
-<p class="sub"><em>How leaderless replicas find and erase divergence — epidemic protocols, Merkle trees, read-repair, and the surprisingly hard problem of deleting data.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth &amp; partial failure.</b> <span>converging replicas without a leader, paid in gossip rounds and anti-entropy work.</span></div>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Decentralized, scalable convergence with no coordinator &mdash; in exchange for eventual (not instant) propagation and the need to detect and repair divergence after the fact.</b> <span>Gossip scales to thousands of nodes and survives any single failure because there's no center. You pay in latency (it takes O(log N) rounds to reach everyone) and in machinery to find and fix the inconsistencies that accumulate.</span></div>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#problem">The convergence problem without a leader</a></li>
-<li><a href="#gossip">Gossip and epidemic protocols</a></li>
-<li><a href="#swim">SWIM: membership and failure detection</a></li>
-<li><a href="#antientropy">Anti-entropy with Merkle trees</a></li>
-<li><a href="#repair">Read-repair and hinted handoff</a></li>
-<li><a href="#tombstones">Tombstones and the deletion problem</a></li>
-<li><a href="#guarantees">Convergence guarantees</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Anti-Entropy &amp; Gossip</b>
+│
+├─ <a href="#root"><b>What anti-entropy is</b></a>  &mdash; convergence without a leader
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#ideas"><b>The 5 ideas to understand</b></a>  &mdash; each has a misconception to avoid
+│   ├─ <a href="#i1">1. Gossip / epidemic spread</a>      trap → <a href="#gossip-trap">"gossip is just broadcast"</a>
+│   ├─ <a href="#i2">2. SWIM failure detection</a>        trap → <a href="#swim-trap">"slow = dead"</a>
+│   ├─ <a href="#i3">3. Merkle trees (anti-entropy)</a>   trap → <a href="#merkle-trap">"compare everything"</a>
+│   ├─ <a href="#i4">4. Read-repair &amp; hinted handoff</a>  trap → <a href="#repair-trap">"repair is automatic &amp; free"</a>
+│   └─ <a href="#i5">5. Tombstones &amp; deletes</a>          trap → <a href="#tombstone-trap">"delete just removes it"</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; the mechanisms and what each fixes
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; where gossip runs for you
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; gossip in real systems
+│   ├─ <a href="#impl-cassandra">Cassandra / Dynamo</a>
+│   ├─ <a href="#impl-consul">Consul / Serf (SWIM)</a>
+│   └─ <a href="#impl-redis">Redis Cluster</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-merkle">Sync two replicas with a Merkle tree</a>
+    ├─ <a href="#ex-swim">Tune a failure detector</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="problem">The convergence problem without a leader</h2>
-<p>In a leaderless replicated store — Dynamo, Cassandra, Riak, ScyllaDB — every replica accepts writes. There is no single source of truth, no ordered log to replay (<a href="30.html">Consensus and Raft</a> buys you that, but at the cost of a quorum on every write and a single leader bottleneck). Instead the system bets on <span class="key">eventual consistency</span>: if writes stop, replicas will converge. The mechanisms that make "will converge" actually true are the subject of this lesson.</p>
-
-<p>Divergence is unavoidable. A node was down during a write. A network partition split the ring. A coordinator wrote to <code>W</code> of <code>N</code> replicas and returned success while the other <code>N-W</code> lagged. Hardware bit-rot silently corrupted a row. With sloppy quorums (<code>W + R &le; N</code> momentarily), you can even read stale data right after a successful write. The store therefore needs <em>continuous background processes</em> that detect and heal divergence rather than relying on the write path alone.</p>
-
-<p>Two families of mechanism do the work, and strong systems use both:</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What anti-entropy is</h2>
+<p>In a leaderless, <a href="11.html">AP</a> system (the <a href="33.html">Dynamo</a> lineage: Cassandra, Riak), every node accepts reads and writes and there's deliberately no single coordinator. Without a boss, two problems arise: <b>membership</b> (which nodes are alive right now?) and <b>data convergence</b> (replicas of the same key drift apart and must be reconciled). <b><span class="gl" data-def="Anti-entropy &mdash; background processes that compare replicas and repair divergence, driving an eventually-consistent system back toward agreement with no coordinator.">Anti-entropy</span></b> is the umbrella term for the background mechanisms that drive replicas back toward agreement, and <b>gossip</b> is the communication style that powers them.</p>
+<p>The toolkit, from "spread information" to "find and fix divergence":</p>
 <ul>
-<li><span class="key">Gossip / epidemic protocols</span> — cheap, randomized, probabilistic dissemination of small facts: who is alive, ring topology, schema versions, load metrics. Used for <em>membership and metadata</em>.</li>
-<li><span class="key">Anti-entropy</span> — systematic, comparison-based reconciliation of the actual <em>data</em> between replicas, using Merkle trees so you don't ship terabytes to find a one-row difference.</li>
+<li><b>Gossip</b> &mdash; spread state (membership, metadata) by each node telling a few random peers each round.</li>
+<li><b>Failure detection</b> (SWIM) &mdash; decide who's alive using gossip + indirect probing.</li>
+<li><b>Anti-entropy proper</b> (Merkle trees) &mdash; efficiently find which data differs between two replicas and sync just that.</li>
+<li><b>Read-repair / hinted handoff</b> &mdash; opportunistic repair during reads, and catch-up after a node returns.</li>
 </ul>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Anti-entropy trades <b>instant consistency and central control</b> for <b>massive scalability and no single point of failure</b>. Gossip reaches every node in O(log N) rounds with constant per-node load &mdash; but information arrives <i>eventually</i>, not immediately, and you need extra machinery (Merkle trees, read-repair) to detect and heal the divergence that's allowed to happen in between.</p></div>
 
-<div class="callout note"><span class="lbl">Key insight</span> Gossip spreads <em>knowledge about the cluster</em> (membership, topology). Anti-entropy reconciles <em>the data itself</em>. Conflating the two is the single most common confusion. A failure detector tells you a node came back; anti-entropy is what actually re-syncs the rows it missed.</div>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
 
-<h2 id="gossip">Gossip and epidemic protocols</h2>
-<p>A gossip protocol works like rumor spreading. Periodically — say every 1 second — each node picks a small random subset of peers (often just one to three) and exchanges state with them. Information propagates exponentially: after <code>O(log N)</code> rounds, a fact known to one node is known to all with high probability. For <code>N = 1000</code> nodes and a fanout of 1, full dissemination takes roughly 10&ndash;15 rounds, i.e. ~10&ndash;15 seconds at a 1 Hz interval.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; Amazon S3, 20 July 2008 (real incident)</span>
+S3 servers continuously gossip cluster-state messages to each other. One day a <b>single bit flipped</b> in one such message &mdash; and there was <b>no checksum</b> on it. The corrupted state spread node-to-node like an infection; servers became so busy gossiping bad state that real customer requests stopped being served. S3 was degraded for hours. <b>What property of gossip turned one bad bit into a cluster-wide outage, and what one cheap thing would have stopped it?</b></div>
 
-<p>The appeal is robustness and scale. There is no central coordinator to fail, no <code>O(N²)</code> all-to-all heartbeat mesh, and load per node is constant regardless of cluster size. The cost is <span class="key">eventual</span>, probabilistic propagation with a tunable tail — a fact can take many rounds to reach the last node, and metrics like load or ring ownership are always slightly stale.</p>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the false-positive death</span>
+A node pauses for 2 seconds during a long garbage-collection cycle. Its peers stop hearing its heartbeats and declare it <b>dead</b>, triggering data re-replication. Then it wakes up &mdash; perfectly healthy &mdash; and the cluster has wasted huge effort moving data for nothing. <b>How should a failure detector avoid declaring a slow-but-alive node dead, without being so slow it ignores real failures?</b></div>
 
-<h3>Push, pull, and push-pull</h3>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the resurrected delete</span>
+You delete a row. One replica was down during the delete and never got the message. It comes back, sees it <i>has</i> the row while its peers <i>don't</i>, and helpfully "repairs" the others by re-adding it. <b>The deleted data comes back from the grave. How do you make a delete actually stick in an eventually-consistent store?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#gossip-trap">epidemic nature of gossip</a> &mdash; it spreads good and bad alike. Scenario 2 is <a href="#swim-trap">failure detection and suspicion</a>. Scenario 3 is the <a href="#tombstone-trap">tombstone problem</a>. Each maps to an idea below.</i></p>
+
+<!-- ============ BRANCH 1: THE IDEAS ============ -->
+<h2 id="ideas">The five ideas to understand</h2>
+<p>Theory, not knobs &mdash; ideas to hold correctly, each guarded by a misconception.</p>
+
+<h3 id="i1">Idea 1 &mdash; Gossip and epidemic spread</h3>
+<p>In a <b>gossip (epidemic) protocol</b>, each node every interval picks a few random peers and exchanges state with them. There are three styles: <b>push</b> (I tell you what I know), <b>pull</b> (I ask what you know), and <b>push-pull</b> (both, the fastest to converge). Information reaches all N nodes in roughly <b>O(log N) rounds</b>, with each node sending a constant, small amount per round &mdash; that's why gossip scales to thousands of nodes where a central broadcaster would melt.</p>
+<div class="callout warn"><span class="lbl" id="gossip-trap">The misconception to avoid &mdash; "gossip is just an inefficient broadcast"</span>
+This is <b>Scenario 1</b>. Gossip's power &mdash; reliable, exponential, decentralized spread &mdash; is also its danger: it spreads <i>whatever you give it</i>, including corruption, with the same relentless efficiency. The S3 outage was one un-checksummed bit gossiped into a cluster-wide storm. The lessons: <b>checksum every gossiped message</b> (cheap, would have stopped S3), bound how much you gossip, and add monitoring on the gossip channel itself. Gossip is a probabilistic, anti-fragile broadcast &mdash; treat its payload as untrusted.</div>
+
+<h3 id="i2">Idea 2 &mdash; SWIM: failure detection over gossip</h3>
+<p><b>SWIM</b> (Scalable Weakly-consistent Infection-style Membership) is how modern clusters decide who's alive. Each node periodically <b>directly probes</b> one random peer. If it doesn't reply, the prober asks <i>k other nodes</i> to <b>indirectly probe</b> it &mdash; routing around a single bad network path. Only if all probes fail does it mark the peer suspect, then (after a grace period) dead, gossiping that conclusion. Separating "detection" from "dissemination" keeps load constant per node regardless of cluster size.</p>
+<div class="callout warn"><span class="lbl" id="swim-trap">The misconception to avoid &mdash; "no heartbeat means dead"</span>
+This is <b>Scenario 2</b>. A missed heartbeat can mean a dead node, a slow node (GC pause), or a broken network <i>path</i>. SWIM's two defenses: <b>indirect probes</b> (k peers try too, so one bad link doesn't condemn a healthy node) and a <b>suspicion mechanism</b> (mark "suspect," gossip it, and give the node a window to refute it before declaring it dead). Tuning is a trade-off: too eager &rarr; false positives and needless re-replication (Scenario 2); too patient &rarr; you keep routing requests to a corpse. There's no setting that's both instant and never-wrong.</div>
+
+<h3 id="i3">Idea 3 &mdash; Merkle trees for efficient anti-entropy</h3>
+<p>Two replicas of a key range have drifted. Comparing every key would cost a full data transfer. A <b>Merkle tree</b> is a tree of hashes: leaves hash data blocks, parents hash their children, up to one root hash. To compare two replicas, exchange root hashes &mdash; if equal, they're identical, done. If not, descend only into the subtrees whose hashes differ, transferring just the diverging blocks. This finds the differences in <b>O(log N)</b> comparisons instead of O(N).</p>
+<div class="callout warn"><span class="lbl" id="merkle-trap">The misconception to avoid &mdash; "to sync replicas you compare all the data"</span>
+The whole point of a Merkle tree is to <i>avoid</i> shipping or scanning everything. A single root-hash comparison tells you instantly whether two huge datasets match; only the differing branches get walked. The cost is keeping the tree updated as data changes (rehashing up the path on each write) and choosing a granularity &mdash; too-coarse leaves mean you resync more data than necessary when one key differs. This is the workhorse of background repair in Cassandra/Dynamo.</div>
+
+<h3 id="i4">Idea 4 &mdash; Read-repair and hinted handoff</h3>
+<p>Two opportunistic repair mechanisms complement background Merkle-tree anti-entropy:</p>
+<ul>
+<li><b>Read-repair</b> &mdash; when a read touches several replicas and they disagree, the coordinator returns the newest value to the client <i>and</i> writes it back to the stale replicas. Repair piggybacks on normal traffic, so hot data self-heals fast.</li>
+<li><b>Hinted handoff</b> &mdash; if a target replica is down during a write, another node accepts the write and stores a <b>hint</b> ("this belongs to node X"). When X returns, the hint is replayed to it. This keeps writes available during transient failures.</li>
+</ul>
+<div class="callout warn"><span class="lbl" id="repair-trap">The misconception to avoid &mdash; "repair is automatic and free"</span>
+Read-repair only heals data that gets <i>read</i> &mdash; cold data can stay diverged indefinitely, which is why you still need scheduled full anti-entropy repairs. Hinted handoff has limits: hints accumulate while a node is down (bounded buffers can overflow on a long outage), and if the node never returns, the hints must be discarded and the data re-replicated elsewhere. Neglecting scheduled repair is a classic Cassandra operational mistake &mdash; the cluster silently accumulates inconsistency.</div>
+
+<h3 id="i5">Idea 5 &mdash; Tombstones and the deletion problem</h3>
+<p>In an eventually-consistent store you can't delete by simply removing data &mdash; a replica that missed the delete would resurrect it (Scenario 3). Instead a delete writes a <b>tombstone</b>: a <span class="gl" data-def="Tombstone &mdash; a marker recording that a key was deleted as of a timestamp; it propagates like a write so replicas that missed the delete do not resurrect the data.">tombstone</span>: a marker that says "this key is deleted as of timestamp T." The tombstone propagates like any write and out-votes the old value everywhere. Tombstones can't be removed immediately (a still-down replica might re-add the data), so they're kept for a <b>grace period</b> (e.g. Cassandra's <code>gc_grace_seconds</code>, default 10 days) before garbage collection.</p>
+<div class="callout warn"><span class="lbl" id="tombstone-trap">The misconception to avoid &mdash; "deleting removes the data"</span>
+This is <b>Scenario 3</b>. A delete <i>adds</i> a tombstone, not removes a row &mdash; and that creates its own hazards. <b>Read amplification:</b> a query over a range full of tombstones must scan and skip them all, so deleting-heavily-then-reading (e.g. queue-like access patterns) gets pathologically slow. <b>The GC dilemma:</b> collect tombstones too early and a returning replica resurrects deleted data; too late and they pile up and slow reads. The fix is discipline: avoid delete-heavy access patterns, run repairs within the grace window so every replica sees the tombstone before it's collected.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the mechanisms and what each fixes</h2>
 <table>
-<thead><tr><th>Style</th><th>Mechanism</th><th>Property</th></tr></thead>
-<tbody>
-<tr><td>Push</td><td>Infected node sends update to random peers</td><td>Fast early, slow to reach the final few (low chance of hitting an uninfected node late)</td></tr>
-<tr><td>Pull</td><td>Node asks random peers "what do you know?"</td><td>Fast late-stage convergence, wasteful early</td></tr>
-<tr><td>Push-pull</td><td>Both directions in one exchange</td><td>Best convergence; rounds-to-convergence drops to <code>O(log log N)</code> in the late phase. Most real systems use this.</td></tr>
-</tbody>
+<tr><th>Mechanism</th><th>Solves</th><th>Cost / pitfall</th></tr>
+<tr><td><b>Gossip (push-pull)</b></td><td>Spread membership/metadata to all N nodes, no coordinator</td><td>Eventual, not instant; spreads corruption too &mdash; checksum it</td></tr>
+<tr><td><b>SWIM</b></td><td>Decide who's alive without false positives</td><td>Tuning trade-off: eager &rarr; false deaths, patient &rarr; stale routing</td></tr>
+<tr><td><b>Merkle trees</b></td><td>Find &amp; sync only the diverging data between replicas</td><td>Tree-maintenance cost; leaf granularity affects resync volume</td></tr>
+<tr><td><b>Read-repair</b></td><td>Self-heal hot data during normal reads</td><td>Cold data never repaired this way &mdash; still need scheduled repair</td></tr>
+<tr><td><b>Hinted handoff</b></td><td>Keep writes available while a replica is briefly down</td><td>Hints overflow on long outages; not durable</td></tr>
+<tr><td><b>Tombstones</b></td><td>Make deletes propagate &amp; stick</td><td>Read amplification + GC timing dilemma</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The rule in one line</span>Gossip <i>spreads</i>, SWIM <i>detects liveness</i>, Merkle trees <i>find divergence</i>, read-repair + hinted handoff <i>heal opportunistically</i>, tombstones <i>make deletes safe</i> &mdash; together they let a leaderless cluster converge with no central authority.</div>
 
-<p>Cassandra's gossiper exchanges versioned <span class="key">endpoint state</span>: each node maintains a heartbeat counter and a generation (boot id), plus application state (status, tokens, load, schema version). The three-message <code>SYN</code>/<code>ACK</code>/<code>ACK2</code> handshake is a push-pull: I send digests of what I know, you reply with what you have newer plus digests of what <em>I</em> seem to lack, I send you the rest. Version numbers ensure only deltas move.</p>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> Gossip trades latency and freshness for scalability and partition tolerance. It is the right tool for facts that are tolerant of seconds of staleness (membership, schema, load) and the <em>wrong</em> tool for facts that must be linearizable (leader identity, lock ownership — see <a href="36.html">Leader Election and Coordination</a>, where you want a consensus service instead).</div>
-
-<h2 id="swim">SWIM: membership and failure detection</h2>
-<p>Naive gossip piggybacks failure detection on the heartbeat: if I haven't heard a node's counter increment in <code>T</code> seconds, I mark it dead. This couples detection time to the gossip interval and produces false positives under load. <span class="key">SWIM</span> (Scalable Weakly-consistent Infection-style process group Membership) separates the two concerns and is the design behind HashiCorp's Serf/Memberlist (Consul, Nomad) and similar systems.</p>
-
-<h3>The failure detector</h3>
-<p>SWIM's detector is a randomized direct/indirect probe with constant per-node load:</p>
-<pre><code>every protocol period T (e.g. 1s):
-  pick a random member M
-  send PING(M); start timeout
-  if ACK received before timeout: M is alive, done
-  else:
-    pick k random members (e.g. k=3)
-    ask each to PING-REQ(M) on your behalf   # indirect probe
-    if any relays back an ACK: M is alive      # it was just OUR link/GC pause
-    else: mark M as SUSPECT (not dead)</code></pre>
-
-<p>The <span class="key">indirect probe</span> is the crucial trick. A missed direct PING often means a transient problem on the prober's own path, not a dead target. Asking <code>k</code> other members to probe routes around local network blips and GC pauses, slashing false-positive rate without lengthening the timeout.</p>
-
-<h3>The suspicion mechanism</h3>
-<p>SWIM does not jump from "alive" to "dead." It uses a <span class="key">SUSPECT &rarr; CONFIRM</span> state machine disseminated via the gossip layer. A suspected node, on hearing it is suspected, broadcasts a refutation (an <code>alive</code> message with a higher incarnation number) that overrides the suspicion. Only if suspicion survives a timeout is the node declared dead. This dramatically cuts false removals — the killer of cluster stability — at the cost of slightly slower detection.</p>
-
-<div class="callout warn"><span class="lbl">Pitfall</span> Tuning a failure detector for fast detection invites flapping: a node that is GC-pausing or briefly network-isolated gets evicted, triggers ring rebalancing and a flood of hinted handoff, then rejoins and triggers it all again. Each flap can cause more load than the original "failure." Production systems bias toward <em>slower, more certain</em> detection. The <span class="key">phi-accrual</span> detector (Cassandra) generalizes this: instead of a binary alive/dead, it outputs a continuous suspicion level <code>&phi;</code> from the distribution of recent inter-arrival times, and you threshold <code>&phi;</code> per use case.</div>
-
-<h2 id="antientropy">Anti-entropy with Merkle trees</h2>
-<p>Gossip keeps the cluster's <em>view</em> consistent. It does nothing for the rows a node missed while it was down. Anti-entropy is the background process that compares the actual data held by two replicas of the same partition and ships only the differences. The naive approach — stream every key and compare — costs <code>O(data size)</code> network for an <code>O(differences)</code> problem. Unacceptable when a replica holds hundreds of GB and differs in a few thousand rows.</p>
-
-<h3>The Merkle tree</h3>
-<p>A <span class="key">Merkle tree</span> (hash tree) is a binary tree where each leaf is the hash of a contiguous range of keys (or of one key's value), and each internal node is the hash of its children's hashes. Two replicas compare trees top-down:</p>
-<ol>
-<li>Compare root hashes. Equal &rarr; the entire range is identical, exchange nothing. This is the common case and it costs one hash comparison.</li>
-<li>Unequal &rarr; descend into the children whose hashes differ; prune subtrees that match.</li>
-<li>Reach differing leaves &rarr; exchange only the keys in those ranges.</li>
-</ol>
-
-<p>Cost to <em>locate</em> divergence drops from <code>O(n)</code> to <code>O(log n)</code> per difference, and the data transferred is proportional to the number of differing ranges, not the dataset size. This is why Dynamo, Cassandra (the <code>nodetool repair</code> path), and Riak all build Merkle trees per token range and exchange them during repair.</p>
-
-<pre><code>Merkle tree comparison (replica A vs replica B for token range R)
-
-         H(root)            H(root')
-        /       \          /       \
-    H(L)        H(R)    H(L)       H(R')   <- H(R) != H(R'), descend right
-    /  \        /  \    /  \       /   \
-  ..    ..    H(a) H(b) ..  ..  H(a)  H(b')  <- only H(b) range differs
-                              \-> exchange keys in range b, reconcile by version</code></pre>
-
-<h3>Engineering realities</h3>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">Tree granularity.</span> A leaf covering too many keys means a single changed row dirties a large range and forces shipping all of it. Too fine and the tree itself is huge. Cassandra historically used a fixed tree depth per range, so leaf coverage grew with data, hurting precision on large ranges — addressed later by incremental and range-aware repair.</li>
-<li><span class="key">Tree construction cost.</span> Building the tree requires scanning the data (or maintaining it incrementally). Full repair scanning a large node is I/O-heavy; it is the reason naive <code>nodetool repair</code> is an operational hazard on big clusters and why <em>incremental repair</em> (mark already-repaired SSTables, only hash unrepaired data) exists.</li>
-<li><span class="key">Reconciliation, not just detection.</span> Finding differing keys is half the job. Deciding the winning value needs version metadata: vector clocks (Dynamo, Riak), last-write-wins timestamps (Cassandra), or a CRDT merge function. See <a href="33.html">Time, Clocks and Ordering</a> for why wall-clock LWW silently loses concurrent writes, and <a href="35.html">CRDTs</a> for conflict-free merge that needs no coordination.</li>
+<li><b>Scenario 1 (S3 bit-flip):</b> Why did gossip turn one corrupted bit into a cluster-wide outage, and what cheap safeguard would have prevented it?</li>
+<li><b>Scenario 2 (GC pause):</b> How does SWIM avoid declaring a slow node dead (two mechanisms), and why is there no setting that's both instant and never-wrong?</li>
+<li><b>Scenario 3 (resurrected delete):</b> Why does a naive delete come back, what does a tombstone do, and what two problems do tombstones then create?</li>
+<li>Why is read-repair alone insufficient, and what must complement it?</li>
+<li>How does a Merkle tree find differences in O(log N) instead of O(N)?</li>
 </ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>5 ideas</b> &mdash; <a href="#i1">gossip spreads everything (so checksum it)</a>, <a href="#i2">SWIM detects liveness without false deaths</a>, <a href="#i3">Merkle trees find divergence cheaply</a>, <a href="#i4">read-repair + hinted handoff heal opportunistically</a>, <a href="#i5">tombstones make deletes stick</a> &mdash; each guarded by a misconception.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="11.html">CAP Theorem</a>, <a href="33.html">Time, Clocks &amp; Ordering</a>, <a href="35.html">CRDTs</a>, <a href="09.html">Replication</a>, <a href="12.html">Consistent Hashing</a>.</p>
 
-<div class="callout note"><span class="lbl">Key insight</span> Merkle trees turn "compare two large replicas" into "compare two small hashes and recurse only on mismatch." The entire value proposition is the common case — equal roots — costing essentially nothing, so anti-entropy can run continuously in the background without saturating the network.</div>
-
-<h2 id="repair">Read-repair and hinted handoff</h2>
-<p>Background anti-entropy is the slow, comprehensive safety net. Two faster mechanisms patch divergence on the hot path. They live in the same family as <a href="37.html">Replication Deep Dive</a> and quorum tuning.</p>
-
-<h3>Read-repair</h3>
-<p>On a read, the coordinator queries <code>R</code> replicas (or all <code>N</code> for the relevant rows). If their responses disagree, the coordinator returns the newest value to the client <em>and</em> writes it back to the stale replicas. Divergence on frequently-read keys self-heals as a side effect of reads — no separate scan needed. Cassandra exposes <code>read_repair_chance</code> / <code>dclocal_read_repair_chance</code> to do this probabilistically even when only <code>R</code> replicas were strictly required.</p>
-
-<div class="callout warn"><span class="lbl">Pitfall</span> Read-repair only heals keys that are read. Cold data — keys written once and rarely accessed — diverges and stays diverged until full anti-entropy repair runs. This is exactly the data most likely to silently lose a write or resurrect a deleted row. You cannot rely on read-repair alone; scheduled repair is mandatory, and skipping it is how clusters accumulate <a href="#tombstones">zombie data</a>.</div>
-
-<h3>Hinted handoff</h3>
-<p>When a coordinator wants to write to a replica that is currently down, it stores a <span class="key">hint</span> — the mutation plus the intended target — locally (or on another live node). When the failure detector reports the target back, the hint holder replays the buffered writes to it. This lets writes succeed at full availability during transient outages and lets the recovered node catch up without a full repair.</p>
-
-<p>Hinted handoff is a best-effort optimization, not a guarantee:</p>
-<ul>
-<li>Hints have a TTL (Cassandra default 3 hours). A node down longer than the window loses its hints — only repair will heal it then.</li>
-<li>The hint store can overflow under sustained outage, and replaying a backlog of hints can overload a node the moment it recovers (a thundering-herd recovery), which can re-trip the failure detector.</li>
-<li>Dynamo treats hinted handoff replicas as part of a <span class="key">sloppy quorum</span>: the write goes to the next healthy node on the ring with a hint, preserving <code>W</code> durability even when the "home" replicas are unreachable, at the cost of momentary inconsistency until the hint is delivered.</li>
-</ul>
-
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<p>You consume gossip-based systems rather than build the protocol &mdash; it lives inside the cluster software:</p>
 <table>
-<thead><tr><th>Mechanism</th><th>When it runs</th><th>Coverage</th><th>Cost</th></tr></thead>
-<tbody>
-<tr><td>Hinted handoff</td><td>Write path, target down</td><td>Writes during transient outages</td><td>Hint storage, replay burst</td></tr>
-<tr><td>Read-repair</td><td>Read path, replicas disagree</td><td>Hot/frequently-read keys</td><td>Extra writes on reads</td></tr>
-<tr><td>Anti-entropy (Merkle)</td><td>Scheduled / continuous background</td><td>All data, including cold keys</td><td>Scan + hash CPU/IO</td></tr>
-</tbody>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Managed leaderless AP database (gossip inside)</td><td>Keyspaces (Cassandra) / DynamoDB</td><td>Bigtable / managed Cassandra</td><td>Cosmos DB (Cassandra API)</td></tr>
+<tr><td>Service mesh / membership (SWIM-style)</td><td>App Mesh / ECS Service Connect</td><td>Anthos Service Mesh</td><td>Open Service Mesh</td></tr>
+<tr><td>Self-managed gossip clustering</td><td colspan="3">Consul / Serf (HashiCorp), Cassandra, Redis Cluster on VMs or k8s</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The takeaway</span>When you run managed Cassandra/DynamoDB you inherit gossip, hinted handoff, read-repair and tombstones &mdash; and their operational footguns. The biggest one to remember: <b>schedule full repairs within the tombstone grace window</b>, or the managed cluster silently diverges and deletes resurrect.</div>
 
-<h2 id="tombstones">Tombstones and the deletion problem</h2>
-<p>Deletion is genuinely hard in an eventually consistent store, and it is where strong engineers separate themselves. Consider deleting key <code>k</code> while replica <code>C</code> is partitioned away. If delete means "remove the row," then later anti-entropy compares <code>A</code> (no row) with <code>C</code> (still has row). <code>C</code> looks like the one holding "newer" data and <span class="key">resurrects</span> the deleted value across the cluster — a <em>zombie</em>.</p>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The mechanisms made concrete. Same facets &mdash; what gossips, the repair toolkit, and the failure to watch.</p>
 
-<p>The fix: a delete is not a removal, it is a write of a special marker called a <span class="key">tombstone</span> carrying a timestamp/version. The tombstone wins over older values during reconciliation, so even a replica that never saw the live row learns "this key is deleted as of time T." Tombstones make deletion a normal convergent write rather than the absence of data.</p>
-
-<h3>The garbage-collection dilemma</h3>
-<p>Tombstones cannot live forever — they accumulate and cost storage and read latency. But you cannot delete a tombstone too early either:</p>
-<div class="callout warn"><span class="lbl">Pitfall</span> If you purge a tombstone <em>before</em> every replica has seen it, a partitioned replica that still holds the original live value will resurrect it on the next repair. The tombstone must outlive the maximum possible divergence window.</div>
-
-<p>This is the role of Cassandra's <code>gc_grace_seconds</code> (default 10 days). A tombstone is retained for the grace period and only purged during compaction after it expires. The contract is operational: <strong>you must run full repair on every node at least once per <code>gc_grace_seconds</code>.</strong> Miss that window and you risk zombies. Make the window too long and you accumulate tombstones.</p>
-
-<h3>Tombstone read amplification</h3>
-<p>Accumulated tombstones are a notorious latency landmine on <a href="38.html">LSM-tree</a> stores. A query scanning a range must read through every tombstone in that range to determine the live result, even though it returns nothing. Workloads with queue-like access patterns (write rows, delete them, scan the "head") generate millions of tombstones and produce <code>TombstoneOverwhelmingException</code>-class failures. Anti-patterns: deleting whole partitions row-by-row, or using a collection column as a mutable set with frequent removals.</p>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They model deletion as a first-class convergent write from the start, state the invariant out loud — "tombstone retention must exceed the worst-case repair interval" — and design schemas to avoid tombstone-heavy patterns (use TTL-based expiry or time-bucketed partitions you can drop wholesale instead of deleting rows). They also note the alternative: <a href="35.html">CRDTs</a> like OR-Sets encode deletion via add/remove tags so merge is automatic, sidestepping the wall-clock-timestamp fragility of LWW deletes.</div>
-
-<h2 id="guarantees">Convergence guarantees</h2>
-<p>What does "eventually consistent" actually promise? Precisely this: <em>if writes stop and enough anti-entropy rounds run, all replicas reach the same state.</em> The honest principal framing is about the conditions and the merge function.</p>
-
+<h3 id="impl-cassandra">Cassandra / Dynamo</h3>
 <ul>
-<li><span class="key">Liveness, not safety, on a timer.</span> Convergence is guaranteed only in the limit, and only if the healing mechanisms actually run. A cluster that never completes repair within <code>gc_grace_seconds</code> can permanently diverge (zombies). Convergence is an operational property as much as an algorithmic one.</li>
-<li><span class="key">The merge function determines correctness.</span> Detecting divergence is mechanical; resolving it is where data is silently lost or preserved. LWW with synchronized wall clocks drops concurrent writes (the loser vanishes). Vector clocks detect concurrency and surface siblings for application-level resolution (Riak's approach) but push complexity to the client. CRDTs guarantee a deterministic, commutative, associative, idempotent merge — the gold standard for <em>automatic</em> convergence. This connects directly to <a href="11.html">CAP</a> and <a href="31.html">PACELC</a>: you have chosen availability over linearizability, and the merge function is how you make that choice tolerable.</li>
-<li><span class="key">Membership convergence enables data convergence.</span> Anti-entropy only repairs against replicas it believes are alive. A persistently wrong membership view (split-brain in the gossip layer) means a replica is never reconciled against. This is why SWIM's anti-flapping suspicion matters for data correctness, not just stability.</li>
+<li><b>What gossips.</b> Membership, schema version, and node load/state every second between peers.</li>
+<li><b>Repair toolkit.</b> The full set &mdash; Merkle-tree anti-entropy repair, read-repair, hinted handoff, tombstones with <code>gc_grace_seconds</code>.</li>
+<li><b>The failure to watch.</b> Tombstone read amplification on delete-heavy/queue patterns; forgetting to run scheduled repair within the grace window &rarr; resurrected deletes and silent divergence.</li>
 </ul>
 
-<p>These mechanisms are the backbone of any <a href="57.html">Key-Value Store</a> design: <a href="12.html">consistent hashing</a> places <code>N</code> replicas on the ring, gossip keeps the ring and membership coherent, quorum reads/writes (<code>W + R &gt; N</code>) give tunable consistency on the hot path, hinted handoff preserves availability through transient failures, read-repair heals hot keys, and Merkle-tree anti-entropy is the comprehensive background net that catches everything else — including the cold data nothing else touches.</p>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They distinguish gossip (metadata/membership dissemination) from anti-entropy (data reconciliation) cleanly and never conflate them. They reach for Merkle trees the moment they say "compare replicas" and can explain why the equal-root case is what makes it viable. They treat deletion as a first-class hard problem — naming tombstones, the resurrection failure mode, and the <code>repair-within-grace-period</code> invariant — rather than assuming delete just removes data. And they tie the whole picture back to the merge function: detection is easy, conflict resolution is where correctness lives.</div>
-
+<h3 id="impl-consul">Consul / Serf (SWIM)</h3>
 <ul>
-<li>A node was network-partitioned for 12 days; your <code>gc_grace_seconds</code> is 10 days and repair ran on day 9. The node rejoins. Walk me through exactly what happens to data deleted on day 1, and how you'd prevent the zombie.</li>
-<li>Your failure detector evicts a node during a 30-second GC pause, triggering ring rebalancing. How does SWIM's indirect probe and suspicion mechanism prevent this, and what would you set the phi threshold to and why?</li>
-<li>Read-repair heals hot keys; what specifically heals a key written once and never read again, and what is the cost of that mechanism on a 500 GB-per-node cluster?</li>
-<li>You're seeing <code>p99</code> read latency spike to seconds on a table used as a work queue. Diagnose it, and redesign the schema so the problem cannot recur.</li>
-<li>Push vs. pull vs. push-pull gossip — derive the convergence-rounds difference and explain why production systems pick push-pull. When would plain gossip be the wrong choice entirely?</li>
-<li>Compare LWW timestamps, vector clocks, and CRDTs as the reconciliation function for anti-entropy. For a shopping cart, which do you pick and what failure are you accepting?</li>
+<li><b>What gossips.</b> Node membership and liveness &mdash; Serf is HashiCorp's SWIM implementation, the membership layer under Consul.</li>
+<li><b>Repair toolkit.</b> Direct + indirect probing, suspicion, gossip dissemination of join/leave/fail events.</li>
+<li><b>The failure to watch.</b> Probe-interval and suspicion-timeout tuning &mdash; too aggressive flaps nodes in and out under load.</li>
 </ul>
 
-<div class="navfoot"><a href="33.html">&lsaquo; Prev: Time Clocks and Ordering</a><a class="nx" href="35.html">Next: CRDTs &rsaquo;</a></div>
+<h3 id="impl-redis">Redis Cluster</h3>
+<ul>
+<li><b>What gossips.</b> The cluster bus exchanges node state and hash-slot ownership over a binary gossip protocol.</li>
+<li><b>Repair toolkit.</b> Gossip-based failure detection (PFAIL &rarr; FAIL once a majority of masters agree) triggers failover.</li>
+<li><b>The failure to watch.</b> A master flagged FAIL by majority promotes a replica; mis-tuned timeouts cause spurious failovers under network jitter.</li>
+</ul>
 
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you trace them. Work each before opening the approach.</p>
+
+<h3 id="ex-merkle">Sync two replicas with a Merkle tree</h3>
+<p>Two replicas each hold a million keys; exactly one key differs. Describe the exchange that finds and syncs only that key, and the number of comparisons versus comparing all keys.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Each replica builds a Merkle tree over its keyspace. They exchange <i>root hashes</i> &mdash; mismatch, so descend. At each level, compare child hashes and recurse only into the one subtree whose hash differs; the matching subtrees are skipped entirely. After ~log₂(1,000,000) ≈ 20 levels you reach the single differing leaf and transfer just that key's data. ~20 hash comparisons + 1 key transfer, versus 1,000,000 comparisons / a full-dataset transfer for the naive approach. The branch-pruning on equal hashes is the entire win.</p>
+</div></details>
+
+<h3 id="ex-swim">Tune a failure detector to survive GC pauses</h3>
+<p>Your nodes occasionally pause 2s for GC. Design probe timing and the suspicion mechanism so a 2s pause doesn't cause a false death, while a truly dead node is still removed within ~10s.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Use SWIM: direct probe every ~1s; on no reply, fire <i>k</i> indirect probes via random peers (defeats a single bad path and gives a slow node more chances to answer). Don't mark dead on the first miss &mdash; mark <b>suspect</b>, gossip it, and start a suspicion timeout (say ~5&ndash;8s) during which the node can broadcast a refutation to clear itself. A 2s GC pause is easily covered by the indirect-probe retries and the suspicion window, so no false death; a genuinely dead node fails all probes, exhausts the window, and is declared dead within ~10s. The whole design is choosing the window long enough to absorb your worst expected pause but short enough to meet your detection-time goal.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Make deletes safe in your KV store.</b> Design tombstones + a grace period + a repair schedule so deletes always stick and never resurrect, without unbounded tombstone buildup. &rarr; <a href="35.html">CRDTs</a>, <a href="57.html">Key-Value Store</a>.</li>
+<li><b>Bound gossip blast-radius.</b> After studying the S3 incident, design a gossip channel that can't turn one bad message into a storm (checksums, rate limits, circuit breakers). &rarr; <a href="51.html">Resilience Patterns</a>.</li>
+<li><b>Add anti-entropy to a sharded store.</b> Combine <a href="12.html">consistent hashing</a> for placement with Merkle-tree repair so re-replication after a node loss is incremental, not a full copy. &rarr; <a href="12.html">Consistent Hashing</a>, <a href="09.html">Replication</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="33.html">&lsaquo; Prev: Time, Clocks &amp; Ordering</a><a class="nx" href="35.html">Next: CRDTs &rsaquo;</a></div>
 </div>
 </div>
 </div>

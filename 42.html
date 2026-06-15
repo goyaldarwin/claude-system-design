@@ -111,128 +111,184 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Data-Intensive Systems &nbsp;&rsaquo;&nbsp; Probabilistic Data Structures</div>
-
 <h1>Probabilistic Data Structures</h1>
-<p class="sub">Trading a sliver of exactness for orders-of-magnitude less memory &mdash; the sketches that make web-scale membership, cardinality, and frequency queries feasible.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Finite capacity.</b> <span>trading exactness for massive space savings, paid in tunable false-positive/error rates.</span></div>
+<p class="sub"><em>Sometimes an exact answer costs gigabytes and a "good enough" answer costs kilobytes. Probabilistic data structures make that trade deliberately: they answer questions like "have I seen this before?", "how many distinct items?", and "what's the 99th percentile?" using a tiny, fixed amount of memory &mdash; at the price of a small, bounded, tunable error. At scale, that trade is often the only thing that fits in RAM.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#why">Why approximate? The space&ndash;accuracy trade</a></li>
-<li><a href="#bloom">Bloom filters &amp; the sizing math</a></li>
-<li><a href="#counting">Counting &amp; cuckoo &amp; quotient filters</a></li>
-<li><a href="#hll">HyperLogLog: cardinality</a></li>
-<li><a href="#cms">Count-Min Sketch: frequency &amp; heavy hitters</a></li>
-<li><a href="#percentile">t-digest &amp; HdrHistogram: percentiles</a></li>
-<li><a href="#practice">Where each shows up in real systems</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Tiny, fixed memory and fast answers &mdash; in exchange for approximate results with a bounded, tunable error.</b> <span>These structures replace gigabytes of exact bookkeeping with kilobytes. You accept a known error rate (a false-positive chance, a ±2% cardinality estimate) that you can dial against memory &mdash; and you must understand exactly what kind of error each one can and cannot make.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Probabilistic Data Structures</b>
+│
+├─ <a href="#root"><b>Why approximate?</b></a>  &mdash; the space&ndash;accuracy trade
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>The 4 structures to know</b></a>
+│   ├─ <a href="#d1">1. Bloom filter (membership)</a>        fail → <a href="#fp-trap">trusting a "yes"</a>
+│   ├─ <a href="#d2">2. HyperLogLog (cardinality)</a>        fail → <a href="#hll-trap">using it to test membership</a>
+│   ├─ <a href="#d3">3. Count-Min Sketch (frequency)</a>     fail → <a href="#cms-trap">underflow / overcount</a>
+│   └─ <a href="#d4">4. t-digest / HdrHistogram (percentiles)</a> fail → <a href="#avg-trap">averaging percentiles</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; which structure for which question
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; where they ship built-in
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; in real systems
+│   ├─ <a href="#impl-redis">Redis</a>
+│   ├─ <a href="#impl-db">Databases (LSM / Cassandra)</a>
+│   └─ <a href="#impl-analytics">Analytics (BigQuery / monitoring)</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-bloom">Size a Bloom filter from first principles</a>
+    ├─ <a href="#ex-hll">Estimate uniques with HyperLogLog</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="why">Why approximate? The space&ndash;accuracy trade</h2>
-<p>An exact answer to "have I seen this URL?", "how many distinct users today?", or "what are the top-100 search terms?" requires storing every element &mdash; a hash set, a sorted dictionary, an exact counter per key. At billions of elements that is gigabytes of RAM, and RAM is the scarce resource on the hot path. <span class="key">Probabilistic data structures</span> (sketches) answer the same questions with a <em>bounded, tunable error</em> while using kilobytes to a few megabytes that does <em>not</em> grow with the number of distinct elements.</p>
-<p>The deal is always the same: you give up exactness and gain (1) sublinear or constant space, (2) constant-time updates and queries, and (3) usually <span class="key">mergeability</span> &mdash; sketches built on different shards can be unioned, which makes them perfect for distributed and streaming systems. The discipline as a principal is knowing <em>which</em> error each structure tolerates and whether your use case can live with it.</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">Why approximate? The space&ndash;accuracy trade</h2>
+<p>Exact answers to "have I seen this URL?", "how many unique visitors today?", or "what's the p99 latency?" require storing every item or every sample &mdash; gigabytes at scale, far too much to keep in memory per node. <b>Probabilistic data structures</b> store a compressed, lossy summary instead: a fixed, tiny footprint (often kilobytes) that answers the question with a small, <i>bounded, tunable</i> error. The error isn't a bug &mdash; it's the feature you're buying memory savings with, and the key skill is knowing precisely which kind of error each structure makes.</p>
+<p>The four questions and their tools:</p>
+<ul>
+<li><b>Membership</b> &mdash; "have I seen X?" &rarr; <b>Bloom filter</b>.</li>
+<li><b>Cardinality</b> &mdash; "how many <i>distinct</i> items?" &rarr; <b>HyperLogLog</b>.</li>
+<li><b>Frequency</b> &mdash; "how many times did X occur / who are the heavy hitters?" &rarr; <b>Count-Min Sketch</b>.</li>
+<li><b>Percentiles</b> &mdash; "what's the p99?" &rarr; <b>t-digest / HdrHistogram</b>.</li>
+</ul>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>You trade <b>exactness</b> for <b>a fixed, tiny memory footprint and speed</b>. Each structure gives a specific, one-sided or bounded error you can tune against memory &mdash; and using the right one for the right question (and never trusting it beyond its guarantee) is the whole game.</div>
+
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; Chrome Safe Browsing (real system)</span>
+Google Chrome checks every URL you visit against a huge blocklist of malicious sites &mdash; but it can't ship or query that multi-gigabyte list on every navigation. Instead each browser holds a small <b>Bloom filter</b> of the blocklist: it answers "is this URL <i>definitely safe</i>?" locally and instantly, and only when the filter says "maybe malicious" does Chrome make a network call to the exact list. <b>Why does this design work, and what does the filter's possible error force Chrome to do on a "maybe"?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; counting unique visitors at scale</span>
+You need the count of <i>distinct</i> users who visited each of a million pages today. Storing every page's set of user IDs would be enormous. <b>What structure gives each page's unique-visitor count in ~12 KB regardless of whether it had 100 or 100 million visitors, and what can it <i>not</i> tell you?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the p99 you can't average</span>
+Each of your 50 servers reports its own p99 request latency. The dashboard shows the <b>average of the 50 p99s</b> as "the p99." A senior engineer says that number is meaningless. <b>Why can't you average percentiles, and what structure lets you compute a correct global p99 from per-server summaries?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is the <a href="#fp-trap">Bloom filter</a>. Scenario 2 is <a href="#hll-trap">HyperLogLog</a>. Scenario 3 is <a href="#avg-trap">t-digest/HdrHistogram</a>. Each maps to a structure below.</i></p>
+
+<!-- ============ BRANCH 1: THE STRUCTURES ============ -->
+<h2 id="decisions">The four structures to know</h2>
+<p>Four structures cover the four questions. Each has a named misuse nested under it.</p>
+
+<h3 id="d1">Structure 1 &mdash; Bloom filter (membership)</h3>
+<p>A <b>Bloom filter</b> is a bit array plus <i>k</i> hash functions. To add an item, hash it <i>k</i> ways and set those <i>k</i> bits. To test membership, hash and check those bits: if <i>any</i> is 0, the item is <b>definitely absent</b>; if all are 1, it's <b>probably present</b>. So it has <b>no false negatives</b> (never says "absent" wrongly) but <b>can have false positives</b> (says "present" for something it never saw). It can't store the items or delete them (basic form). The false-positive rate is set by the bit-array size and <i>k</i> relative to the number of items.</p>
+<div class="callout warn"><span class="lbl" id="fp-trap">The misuse to avoid &mdash; trusting a "yes"</span>
+This is <b>Scenario 1</b>. The asymmetry is the whole design: a Bloom filter's <b>"no" is certain; its "yes" is a maybe.</b> So you use it as a cheap <i>negative</i> filter and back a "yes" with an exact check. Chrome trusts "definitely safe" (the "no" path) to skip the network entirely, and on "maybe malicious" makes the authoritative lookup &mdash; the false positive only ever costs an extra check, never a missed threat. The same pattern protects an <a href="38.html">LSM-tree</a>: "definitely not in this SSTable" skips a disk read; "maybe" reads the file. Never use a Bloom filter where a false positive is unsafe without a backing check.</div>
+
+<h3 id="d2">Structure 2 &mdash; HyperLogLog (cardinality)</h3>
+<p><b>HyperLogLog (HLL)</b> estimates the <span class="gl" data-def="Cardinality &mdash; the number of distinct (unique) elements in a set or stream; HyperLogLog estimates it in fixed memory.">number of distinct</span> elements in a stream using a fixed ~12 KB, with a typical error around ±2% &mdash; whether the true count is thousands or billions. It works by hashing each item and tracking the maximum number of leading zeros seen (a longer run of leading zeros implies more distinct items, by probability), bucketed for stability. Critically, HLLs are <b>mergeable</b>: union two HLLs to get the distinct count of the combined set &mdash; perfect for distributed counting.</p>
+<div class="callout warn"><span class="lbl" id="hll-trap">The misuse to avoid &mdash; asking it the wrong question</span>
+This is <b>Scenario 2</b>'s caveat. HLL answers <b>"how many distinct?"</b> &mdash; it cannot tell you <i>whether a specific item</i> is in the set (that's a Bloom filter's job) nor list the items. People reach for it then ask "is user X here?" and get nonsense. Use HLL only for cardinality; for per-page unique counts, keep one mergeable HLL per page and union them across servers/days. ~12 KB/page &times; a million pages is tractable; exact sets would not be.</div>
+
+<h3 id="d3">Structure 3 &mdash; Count-Min Sketch (frequency &amp; heavy hitters)</h3>
+<p>A <b>Count-Min Sketch</b> estimates <i>how many times</i> each item has occurred, using a small 2-D array of counters and several hash functions: to count an item, increment one counter per row (the row's hashed column); to query, take the <b>minimum</b> across its rows. Hash collisions can only <i>add</i> to a counter, so the min is an over-estimate that's never an under-estimate &mdash; it <b>never undercounts</b>. It's the go-to for "top-K / heavy hitters" (which items are most frequent &mdash; <span class="gl" data-def="Heavy hitters &mdash; the most frequently occurring items in a stream; Count-Min Sketch finds them in fixed memory without storing every item.">heavy hitters</span>) in a stream, in fixed memory.</p>
+<div class="callout warn"><span class="lbl" id="cms-trap">The misuse to avoid &mdash; forgetting it overcounts (one-sided error)</span>
+A Count-Min Sketch can <b>over</b>-estimate a frequency (collisions inflate counters) but <b>never under</b>-estimate &mdash; the error is one-sided. So it's safe for "is this at least N?" and heavy-hitter detection, but you must not treat its counts as exact, and rare items can be relatively badly overcounted (a low true count swamped by collisions from frequent items). Size width/depth to bound the error, and remember the guarantee is "true count &le; estimate," nothing tighter.</div>
+
+<h3 id="d4">Structure 4 &mdash; t-digest / HdrHistogram (percentiles)</h3>
+<p>Computing an exact percentile requires sorting all samples &mdash; impossible to keep at scale. <b>HdrHistogram</b> (fixed bucket boundaries, great for bounded ranges like latencies) and <b>t-digest</b> (adaptive, accurate in the tails) summarize a distribution in small fixed memory and answer "what's the p50/p99/p999?" with bounded error. Both are <b>mergeable</b>: combine per-server digests into a correct global distribution.</p>
+<div class="callout warn"><span class="lbl" id="avg-trap">The misuse to avoid &mdash; averaging percentiles</span>
+This is <b>Scenario 3</b>, and it's one of the most common metrics mistakes. <b>You cannot average percentiles</b> &mdash; the mean of 50 servers' p99s is not the global p99 (a percentile is a property of the whole distribution, not a number you can linearly combine). The correct approach: each server keeps a t-digest/HdrHistogram of its <i>raw</i> latencies, you <b>merge the digests</b>, and compute the p99 from the merged distribution. This is exactly why monitoring systems store histograms, not pre-computed percentiles, per host.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; which structure for which question</h2>
 <table>
-<thead><tr><th>Structure</th><th>Question</th><th>Error shape</th><th>Mergeable</th></tr></thead>
-<tbody>
-<tr><td>Bloom filter</td><td>Is x in the set?</td><td>False positives only, no false negatives</td><td>Union (same params)</td></tr>
-<tr><td>Cuckoo / Quotient filter</td><td>Is x in the set? (+ deletes)</td><td>False positives only</td><td>Limited</td></tr>
-<tr><td>HyperLogLog</td><td>How many distinct?</td><td>~&plusmn;1.04/&radic;m relative</td><td>Yes (lossless)</td></tr>
-<tr><td>Count-Min Sketch</td><td>How often is x?</td><td>Overestimate, never under</td><td>Yes (add)</td></tr>
-<tr><td>t-digest / HdrHistogram</td><td>What is p99?</td><td>Rank/relative error</td><td>Yes</td></tr>
-</tbody>
+<tr><th>Question</th><th>Structure</th><th>Memory</th><th>Error shape</th></tr>
+<tr><td>"Have I seen X?"</td><td><b>Bloom filter</b></td><td>~bits per item (tunable)</td><td>No false negatives; tunable false positives</td></tr>
+<tr><td>"How many distinct?"</td><td><b>HyperLogLog</b></td><td>~12 KB fixed</td><td>±~2%, mergeable</td></tr>
+<tr><td>"How often / heavy hitters?"</td><td><b>Count-Min Sketch</b></td><td>small 2-D array</td><td>Never undercounts (one-sided over)</td></tr>
+<tr><td>"What's the p99?"</td><td><b>t-digest / HdrHistogram</b></td><td>small fixed</td><td>Bounded, mergeable; tail-accurate (t-digest)</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The rule in one line</span>Match the structure to the <i>exact</i> question and respect its error shape: Bloom for membership (trust the "no"), HLL for distinct counts (mergeable), Count-Min for frequency (never undercounts), histograms for percentiles (never average them &mdash; merge them).</div>
 
-<h2 id="bloom">Bloom filters &amp; the sizing math</h2>
-<p>A <span class="key">Bloom filter</span> is a bit array of <code>m</code> bits and <code>k</code> independent hash functions. To insert <code>x</code>, set the bits at positions <code>h<sub>1</sub>(x) &hellip; h<sub>k</sub>(x)</code>. To test membership, check whether <em>all</em> <code>k</code> bits are set. If any is zero, <code>x</code> is <span class="key">definitely not</span> present (no false negatives). If all are set, <code>x</code> is <span class="key">probably</span> present &mdash; it could be a collision with other elements (a false positive).</p>
-<pre><code>insert(x):
-    for i in 1..k:
-        bits[ h_i(x) mod m ] = 1
-
-contains(x):           # false positives possible, false negatives never
-    for i in 1..k:
-        if bits[ h_i(x) mod m ] == 0: return DEFINITELY_NOT
-    return PROBABLY_YES</code></pre>
-<p>In practice you do not need <code>k</code> distinct hash functions &mdash; <span class="key">Kirsch&ndash;Mitzenmacher double hashing</span> derives all <code>k</code> from two: <code>g<sub>i</sub>(x) = h<sub>1</sub>(x) + i&middot;h<sub>2</sub>(x)</code>, with negligible accuracy loss. This is what RocksDB, Cassandra, and Bloom filters built on Redis bitmaps actually do.</p>
-
-<h3>The sizing math you must be able to derive</h3>
-<p>Given <code>n</code> expected elements and a target false-positive probability <code>p</code>, the optimal parameters are:</p>
-<pre><code>m  =  - n * ln(p) / (ln 2)^2          # bits
-k  =  (m / n) * ln 2                  # &asymp; 0.693 * m/n  (round to int)
-p  &asymp;  (1 - e^(-k n / m))^k          # achieved FP rate</code></pre>
-<p>The headline number to memorize: about <span class="key">9.6 bits per element for a 1% false-positive rate</span>, and roughly <span class="key">+4.8 bits per element for each 10&times; reduction</span> in <code>p</code>. So 0.1% costs ~14.4 bits/element, 0.01% ~19.2 bits/element. A filter for 1&nbsp;billion URLs at 1% FP is therefore ~1.2&nbsp;GB &mdash; versus tens of GB for an exact set of the URLs themselves.</p>
-<div class="callout note"><span class="lbl">Key insight</span>Optimal <code>k</code> sets the fill ratio to exactly 1/2 &mdash; half the bits set. That is the maximum-entropy point. Using more hash functions than optimal <em>increases</em> the FP rate because you saturate the array faster than the per-test stringency helps.</div>
-<div class="callout warn"><span class="lbl">Pitfall</span>You must size for the <em>real</em> <code>n</code>. A Bloom filter degrades silently: insert 5&times; your planned <code>n</code> and the array saturates toward all-ones, driving the FP rate toward 100% with no error thrown. Standard Bloom filters also <em>cannot resize or delete</em>. Production answers are <span class="key">scalable Bloom filters</span> (a chain of filters with geometrically tightening <code>p</code>) or just rebuilding periodically.</div>
-
-<h2 id="counting">Counting, cuckoo, and quotient filters</h2>
-<p>A plain Bloom filter cannot delete &mdash; clearing a bit might unset a bit shared with another element, creating false negatives. Three structures address this:</p>
-<h3>Counting Bloom filter</h3>
-<p>Replace each bit with a small counter (typically 4 bits). Insert increments, delete decrements. This supports deletion at ~4&times; the space of a standard Bloom filter. Counters can saturate; 4 bits (max 15) is empirically safe for normal load factors.</p>
-<h3>Cuckoo filter</h3>
-<p>Stores a short <span class="key">fingerprint</span> of each element in a cuckoo hash table with two candidate buckets. Supports deletion, is more cache-friendly (one or two bucket reads vs. <code>k</code> scattered probes), and at FP rates below ~3% is <em>more space-efficient</em> than Bloom. The catch: inserts can fail when buckets fill and the cuckoo eviction chain hits its limit, so it has a hard load-factor ceiling (~95%).</p>
-<h3>Quotient filter</h3>
-<p>Stores fingerprints in a compact open-addressed table with metadata bits, giving better locality than Bloom (sequential memory access, so it works well on SSD/flash) and supporting merges and resizes. Used in some LSM and storage contexts where Bloom's random access pattern is the bottleneck.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Bloom: simplest, no delete, scattered reads. Counting Bloom: delete, 4&times; space. Cuckoo: delete + better locality + smaller at low FP, but insert can fail. Quotient: best locality &amp; mergeable, slightly more complex. For an immutable per-SSTable filter (the common case in <a href="38.html">LSM storage engines</a>) the lack of delete is irrelevant, so plain Bloom usually wins.</div>
-
-<h2 id="hll">HyperLogLog: cardinality estimation</h2>
-<p><span class="key">HyperLogLog (HLL)</span> answers "how many <em>distinct</em> elements?" in fixed memory regardless of cardinality. The intuition: hash each element to a uniform bit string. The probability of seeing a hash with <code>&rho;</code> leading zeros is <code>2<sup>-(&rho;+1)</sup></code>, so if the longest run of leading zeros you have ever observed is <code>R</code>, the stream probably held on the order of <code>2<sup>R</sup></code> distinct items. A single estimator is wildly noisy, so HLL uses <span class="key">stochastic averaging</span>: the first <code>p</code> bits of the hash pick one of <code>m = 2<sup>p</sup></code> registers, and each register keeps the max leading-zero count seen for its bucket. The harmonic mean across registers, with a bias-correction constant <code>&alpha;<sub>m</sub></code>, yields the estimate.</p>
-<pre><code>add(x):
-    h = hash64(x)
-    idx = h >> (64 - p)              # top p bits select a register
-    w   = h << p                     # remaining bits
-    registers[idx] = max(registers[idx], leading_zeros(w) + 1)
-
-estimate():                          # standard error  &asymp; 1.04 / sqrt(m)
-    Z = sum( 2^(-registers[j]) )
-    E = alpha_m * m^2 / Z
-    # small/large-range corrections apply; HLL++ uses 64-bit hash + bias tables</code></pre>
-<p>With <code>m = 2<sup>14</sup> = 16384</code> registers of 6 bits each, HLL uses about <span class="key">12&nbsp;KB</span> and delivers a standard error of <code>1.04/&radic;16384 &asymp; 0.81%</code> &mdash; for cardinalities up into the billions. That is the basis of Redis's <code>PFADD</code> / <code>PFCOUNT</code> / <code>PFMERGE</code> (Redis implements the improved <span class="key">HLL++</span> with a sparse representation for small sets, capping at 12&nbsp;KB dense). HLLs are losslessly mergeable by taking the element-wise max of registers, which is why they are ideal for "unique visitors across 1000 shards, last 30 days" &mdash; each shard/day keeps its own HLL and you union them at query time.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>HLL gives <em>cardinality</em>, not the elements, and it cannot do reliable <em>intersections</em> &mdash; inclusion&ndash;exclusion (<code>|A&cup;B| = |A|+|B|-|A&cap;B|</code>) compounds the relative errors and explodes for similar-sized sets. If you need set intersection, reach for <span class="key">MinHash</span> / theta sketches, not HLL.</div>
-
-<h2 id="cms">Count-Min Sketch: frequency &amp; heavy hitters</h2>
-<p>A <span class="key">Count-Min Sketch (CMS)</span> estimates the frequency of each key in a stream using a 2-D array of counters: <code>d</code> rows (one hash function each) &times; <code>w</code> columns. To add <code>x</code> with weight <code>c</code>, increment <code>count[i][h<sub>i</sub>(x) mod w]</code> in every row. To query, take the <em>minimum</em> across rows &mdash; the min is the tightest bound because collisions can only ever <em>add</em> phantom counts.</p>
-<pre><code>add(x, c):
-    for i in 0..d-1:
-        count[i][ h_i(x) % w ] += c
-
-estimate(x):                         # always &ge; true count (overestimate)
-    return min over i of count[i][ h_i(x) % w ]</code></pre>
-<p>The guarantees: with <code>w = &lceil;e/&epsilon;&rceil;</code> and <code>d = &lceil;ln(1/&delta;)&rceil;</code>, the estimate exceeds the true count by at most <code>&epsilon;&middot;N</code> (N = total stream weight) with probability <code>1&minus;&delta;</code>. So error is relative to the <em>total</em> mass &mdash; CMS is accurate for heavy keys and noisy for the long tail, which is exactly the right bias for <span class="key">heavy-hitter</span> detection. Pair CMS with a small top-k heap to track the most frequent items: on each update, query CMS and conditionally update the heap. This is how you find trending hashtags, hot keys, or DDoS source IPs in one pass over a firehose.</p>
-<div class="callout note"><span class="lbl">Key insight</span>CMS only over-estimates, never under-estimates &mdash; the dual of a Bloom filter's one-sided error. The <span class="key">conservative-update</span> variant (increment only the rows currently holding the minimum) cuts overestimation substantially in practice. A close cousin, the <span class="key">Count sketch</span>, uses signed updates and the median estimator to give unbiased estimates with two-sided error &mdash; better for tail keys.</div>
-
-<h2 id="percentile">t-digest &amp; HdrHistogram: percentiles</h2>
-<p>Computing exact percentiles (p50, p99, p99.9) over a latency stream requires sorting all samples &mdash; unbounded memory. Two structures solve this for monitoring and SLO work (see <a href="49.html">SLIs, SLOs &amp; error budgets</a>).</p>
-<h3>HdrHistogram</h3>
-<p><span class="key">High Dynamic Range Histogram</span> uses fixed log-linear buckets covering a configured range (e.g. 1&micro;s to 1&nbsp;hour) at a chosen number of significant figures. Recording a value and reading any percentile are O(1)/O(buckets), allocation-free on the hot path &mdash; which is why it is the standard for low-latency JVM/Go services and for coordinated-omission-corrected benchmarking. Error is <em>bounded relative</em> per value (e.g. 0.1% with 3 sig-figs). Histograms are trivially additive, so you merge per-host histograms into a fleet-wide one before computing p99.</p>
-<h3>t-digest</h3>
-<p><span class="key">t-digest</span> (Ted Dunning) adaptively clusters samples with much finer resolution near the tails (q&rarr;0 and q&rarr;1) than the middle, using a "scale function" to bound cluster sizes. It gives excellent accuracy at p99/p99.9 in a few kilobytes, is mergeable, and handles arbitrary unbounded value ranges (no need to pre-declare a max). It powers percentile aggregation in Elasticsearch, Spark, and many metrics backends.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>You cannot average percentiles. Taking the mean of per-host p99s is statistically meaningless and routinely wrong by large margins. Always merge the underlying histograms/digests, <em>then</em> compute the percentile. Mergeability is the whole reason these structures exist for distributed monitoring.</div>
-
-<h2 id="practice">Where each shows up in real systems</h2>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="pill">LSM read path</span> Every SSTable in RocksDB / Cassandra / HBase / LevelDB carries a Bloom filter so a point lookup can skip files that definitely lack the key &mdash; turning a multi-file disk read into a single bit check. This is the single most important use of Bloom filters in databases. See <a href="38.html">Storage Engines: LSM vs B-Tree</a>.</li>
-<li><span class="pill">Crawler dedup</span> A <a href="25.html">web crawler</a> uses a Bloom filter for the "URL seen?" set &mdash; a false positive merely skips re-crawling a page (acceptable), while no false negatives means you never loop. Billions of URLs in ~GB of RAM instead of TB.</li>
-<li><span class="pill">Cache &amp; CDN</span> "One-hit-wonder" filtering: only admit a key to the <a href="04.html">cache</a> on its second request (tracked by a Bloom filter) to avoid polluting it with single-access objects. Also used as a negative cache to short-circuit lookups for keys known absent.</li>
-<li><span class="pill">Analytics &amp; unique counts</span> HLL backs "unique visitors / DAU / distinct queries" dashboards everywhere &mdash; Redis <code>PFCOUNT</code>, Presto/Trino <code>approx_distinct</code>, BigQuery <code>APPROX_COUNT_DISTINCT</code>, Druid. Per-shard HLLs merged at query time make distinct counts cheap across <a href="05.html">partitioned</a> data.</li>
-<li><span class="pill">Real-time aggregation</span> In <a href="63.html">ad-click aggregation</a> and stream processing, CMS finds heavy hitters (top advertisers, hot keys, fraud bursts) and HLL gives unique impressions/users per campaign &mdash; both in bounded memory in the stream layer (see <a href="40.html">Stream Processing &amp; CDC</a>).</li>
-<li><span class="pill">Networking &amp; security</span> CMS for per-flow byte counts and DDoS source detection; Bloom filters in routers for forwarding tables; both in spam/abuse pipelines.</li>
+<li><b>Scenario 1 (Chrome):</b> Why is a Bloom filter's "no" trustworthy but its "yes" not, and what does that force Chrome to do on a "maybe"?</li>
+<li><b>Scenario 2 (unique visitors):</b> How does HyperLogLog count distinct items in ~12 KB, and what question can it <i>not</i> answer?</li>
+<li><b>Scenario 3 (p99):</b> Why is the average of per-server p99s meaningless, and how do mergeable histograms give a correct global p99?</li>
+<li>What one-sided error does a Count-Min Sketch make, and what does that make it safe and unsafe for?</li>
+<li>For each structure, name the exact error shape (false-positive only? ±%? over-only?).</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>4 structures</b> &mdash; <a href="#d1">Bloom (membership, trust the no)</a>, <a href="#d2">HLL (cardinality, mergeable)</a>, <a href="#d3">Count-Min (frequency, never under)</a>, <a href="#d4">histograms (percentiles, never average)</a> &mdash; each with its characteristic misuse.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="38.html">Storage Engines (Bloom in LSM)</a>, <a href="65.html">Metrics &amp; Monitoring (percentiles)</a>, <a href="04.html">Caching (cache penetration)</a>, <a href="25.html">Web Crawler (URL dedup)</a>, <a href="40.html">Stream Processing</a>.</p>
+
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks &mdash; where they ship built-in</h2>
+<p>You rarely implement these &mdash; they're embedded in tools you already use:</p>
+<table>
+<tr><th>Structure</th><th>Built into</th></tr>
+<tr><td>Bloom filter</td><td>Cassandra/HBase/RocksDB SSTables, Redis (RedisBloom), CDN/cache penetration guards</td></tr>
+<tr><td>HyperLogLog</td><td>Redis (<code>PFADD</code>/<code>PFCOUNT</code>), BigQuery (<code>APPROX_COUNT_DISTINCT</code>), Presto/Spark approx distinct, Elasticsearch cardinality agg</td></tr>
+<tr><td>Count-Min Sketch</td><td>Spark, stream processors (heavy-hitter detection), RedisBloom (Top-K / CMS)</td></tr>
+<tr><td>t-digest / HdrHistogram</td><td>Prometheus/Datadog/monitoring histograms, Elasticsearch percentiles, Druid</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>When you call <code>APPROX_COUNT_DISTINCT</code> in BigQuery, <code>PFCOUNT</code> in Redis, or read a p99 from Datadog, you're using these structures &mdash; the cloud picked the right one and exposed it as a function. Knowing what's underneath tells you the error shape you're accepting (e.g. that the "approx" distinct is ±2%, mergeable HLL).</div>
+
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The structures made concrete. Same facets &mdash; what it provides, the use, and the failure to watch.</p>
+
+<h3 id="impl-redis">Redis</h3>
+<ul>
+<li><b>Provides.</b> Native HyperLogLog (<code>PFADD/PFCOUNT/PFMERGE</code>); Bloom/Cuckoo filters, Count-Min, Top-K via the RedisBloom module.</li>
+<li><b>Use.</b> Unique-visitor counts that merge across keys; dedup/membership guards; heavy-hitter detection &mdash; all in fixed memory at in-memory speed.</li>
+<li><b>The failure to watch.</b> Treating <code>PFCOUNT</code> as exact (it's ±2%) or using an HLL for membership tests.</li>
 </ul>
 
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They reach for a sketch only after stating the exact-solution cost and naming the error the use case can absorb &mdash; "a false positive here just causes a redundant DB read, so a 1% Bloom filter is fine; a false negative would corrupt the index, so Bloom's one-sided error is exactly what I want." They quote the ~9.6 bits/element-per-1% rule of thumb and size for real <code>n</code>. They know which structure answers which question (membership vs. cardinality vs. frequency vs. quantile) and never confuse them. Crucially, they exploit <span class="key">mergeability</span> for distributed rollups and call out the traps: you can't intersect HLLs, can't average percentiles, and can't delete from a plain Bloom filter.</div>
+<h3 id="impl-db">Databases &mdash; LSM engines / Cassandra / HBase</h3>
 <ul>
-<li>A teammate proposes a Bloom filter to deduplicate financial transactions before writing them. What is wrong with that, and what does the one-sided error mean for correctness here?</li>
-<li>You provisioned a Bloom filter for 100M elements but traffic grew to 500M. What happens to the false-positive rate, will you see an error, and how do you remediate without downtime?</li>
-<li>Derive the optimal number of hash functions for a Bloom filter and explain why more hashes can make accuracy <em>worse</em>.</li>
-<li>A dashboard shows "unique users" by averaging the p99 of per-region HLL counts. Identify both statistical errors in that sentence.</li>
-<li>You need the top-100 search terms per minute over a 2M-QPS stream with bounded memory. Walk through CMS + heap, the error bound, and why you'd pick conservative update or a Count sketch for the tail.</li>
-<li>For an LSM engine, would you put the per-SSTable filter in a Bloom, cuckoo, or quotient filter? Justify in terms of delete support, memory, and access pattern against flash.</li>
+<li><b>Provides.</b> Per-SSTable Bloom filters on the read path.</li>
+<li><b>Use.</b> Skip disk reads for keys "definitely not" in a file &mdash; the core of <a href="38.html">LSM read performance</a>.</li>
+<li><b>The failure to watch.</b> Under-sized filters &rarr; more false positives &rarr; wasted disk reads (read amplification); it's a memory-vs-I/O dial.</li>
 </ul>
 
-<div class="navfoot"><a href="41.html">&lsaquo; Prev: Batch and Big Data Processing</a><a class="nx" href="43.html">Next: Search and Elasticsearch &rsaquo;</a></div>
+<h3 id="impl-analytics">Analytics &amp; monitoring &mdash; BigQuery / Prometheus / Druid</h3>
+<ul>
+<li><b>Provides.</b> Approx-distinct (HLL) functions; histogram metrics (t-digest/HdrHistogram) for percentiles.</li>
+<li><b>Use.</b> Dashboards over billions of rows without exact-distinct cost; correct global percentiles by merging per-host histograms.</li>
+<li><b>The failure to watch.</b> Averaging percentiles across hosts (Scenario 3) &mdash; store and merge histograms instead.</li>
+</ul>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you do the math. Work each before opening the approach.</p>
+
+<h3 id="ex-bloom">Size a Bloom filter from first principles</h3>
+<p>You'll store 10 million URLs and want a 1% false-positive rate. Derive the bit-array size and the number of hash functions, and explain the memory-vs-accuracy knob.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>For n items and target false-positive rate p: bits <code>m &asymp; &minus;n&middot;ln(p) / (ln2)²</code>. With n=10,000,000 and p=0.01: <code>&minus;ln(0.01)=4.6</code>, <code>(ln2)²=0.48</code>, so <code>m &asymp; 10M &times; 4.6 / 0.48 &asymp; 95.8M bits &asymp; 12 MB</code> (~9.6 bits/item). Optimal hash count <code>k &asymp; (m/n)&middot;ln2 &asymp; 9.6 &times; 0.69 &asymp; 7</code>. The knob: each extra ~4.8 bits/item roughly squares-down the false-positive rate (10%&rarr;1%&rarr;0.1%), so you trade memory for fewer false positives. Note the storage is independent of how long each URL is &mdash; you store bits, not the URLs &mdash; which is why 12 MB beats storing 10M full URLs.</p>
+</div></details>
+
+<h3 id="ex-hll">Estimate uniques across a fleet with HyperLogLog</h3>
+<p>Twenty servers each see part of today's traffic; you want the total count of distinct users with ~2% error and minimal coordination. Design it.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Each server maintains one HyperLogLog (~12 KB) of the user IDs it sees &mdash; just <code>PFADD</code> each ID, no central state, no per-ID storage. At report time, <b>merge</b> the 20 HLLs (union of registers, taking the max per bucket) into one and read the estimate &mdash; that's the distinct count of the union, at ~2% error, because HLLs are mergeable. Total memory moved: 20 &times; 12 KB, regardless of whether the true count is thousands or billions. You could not do this by averaging per-server distinct counts (overlapping users would be double-counted); the merge handles overlap correctly because it operates on the underlying registers, not the counts.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Stop cache penetration with a Bloom filter.</b> Attackers query keys that don't exist, missing the cache and hammering the database. Use a Bloom filter to reject definitely-absent keys before the DB. &rarr; <a href="04.html">Caching</a>.</li>
+<li><b>Dedup a billion-URL crawl frontier.</b> A web crawler must avoid re-fetching seen URLs without storing them all. Design the membership check and handle the false-positive consequence. &rarr; <a href="25.html">Web Crawler</a>.</li>
+<li><b>Build a correct latency SLO dashboard.</b> 100 services each emit latencies; you need accurate global p50/p99/p999. Choose the structure and the aggregation. &rarr; <a href="65.html">Metrics &amp; Monitoring</a>, <a href="49.html">SLI/SLO/SLA</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="41.html">&lsaquo; Prev: Batch &amp; Big Data</a><a class="nx" href="43.html">Next: Search &amp; Elasticsearch &rsaquo;</a></div>
 </div>
 </div>
 </div>

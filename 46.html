@@ -111,165 +111,183 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Modern Architecture &nbsp;&rsaquo;&nbsp; Event-Driven Architecture</div>
-
 <h1>Event-Driven Architecture</h1>
-<p class="sub">Designing systems around the things that happened &mdash; and the discipline required to keep an asynchronous, eventually-consistent fabric from collapsing into an undebuggable mess.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Partial failure &amp; latency.</b> <span>decoupling via events buys resilience, paid in eventual consistency and the dual-write problem.</span></div>
+<p class="sub"><em>Instead of services calling each other directly ("do this now, and wait"), they publish <b>events</b> ("this happened") that other services react to, whenever they're ready. This decouples producers from consumers in time and identity &mdash; you can add a new reactor without touching the producer. The cost is that the system becomes asynchronous and eventually consistent, and a whole class of new failures (lost events, poison messages, ordering) becomes yours to handle.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#why">Why event-driven, and what it actually buys you</a></li>
-<li><a href="#vocab">Events vs commands vs messages</a></li>
-<li><a href="#topology">Pub/sub vs point-to-point</a></li>
-<li><a href="#coord">Choreography vs orchestration</a></li>
-<li><a href="#styles">Notification vs state transfer vs event sourcing</a></li>
-<li><a href="#dualwrite">Delivery guarantees and the dual-write problem</a></li>
-<li><a href="#failure">Poison messages, DLQs, retries</a></li>
-<li><a href="#schema">Schema registry and event versioning</a></li>
-<li><a href="#consistency">Eventual consistency as a deliberate choice</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Loose coupling, independent scaling, and easy extensibility &mdash; in exchange for eventual consistency, harder debugging, and new failure modes (duplicates, poison messages, ordering).</b> <span>Producers don't know or wait for consumers, so you add reactors freely and absorb load spikes in the broker. You pay by giving up synchronous "it's done now" certainty, by losing the easy stack trace across a call, and by owning delivery semantics, retries, and dead-letter handling.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Event-Driven Architecture</b>
+│
+├─ <a href="#root"><b>What event-driven means</b></a>  &mdash; "this happened," not "do this"
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>The 5 decisions that define an EDA design</b></a>
+│   ├─ <a href="#d1">1. Event vs command; how much state in the event?</a> fail → <a href="#fat-thin">the wrong event payload</a>
+│   ├─ <a href="#d2">2. Choreography or orchestration?</a>      fail → <a href="#choreography-chaos">choreography sprawl</a>
+│   ├─ <a href="#d3">3. How do you publish reliably?</a>        fail → <a href="#dual-write">the dual-write problem</a>
+│   ├─ <a href="#d4">4. What happens to bad messages?</a>       fail → <a href="#poison">the poison message</a>
+│   └─ <a href="#d5">5. How do events evolve? (schema)</a>      fail → <a href="#schema-break">the breaking event schema</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; the event-style spectrum
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; brokers &amp; registries
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; patterns in practice
+│   ├─ <a href="#impl-sourcing">Event sourcing + CQRS</a>
+│   ├─ <a href="#impl-outbox">Outbox + CDC</a>
+│   └─ <a href="#impl-dlq">DLQ + retry</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-outbox">Publish events without the dual-write</a>
+    ├─ <a href="#ex-dlq">Design retry + DLQ for a consumer</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="why">Why event-driven, and what it actually buys you</h2>
-<p>An <span class="key">event-driven architecture</span> (EDA) inverts the dependency direction of a request/response system. Instead of a service <em>calling</em> the services it depends on, a service <em>emits a fact</em> &mdash; "OrderPlaced", "PaymentCaptured", "InventoryReserved" &mdash; and any number of consumers react. The producer does not know, and deliberately should not know, who consumes the event. That single property &mdash; <span class="key">producer/consumer decoupling</span> &mdash; is the whole point, and everything else is a consequence of it.</p>
-<p>Three concrete benefits follow:</p>
-<ul>
-<li><span class="key">Temporal decoupling:</span> the consumer need not be alive when the event is produced. The broker buffers, so a downstream outage degrades to lag, not data loss. Contrast a synchronous chain in <a href="44.html">microservices</a>, where one slow hop blocks the whole call.</li>
-<li><span class="key">Extensibility without modification:</span> a new consumer (fraud scoring, analytics, a search indexer) subscribes to an existing stream with zero change to the producer. This is the open/closed principle at the system level.</li>
-<li><span class="key">Load leveling and backpressure:</span> the log/queue absorbs spikes; consumers drain at their own rate. See <a href="08.html">Queues</a>.</li>
-</ul>
-<div class="callout warn"><span class="lbl">Pitfall</span>EDA does not <em>remove</em> coupling &mdash; it <em>moves</em> it into the event schema and into temporal/ordering assumptions. A naive team replaces explicit, type-checked RPC contracts with implicit, runtime-discovered dependencies on event shape and arrival order. You traded a compiler error for a 3 a.m. page. The cost of EDA is paid in operational and schema discipline.</div>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What event-driven means &mdash; "this happened," not "do this"</h2>
+<p>In a request-driven system, service A <i>commands</i> service B ("create this order") and waits for the result &mdash; A is coupled to B's availability and interface. In an <b>event-driven</b> system, A <i>publishes a fact</i> ("OrderPlaced") to a <a href="08.html">broker</a>, and any number of services consume it on their own schedule. A doesn't know who's listening, doesn't wait, and isn't affected if a consumer is down or a new one is added. This is decoupling in <b>time</b> (async), <b>identity</b> (A doesn't know B), and <b>load</b> (the broker buffers spikes).</p>
+<p>What it buys: add a new reactor (analytics, notifications, fraud check) to "OrderPlaced" without touching the order service; absorb traffic bursts in the broker; scale producers and consumers independently. What it costs: the system is now <a href="11.html">eventually consistent</a> and asynchronous &mdash; there's no synchronous "it's all done" moment, debugging spans many services with no single stack trace, and you own delivery guarantees.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Event-driven architecture trades <b>synchronous certainty and easy debugging</b> for <b>loose coupling, extensibility, and load absorption</b>. You stop asking "is it done?" and start designing for "it will be done, eventually, and possibly more than once" &mdash; which means idempotency, reliable publishing, dead-letter handling, and schema discipline are not optional extras but the core of the design.</div>
 
-<h2 id="vocab">Events vs commands vs messages</h2>
-<p>Engineers routinely conflate these. Precise vocabulary signals you have actually run one of these systems.</p>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the event that was published but the data wasn't saved</span>
+Your order service saves the order to its database, then publishes "OrderPlaced" to <a href="39.html">Kafka</a>. The process crashes <i>between</i> the two. Sometimes the reverse: the publish succeeds but the database transaction rolls back. Over weeks, the event stream and the database disagree. <b>What's this problem called, and what mechanism makes the save and the publish effectively atomic?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the payment queue jammed for 6 hours (real-pattern incident)</span>
+A payment consumer received one <b>malformed message</b> it could never process. With no dead-letter handling, it retried that message <b>over 10,000 times across 6 hours</b> &mdash; blocking every subsequent payment behind it in the partition. Recovery needed a manual reset. <b>What is this single bad message called, and what two mechanisms keep one of them from halting the whole stream?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; who runs the workflow?</span>
+"Place order" must reserve inventory, charge payment, and schedule shipping across three services. Option A: each service listens for the previous one's event and emits the next (no central brain). Option B: one coordinator service drives all three and handles failures. <b>What are these two styles called, and when does the brainless option become impossible to reason about?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#dual-write">reliable publishing (the outbox)</a>. Scenario 2 is <a href="#poison">poison messages &amp; DLQs</a>. Scenario 3 is <a href="#choreography-chaos">choreography vs orchestration</a>. Each maps to a decision below.</i></p>
+
+<!-- ============ BRANCH 1: THE DECISIONS ============ -->
+<h2 id="decisions">The five decisions that define an EDA design</h2>
+<p>Designing event-driven systems is these five choices. Each has a named failure nested under it.</p>
+
+<h3 id="d1">Decision 1 &mdash; Event vs command, and how much state to carry</h3>
+<p>First, distinguish: a <b>command</b> is a directed instruction ("ChargeCard" &mdash; one recipient, expected to act); an <b>event</b> is a broadcast fact ("OrderPlaced" &mdash; whoever cares reacts). Then decide an event's payload along a spectrum: <b>event notification</b> (just "OrderPlaced, id=123" &mdash; thin; consumers call back for details), <b>event-carried state transfer</b> (the event includes the order's data &mdash; fat; consumers need no callback), or <b>event sourcing</b> (the event log <i>is</i> the source of truth; state is derived by replaying events).</p>
+<div class="callout warn"><span class="lbl" id="fat-thin">The failure that happens when you get this wrong &mdash; the wrong event payload</span>
+Too <b>thin</b> (notification only) and every consumer must call back to the producer for details &mdash; recreating tight coupling and load on the producer, and risking the producer's data having changed since the event. Too <b>fat</b> (carrying everything) and events bloat, leak the producer's internal model, and go stale. The guidance: carry the state consumers actually need to act independently (event-carried state transfer) to maximize decoupling, but keep it to the relevant facts, versioned. Choose event sourcing only when you genuinely want an auditable, replayable log as the system of record &mdash; it's powerful but a big commitment.</div>
+
+<h3 id="d2">Decision 2 &mdash; Choreography or orchestration?</h3>
+<p>For a multi-step workflow across services: <b>choreography</b> &mdash; each service reacts to events and emits the next, no central coordinator (decentralized, loosely coupled). <b>Orchestration</b> &mdash; a central orchestrator (a <a href="32.html">saga</a> coordinator, a workflow engine) explicitly drives each step and handles failures/compensation (centralized, visible).</p>
+<div class="callout warn"><span class="lbl" id="choreography-chaos">The failure that happens when you get this wrong &mdash; choreography sprawl</span>
+This is <b>Scenario 3</b>. Choreography is elegant for 2&ndash;3 steps but becomes <b>impossible to reason about</b> as it grows: the end-to-end flow exists in no single place &mdash; it's an emergent property of who-listens-to-what, scattered across services. Nobody can answer "what happens when an order is placed?" without tracing events through the whole system, and failure handling (what compensates what) is diffuse. For complex or failure-sensitive workflows, prefer <b>orchestration</b> (a <a href="32.html">saga</a> with a coordinator) so the flow and its compensations live in one readable, debuggable place. Use choreography for simple fan-outs (one event, independent reactors), orchestration for real multi-step business processes.</div>
+
+<h3 id="d3">Decision 3 &mdash; How do you publish events reliably?</h3>
+<p>The producer must update its database <i>and</i> publish an event &mdash; two systems, no shared transaction. The <b>transactional outbox</b> solves it: write the business data and an <code>outbox</code> event row in <i>one</i> local transaction (atomic for free), then a separate relay or <a href="40.html">CDC</a> process publishes the outbox rows to the broker &mdash; at-least-once, so consumers must be idempotent.</p>
+<div class="callout warn"><span class="lbl" id="dual-write">The failure that happens when you get this wrong &mdash; the dual-write problem</span>
+This is <b>Scenario 1</b>. Writing to the DB then publishing (or vice-versa) without a shared transaction means a crash between the two, or a rolled-back transaction whose event already published, silently desynchronizes your data and your stream. You <b>cannot</b> fix it by reordering (whichever is second can fail) or by a distributed transaction across DB+broker (slow, brittle &mdash; see <a href="32.html">2PC</a>). The <b>outbox</b> makes the data-write and the event-record one local transaction, then moves publishing to a reliable, retrying, idempotent step. This is the single most important reliability pattern in EDA &mdash; covered in depth in <a href="32.html">Distributed Transactions</a> and <a href="40.html">CDC</a>.</div>
+
+<h3 id="d4">Decision 4 &mdash; What happens to messages that can't be processed?</h3>
+<p>Some messages will fail processing &mdash; transiently (a dependency is down: retry) or permanently (malformed, references deleted data: will <i>never</i> succeed). You need a <b>retry strategy</b> (exponential backoff + jitter for transient failures, with a cap) and a <b>dead-letter queue (DLQ)</b>: after N failed attempts, move the message to a separate queue for inspection/replay rather than blocking the stream.</p>
+<div class="callout warn"><span class="lbl" id="poison">The failure that happens when you get this wrong &mdash; the poison message</span>
+This is <b>Scenario 2</b>. A <b>poison message</b> is one the consumer can never process. Without a DLQ, the consumer retries it forever &mdash; in an ordered partition it <b>blocks every message behind it</b> (the payment processor: 10,000+ retries, 6 hours, all payments stuck). The fix: (1) <b>retry with exponential backoff + jitter</b> and a max-attempts cap (so transient failures recover without a synchronized retry storm); (2) after the cap, route the message to a <b>DLQ</b> &mdash; preserving it for analysis/replay while the stream keeps flowing. Also classify errors: retry timeouts/5xx, but send validation/schema errors straight to the DLQ (retrying them is pointless). Never let one bad message halt the pipeline.</div>
+
+<h3 id="d5">Decision 5 &mdash; How do events evolve over time? (schema)</h3>
+<p>Events are a contract between producer and many consumers, often deployed at different times &mdash; so event schemas must evolve <b>backward- and forward-compatibly</b>. Use a <span class="gl" data-def="Schema registry &mdash; a central service storing event/message schemas and enforcing that new versions stay compatible, rejecting breaking changes before producers can publish them.">schema registry</span> (e.g. for Avro/Protobuf) to enforce that new versions only add optional fields and never break old consumers; producers and consumers validate against it.</p>
+<div class="callout warn"><span class="lbl" id="schema-break">The failure that happens when you get this wrong &mdash; the breaking event schema</span>
+Because producers and consumers deploy independently and old events linger in the log (replayable!), a breaking schema change (removing/renaming a field, changing a type) silently breaks consumers that haven't upgraded &mdash; or breaks replay of historical events. The same <a href="45.html">backward-compatibility discipline as APIs</a>: only additive changes in place, version when you must break, and enforce it with a <span class="gl" data-def="Schema registry &mdash; a central service that stores event schemas and validates every new version for compatibility, blocking breaking changes before a producer can publish them.">schema registry</span> that rejects incompatible changes at publish time. Forward compatibility matters too: a consumer must tolerate fields it doesn't yet understand (ignore unknowns), since a newer producer may emit them.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the event-style spectrum</h2>
 <table>
-<tr><th>Term</th><th>Intent</th><th>Directionality</th><th>Cardinality</th></tr>
-<tr><td><span class="key">Event</span></td><td>A statement of fact that already happened. <code>OrderShipped</code>. Immutable, past-tense.</td><td>Fire-and-forget; producer expects nothing back.</td><td>0..N consumers.</td></tr>
-<tr><td><span class="key">Command</span></td><td>A request to do something. <code>ShipOrder</code>. Imperative, may be rejected.</td><td>Directed at exactly one owner who decides.</td><td>1 logical handler.</td></tr>
-<tr><td><span class="key">Message</span></td><td>The transport envelope. Carries either an event or a command plus headers/metadata.</td><td>Neutral.</td><td>Depends on payload.</td></tr>
+<tr><th>Style</th><th>Event carries</th><th>Consumer needs</th><th>Use when</th></tr>
+<tr><td><b>Event notification</b></td><td>Just an id / "it happened"</td><td>Callback to producer for details</td><td>Details are large/sensitive or rarely needed</td></tr>
+<tr><td><b>Event-carried state transfer</b></td><td>The relevant data</td><td>Nothing &mdash; acts on the event alone</td><td>You want maximal decoupling (default)</td></tr>
+<tr><td><b>Event sourcing</b></td><td>Every state change, forever</td><td>Replay the log to derive state</td><td>You need audit/replay/temporal queries (big commitment)</td></tr>
 </table>
-<p>The distinction is not pedantic. A command embeds an expectation of authority &mdash; the sender is telling the receiver to do work, and ownership/validation lives with the receiver. An event embeds no expectation; the producer asserts a fact and walks away. Mixing them &mdash; e.g. emitting "SendEmailCommand" onto a broadcast topic where three consumers all act &mdash; produces duplicate side effects and is one of the most common EDA design errors.</p>
-<div class="callout note"><span class="lbl">Key insight</span>Name events in the <em>past tense</em> and as <em>domain facts</em>, not as instructions. <code>PaymentCaptured</code>, not <code>UpdateBalance</code>. The moment your event name contains a verb in imperative mood, you have smuggled a command onto a pub/sub topic and re-coupled producer to consumer.</div>
+<div class="callout note"><span class="lbl">The rule in one line</span>Default to <b>event-carried state transfer</b> (carry what consumers need to act alone), drive complex workflows with <b>orchestration</b> not sprawling choreography, publish via the <b>outbox</b>, protect consumers with <b>retry + DLQ</b>, and evolve schemas <b>additively behind a registry</b>. And make every consumer idempotent &mdash; at-least-once delivery is the norm.</div>
 
-<h2 id="topology">Pub/sub vs point-to-point</h2>
-<p>Two delivery topologies sit underneath every broker:</p>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">Point-to-point (queue):</span> each message is delivered to exactly one consumer in a competing-consumers pool. Used for work distribution &mdash; "process this order." Scales horizontally by adding workers; the queue load-balances. SQS standard/FIFO, RabbitMQ work queues, a <a href="39.html">Kafka</a> consumer group on a topic.</li>
-<li><span class="key">Publish/subscribe (topic):</span> each message is delivered to <em>every</em> subscriber. Used for fan-out &mdash; one fact, many independent reactions. SNS, Kafka with multiple distinct consumer groups, Google Pub/Sub.</li>
+<li><b>Scenario 1 (event but no data):</b> What's the dual-write problem, why can't reordering or 2PC fix it, and how does the outbox make publish atomic with the write?</li>
+<li><b>Scenario 2 (jammed queue):</b> What's a poison message, and what two mechanisms (retry+backoff, DLQ) stop it from blocking the stream? How do you classify which errors to retry?</li>
+<li><b>Scenario 3 (who runs it):</b> Choreography vs orchestration &mdash; when does choreography become unreasonable, and what do you switch to?</li>
+<li>Name the three event-payload styles and when to use each.</li>
+<li>Why must event schemas be backward- <i>and</i> forward-compatible, and what enforces it?</li>
 </ul>
-<p>Kafka is worth calling out because it unifies both: a <span class="key">consumer group</span> gives point-to-point semantics within the group (each partition consumed by one member) while multiple groups give pub/sub across them. The log-based design also means messages are retained and replayable rather than destructively consumed &mdash; covered in <a href="39.html">Kafka and Log-based Messaging</a>. That replayability is what makes event sourcing and stream reprocessing possible.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span><span class="key">Queue (delete-on-ack)</span> vs <span class="key">log (offset-based, retained)</span>. A traditional queue is cheaper to operate and naturally bounds storage, but once a message is acked it is gone &mdash; you cannot add a new consumer that needs history, and a bug that drops messages is unrecoverable. A retained log lets you add consumers and replay after a bug fix, at the cost of storage, partition/ordering management, and consumer-managed offsets.</div>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> EDA is <b>5 decisions</b> &mdash; <a href="#d1">event vs command + payload</a>, <a href="#d2">choreography vs orchestration</a>, <a href="#d3">reliable publishing (outbox)</a>, <a href="#d4">poison messages + DLQ</a>, <a href="#d5">schema evolution</a> &mdash; each with a nested failure.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="39.html">Kafka</a>, <a href="08.html">Queues</a>, <a href="32.html">Distributed Transactions (saga/outbox)</a>, <a href="40.html">Stream Processing &amp; CDC</a>, <a href="44.html">Microservices</a>, <a href="59.html">Notification System</a>.</p>
 
-<h2 id="coord">Choreography vs orchestration</h2>
-<p>Once a business process spans several services, you must choose how the steps are coordinated. This is the single highest-leverage design decision in an EDA and the one principal engineers are graded hardest on.</p>
-
-<h3>Choreography</h3>
-<p>No central coordinator. Each service reacts to events and emits its own. <code>OrderPlaced</code> &rarr; Payment service captures &rarr; emits <code>PaymentCaptured</code> &rarr; Inventory reserves &rarr; emits <code>InventoryReserved</code> &rarr; Shipping dispatches. The "workflow" is an emergent property of who-subscribes-to-what; it exists in no single place.</p>
-<ul>
-<li><span class="key">Pro:</span> maximal decoupling, no single bottleneck, easy to add a participant.</li>
-<li><span class="key">Con:</span> the process is invisible. There is no one place to ask "what state is order #5512 in?" Cyclic event dependencies and infinite loops are easy to create accidentally. Compensation logic (the saga rollback) is scattered.</li>
-</ul>
-
-<h3>Orchestration</h3>
-<p>A central <span class="key">orchestrator</span> (a saga coordinator, a workflow engine like Temporal, AWS Step Functions, or Netflix Conductor) owns the process. It sends commands to services and listens for replies, advancing an explicit state machine and invoking compensations on failure.</p>
-<ul>
-<li><span class="key">Pro:</span> the workflow is explicit, observable, versioned, and testable. Failure handling and timeouts live in one place. This is how you implement the <a href="32.html">saga pattern</a> for distributed transactions without 2PC.</li>
-<li><span class="key">Con:</span> the orchestrator is a coupling point and can become a god service if it accretes business logic that belongs in the participants.</li>
-</ul>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They don&rsquo;t pick a side dogmatically. The mature answer: use <span class="key">choreography for loosely related reactions</span> (analytics, notifications, cache invalidation &mdash; "fire and forget" fan-out) and <span class="key">orchestration for multi-step business transactions with money, inventory, or compensation</span>. A common rule of thumb: choreography stays manageable up to ~3 participants in a flow; beyond that, the implicit state machine becomes unobservable and orchestration earns its keep.</div>
-
-<h2 id="styles">Event notification vs event-carried state transfer vs event sourcing</h2>
-<p>Martin Fowler&rsquo;s three patterns describe <em>how much state an event carries</em>, and they have very different operational consequences.</p>
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
 <table>
-<tr><th>Pattern</th><th>Payload</th><th>Consumer behavior</th><th>Trade-off</th></tr>
-<tr><td><span class="key">Event notification</span></td><td>Thin. Just an ID + type: <code>{type: OrderPlaced, orderId: 5512}</code>.</td><td>Calls back to the producer to fetch details.</td><td>Minimal coupling on data shape, but re-introduces a synchronous read dependency and N+1 callbacks.</td></tr>
-<tr><td><span class="key">Event-carried state transfer</span></td><td>Fat. The full relevant state at the time of the event.</td><td>Maintains its own local read model; no callback needed.</td><td>Full temporal decoupling and read scalability, at the cost of data duplication and stale local copies.</td></tr>
-<tr><td><span class="key">Event sourcing</span></td><td>The event <em>is</em> the system of record. State is the fold over the event log.</td><td>Rebuilds state by replaying events; projects to read models (CQRS).</td><td>Perfect audit/time-travel and replay, at the cost of schema-evolution pain, snapshotting, and query complexity.</td></tr>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Event bus / pub-sub</td><td>EventBridge / SNS</td><td>Pub/Sub / Eventarc</td><td>Event Grid</td></tr>
+<tr><td>Durable queue (+ DLQ)</td><td>SQS (built-in DLQ)</td><td>Pub/Sub (dead-letter topics)</td><td>Service Bus (dead-letter)</td></tr>
+<tr><td>Event log / streaming</td><td>Kinesis / MSK</td><td>Pub/Sub</td><td>Event Hubs</td></tr>
+<tr><td>Workflow orchestration (saga)</td><td>Step Functions</td><td>Workflows</td><td>Durable Functions / Logic Apps</td></tr>
+<tr><td>Schema registry</td><td>Glue Schema Registry</td><td>(Confluent / Pub-Sub schemas)</td><td>(Confluent / Event Hubs schemas)</td></tr>
 </table>
-<p><span class="key">Event-carried state transfer</span> is the default for most service-to-service integration: it removes the runtime callback, which is precisely the coupling you adopted EDA to escape. <span class="key">Event sourcing</span> is a much bigger commitment &mdash; the log of events is the truth, and current state is a derived projection. It shines for auditability (finance, see <a href="61.html">Designing a Payment System</a>) and for systems that need to reconstruct historical state, but it imposes real costs: you can never "just edit a row," replaying years of events requires <span class="key">snapshots</span>, and changing an event&rsquo;s meaning retroactively is genuinely hard.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>Event sourcing is frequently cargo-culted. If your team does not need a full audit log or temporal queries, you are paying its cost (eventual consistency between write and read models, upcasting old events, snapshot management) for benefits you will not use. Reach for event-carried state transfer first; adopt full event sourcing only where the audit log <em>is</em> the product requirement.</div>
+<div class="callout note"><span class="lbl">The takeaway</span>Managed brokers ship with <b>DLQs built in</b> (SQS, Service Bus, Pub/Sub dead-letter topics) &mdash; configure max-receive count and a dead-letter target and the poison-message protection is largely done for you. Step Functions / Workflows are how teams build <b>orchestrated sagas</b> rather than hand-rolling a coordinator. The outbox and idempotency, though, are still your application-level responsibility.</div>
 
-<h2 id="dualwrite">Delivery guarantees and the dual-write problem</h2>
-<p>Every EDA must answer: what delivery guarantee does the broker give, and does my application preserve it end-to-end?</p>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The patterns made concrete. Same facets &mdash; what it is, the mechanism, and the failure to watch.</p>
+
+<h3 id="impl-sourcing">Event sourcing + CQRS</h3>
 <ul>
-<li><span class="key">At-most-once:</span> fire and forget; messages can be lost. Acceptable only for disposable signals (metrics samples).</li>
-<li><span class="key">At-least-once:</span> the realistic default. Messages are redelivered on uncertain failure, so <span class="key">consumers must be idempotent</span>. This is what Kafka/SQS effectively give you.</li>
-<li><span class="key">Exactly-once:</span> the holy grail and mostly a marketing term across a network boundary. Kafka offers exactly-once <em>processing</em> within its transactional read-process-write boundary, but the instant a side effect leaves that boundary (an email, a third-party charge), you are back to at-least-once + idempotency.</li>
+<li><b>What it is.</b> Store every state change as an immutable event (the log is the source of truth); derive current state by replaying. <b>CQRS</b> separates the write model (the event log) from read models (projections optimized per query).</li>
+<li><b>Mechanism.</b> Append events; build/refresh read models by consuming them; "time-travel" by replaying to any point.</li>
+<li><b>The failure to watch.</b> Big complexity commitment &mdash; schema evolution of old events, rebuilding projections, and eventual consistency between write and read models. Adopt only when audit/replay genuinely pays for it.</li>
 </ul>
 
-<h3>The dual-write problem</h3>
-<p>This is the defining correctness trap of EDA. A service handling an order naively does two writes:</p>
-<pre><code>// BROKEN: two independent writes, no atomicity
-db.save(order);              // write 1: local DB
-broker.publish(orderPlaced); // write 2: message broker
-</code></pre>
-<p>These are <em>not</em> in one transaction. Any of the following leaves the system inconsistent:</p>
+<h3 id="impl-outbox">Transactional outbox + CDC</h3>
 <ul>
-<li>DB commits, then the process crashes before publish &rarr; the order exists but no one downstream knows. <span class="key">Lost event.</span></li>
-<li>Publish succeeds, then the DB transaction rolls back &rarr; downstream acts on an order that does not exist. <span class="key">Phantom event.</span></li>
-</ul>
-<p>You cannot fix this with retries or ordering tricks &mdash; there is no atomic commit spanning a database and a broker (and 2PC across them is both rare and operationally toxic; see <a href="32.html">Distributed Transactions</a>).</p>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They immediately name the <span class="key">Transactional Outbox</span> pattern. Write the business row <em>and</em> an <code>outbox</code> row in the <em>same local transaction</em> &mdash; now atomicity is back, guaranteed by the single database. A separate relay publishes outbox rows to the broker, typically driven by <a href="40.html">Change Data Capture</a> tailing the DB transaction log (Debezium reading the binlog/WAL). Delivery is at-least-once, so consumers stay idempotent. This converts an unsolvable distributed-atomicity problem into a solved local-transaction-plus-CDC problem.</div>
-
-<pre><code>BEGIN;
-  INSERT INTO orders (id, status, ...) VALUES (5512, 'PLACED', ...);
-  INSERT INTO outbox (id, aggregate_id, type, payload, created_at)
-    VALUES (uuid(), 5512, 'OrderPlaced', '{...}', now());
-COMMIT;
--- A CDC connector (Debezium) tails the WAL/binlog and publishes
--- new outbox rows to Kafka, then the relay/connector marks/cleans them.
-</code></pre>
-
-<h2 id="failure">Poison messages, dead-letter queues, and retry strategy</h2>
-<p>At-least-once delivery plus imperfect consumers means some messages will fail processing. A <span class="key">poison message</span> is one that fails <em>every</em> time &mdash; malformed payload, a referenced entity that was deleted, a bug. Without handling, it blocks the partition/queue head (head-of-line blocking) and the retry loop hammers the consumer forever.</p>
-<p>The standard machinery:</p>
-<ul>
-<li><span class="key">Retry with exponential backoff and jitter.</span> Retry transient failures (timeouts, 503s) with delays like 1s, 2s, 4s, 8s plus random jitter to avoid synchronized retry storms. Cap the attempts. See <a href="51.html">Resilience Patterns</a>.</li>
-<li><span class="key">Dead-letter queue (DLQ).</span> After N failed attempts, move the message to a DLQ with full context (original payload, error, attempt count, stack). The main flow keeps moving; the poison message is quarantined for human/automated triage and later redrive.</li>
-<li><span class="key">Distinguish retryable from non-retryable.</span> A validation error (400-class) will never succeed on retry &rarr; DLQ immediately. A downstream timeout (503-class) is worth retrying. Blindly retrying non-retryable errors wastes capacity and delays the DLQ.</li>
-</ul>
-<div class="callout warn"><span class="lbl">Pitfall</span>In a partitioned log like Kafka there is no per-message ack &mdash; a stuck message at an offset blocks the entire partition behind it. Naive "retry in place" stalls everything sharing that partition. Production patterns use separate <span class="key">retry topics</span> (with delay tiers) and a DLQ topic so the main partition keeps advancing. Also: make DLQ <em>depth</em> a first-class alert &mdash; a silently filling DLQ is data loss with extra steps.</div>
-
-<h2 id="schema">Schema registry and event versioning</h2>
-<p>In a synchronous API you can coordinate a deploy. In EDA the producer and a dozen consumers deploy independently and on different days, and events sit in the log for weeks. The event schema is therefore a <span class="key">long-lived, multi-party contract</span>, and managing its evolution is non-optional.</p>
-<ul>
-<li><span class="key">Schema registry</span> (Confluent Schema Registry with Avro/Protobuf/JSON Schema) stores versioned schemas and enforces <span class="key">compatibility rules</span> at produce time. The message carries a schema ID, not the full schema, keeping payloads small.</li>
-<li><span class="key">Backward compatible</span> change: new consumers can read old events (e.g. add an optional field with a default). <span class="key">Forward compatible</span>: old consumers can read new events (they ignore unknown fields). <span class="key">Full</span> compatibility requires both &mdash; the safe default for independently deployed services.</li>
-</ul>
-<div class="callout note"><span class="lbl">Key insight</span>The cardinal rule: <span class="key">additive, optional changes only</span>. Never rename a field, never change its type, never remove a required field, never repurpose a field&rsquo;s meaning. To make a breaking change, emit a <em>new event version</em> (<code>OrderPlaced.v2</code>) and run both in parallel until every consumer has migrated &mdash; the expand/contract (parallel-change) pattern. Tombstoning a field takes two releases, not one.</div>
-
-<h2 id="consistency">Eventual consistency as a deliberate design choice</h2>
-<p>EDA is fundamentally an <span class="key">eventually consistent</span> architecture. The moment a producer emits and returns before consumers have reacted, there is a window where the system is in disagreement with itself: the order is "placed" but the inventory count and the search index have not yet updated. This is not a bug to be eliminated &mdash; it is the price of the temporal decoupling that gives EDA its scalability and resilience. The job is to make it a <em>conscious, bounded</em> choice rather than an accident.</p>
-<p>This connects directly to the <a href="11.html">CAP theorem</a> and <a href="31.html">PACELC</a>: by choosing async events you are choosing availability and partition tolerance over immediate consistency, and even in the absence of partitions (the "else, latency" of PACELC) you are choosing lower latency over strong consistency. Engineering the consistency model means:</p>
-<ul>
-<li><span class="key">Bound the lag.</span> Measure end-to-end and consumer lag; SLO it. "Eventually" must have a number &mdash; p99 propagation under 2s &mdash; or it is a euphemism for "never, sometimes." See <a href="49.html">SLI/SLO/SLA</a>.</li>
-<li><span class="key">Design the UX for it.</span> "Your order is processing" instead of asserting a state the system has not converged to. Read-your-writes where the user expects it (often via a synchronous read of the producer&rsquo;s own store).</li>
-<li><span class="key">Make consumers idempotent and order-tolerant.</span> Events may arrive out of order or duplicated; use event IDs for dedup and version/timestamp fields to drop stale updates. CRDTs and ordering tools from <a href="33.html">Time, Clocks and Ordering</a> apply here.</li>
-</ul>
-<p>A concrete place all of this lands is a <a href="59.html">Notification System</a>: events fan out to email/push/SMS channels, each channel is an at-least-once idempotent consumer with its own DLQ and retry tier, and the whole thing is eventually consistent with the source domain by design.</p>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They treat EDA as a set of <em>trade-offs</em>, not a default. They reach for the <span class="key">outbox + CDC</span> pattern the instant a service both writes a DB and publishes an event, without being prompted. They distinguish events from commands precisely, default consumers to <span class="key">idempotent + at-least-once</span>, and put a <em>number</em> on "eventual." They choose choreography vs orchestration based on whether the flow involves money/compensation and how many participants it spans, and they name schema-registry compatibility rules as a hard requirement, not a nicety. Crucially, they can articulate when <em>not</em> to use EDA &mdash; a strongly-consistent, low-fan-out, request/response interaction is often better served synchronously.</div>
-<ul>
-<li>A service saves an order to Postgres and publishes <code>OrderPlaced</code> to Kafka. Walk me through every way this becomes inconsistent and how you make it atomic. (Listen for: dual-write, outbox, CDC, at-least-once + idempotency.)</li>
-<li>Your checkout saga spans payment, inventory, and shipping. Choreography or orchestration? Defend it, then tell me how you roll back when inventory reservation fails after payment succeeded.</li>
-<li>A consumer hits a message it can never process. Trace what happens in Kafka specifically &mdash; what about the partition behind it? Design the retry-topic/DLQ topology and the alerting.</li>
-<li>The producer team wants to rename a field and change a type on an event with eight consumers deployed independently. How do you ship that without an outage?</li>
-<li>How do you decide between event notification, event-carried state transfer, and event sourcing for a given integration? Give me a case where event sourcing is the wrong choice.</li>
-<li>Your product team says "the dashboard must always show the live count." You have an async pipeline. How do you reconcile the consistency requirement with the architecture &mdash; and when do you push back and go synchronous?</li>
+<li><b>What it is.</b> The reliable-publishing pattern (Decision 3) &mdash; the answer to the dual-write problem.</li>
+<li><b>Mechanism.</b> Business write + outbox row in one local transaction; <a href="40.html">CDC</a>/relay publishes the outbox at-least-once.</li>
+<li><b>The failure to watch.</b> Consumers must dedupe (at-least-once); the relay/CDC connector must be monitored for lag.</li>
 </ul>
 
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (6).png" alt="Event sourcing pattern" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Comparison of normal CRUD system vs Event Sourcing design with event store, event log, and rebuilt views. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Event bus / routing</td><td>EventBridge</td><td>Eventarc / Pub/Sub</td><td>Event Grid</td></tr><tr><td>Serverless event handler</td><td>Lambda</td><td>Cloud Functions</td><td>Azure Functions</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="45.html">&lsaquo; Prev: API Design REST gRPC GraphQL</a><a class="nx" href="47.html">Next: Containers Kubernetes and Serverless &rsaquo;</a></div>
+<h3 id="impl-dlq">Retry + dead-letter queue</h3>
+<ul>
+<li><b>What it is.</b> The poison-message protection (Decision 4).</li>
+<li><b>Mechanism.</b> Bounded retries with exponential backoff + jitter; after the cap, move to a DLQ; alert and replay after a fix; classify transient vs permanent errors.</li>
+<li><b>The failure to watch.</b> A DLQ nobody monitors silently swallows failures &mdash; alert on DLQ depth and have a replay path; without jitter, retries synchronize into storms.</li>
+</ul>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you design the flow. Work each before opening the approach.</p>
+
+<h3 id="ex-outbox">Publish "OrderPlaced" without the dual-write</h3>
+<p>Your order service must persist an order and emit an "OrderPlaced" event with no lost or phantom events. Design tables and the publisher, and state the consumer guarantee.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>In <i>one</i> local DB transaction, insert the order row <b>and</b> an <code>outbox</code> row (event type + payload + unique event id). A relay process &mdash; or <a href="40.html">CDC</a> tailing the <a href="38.html">WAL</a> &mdash; reads unsent outbox rows, publishes them to the broker, and marks them sent, retrying on failure. Because the relay can publish then crash before marking sent, delivery is <b>at-least-once</b>, so every consumer dedupes on the event id (idempotent). No event is lost (committed with the data) and none is phantom (only committed rows publish). To rebuild state, consumers replay from the log. This is the dual-write fix; no distributed transaction needed.</p>
+</div></details>
+
+<h3 id="ex-dlq">Design retry + DLQ for a flaky consumer</h3>
+<p>Your consumer calls a sometimes-slow external API and occasionally gets a malformed message. Design retry, backoff, and dead-lettering so transient failures recover but a poison message never blocks the stream.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p><b>Classify the error first.</b> Transient (timeout, 5xx, rate-limit): retry with <b>exponential backoff + jitter</b> (e.g. 1s, 2s, 4s &plusmn; random), up to a max attempts cap &mdash; jitter prevents all consumers retrying in lockstep (a storm). Permanent (validation/schema/malformed, 4xx): don't retry &mdash; it'll never succeed. After the retry cap (or immediately for permanent errors), move the message to a <b>dead-letter queue</b> with the failure reason, and acknowledge the original so the stream advances (the poison message no longer blocks anything). Alert on DLQ depth, inspect/fix, and replay from the DLQ once resolved. This turns Scenario 2's 6-hour jam into "one message in the DLQ, payments still flowing."</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Choreography vs orchestration for checkout.</b> Design a 4-step order workflow both ways and argue which is maintainable, including failure compensation. &rarr; <a href="32.html">Distributed Transactions (saga)</a>.</li>
+<li><b>Design a notification fan-out.</b> One "UserSignedUp" event must trigger email, analytics, and a welcome-flow &mdash; independently and resiliently. Choose payload style and delivery guarantees. &rarr; <a href="59.html">Notification System</a>.</li>
+<li><b>Make a system eventually consistent on purpose.</b> Pick a feature where you deliberately accept eventual consistency via events, and define what the user sees during the lag. &rarr; <a href="11.html">CAP</a>, <a href="31.html">Consistency Models</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="45.html">&lsaquo; Prev: API Design</a><a class="nx" href="47.html">Next: Containers / K8s / Serverless &rsaquo;</a></div>
 </div>
 </div>
 </div>

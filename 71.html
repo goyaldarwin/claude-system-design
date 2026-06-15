@@ -8,19 +8,6 @@
 <link rel="stylesheet" href="./_principal_files/lesson.css?v=20260615a">
 <script>(function(){try{var t=localStorage.getItem('sd-theme');if(!t)t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('sd-nav')==='collapsed')document.documentElement.classList.add('nav-collapsed');}catch(e){}})();</script>
 <script src="./_principal_files/nav.js?v=20260615a" defer></script>
-<style>.mastery{margin:28px 0 0;padding:22px 28px;background:#f6f8fa;border:1px solid #e3e8ee;border-radius:8px;}.mastery h2{font-size:20px;margin:0 0 10px;border:0;padding:0;}.mastery ul{margin:0;padding-left:22px;}.mastery li{margin:0 0 9px;}
-/* dark-mode overrides for inline pdeep/mastery (injected) */
-:root[data-theme="dark"] .pdeep{background:#161a21;border-color:#2a313b;color:#dde3ea;}
-:root[data-theme="dark"] .pdeep .tag{background:#1c2839;color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep code{background:#1d242e;color:#ff8fc4;}
-:root[data-theme="dark"] .pdeep a{color:#6ea8ff;}
-:root[data-theme="dark"] .pdeep .box{background:#172534;border-left-color:#3f6fa8;}
-:root[data-theme="dark"] .pdeep th,:root[data-theme="dark"] .pdeep td{border-color:#2a313b;}
-:root[data-theme="dark"] .pdeep th{background:#0f1318;}
-:root[data-theme="dark"] .pdeep tr:nth-child(even) td{background:#1b212a;}
-:root[data-theme="dark"] .pdeep .seealso{border-top-color:#2a313b;color:#95a1b2;}
-:root[data-theme="dark"] .mastery{background:#0f1318;border-color:#2a313b;}
-</style>
 </head>
 <body>
 <div class="layout">
@@ -124,133 +111,163 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Applied &amp; Cross-Cutting &nbsp;&rsaquo;&nbsp; Cost-Aware System Design</div>
-
 <h1>Cost-Aware System Design</h1>
-<p class="sub"><em>Treating cost as a first-class design axis &mdash; the trade-offs, models, and instincts that separate a design that works from one that works affordably.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Cost.</b> <span>cost is the bottleneck under all the others — every technique here is also a line on a recurring bill.</span></div>
+<p class="sub"><em>At scale, the cloud bill is a design output, not an accounting afterthought &mdash; and the costs that blow budgets are rarely the obvious compute. They're the silent ones: cross-region data transfer, every extra "nine" of reliability, keeping all data hot forever, and serverless that's cheap at low volume and ruinous at high. Treating cost as a first-class design dimension &mdash; a number you estimate and optimize like latency &mdash; is a principal-level skill.</em></p>
 
-<div class="toc"><h4>In this lesson</h4>
-<ul>
-<li><a href="#why">Why cost is a design dimension, not an afterthought</a></li>
-<li><a href="#model">The cost model of the major components</a></li>
-<li><a href="#egress">Data transfer: the silent killer</a></li>
-<li><a href="#tradeoffs">Key trade-offs, framed as cost</a></li>
-<li><a href="#techniques">Concrete cost-reduction techniques</a></li>
-<li><a href="#finops">The FinOps mindset: cost as an SLI</a></li>
-<li><a href="#practice">Putting it together</a></li>
-<li><a href="#mastery">Mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>A system that's cheap to run at scale &mdash; in exchange for treating cost as a design constraint from the start and accepting the cost/latency/reliability trade-offs explicitly.</b> <span>Designing with cost in mind keeps the bill sane as you grow. You pay by making cost a number you reason about up front (not after the invoice), and by deliberately trading some performance/reliability/freshness for money where it's worth it.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Cost-Aware System Design</b>
+│
+├─ <a href="#root"><b>Why cost is a design dimension</b></a>
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+│
+├─ <a href="#decisions"><b>The 5 cost levers (and their traps)</b></a>
+│   ├─ <a href="#d1">1. Compute model</a>                  fail → <a href="#serverless-cliff">the serverless cost cliff</a>
+│   ├─ <a href="#d2">2. Storage tiers</a>                   fail → <a href="#hot-forever">everything hot forever</a>
+│   ├─ <a href="#d3">3. Data transfer (egress)</a>         fail → <a href="#egress">the silent egress killer</a>
+│   ├─ <a href="#d4">4. The cost of each "nine"</a>        fail → <a href="#overprovision">over-buying reliability</a>
+│   └─ <a href="#d5">5. Precompute vs compute-on-read</a>  fail → <a href="#wrong-tradeoff">paying for the wrong one</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; where the money goes
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; FinOps in practice
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
 </div>
 
-<h2 id="why">Why cost is a design dimension, not an afterthought</h2>
-<p>Every architecture decision you make is a recurring bill. A latency target, a replication factor, a "let's just cache everything" reflex &mdash; each one shows up on next month's invoice and the one after that, forever, multiplied by your traffic. At small scale this is rounding error. At scale, an architectural choice that doubles a per-request cost can be the difference between a healthy gross margin and a company that burns cash on every user it acquires.</p>
-<p>Junior engineers treat cost as something the finance team worries about after the system ships. A principal engineer treats it the way they treat latency, availability, and consistency: as a first-class axis they own. The instinct is not "make it cheap" &mdash; it's "know what this design costs, know <em>why</em>, and be able to defend the spend against the value it delivers." A design that meets every functional and reliability requirement but costs 5x what a comparable design would is a failed design, even if nothing ever pages.</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">Why cost is a design dimension</h2>
+<p>Performance, scalability, and reliability are obviously design concerns &mdash; but <b>cost</b> is the fourth, and at scale it's just as architectural. The same functional requirement can be met by designs whose bills differ by 10&times; or 100&times;, and the difference is design choices: which compute model, how you tier storage, how data moves between regions, how many nines you buy, what you precompute. The principal-level move is to <b>estimate cost like you estimate latency</b> &mdash; up front, as part of the design &mdash; and to know which levers actually matter, because the budget-killers are usually <i>not</i> the line item you'd expect.</p>
+<p>The <span class="gl" data-def="FinOps &mdash; the practice of treating cloud cost as a measured, attributed, engineering-owned metric (cost-per-request/tenant) optimized continuously, rather than a finance afterthought.">FinOps</span> mindset crystallizes this: treat cost as an <a href="49.html">SLI</a> you measure, attribute, and optimize &mdash; cost-per-request, cost-per-tenant &mdash; not a quarterly surprise.</p>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Cost-aware design trades <b>some performance/reliability/freshness for money, deliberately</b>, and trades <b>upfront cost-estimation effort</b> for <b>a bill that scales sanely</b>. Every reliability nine, every hot byte, every cross-region transfer, every serverless invocation has a price &mdash; design is choosing which to pay. The skill is making those trades on purpose, with numbers, before the invoice forces the conversation.</div>
 
-<div class="callout note"><span class="lbl">Key insight</span> Cost is just another non-functional requirement, and it trades off against the others exactly like they trade off against each other. More availability costs money. Lower latency costs money. Stronger consistency costs money. The principal-level skill is making those trades <em>explicitly and with numbers</em>, rather than discovering them on an invoice.</div>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">where the money goes</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; Amazon Prime Video's serverless bill (real case)</span>
+Prime Video's video-monitoring pipeline ran serverless (<a href="32.html">Step Functions</a> + Lambda + S3). It was fine at low volume, but at scale the <b>per-invocation and state-transition charges plus S3 calls became enormous</b> &mdash; they moved it to a single long-running process and cut cost <b>~90%</b>. <b>Why did serverless get so expensive at scale, and what workload shape flips serverless from cheap to ruinous?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the data-transfer bill nobody saw coming</span>
+A team architects a system spanning two regions (and pulls data out to the internet for analytics). Compute and storage costs look reasonable, but the monthly bill is dominated by a line item they never estimated: <b>data transfer / egress</b>. <b>Why is cross-region and internet egress so often the silent budget-killer, and how do you design around it?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; paying for five nines on a service that needs three</span>
+An internal tool is architected for 99.999% availability &mdash; multi-region active-active, synchronous replication, the works &mdash; at enormous cost, when the business would be perfectly happy with 99.9%. <b>Why does each additional "nine" cost so much more, and how do you decide how many to buy?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#serverless-cliff">the compute model</a>. Scenario 2 is <a href="#egress">data transfer</a>. Scenario 3 is <a href="#overprovision">the cost of each nine</a>. Each maps to a lever.</i></p>
 
-<h2 id="model">The cost model of the major components</h2>
-<p>You cannot reason about cost without a rough mental model of what each component charges you for. Cloud pricing is deliberately multi-dimensional, and the dimension that dominates your bill is almost never the one you were watching. The table below is the single most useful artifact in this lesson: for each building block, <em>what actually drives the bill</em>.</p>
+<!-- ============ DECISIONS ============ -->
+<h2 id="decisions">The five cost levers (and their traps)</h2>
+<p>Five design levers dominate the bill. Each has a trap that quietly inflates cost &mdash; nested under it.</p>
 
+<h3 id="d1">Lever 1 &mdash; The compute model</h3>
+<p>How you run code has very different cost curves: <b>serverless</b> (pay per invocation + compute-time &mdash; cheap when idle/spiky, scales to zero), <b>containers/VMs</b> (pay for provisioned capacity &mdash; cheap when busy and steady), <b>reserved/spot</b> (commit or use spare capacity for big discounts on predictable/interruptible workloads). The right model depends on the <i>traffic shape</i> &mdash; and getting it wrong is one of the most common cost mistakes.</p>
+<div class="callout warn"><span class="lbl" id="serverless-cliff">The trap &mdash; the serverless cost cliff</span>
+This is <b>Scenario 1</b>. Serverless bills per invocation and per unit compute-time, which is a fantastic deal for spiky, low-utilization, event-driven work (you pay nothing when idle). But for a <b>high-throughput, always-on</b> workload, those per-invocation charges &mdash; and per-step charges in orchestrators like <a href="32.html">Step Functions</a>, plus per-call costs to services like S3 &mdash; accumulate past what a steadily-utilized container or VM would cost, often by a large multiple (Prime Video: ~90% cheaper on a long-running process). The lever: <b>match the compute model to utilization</b> &mdash; serverless for spiky/idle-heavy, containers/reserved for steady high load, spot for interruptible batch. The cliff is real and counter-intuitive: serverless is cheapest at low/spiky volume and most expensive at high steady volume. (See <a href="47.html">Containers/K8s/Serverless</a>.)</div>
+
+<h3 id="d2">Lever 2 &mdash; Storage tiers</h3>
+<p>Storage isn't one price &mdash; cloud providers offer tiers from <b>hot</b> (frequent access, fast, expensive) through <b>warm/infrequent-access</b> to <b>cold/archival</b> (Glacier &mdash; very cheap to store, slow/costly to retrieve). <b>Lifecycle policies</b> automatically move data to cheaper tiers as it ages. Matching each dataset's tier to its <i>actual access pattern</i> can cut storage cost dramatically.</p>
+<div class="callout warn"><span class="lbl" id="hot-forever">The trap &mdash; keeping everything hot forever</span>
+Leaving all data on the hot/standard tier indefinitely &mdash; logs from two years ago, backups never read, raw data already aggregated &mdash; means paying premium per-GB prices for data nobody touches. The fix: <b>lifecycle policies</b> that transition data to infrequent-access after weeks and archival after months (and delete what has no retention requirement), matching tier to access frequency. The trap also runs the other way &mdash; putting data you <i>do</i> read often into archival incurs steep retrieval fees and latency. The lever is access-pattern-aware tiering: hot for what's read constantly, cold for what's kept "just in case." Most organizations are over-paying because old data silently sits hot. (Related: <a href="48.html">Object Storage</a> storage classes, <a href="65.html">metrics</a> downsampling, <a href="50.html">observability</a> retention.)</div>
+
+<h3 id="d3">Lever 3 &mdash; Data transfer (egress)</h3>
+<p>Moving bytes costs money in ways that surprise people: <b>egress to the internet</b> is charged per GB, <b>cross-region</b> transfer is charged (often heavily), and even <b>cross-AZ</b> transfer within a region has a cost. Compute and storage are visible and estimated; data transfer is the line item teams routinely forget &mdash; and it can dominate the bill.</p>
+<div class="callout warn"><span class="lbl" id="egress">The trap &mdash; the silent egress killer</span>
+This is <b>Scenario 2</b>. Data-transfer/egress charges are the classic <b>silent budget-killer</b> because they don't show up in the obvious "compute + storage" estimate &mdash; yet a chatty cross-region architecture, serving large media directly from origin, or pulling big datasets out to the internet can make transfer the <i>largest</i> line item. Design to minimize it: keep data and the compute that uses it <b>in the same region/AZ</b> (co-locate to avoid cross-region/cross-AZ transfer), use a <a href="48.html">CDN</a> so user traffic is served from the edge (cheaper + offloads origin egress), cache aggressively to avoid re-fetching across boundaries, and be deliberate about which data crosses regions (often you can replicate <i>derived</i>/aggregated data instead of raw). Always include data transfer in the cost estimate &mdash; the bytes-in-motion bill is the one that ambushes teams.</div>
+
+<h3 id="d4">Lever 4 &mdash; The cost of each "nine"</h3>
+<p>Reliability isn't free, and it's <i>exponentially</i> priced: going from 99% to 99.9% to 99.99% to 99.999% each requires more redundancy, more <a href="53.html">multi-region</a> infrastructure, more <a href="37.html">replication</a>, more operational sophistication &mdash; for shrinking user-perceptible benefit. The <a href="49.html">SLO</a> decision is therefore also a cost decision.</p>
+<div class="callout warn"><span class="lbl" id="overprovision">The trap &mdash; over-buying reliability</span>
+This is <b>Scenario 3</b>. Each additional nine roughly multiplies cost (more replicas, multi-region active-active, synchronous cross-region replication, 24/7 ops) while delivering diminishing &mdash; often imperceptible &mdash; user value. Architecting an <i>internal tool</i> for five nines is pouring money into reliability nobody needs. The lever, straight from <a href="49.html">SLOs</a>: set the target at the <b>fewest nines the business actually requires</b> (a user on a flaky network can't tell 99.9% from 99.99%), and spend the saved budget elsewhere. This connects directly to other levers &mdash; e.g. <b>consistency as a cost choice</b> (<a href="11.html">strong consistency</a> requires coordination = latency + infrastructure; relax it where the data tolerates it to save money), and <b>replication factor vs durability</b> (more replicas = more durability + more storage/transfer cost; pick N by what the data actually needs). Buy the reliability you need, not the maximum.</div>
+
+<h3 id="d5">Lever 5 &mdash; Precompute vs compute-on-read</h3>
+<p>For derived data (aggregates, recommendations, rendered pages), you can <b>precompute</b> it (compute once on write/batch, store it, read cheaply) or <b>compute on read</b> (compute each time it's requested). This is a cost trade-off between storage/compute-now and compute-later, and the right choice depends on the read/write ratio.</p>
+<div class="callout warn"><span class="lbl" id="wrong-tradeoff">The trap &mdash; paying for the wrong side of the trade</span>
+Picking the wrong side wastes money. <b>Compute-on-read for something read constantly but rarely changing</b> (e.g. recomputing an expensive aggregate on every dashboard load) burns compute over and over for the same answer &mdash; <b>precompute it once</b> and serve cheap reads (the <a href="20.html">fan-out-on-write</a> idea, the <a href="65.html">rollup</a>). Conversely, <b>precomputing something rarely read but frequently changing</b> wastes compute + storage producing results nobody asks for &mdash; <b>compute it on read</b> instead. The lever is the <b>read/write (or read/change) ratio</b>: read-heavy + stable &rarr; precompute and cache; write-heavy + rarely-read &rarr; compute on demand. Caching is the same lever (trade storage for repeated compute). Match the strategy to the ratio, and you stop paying to compute the same thing a million times or to precompute things nobody reads.</div>
+
+<!-- ============ AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; where the money goes</h2>
 <table>
-<thead><tr><th>Component</th><th>What drives the bill</th><th>The trap</th></tr></thead>
-<tbody>
-<tr><td><span class="key">Compute</span> (VMs)</td><td>Instance-hours &times; size; on-demand vs reserved vs spot</td><td>Provisioning for peak and paying for it 24/7; idle headroom</td></tr>
-<tr><td><span class="key">Serverless</span> (Lambda/Functions)</td><td>Invocations &times; (GB-seconds of memory &times; duration)</td><td>Cheap until ~constant high traffic, then a VM is far cheaper</td></tr>
-<tr><td><span class="key">Object storage</span> (S3)</td><td>GB-month per tier + per-request (PUT/GET) + retrieval fees</td><td>Millions of tiny objects: request cost dwarfs storage cost</td></tr>
-<tr><td><span class="key">Block/DB storage</span></td><td>Provisioned GB + provisioned IOPS, billed whether used or not</td><td>Over-provisioned IOPS sitting idle; snapshots accumulating</td></tr>
-<tr><td><span class="key">Managed database</span></td><td>Instance-hours + storage + I/O; each read replica is a full copy</td><td>Read replicas and Multi-AZ silently 2&ndash;4x the DB bill</td></tr>
-<tr><td><span class="key">Cache</span> (Redis/Memcached)</td><td>RAM-hours &mdash; you pay for memory whether 10% or 90% full</td><td>Memory is the most expensive byte you can store; over-sizing</td></tr>
-<tr><td><span class="key">Data transfer</span></td><td>Egress GB: cross-AZ, cross-region, and internet egress</td><td>Invisible in architecture diagrams; often the #1 line item</td></tr>
-</tbody>
+<tr><th>Lever</th><th>Cheap when</th><th>Expensive when</th><th>Fix</th></tr>
+<tr><td>Compute model</td><td>Serverless for spiky/idle</td><td>Serverless at high steady load</td><td>Match model to utilization (container/reserved for steady)</td></tr>
+<tr><td>Storage tier</td><td>Cold tier for rarely-read</td><td>Everything hot forever</td><td>Lifecycle policies by access pattern</td></tr>
+<tr><td>Data transfer</td><td>Co-located + CDN-served</td><td>Cross-region/internet egress</td><td>Co-locate, CDN, cache, replicate derived not raw</td></tr>
+<tr><td>Reliability (nines)</td><td>Match to business need</td><td>Over-buying nines</td><td>Set <a href="49.html">SLO</a> to fewest nines needed</td></tr>
+<tr><td>Precompute vs on-read</td><td>Strategy matches read/write ratio</td><td>Wrong side of the trade</td><td>Precompute read-heavy+stable; compute write-heavy+rare</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The rule in one line</span>Estimate cost like latency, then pull the right levers: <b>match compute to utilization</b> (mind the serverless cliff), <b>tier storage by access pattern</b>, <b>minimize data transfer</b> (the silent killer), <b>buy only the nines you need</b>, and <b>precompute vs compute-on-read by the read/write ratio</b>. Adopt the <b>FinOps</b> mindset: cost-per-request/tenant is an <a href="49.html">SLI</a>, not a quarterly surprise.</div>
 
-<h3>Compute: the serverless cost cliff</h3>
-<p>Serverless functions are billed per invocation and per GB-second. For spiky, low-duty-cycle, or unpredictable workloads they are wonderful: you pay nothing when idle and never provision for peak. But there is a <span class="key">cost cliff</span>. Once a workload runs near-continuously, you are renting a fraction of a CPU at a steep per-second markup. A function pinned at high concurrency around the clock can cost several times what an equivalently sized reserved VM or container would. As a rough heuristic, the crossover sits somewhere around the point where sustained utilization climbs past ~40&ndash;60%, though the exact figure depends heavily on instance family and pricing model. The principal move is to know which side of that cliff your workload sits on &mdash; and that decision belongs with the <a href="47.html">containers vs serverless</a> trade-off.</p>
-
-<h3>Storage tiers: hot, warm, cold</h3>
-<p>Not all data is worth the same money to keep instantly available. Object stores expose this directly through storage classes. S3 Standard is priced for frequently accessed data; Standard-IA (infrequent access) is roughly half the storage price but adds a per-GB retrieval fee; Glacier and Glacier Deep Archive drop storage cost by an order of magnitude but charge real money and minutes-to-hours of latency to retrieve. The art is matching data temperature to tier &mdash; and never paying hot prices for cold bytes. We cover the mechanics in <a href="48.html">Object Storage &amp; CDN</a>.</p>
-
-<div class="callout warn"><span class="lbl">Pitfall</span> A managed database read replica is not "a bit of extra cost for reads" &mdash; it is a <em>full second copy</em> of compute and storage. Three read replicas plus a Multi-AZ standby can quietly turn one database into five billed instances. Before adding a replica to scale reads, ask whether a <a href="04.html">cache</a> in front of the primary would absorb the same load for a fraction of the price.</div>
-
-<h2 id="egress">Data transfer: the silent killer</h2>
-<p>Egress deserves its own section because it is the cost that hides best. It does not appear as a box on your architecture diagram, it is not provisioned, and you only discover it when the invoice arrives. There are three tiers, and they compound:</p>
-<ol>
-<li><span class="key">Cross-AZ</span> &mdash; traffic between availability zones in the same region is typically billed in <em>both</em> directions. A chatty service that hops zones on every call pays a cost on each hop.</li>
-<li><span class="key">Cross-region</span> &mdash; replicating data or routing requests between regions is materially more expensive than cross-AZ, and is the dominant hidden cost of going multi-region.</li>
-<li><span class="key">Internet egress</span> &mdash; data leaving the cloud to end users is the most expensive of all, often $0.05&ndash;$0.09/GB at typical tiers. Ingress is almost always free, which is exactly why egress is where the margin is taken.</li>
-</ol>
-<p>Concrete failure modes: a microservice fanned out across AZs that serializes large payloads on every internal call; a database in one AZ with replicas in two others doing synchronous replication across the zone boundary; serving large media directly from object storage to users instead of through a CDN. Each is functionally correct and quietly expensive.</p>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They draw the data-flow diagram and annotate every arrow that crosses an AZ, region, or the public internet boundary, then multiply by traffic volume. A CDN in front of egress-heavy traffic (see <a href="48.html">CDN</a>) is frequently the single highest-ROI cost change available &mdash; the CDN's egress is cheaper than the origin's, and cache hits eliminate origin egress entirely.</div>
-
-<h2 id="tradeoffs">Key trade-offs, framed as cost</h2>
-<p>The trade-offs you already know from earlier lessons all have a cost face. Reframing them this way is what makes you cost-aware rather than merely cost-conscious.</p>
-
-<h3>The cost of each additional "nine"</h3>
-<p>Availability is bought in increasingly expensive increments. Going from 99.9% (~8.8 hours of downtime/year) to 99.99% (~52 minutes) typically means multi-AZ redundancy, automated failover, and removing single points of failure. Pushing to 99.999% (~5 minutes) usually demands active-active multi-region, which multiplies infrastructure <em>and</em> adds the cross-region egress and replication costs above. Each nine roughly multiplies cost while shrinking the absolute downtime saved. The principal question is never "can we be more available?" but "is the next nine worth its price given our <a href="49.html">error budget</a> and what an hour of downtime actually costs us?"</p>
-
-<h3>Consistency as a cost choice</h3>
-<p>Strong consistency requires coordination &mdash; quorum reads/writes, consensus rounds, cross-region round-trips. That coordination is paid in latency and in the extra replicas and traffic needed to maintain it. Eventual consistency lets you serve from the nearest, cheapest replica with no coordination. Choosing eventual consistency where the domain tolerates it (a like count, a feed) is as much a cost decision as a latency one.</p>
-
-<h3>Precompute vs compute-on-read</h3>
-<p>This is the storage-cost-vs-CPU-cost dial. Precomputing and materializing results (fan-out-on-write feeds, materialized views, denormalized copies) trades cheap storage for expensive CPU at read time &mdash; great when reads vastly outnumber writes. Computing on read trades storage for CPU the other way &mdash; better when the data is written far more than it is read, or is read so rarely that materializing it wastes storage on results nobody asks for. Neither is free; you are choosing <em>which</em> resource to spend.</p>
-
-<h3>Replication factor vs durability vs cost</h3>
-<p>A replication factor of 3 is the common default because it survives one failure while a second is being repaired. RF=5 buys more durability and read fan-out but costs 5x the storage and the cross-node/cross-AZ traffic to keep copies in sync. Erasure coding (used in object stores and some warm-data systems) achieves comparable durability at far lower storage overhead than full replication, at the cost of CPU to reconstruct and higher latency &mdash; a deliberate cost trade for data that is durable-but-cold.</p>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span> Multi-region is the great cost multiplier. It can roughly double your steady-state infrastructure (two of everything) and add ongoing cross-region replication and egress on top. It buys regional-failure survival and lower latency for a global audience. The mistake is going multi-region for an availability target a single well-architected region could meet &mdash; paying the multiplier for a nine you didn't need. See <a href="53.html">Multi-Region &amp; DR</a>.</div>
-
-<h2 id="techniques">Concrete cost-reduction techniques</h2>
-<p>Instinct is necessary but not sufficient; you also need a toolbox of moves whose cost mechanics you can explain on demand.</p>
-
+<!-- ============ SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><strong>Cache to cut database cost.</strong> A read-through <a href="04.html">cache</a> with a high hit ratio means a cheap RAM lookup absorbs load that would otherwise hit your most expensive tier &mdash; the database &mdash; deferring or avoiding read replicas and IOPS provisioning entirely. The cache costs RAM; the DB read it prevents costs far more.</li>
-<li><strong>Batch and compress to cut egress.</strong> Coalescing many small messages into fewer larger ones amortizes per-request overhead, and compression directly shrinks the GB you are billed for on every egress arrow. For text and JSON-heavy payloads this can cut transfer cost by 60&ndash;80% for the CPU cost of (de)compression.</li>
-<li><strong>Autoscaling + spot/preemptible instances.</strong> Autoscaling kills the "provisioned for peak, idle at night" waste. Spot/preemptible instances run at 60&ndash;90% off on-demand pricing in exchange for the cloud reclaiming them on short notice &mdash; ideal for stateless workers, batch jobs, and anything fault-tolerant. The design discipline is making the workload tolerate eviction (checkpointing, queue-driven retries) so it can ride the cheap capacity.</li>
-<li><strong>Data lifecycle &amp; TTL.</strong> Most data gets colder with age. Lifecycle policies that transition objects Standard &rarr; IA &rarr; Glacier on a schedule, and TTLs that expire data nobody will read again, are pure savings &mdash; you stop paying hot prices for cold or dead bytes. The cheapest byte is the one you deleted.</li>
-<li><strong>Right-size the storage tier.</strong> Match temperature to class deliberately rather than defaulting everything to Standard. The same discipline applies to compute (don't run on the latest premium instance family if a cheaper one meets the SLO) and databases (don't provision IOPS you never consume).</li>
-<li><strong>Tail-latency vs cost.</strong> Driving p99.9 down often requires aggressive over-provisioning, redundant requests (hedging), and excess capacity that sits idle just to absorb rare spikes. Ask whether the user-facing requirement is genuinely p99.9 or whether p99 is fine. Chasing a tail percentile the product doesn't need is one of the most common silent cost sinks.</li>
+<li><b>Scenario 1 (Prime Video):</b> Why does serverless get expensive at scale, and what traffic shape flips it from cheap to ruinous?</li>
+<li><b>Scenario 2 (egress bill):</b> Why is data transfer the silent budget-killer, and how do you design around it (co-locate, CDN, cache)?</li>
+<li><b>Scenario 3 (five nines):</b> Why does each nine cost exponentially more, and how do you decide how many to buy?</li>
+<li>What determines precompute vs compute-on-read, and what's the cost of getting it backwards?</li>
+<li>What is the FinOps mindset, and what does "cost as an SLI" mean?</li>
+</ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> 5 levers &mdash; <a href="#d1">compute model</a>, <a href="#d2">storage tiers</a>, <a href="#d3">data transfer</a>, <a href="#d4">cost of nines</a>, <a href="#d5">precompute vs on-read</a> &mdash; each with a cost trap; meta-mindset = FinOps (cost as an SLI).</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="47.html">Containers/K8s/Serverless</a>, <a href="48.html">Object Storage &amp; CDN</a>, <a href="53.html">Multi-Region &amp; DR</a>, <a href="49.html">SLI/SLO (nines)</a>, <a href="11.html">CAP (consistency cost)</a>, <a href="04.html">Caching</a>.</p>
+
+<!-- ============ CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<table>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Cost visibility / attribution</td><td>Cost Explorer / CUR + tags</td><td>Billing reports / labels</td><td>Cost Management + tags</td></tr>
+<tr><td>Commitment discounts</td><td>Savings Plans / Reserved / Spot</td><td>CUDs / Spot VMs</td><td>Reservations / Spot</td></tr>
+<tr><td>Storage lifecycle</td><td>S3 lifecycle &rarr; IA/Glacier</td><td>GCS lifecycle &rarr; Nearline/Archive</td><td>Blob lifecycle &rarr; Cool/Archive</td></tr>
+<tr><td>Egress reduction</td><td>CloudFront, VPC endpoints</td><td>Cloud CDN, Private Service Connect</td><td>Front Door, Private Link</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>The cloud gives you the levers as features &mdash; commitment discounts (reserved/spot), storage lifecycle automation, CDNs and private networking to cut egress, and cost-attribution tooling. The FinOps practice is to <b>tag everything</b> (so you can attribute cost per service/tenant/request &mdash; making it an <a href="49.html">SLI</a>) and <b>build cost into the design review</b>, not the post-mortem. The platform won't right-size your architecture; the levers above will.</div>
+
+<!-- ============ IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations &mdash; FinOps in practice</h2>
+<p>Cost-awareness as real practice. Same facets &mdash; what it is, how it works, the pitfall.</p>
+<h3 id="impl-rightsize">Right-sizing the compute model (Prime Video)</h3>
+<ul>
+<li><b>What it is.</b> Choosing the compute model by utilization &mdash; the Prime Video monolith-from-serverless being the famous example.</li>
+<li><b>How it works.</b> Profile the workload's traffic shape; serverless for spiky/idle, steady-utilization containers/reserved for sustained load, spot for interruptible batch.</li>
+<li><b>The pitfall.</b> The serverless cliff &mdash; assuming serverless is always cheapest; it's cheapest at low/spiky volume, not high steady volume.</li>
+</ul>
+<h3 id="impl-tiering">Storage tiering &amp; lifecycle</h3>
+<ul>
+<li><b>What it is.</b> Automatically moving data through hot &rarr; warm &rarr; cold tiers by age/access.</li>
+<li><b>How it works.</b> Lifecycle policies transition (and expire) objects; analytics/observability data is also <a href="65.html">downsampled</a> as it ages to shrink volume.</li>
+<li><b>The pitfall.</b> Leaving everything hot (over-paying) or archiving frequently-read data (retrieval fees + latency).</li>
+</ul>
+<h3 id="impl-finops">FinOps: cost as an SLI</h3>
+<ul>
+<li><b>What it is.</b> The organizational practice of treating cost as a first-class, measured, attributed metric.</li>
+<li><b>How it works.</b> Tag resources for attribution; track cost-per-request / per-tenant; set cost budgets/alerts; include cost in design reviews; iterate like any <a href="49.html">SLO</a>.</li>
+<li><b>The pitfall.</b> Treating cost as a quarterly finance problem instead of an engineering design dimension &mdash; the bill surprises you because no one owned it.</li>
 </ul>
 
-<div class="callout warn"><span class="lbl">Pitfall</span> Over-caching has its own cost. Cache RAM is among the most expensive storage you can buy per byte, and a cache sized far beyond its working set is money sitting idle. "Cache everything" is not a cost strategy &mdash; cache the hot set, size to the working set, and let cold data fall through to cheaper tiers.</div>
-
-<h2 id="finops">The FinOps mindset: cost as an SLI</h2>
-<p>FinOps is the practice of bringing the same engineering rigor to cloud cost that SRE brought to reliability. The core shift is from "cost is a monthly surprise" to "cost is a measured, attributed, owned signal."</p>
-
-<h3>Cost attribution and tagging</h3>
-<p>You cannot manage what you cannot attribute. Tagging every resource by team, service, and environment turns a single opaque cloud bill into a per-service P&amp;L. Without it, no one owns any cost and everything is "infrastructure overhead." With it, the team that owns the expensive service sees its own line item and is accountable for it.</p>
-
-<h3>Cost per request / per user / per tenant as an SLI</h3>
-<p>The most powerful idea in this lesson: treat <span class="key">unit cost</span> &mdash; cost per request, per active user, per tenant, per transaction &mdash; as a service-level indicator you track over time, exactly like latency or error rate (see <a href="49.html">SLI/SLO</a>). Absolute cloud spend rising is ambiguous (maybe you grew). Cost-per-request rising while traffic is flat is an unambiguous regression that should be investigated like a latency regression. In multi-tenant systems, cost-per-tenant also reveals which customers are unprofitable &mdash; a product and pricing signal, not just an engineering one.</p>
-
-<h3>Build vs buy, and total cost of ownership</h3>
-<p>A managed service has a higher sticker price than the open-source equivalent on raw VMs, but the sticker price is not the cost. <span class="key">TCO</span> includes the engineering time to operate, patch, and be paged for self-hosted infrastructure &mdash; often the larger number. Build-vs-buy is a TCO decision: buy when the undifferentiated heavy lifting would consume scarce engineering capacity; build when the component is core to your differentiation or when scale makes the managed premium genuinely dominate the bill. The naive comparison ("the managed version costs 3x the EC2 price!") ignores the salaried engineers the managed version replaces.</p>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span> They present a design with its cost model attached: "this is roughly $X/month at current traffic, dominated by Y, and scales like Z per additional million requests." They name the unit-cost metric they'd track, they flag the one or two line items that will dominate the bill, and they identify the cheapest acceptable point on each non-functional axis rather than the most impressive one.</div>
-
-<h2 id="practice">Putting it together</h2>
-<p>Cost-awareness is not a separate phase bolted onto the end of design &mdash; it is a lens applied throughout. When you reach for a read replica, ask whether a cache is cheaper. When you propose multi-region, name the nine it buys and the multiplier it costs. When you draw a data flow, annotate the egress arrows. When you set a latency target, confirm the product needs that tail. When you pick a storage class, match it to the data's temperature. None of this means choosing the cheapest option every time &mdash; sometimes the expensive option is correct and you should spend confidently. It means that every spend is <em>chosen</em>, defensible, and measured, rather than inherited by accident and discovered on an invoice.</p>
-
-<p>This ties directly into the choices made elsewhere in the course: the <a href="47.html">compute model</a>, the <a href="48.html">storage and CDN strategy</a>, the <a href="53.html">multi-region posture</a>, the <a href="49.html">reliability targets</a>, and the <a href="04.html">caching design</a> are all, simultaneously, cost decisions. A principal engineer holds the cost consequence of each in mind as they make it.</p>
-
-<div class="callout note"><span class="lbl">Key insight</span> The cheapest design and the best design are usually not the same design &mdash; but the best design is one whose cost you understood and chose on purpose. The failure mode is not spending money; it is spending money you didn't know you were spending on a property you didn't need.</div>
-
-<div class="mastery" id="mastery"><h2>Principal-level mastery check</h2>
+<!-- ============ BUILD ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Work each before opening the approach.</p>
+<h3 id="ex-breakeven">Find the serverless break-even point</h3>
+<p>A workload runs at a steady 1,000 requests/sec, each ~100ms of compute. Estimate roughly whether serverless or a container fleet is cheaper, and where the break-even is.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Reason about utilization. <b>Serverless:</b> 1,000 req/s &times; 100ms = 100 compute-seconds/sec of work = ~100 concurrent executions continuously, billed per-invocation + per-GB-second the <i>whole time</i> &mdash; you're paying serverless's premium per-unit rate at essentially 100% duty cycle, 24/7. <b>Containers:</b> ~100 concurrent 100ms tasks &asymp; a handful of well-utilized container instances running continuously, billed at the (much lower) provisioned per-hour rate. At <b>steady high utilization like this, containers win clearly</b> &mdash; serverless's value (pay-nothing-when-idle) is wasted because you're never idle. The <b>break-even</b> is roughly where utilization drops enough that the idle savings outweigh serverless's higher per-unit rate: spiky/bursty or low-average-utilization workloads (e.g. a few req/s with peaks, or jobs that run minutes per hour) favor serverless; steady high-throughput favors containers (and reserved/spot for further discount). The lesson: estimate <i>duty cycle</i>, not just peak &mdash; that's what flips the answer (Scenario 1).</p>
+</div></details>
+<h3 id="ex-egress">Cut a cross-region egress bill</h3>
+<p>Your bill is dominated by cross-region data transfer because services in region A constantly read data stored in region B, and you serve large media from origin. Redesign to cut the transfer cost.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Attack the bytes-in-motion. <b>(1) Co-locate compute with data:</b> the chatty cross-region reads are the killer &mdash; either move the compute to region B (next to the data) or replicate the needed data into region A so reads are local (cross-region <i>replication</i> of the dataset once is far cheaper than reading it across regions on every request). Prefer replicating <i>derived/aggregated</i> data rather than raw if you can. <b>(2) Serve media via a <a href="48.html">CDN</a>:</b> large media served from origin incurs origin egress on every download; a CDN caches at the edge so most downloads are served from the edge (cheaper egress + offloads origin). <b>(3) Cache across boundaries</b> so you don't re-fetch the same cross-region data repeatedly. <b>(4) Use private networking</b> (VPC endpoints / Private Link) where it reduces transfer cost vs going over the internet. And going forward, <b>always include data transfer in the cost estimate</b> &mdash; the fix is mostly architectural (co-location + CDN + caching), and the root cause was not estimating egress up front (Scenario 2).</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
 <ul>
-<li>Can you sketch, for a given component (compute, object storage, managed DB, cache), what actually drives its bill &mdash; and name the dimension most teams overlook?</li>
-<li>Why is data egress so often the largest hidden line item, and how would you find and reduce it in an existing architecture?</li>
-<li>Can you explain, with rough numbers, the serverless cost cliff &mdash; at what utilization does serverless stop being cheaper than a reserved VM, and why?</li>
-<li>Why does each additional "nine" of availability cost roughly a multiple of the previous one, and how would you decide whether the next nine is worth buying?</li>
-<li>Can you frame precompute-vs-compute-on-read, consistency, and replication factor each as a cost trade-off, naming which resource you spend in each direction?</li>
-<li>Why is "cache everything" not a cost strategy, and how do you size a cache so it saves money rather than wasting it?</li>
-<li>What does it mean to treat cost-per-request as an SLI, and why is unit cost a more useful signal than absolute cloud spend?</li>
+<li><b>Set cost-appropriate SLOs.</b> For three services (payments, internal tool, marketing site) pick the number of nines and justify the cost trade. &rarr; <a href="49.html">SLI/SLO/SLA</a>.</li>
+<li><b>Make cost an SLI.</b> Design the tagging + attribution so you can track and alert on cost-per-tenant, and bake cost into design reviews. &rarr; <a href="50.html">Observability</a>.</li>
+<li><b>Optimize a data pipeline's cost.</b> Apply storage tiering, columnar formats, and precompute-vs-on-read to cut a daily analytics pipeline's bill. &rarr; <a href="41.html">Batch &amp; Big Data</a>, <a href="48.html">Object Storage</a>.</li>
 </ul>
-</div>
 
-<div class="navfoot"><a href="70.html">&lsaquo; Prev: Designing a Recommendation System</a><a class="nx" href="72.html">Next: Principal-Level Self-Assessment and Index &rsaquo;</a></div>
-
+<div class="navfoot"><a href="70.html">&lsaquo; Prev: Recommendation &amp; ML Systems</a><a class="nx" href="72.html">Next: Self-Assessment &rsaquo;</a></div>
 </div>
 </div>
 </div>

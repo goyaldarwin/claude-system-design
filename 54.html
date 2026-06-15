@@ -111,239 +111,191 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-
+<div class="wrap tree-doc">
 <div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Security &nbsp;&rsaquo;&nbsp; Security in System Design</div>
-
 <h1>Security in System Design</h1>
-<p class="sub"><em>Treating security as a first-class architectural dimension &mdash; identity, secrets, encryption, blast-radius containment, and the threat models that drive design decisions.</em></p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Operability.</b> <span>trust under adversaries, paid in auth/encryption/key-management overhead at every boundary.</span></div>
+<p class="sub"><em>Security isn't a feature you bolt on at the end &mdash; it's a dimension of every design decision, and the cost of getting it wrong is measured in millions of leaked records and destroyed companies. The principal-level view isn't memorizing attacks; it's understanding the <b>layers of defense</b> &mdash; who you are, what you can do, how data is protected, and how you survive the inevitable breach of any single layer.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#first-class">Security as a First-Class Dimension</a></li>
-<li><a href="#authn-authz">Authentication vs Authorization</a></li>
-<li><a href="#oauth">OAuth2, OIDC, and JWT</a></li>
-<li><a href="#mtls">mTLS and Zero-Trust Networking</a></li>
-<li><a href="#crypto">Encryption: In Transit and At Rest</a></li>
-<li><a href="#secrets">Secrets Management</a></li>
-<li><a href="#defense">Defense in Depth and Abuse Protection</a></li>
-<li><a href="#threat">Threat Modeling and OWASP</a></li>
-<li><a href="#pii">PII Handling and Data Minimization</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The trade-off</a> <b>Protecting data and access against attackers &mdash; in exchange for friction, latency, key/secret management overhead, and the discipline of assuming every layer will eventually be breached.</b> <span>Security buys you confidentiality, integrity, and the ability to limit damage when (not if) something is compromised. You pay with added auth steps, encryption overhead, the operational burden of managing secrets and patches, and designing as though no single control can be trusted alone.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Security in System Design</b>
+│
+├─ <a href="#root"><b>Security as a dimension</b></a>  &mdash; the layers of defense
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#decisions"><b>The 5 layers of defense</b></a>
+│   ├─ <a href="#d1">1. AuthN vs AuthZ (who are you / what can you do)</a> fail → <a href="#confused-deputy">conflating the two</a>
+│   ├─ <a href="#d2">2. Encryption in transit &amp; at rest</a>  fail → <a href="#plaintext">plaintext exposure</a>
+│   ├─ <a href="#d3">3. Secrets management</a>                fail → <a href="#hardcoded">the hardcoded secret</a>
+│   ├─ <a href="#d4">4. Defense in depth &amp; least privilege</a> fail → <a href="#single-layer">the single soft layer</a>
+│   └─ <a href="#d5">5. Patching, threat modeling &amp; PII</a> fail → <a href="#unpatched">the unpatched known CVE</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; the OWASP-flavored checklist
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; security services
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; the standards &amp; tools
+│   ├─ <a href="#impl-oauth">OAuth2 / OIDC / JWT</a>
+│   ├─ <a href="#impl-zero">mTLS &amp; zero-trust</a>
+│   └─ <a href="#impl-secrets">Secret managers / KMS</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-authz">Design authentication + authorization</a>
+    ├─ <a href="#ex-threat">Threat-model an endpoint</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="first-class">Security as a First-Class Dimension</h2>
-<p>Junior designs treat security as a checklist bolted on at the end: "add auth, use HTTPS, done." Principal designs treat it as a dimension that sits alongside latency, availability, and cost &mdash; one that shapes service boundaries, data flows, and failure modes. The reason is structural: security is an <span class="key">emergent property of the whole system</span>, not a feature of any single component. A perfectly hardened auth service does nothing if a downstream service trusts a forged internal header.</p>
-
-<p>The mental model that scales is <span class="key">blast-radius thinking</span>. For every credential, every trust boundary, every data store, ask: <em>if this single thing is compromised, what is the worst an attacker can do, and how do we contain it?</em> This is the same instinct as designing for partial failure in distributed systems &mdash; you assume components will be breached the way you assume nodes will crash, and you bound the damage.</p>
-
-<div class="callout note"><span class="lbl">Key insight</span>Security and reliability are the same discipline viewed through different adversaries. Reliability defends against random failure (entropy); security defends against an <em>intelligent adversary</em> who actively probes your weakest assumption. The adversary makes the difference: a 99.99%-reliable check that fails open is fine for availability and catastrophic for security.</div>
-
-<p>Three principles recur throughout this lesson:</p>
+<!-- ============ ROOT ============ -->
+<h2 id="root">Security as a dimension &mdash; the layers of defense</h2>
+<p>Security is a property of the <i>whole</i> system, woven through every layer, not a module you add. It rests on the classic <b>CIA triad</b> &mdash; <b>Confidentiality</b> (only authorized parties see data), <b>Integrity</b> (data isn't tampered with), <b>Availability</b> (it stays up &mdash; the link to <a href="51.html">resilience</a> and <a href="23.html">rate limiting</a>). The design question is how to defend each layer, knowing any one can fail:</p>
 <ul>
-<li><span class="key">Least privilege</span> &mdash; every identity (human or service) gets the minimum access needed, scoped and time-bounded.</li>
-<li><span class="key">Defense in depth</span> &mdash; no single control is the only thing standing between an attacker and the crown jewels.</li>
-<li><span class="key">Fail closed</span> &mdash; when a security control errors or times out, deny rather than allow. (Contrast with availability controls, which often fail open.)</li>
+<li><b>Identity &amp; access</b> &mdash; prove who a caller is (<b>authentication</b>) and decide what they may do (<b>authorization</b>).</li>
+<li><b>Data protection</b> &mdash; encrypt data in transit and at rest so a network sniff or a stolen disk yields nothing.</li>
+<li><b>Secrets</b> &mdash; manage the keys/passwords/tokens that protect everything else.</li>
+<li><b>Depth</b> &mdash; layer controls (network, app, data) and grant least privilege, so one breach isn't game over.</li>
+<li><b>Operations</b> &mdash; patch known vulnerabilities, threat-model, minimize and protect PII.</li>
 </ul>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>Security trades <b>friction, overhead, and operational discipline</b> for <b>confidentiality, integrity, and damage limitation</b>. The mindset that separates principals: <b>assume breach</b> &mdash; design so that compromising any single layer (a stolen credential, a leaked key, an unpatched server) does <i>not</i> hand the attacker everything. Defense in depth and least privilege are how you make a breach survivable instead of catastrophic.</div>
 
-<h2 id="authn-authz">Authentication vs Authorization</h2>
-<p>These are constantly conflated and the distinction is load-bearing in any design discussion.</p>
-<ul>
-<li><span class="key">Authentication (AuthN)</span> &mdash; <em>who are you?</em> Verifying identity. Output: a proven principal (user 12345, service <code>billing-svc</code>).</li>
-<li><span class="key">Authorization (AuthZ)</span> &mdash; <em>what are you allowed to do?</em> Evaluating whether the proven principal may perform an action on a resource. Output: allow/deny.</li>
-</ul>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the checklist</a>.</p>
 
-<p>The architectural decision is <span class="key">where AuthZ lives</span>. Three patterns:</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; Equifax, 2017 (real breach)</span>
+A critical vulnerability in Apache Struts (<b>CVE-2017-5638</b>, CVSS 10.0) was disclosed and patched on 7 March 2017. Equifax was told to patch it &mdash; but the patch wasn't applied. Two months later attackers exploited the still-unpatched server and exfiltrated <b>147 million people's</b> data over 78 days. Worse, the breach went undetected because an <b>expired SSL certificate had disabled their network monitoring</b>. <b>Which security failures compounded here, and which single discipline would have prevented the whole thing?</b></div>
 
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the API key in the GitHub repo</span>
+A developer hardcodes a database password (or cloud access key) into the source to "make it work," and it gets committed to a repository. Months later the repo is exposed (or an insider/leak occurs) and the credential grants full access to production data. <b>Where should secrets live instead, and what limits the damage when one inevitably leaks?</b></div>
+
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the service that trusts the network</span>
+An internal microservice assumes "if a request reached me from inside our network, it must be legitimate" &mdash; so it does no authentication on internal calls. An attacker who breaches <i>one</i> machine on the network can now call <b>every</b> internal service freely and move laterally to the crown jewels. <b>What security model rejects "inside the network = trusted," and how do services verify each other?</b></div>
+
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#unpatched">patching &amp; operational discipline (+ defense in depth)</a>. Scenario 2 is <a href="#hardcoded">secrets management (+ least privilege)</a>. Scenario 3 is <a href="#single-layer">zero-trust / defense in depth</a>. Each maps to a layer below.</i></p>
+
+<!-- ============ BRANCH 1: THE LAYERS ============ -->
+<h2 id="decisions">The five layers of defense</h2>
+<p>Security in a design is these five layers. Each has a named failure nested under it.</p>
+
+<h3 id="d1">Layer 1 &mdash; Authentication vs authorization</h3>
+<p>Two distinct questions, constantly conflated. <b>Authentication (AuthN)</b> = <i>who are you?</i> (verify identity &mdash; password + MFA, a token, a certificate). <b>Authorization (AuthZ)</b> = <i>what are you allowed to do?</i> (check permissions &mdash; RBAC/ABAC, scopes). The modern stack: <b><a href="#impl-oauth">OAuth2</a></b> for delegated authorization (grant an app limited access without sharing your password), <b>OIDC</b> for authentication on top of it, and <b><span class="gl" data-def="JWT &mdash; JSON Web Token; a signed (and optionally encrypted) token carrying claims (identity, scopes, expiry); the signature lets a service verify it without calling the issuer, but it can't be revoked before expiry.">JWT</span></b> as the signed token carrying identity/claims.</p>
+<div class="callout warn"><span class="lbl" id="confused-deputy">The failure that happens when you get this wrong &mdash; conflating AuthN and AuthZ</span>
+Authenticating a user but not properly authorizing each action is one of the most common (and severe) real-world bugs &mdash; <b>broken access control</b> tops the OWASP list. The classic form: you verify <i>who</i> the user is, then trust client-supplied IDs without checking they're <i>allowed</i> that resource &mdash; so user A requests <code>/orders/123</code> (B's order) and gets it (an <b>IDOR</b> &mdash; insecure direct object reference). Always enforce AuthZ <i>server-side on every request</i>, scoped to the authenticated principal &mdash; never assume "logged in" means "allowed," and never trust the client to scope itself.</div>
+
+<h3 id="d2">Layer 2 &mdash; Encryption in transit and at rest</h3>
+<p>Two places data must be protected. <b>In transit</b> &mdash; <span class="gl" data-def="TLS &mdash; Transport Layer Security; the protocol (the S in HTTPS) that encrypts and authenticates data in transit, preventing eavesdropping and tampering on the network.">TLS</span> (HTTPS) encrypts data on the wire so a network eavesdropper sees ciphertext, and authenticates the server (and optionally the client, via <a href="#impl-zero">mTLS</a>). <b>At rest</b> &mdash; encrypt stored data (databases, disks, backups, object storage) so a stolen disk or leaked backup is useless without the key. Both are table stakes; the interesting decisions are key management and what threat each actually defends against.</p>
+<div class="callout warn"><span class="lbl" id="plaintext">The failure that happens when you get this wrong &mdash; plaintext exposure</span>
+Skipping either leaves a gap an attacker walks through. <b>No TLS</b> &rarr; credentials and data sniffable on any shared network. <b>No encryption at rest</b> &rarr; a leaked backup, a decommissioned-but-not-wiped disk, or a compromised storage bucket exposes everything in the clear. A subtle one: encryption at rest only helps if the <i>keys</i> aren't stored next to the data &mdash; "encrypted with the key in the same bucket" is theater. Encrypt everywhere, manage keys separately (<a href="#d3">Layer 3</a>), and for the most sensitive fields (passwords) don't encrypt at all &mdash; <b>hash with a salted, slow algorithm</b> (bcrypt/argon2) so even a full DB dump can't reveal them.</div>
+
+<h3 id="d3">Layer 3 &mdash; Secrets management</h3>
+<p>Everything above depends on secrets &mdash; API keys, DB passwords, signing keys, TLS certs. They must <b>never</b> live in source code, config files in the repo, or environment variables baked into images. Instead use a dedicated <b>secret manager / KMS</b> (Vault, AWS Secrets Manager, KMS): secrets are stored encrypted, fetched at runtime by authenticated services, access-audited, and <b>rotated</b> regularly so a leaked secret has a short useful life.</p>
+<div class="callout warn"><span class="lbl" id="hardcoded">The failure that happens when you get this wrong &mdash; the hardcoded secret</span>
+This is <b>Scenario 2</b>. A credential committed to a repo (or baked into an image/config) is a time bomb: it leaks via a repo exposure, a fired employee, a misconfigured bucket, or a dependency that scrapes the filesystem &mdash; and a hardcoded secret is usually <i>long-lived and over-privileged</i>, so the leak is total and lasting. Fixes: store secrets in a <b>secret manager</b> fetched at runtime (never in code/repo &mdash; scan repos to enforce it), <b>rotate</b> them so a leak expires quickly, and pair with <a href="#single-layer">least privilege</a> so even a leaked credential can only touch the little it needs. Short-lived, scoped, externally-managed &mdash; the opposite of hardcoded-forever.</div>
+
+<h3 id="d4">Layer 4 &mdash; Defense in depth &amp; least privilege</h3>
+<p>The core architectural principles. <b>Defense in depth</b>: layer independent controls (network firewall/segmentation, app-level auth, data encryption, monitoring) so an attacker who breaches one still faces others &mdash; no single point of total failure. <b>Least privilege</b>: every user, service, and credential gets the <i>minimum</i> access it needs and no more, so a compromised component can do limited damage. Together they assume breach and contain it.</p>
+<div class="callout warn"><span class="lbl" id="single-layer">The failure that happens when you get this wrong &mdash; the single soft layer (trusting the network)</span>
+This is <b>Scenario 3</b>. The traditional "hard shell, soft center" model &mdash; a strong perimeter firewall but full mutual trust <i>inside</i> &mdash; means one breached machine lets an attacker move laterally to everything (no internal auth, over-broad access). The modern answer is <b>zero-trust</b>: trust no network location; <i>every</i> request is authenticated and authorized regardless of origin, services verify each other (<a href="#impl-zero">mTLS</a>), and access is least-privilege and segmented. Combined with defense in depth, a single compromise is contained &mdash; the attacker hits another locked door at every step instead of having free rein. "Inside the network = trusted" is the assumption that turns a small breach into a total one.</div>
+
+<h3 id="d5">Layer 5 &mdash; Patching, threat modeling &amp; PII handling</h3>
+<p>The operational layer. <b>Patch known vulnerabilities promptly</b> (track CVEs in your dependencies &mdash; software composition analysis). <b>Threat-model</b> (systematically ask "how could this be attacked?" &mdash; STRIDE, the <span class="gl" data-def="OWASP Top 10 &mdash; the Open Worldwide Application Security Project's regularly-updated list of the most critical web application security risks (e.g. broken access control, injection, cryptographic failures); the standard checklist to design against.">OWASP Top 10</span>) and design against injection, broken access control, etc. <b>Minimize and protect PII</b>: collect only the personal data you need, encrypt/tokenize it, restrict access, and honor regulations (GDPR, CCPA).</p>
+<div class="callout warn"><span class="lbl" id="unpatched">The failure that happens when you get this wrong &mdash; the unpatched known CVE (Equifax)</span>
+This is <b>Scenario 1</b>, the most preventable kind of catastrophe. Equifax's breach exploited a vulnerability that had a <b>patch available two months before the attack</b> &mdash; the failure wasn't a clever zero-day, it was not applying a known fix. And <b>defense in depth failed too</b>: an expired certificate had silently disabled the monitoring that should have caught the exfiltration, so 147M records leaked over 78 days unnoticed. The lessons compound: <b>patch known CVEs urgently</b> (have an inventory and a process, not goodwill), and don't rely on one control &mdash; layered monitoring + least privilege would have limited the damage even with the unpatched server. Most breaches exploit <i>known</i>, fixable weaknesses, not exotic attacks.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; the design checklist</h2>
 <table>
-<thead><tr><th>Model</th><th>How it works</th><th>Trade-off</th></tr></thead>
-<tbody>
-<tr><td><span class="pill">RBAC</span></td><td>Roles bundle permissions; users get roles.</td><td>Simple, auditable; explodes into role-sprawl as edge cases accumulate.</td></tr>
-<tr><td><span class="pill">ABAC</span></td><td>Policy evaluates attributes (user dept, resource owner, time, IP).</td><td>Expressive; hard to reason about "who can access X" and to test exhaustively.</td></tr>
-<tr><td><span class="pill">ReBAC</span></td><td>Relationship graph (Google Zanzibar / OpenFGA): "user is editor of doc that is in folder owned by team".</td><td>Models real ownership hierarchies; needs a dedicated, low-latency authz service.</td></tr>
-</tbody>
+<tr><th>Layer</th><th>Do</th><th>Common failure (OWASP-flavored)</th></tr>
+<tr><td><b>AuthN/AuthZ</b></td><td>Verify identity (OIDC/MFA); authorize every request server-side, scoped</td><td>Broken access control / IDOR (#1 on OWASP)</td></tr>
+<tr><td><b>Encryption</b></td><td>TLS everywhere; encrypt at rest; hash passwords (argon2/bcrypt)</td><td>Cryptographic failures; plaintext data</td></tr>
+<tr><td><b>Secrets</b></td><td>Secret manager/KMS; rotate; never in code</td><td>Hardcoded/leaked credentials</td></tr>
+<tr><td><b>Depth + least privilege</b></td><td>Zero-trust, segmentation, minimum permissions, defense in depth</td><td>Flat trust → lateral movement</td></tr>
+<tr><td><b>Operations</b></td><td>Patch CVEs fast; threat-model; minimize/protect PII; validate input</td><td>Vulnerable components (Equifax); injection</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The rule in one line</span>Treat security as a layer in every design: <b>authenticate then authorize every request</b>, <b>encrypt in transit and at rest</b> (keys managed separately), <b>keep secrets in a manager and rotate them</b>, apply <b>least privilege + defense in depth (assume breach)</b>, and <b>patch known vulnerabilities fast</b>. Most breaches are known, fixable failures &mdash; not genius attacks.</div>
 
-<div class="callout warn"><span class="lbl">Pitfall</span><span class="key">Broken access control</span> is the #1 OWASP risk for a reason: it is invisible to most testing. The classic failure is the <em>IDOR</em> (insecure direct object reference) &mdash; <code>GET /invoices/1042</code> returns invoice 1042 without checking that the caller owns it. Authentication passed; authorization was never enforced. Centralize the ownership check; never trust the client to scope its own queries.</div>
-
-<p>Strong designs make AuthZ a <span class="key">centralized policy decision point</span> (PDP) that services query, rather than scattering <code>if user.role == ...</code> across the codebase. This is why service meshes (see <a href="44.html">Microservices and Service Mesh</a>) and API gateways exist: terminate AuthN at the edge, enforce coarse AuthZ centrally, and let services enforce fine-grained, resource-level AuthZ they alone understand.</p>
-
-<h2 id="oauth">OAuth2, OIDC, and JWT</h2>
-<p>These three are routinely mixed up. Precisely:</p>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><span class="key">OAuth2</span> is an <em>authorization-delegation</em> framework: it lets a user grant a third-party app limited access to their resources <em>without</em> sharing their password. It issues access tokens. OAuth2 alone says nothing about <em>who the user is</em>.</li>
-<li><span class="key">OpenID Connect (OIDC)</span> is a thin <em>authentication</em> layer on top of OAuth2. It adds the <code>id_token</code> (a JWT containing identity claims) and a standard <code>/userinfo</code> endpoint. "Sign in with Google" is OIDC.</li>
-<li><span class="key">JWT</span> is just a token <em>format</em> &mdash; a signed (JWS) or encrypted (JWE) JSON blob. OAuth2/OIDC commonly use JWTs, but a JWT is not inherently an OAuth thing.</li>
+<li><b>Scenario 1 (Equifax):</b> Which failures compounded (unpatched known CVE + expired-cert monitoring gap), and which discipline would have prevented the whole thing? Why does defense in depth matter even with an unpatched server?</li>
+<li><b>Scenario 2 (key in repo):</b> Where should secrets live, and what (rotation + least privilege) limits the damage when one leaks?</li>
+<li><b>Scenario 3 (trusts the network):</b> What's wrong with "inside = trusted," and how does zero-trust + mTLS fix it?</li>
+<li>AuthN vs AuthZ &mdash; the difference, and why broken access control / IDOR is so common?</li>
+<li>Why hash (not encrypt) passwords, and why must encryption-at-rest keys live separately from the data?</li>
 </ul>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>5 layers</b> &mdash; <a href="#d1">AuthN/AuthZ</a>, <a href="#d2">encryption</a>, <a href="#d3">secrets</a>, <a href="#d4">depth + least privilege</a>, <a href="#d5">patching/threat-model/PII</a> &mdash; each with a nested failure; the meta-principle is <b>assume breach</b>.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="45.html">API Design</a>, <a href="23.html">Rate Limiter</a>, <a href="51.html">Resilience (availability)</a>, <a href="48.html">Object Storage (signed URLs)</a>, <a href="61.html">Payment System</a>, <a href="53.html">Multi-Region (data residency)</a>.</p>
 
-<h3>The flows that matter</h3>
-<ul>
-<li><span class="key">Authorization Code + PKCE</span> &mdash; the correct flow for web and mobile/SPA clients. The browser gets a short-lived authorization code; the code is exchanged for tokens over a back channel. PKCE (Proof Key for Code Exchange) binds the code to the client that started the flow, defeating code interception. <strong>The implicit flow is dead</strong> &mdash; do not propose it.</li>
-<li><span class="key">Client Credentials</span> &mdash; service-to-service, no user involved. <code>billing-svc</code> proves its own identity to get a token.</li>
-<li><span class="key">Refresh tokens</span> &mdash; long-lived, used to mint new short-lived access tokens. Treat as high-value secrets; rotate them and detect reuse.</li>
-</ul>
-
-<pre><code># Decoded JWT access token (header.payload.signature)
-{
-  "alg": "RS256",          # asymmetric: signed with IdP private key,
-  "kid": "2024-key-3"      #   verified by anyone with the public key (JWKS)
-}
-{
-  "iss": "https://auth.example.com",
-  "sub": "user_12345",
-  "aud": "api.example.com",   # who this token is FOR -- MUST validate
-  "exp": 1718200000,          # short: 5-15 min
-  "scope": "read:invoices",
-  "tenant": "acme"
-}</code></pre>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span><strong>Stateless JWTs vs the revocation problem.</strong> A JWT's appeal is that any service can verify it locally with the IdP's public key &mdash; no network call, no shared session store, trivially horizontally scalable. The cost: <em>you cannot un-issue it</em>. If a token is stolen, it is valid until <code>exp</code>. There is no central "log out everywhere" with pure stateless JWTs.</div>
-
-<p>How principals resolve this:</p>
-<ol>
-<li><strong>Keep access tokens short-lived</strong> (5&ndash;15 min) so the revocation window is bounded. Carry a long-lived refresh token to re-mint.</li>
-<li><strong>Maintain a revocation list / deny-list</strong> keyed by <code>jti</code> (token ID) or <code>sub</code> in a fast store (Redis), checked on sensitive operations. This trades away pure statelessness for revocability &mdash; a deliberate choice, not an accident.</li>
-<li><strong>Rotate refresh tokens</strong> on each use and detect replay (a refresh token used twice = theft; revoke the whole family).</li>
-</ol>
-
-<div class="callout warn"><span class="lbl">Pitfall</span>JWT validation gotchas that have caused real breaches: (1) accepting <code>alg: none</code>; (2) not validating <code>aud</code>, so a token minted for service A is replayed against service B; (3) confusing the signing algorithm &mdash; an attacker submits an HS256 token signed with the <em>public</em> RSA key as the HMAC secret. Always pin the expected algorithm and validate <code>iss</code>, <code>aud</code>, and <code>exp</code>.</div>
-
-<p>For server-rendered apps where you control both ends, an opaque <span class="key">session ID backed by a server-side store</span> is often the better choice: revocation is trivial (delete the row), and no claims leak to the client. The JWT-vs-session decision is fundamentally the same stateless-vs-stateful trade-off you make everywhere &mdash; see <a href="45.html">API Design REST gRPC GraphQL</a> for how this interacts with API surface design.</p>
-
-<h2 id="mtls">mTLS and Zero-Trust Networking</h2>
-<p>The old model was a hard perimeter: a firewall around the data center, and everything inside trusted everything else. This collapses the moment one internal service is compromised &mdash; lateral movement is unimpeded. <span class="key">Zero trust</span> replaces "trust by network location" with "trust by verified identity, every hop."</p>
-
-<p><span class="key">Mutual TLS (mTLS)</span> is the workhorse. In ordinary TLS, only the server presents a certificate; the client verifies the server. In mTLS, <em>both</em> sides present certificates and verify each other. Now <code>orders-svc</code> cryptographically proves its identity to <code>payments-svc</code> on every connection, and vice versa &mdash; a forged <code>X-Service-Name</code> header is worthless.</p>
-
-<div class="callout note"><span class="lbl">Key insight</span>A service mesh (Istio, Linkerd) makes mTLS practical at scale by offloading it to a sidecar proxy. Each pod gets a short-lived workload certificate (SPIFFE/SPIRE issues these, typically valid for hours), auto-rotated. Application code is unchanged; the mesh handles handshake, rotation, and policy. This is the operational reason zero-trust went mainstream &mdash; see <a href="44.html">Microservices and Service Mesh</a> and <a href="47.html">Containers Kubernetes and Serverless</a>.</div>
-
-<p>Zero-trust principles in a design:</p>
-<ul>
-<li>Every request is authenticated and authorized, regardless of origin network.</li>
-<li>Workload identity is cryptographic (mTLS certs / SPIFFE IDs), not IP- or hostname-based.</li>
-<li>Network policies default-deny; allowed flows are explicit (Kubernetes <code>NetworkPolicy</code>, mesh authorization policies).</li>
-<li>Microsegmentation contains lateral movement &mdash; compromising the recommendations service does not grant a path to the payments database.</li>
-</ul>
-
-<h2 id="crypto">Encryption: In Transit and At Rest</h2>
-
-<h3>In transit (TLS)</h3>
-<p>Non-negotiable: TLS 1.2+ (prefer 1.3) for all external traffic and, in zero-trust, internal traffic too. TLS 1.3 drops legacy ciphers, makes forward secrecy mandatory, and cuts the handshake to one round trip (0-RTT for resumption, with replay caveats). Terminate TLS at the load balancer or edge proxy (see <a href="07.html">Proxies</a> and <a href="03.html">Load Balancing</a>) and decide explicitly whether internal hops are plaintext (perimeter model) or re-encrypted (zero-trust).</p>
-
-<h3>At rest</h3>
-<p>The naive approach &mdash; one master key encrypting everything &mdash; means rotating the key requires re-encrypting petabytes, and a single key compromise exposes all data. The standard answer is <span class="key">envelope encryption</span>:</p>
-
-<pre><code># Envelope encryption
-1. Generate a Data Encryption Key (DEK) per object/table/tenant.
-2. Encrypt the data with the DEK (fast, symmetric AES-256-GCM).
-3. Encrypt the DEK with a Key Encryption Key (KEK) held in a KMS / HSM.
-4. Store the encrypted DEK alongside the ciphertext.
-
-# To read: ask KMS to decrypt the wrapped DEK (KEK never leaves the HSM),
-#          then use the plaintext DEK locally to decrypt the data.
-
-# To ROTATE the KEK: re-wrap the small DEKs -- no bulk data re-encryption.</code></pre>
-
-<div class="callout note"><span class="lbl">Key insight</span>Envelope encryption decouples "rotate the key" from "re-encrypt the data." The KEK lives in a hardware-backed KMS (AWS KMS, GCP KMS, HashiCorp Vault Transit) and <em>never leaves it</em> in plaintext. You rotate the master key by re-wrapping kilobytes of DEKs instead of re-encrypting terabytes. Per-tenant DEKs also give you <em>crypto-shredding</em>: destroy a tenant's DEK and their data is instantly unrecoverable &mdash; a clean answer to GDPR "right to erasure."</div>
-
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Encryption at rest defends against <em>storage-layer</em> compromise (stolen disk, leaked snapshot, mis-set bucket ACL). It does <strong>not</strong> defend against an attacker who has a valid application credential &mdash; the app decrypts transparently for them. People over-index on at-rest encryption (it's a compliance checkbox) and under-invest in access control, which stops the far more common application-layer breach.</div>
-
-<h2 id="secrets">Secrets Management</h2>
-<p>Database passwords, API keys, signing keys, TLS private keys. The cardinal sin is the one everyone has committed: <span class="key">secrets in source control</span>, or only marginally better, in plaintext environment variables baked into a container image. Both leak constantly &mdash; via git history, CI logs, crash dumps, <code>/proc/&lt;pid&gt;/environ</code>, and accidental log lines.</p>
-
-<p>A proper secrets architecture (HashiCorp Vault, AWS Secrets Manager, GCP Secret Manager, K8s External Secrets):</p>
-<ul>
-<li><span class="key">Centralized, encrypted store</span> with strict audit logging of every read.</li>
-<li><span class="key">Dynamic secrets</span> &mdash; Vault generates a database credential on demand with a short TTL and revokes it automatically. There is no long-lived shared DB password to leak.</li>
-<li><span class="key">Identity-based access</span> &mdash; a workload authenticates to Vault using its K8s service-account token or cloud IAM identity, not a bootstrap secret. (The "secret-zero" problem: solved by the platform's attested workload identity.)</li>
-<li><span class="key">Rotation as routine</span> &mdash; automated, frequent, and tested. A secret you cannot rotate without downtime is a latent incident.</li>
-</ul>
-
-<div class="callout warn"><span class="lbl">Pitfall</span>Once a secret hits git, rotating it is not optional &mdash; assume it is compromised forever, because git history is permanent and may already be cloned. "I'll just remove it in the next commit" leaves it in the history. Rotate the credential and scrub history; do both.</div>
-
-<h2 id="defense">Defense in Depth and Abuse Protection</h2>
-<p>No single control is sufficient. Layer them so that defeating one still leaves an attacker facing the next:</p>
-
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
 <table>
-<thead><tr><th>Layer</th><th>Control</th><th>Stops</th></tr></thead>
-<tbody>
-<tr><td>Edge</td><td>WAF, DDoS scrubbing (Cloudflare/Shield)</td><td>Volumetric floods, known exploit signatures, bot traffic</td></tr>
-<tr><td>Gateway</td><td>Rate limiting, quotas, authN termination</td><td>Credential stuffing, scraping, abuse, app-layer DDoS</td></tr>
-<tr><td>Service</td><td>AuthZ, input validation, mTLS</td><td>Broken access control, injection, lateral movement</td></tr>
-<tr><td>Data</td><td>Encryption, least-privilege DB users, row-level security</td><td>Storage compromise, over-broad queries</td></tr>
-</tbody>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Identity / AuthN</td><td>Cognito / IAM</td><td>Identity Platform / IAM</td><td>Entra ID (Azure AD)</td></tr>
+<tr><td>Secrets management</td><td>Secrets Manager / KMS</td><td>Secret Manager / Cloud KMS</td><td>Key Vault</td></tr>
+<tr><td>WAF / DDoS</td><td>WAF / Shield</td><td>Cloud Armor</td><td>WAF / DDoS Protection</td></tr>
+<tr><td>Zero-trust / mTLS</td><td>App Mesh + IAM</td><td>BeyondCorp / mesh</td><td>Entra + mesh</td></tr>
+<tr><td>Vuln scanning</td><td>Inspector / ECR scan</td><td>Container Analysis</td><td>Defender for Cloud</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The takeaway</span>The cloud provides every layer as a managed service &mdash; identity, KMS/secret managers, WAF/DDoS, vulnerability scanning, mesh-based mTLS &mdash; so you rarely build crypto or auth from scratch (and shouldn't). What the cloud <i>can't</i> do for you is the discipline: actually patching what the scanner flags (Equifax had the info), authorizing every request in <i>your</i> code, and not hardcoding the secret. The tools are necessary; the operational rigor is the part that fails.</div>
 
-<p><span class="key">Rate limiting</span> is both a reliability control and a security control &mdash; it caps the rate of credential-stuffing attempts and bounds the damage of a leaked key. Design it per-identity and per-endpoint, not just globally; the full treatment of token-bucket vs sliding-window, distributed counters, and where to enforce is in <a href="23.html">Designing an API Rate Limiter</a>.</p>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The standards made concrete. Same facets &mdash; what it is, the mechanism, and the failure to watch.</p>
 
-<p>A <span class="key">WAF</span> (Web Application Firewall) inspects HTTP traffic for known attack patterns (SQLi signatures, path traversal, malicious bots). Treat it as a speed bump and noise filter, <em>not</em> a substitute for fixing the underlying vulnerability &mdash; WAF rules are bypassable; parameterized queries are not.</p>
-
-<div class="callout note"><span class="lbl">Key insight</span>L3/L4 volumetric DDoS (SYN floods, UDP amplification) is absorbed by your provider's scrubbing capacity &mdash; you cannot out-buy it yourself. L7 application DDoS (expensive queries, login storms) is <em>your</em> problem and is defended with rate limiting, request cost accounting, caching (<a href="04.html">Caching</a>), and shedding load gracefully (<a href="51.html">Resilience Patterns</a>).</div>
-
-<h2 id="threat">Threat Modeling and OWASP</h2>
-<p>Threat modeling is the disciplined way to find what to defend before an attacker does. The standard lightweight framework is <span class="key">STRIDE</span> &mdash; walk each data flow across each trust boundary and ask which of these apply:</p>
-
-<table>
-<thead><tr><th>Threat</th><th>Question</th><th>Primary mitigation</th></tr></thead>
-<tbody>
-<tr><td><span class="pill">S</span> Spoofing</td><td>Can someone impersonate an identity?</td><td>Strong authN, mTLS</td></tr>
-<tr><td><span class="pill">T</span> Tampering</td><td>Can data be modified in transit or at rest?</td><td>TLS, signatures, integrity checks</td></tr>
-<tr><td><span class="pill">R</span> Repudiation</td><td>Can someone deny an action they took?</td><td>Tamper-evident audit logs</td></tr>
-<tr><td><span class="pill">I</span> Info disclosure</td><td>Can data leak to the unauthorized?</td><td>Encryption, access control</td></tr>
-<tr><td><span class="pill">D</span> Denial of service</td><td>Can availability be degraded?</td><td>Rate limiting, quotas, autoscaling</td></tr>
-<tr><td><span class="pill">E</span> Elevation of privilege</td><td>Can a user gain rights they shouldn't have?</td><td>Least privilege, robust authZ</td></tr>
-</tbody>
-</table>
-
-<p>The architectural OWASP risks worth naming in a design review:</p>
+<h3 id="impl-oauth">OAuth2 / OIDC / JWT</h3>
 <ul>
-<li><span class="key">Broken access control</span> &mdash; covered above; the most common and most damaging. Enforce server-side, centralized, resource-scoped.</li>
-<li><span class="key">Injection</span> (SQL, command, LDAP) &mdash; never concatenate untrusted input into an interpreter. Parameterized queries / prepared statements always.</li>
-<li><span class="key">SSRF (Server-Side Request Forgery)</span> &mdash; an attacker tricks your server into fetching a URL <em>they</em> control the target of. The 2019 Capital One breach was an SSRF that reached the AWS metadata endpoint and stole IAM credentials. Mitigate: allow-list outbound destinations, block link-local / RFC-1918 ranges, and use IMDSv2 (session-token-bound metadata).</li>
-<li><span class="key">Cryptographic failures</span> &mdash; weak ciphers, home-rolled crypto, hardcoded keys, secrets in logs.</li>
+<li><b>What it is.</b> The standard stack for delegated auth: OAuth2 (authorization &mdash; grant an app scoped access), OIDC (authentication layered on OAuth2), JWT (the signed token).</li>
+<li><b>Mechanism.</b> Flows issue scoped, expiring tokens; services verify a JWT's signature locally (no issuer round-trip) and check scopes/claims per request.</li>
+<li><b>The failure to watch.</b> JWTs can't be revoked before expiry (keep them short-lived + use refresh tokens); never put secrets in the (base64, not encrypted) JWT payload; validate the signature and <code>aud</code>/<code>exp</code>, don't just decode.</li>
 </ul>
 
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They threat-model the design <em>during</em> the design review, unprompted: "The payment callback is a trust boundary &mdash; how do I verify it's really the gateway and not a spoofed request? I'll validate the webhook HMAC signature and the source." That instinct &mdash; identifying trust boundaries and asking what crosses them &mdash; is the single clearest signal of security maturity.</div>
-
-<h2 id="pii">PII Handling and Data Minimization</h2>
-<p>The cheapest data to secure is the data you never collected. <span class="key">Data minimization</span> &mdash; collect only what you need, retain it only as long as you need it &mdash; is both a security control (smaller breach surface) and a compliance requirement (GDPR, CCPA).</p>
-
-<p>Practical techniques:</p>
+<h3 id="impl-zero">mTLS &amp; zero-trust</h3>
 <ul>
-<li><span class="key">Tokenization</span> &mdash; replace sensitive values (a credit-card PAN) with a non-sensitive token, keeping the real value in a tightly scoped vault. Most of your system handles tokens; the PCI scope shrinks to the vault. Essential for payment systems &mdash; see <a href="61.html">Designing a Payment System</a>.</li>
-<li><span class="key">Field-level encryption</span> &mdash; encrypt PII columns with per-tenant or per-field DEKs so a database dump alone is useless and crypto-shredding is per-user.</li>
-<li><span class="key">Pseudonymization &amp; masking</span> &mdash; logs and analytics see <code>user_8a3f</code> and <code>****1234</code>, never raw PII. Critical because logs sprawl into many systems with weaker access control.</li>
-<li><span class="key">Data residency</span> &mdash; GDPR and similar regimes constrain <em>where</em> data physically lives, which directly shapes your region topology and replication strategy (see <a href="53.html">Multi-Region and Disaster Recovery</a>). EU user data may need to stay in EU regions, complicating cross-region replication and DR.</li>
+<li><b>What it is.</b> Mutual TLS &mdash; both sides present certificates &mdash; as the basis of service-to-service identity in a zero-trust network.</li>
+<li><b>Mechanism.</b> A <a href="44.html">service mesh</a> issues and rotates per-service certs and enforces mTLS on every call, so services authenticate each other regardless of network location.</li>
+<li><b>The failure to watch.</b> Certificate lifecycle (expiry breaks comms &mdash; and, as Equifax showed, an expired cert elsewhere can silently disable monitoring); the mesh must automate rotation.</li>
 </ul>
 
-<div class="callout warn"><span class="lbl">Pitfall</span>PII leaks most often through the <em>side doors</em>, not the front: verbose error messages, debug logs, analytics events, third-party SDKs, support tooling, and over-broad internal dashboards. The well-guarded primary database is rarely the breach vector. Audit every place data <em>flows out of</em> the core, not just where it's stored.</div>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-
-<div class="callout ok"><span class="lbl">What strong engineers do</span><p>They treat security as a design dimension woven through the whole architecture, not a section bolted on at the end. They name trust boundaries explicitly and reason about blast radius ("if this service is popped, what can the attacker reach?"). They distinguish authN from authZ crisply, know the JWT revocation trade-off cold, and reach for envelope encryption and dynamic secrets without prompting. Critically, they choose <em>fail-closed</em> behavior for security controls and can articulate why &mdash; and they know which threats are theirs to solve versus the provider's.</p>
-<p style="margin-bottom:0">Weak engineers say "we'll use HTTPS and JWTs" and stop. Strong engineers ask: <em>how do we revoke a stolen token, rotate the signing key, contain a compromised service, and erase a user's data on request?</em></div>
-
-<p>Questions to test your own understanding:</p>
+<h3 id="impl-secrets">Secret managers / KMS</h3>
 <ul>
-<li>"You're using stateless JWTs. A laptop with a valid token is stolen. Walk me through exactly how you revoke access within 60 seconds &mdash; and what you gave up to do it."</li>
-<li>"Two internal services talk over the network. How does the callee know the caller is who it claims to be? Now assume one of them is fully compromised &mdash; how far can the attacker move?"</li>
-<li>"Your database snapshot leaks to a public bucket. What protects the data, and what doesn't it protect against? When is at-rest encryption useless?"</li>
-<li>"A user invokes GDPR right-to-erasure. Your data is replicated across three regions, backups, and an analytics warehouse. How do you actually delete them &mdash; and how do you prove you did?"</li>
-<li>"Where does authorization live in your design &mdash; the gateway, each service, a central policy service? How do you answer 'who can access resource X' for an audit?"</li>
-<li>"How do services get their database credentials at runtime, and how do you rotate the DB password with zero downtime and no secret ever touching git?"</li>
+<li><b>What it is.</b> Dedicated systems for storing, distributing, auditing, and rotating secrets and encryption keys (Vault, AWS Secrets Manager + KMS, Cloud KMS, Key Vault).</li>
+<li><b>Mechanism.</b> Secrets stored encrypted; fetched at runtime by authenticated workloads; access logged; automatic rotation; envelope encryption so data keys are themselves protected by a master key in an HSM.</li>
+<li><b>The failure to watch.</b> Over-broad access policies (defeats least privilege); not rotating; bootstrapping the <i>first</i> secret (the workload's own identity) &mdash; use the platform's instance identity, not a hardcoded token.</li>
 </ul>
 
-<div class="bbg-figures" style="margin-top:32px;padding-top:8px;border-top:1px solid #eef0f3"><h3 style="font-size:16px;color:#5b6472">Visual references</h3>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/Screenshot 2024-05-16 at 8.09.08 AM.jpg" alt="Authentication: stateful sessions vs stateless JWT" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">Diagram comparing session-based vs JWT-based authentication flows with a feature comparison table. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image (28).png" alt="TLS/HTTPS handshake and encryption" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">HTTPS handshake sequence: TCP handshake, certificate check, key exchange, and encrypted data transmission with public/private and session keys. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-<figure style="margin:22px 0;text-align:center"><img src="./_principal_files/bytebytego/image.png" alt="TLS/HTTPS handshake combining asymmetric and symmetric encryption to establish a secure channel" style="max-width:100%;height:auto;border:1px solid #e3e8ee;border-radius:6px"><figcaption style="font-size:13px;color:#5b6472;margin-top:6px;font-style:italic">A sequence diagram of the HTTPS handshake showing the TCP handshake, certificate check, key exchange using asymmetric encryption to share a session key, and data transmission using symmetric encryption. <span style="color:#888">Source: ByteByteGo</span></figcaption></figure>
-</div>
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Identity / authZ</td><td>IAM, Cognito</td><td>Cloud IAM, Identity Platform</td><td>Entra ID (Azure AD)</td></tr><tr><td>Secrets management</td><td>Secrets Manager</td><td>Secret Manager</td><td>Key Vault</td></tr><tr><td>Key management (KMS)</td><td>KMS</td><td>Cloud KMS</td><td>Key Vault</td></tr><tr><td>WAF / DDoS</td><td>WAF, Shield</td><td>Cloud Armor</td><td>WAF, DDoS Protection</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="53.html">&lsaquo; Prev: Multi-Region and Disaster Recovery</a><a class="nx" href="55.html">Next: Designing a Distributed Cache &rsaquo;</a></div>
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you design the controls. Work each before opening the approach.</p>
 
+<h3 id="ex-authz">Design authentication + authorization for an API</h3>
+<p>A multi-tenant API serves users from many organizations. Design how you authenticate callers and ensure one tenant can never access another's data &mdash; including the common IDOR trap.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p><b>AuthN:</b> users authenticate (OIDC + MFA) and receive a short-lived <a href="#impl-oauth">JWT</a> carrying their identity, tenant/org id, and scopes; services verify the signature + <code>exp</code>/<code>aud</code> on every request (no issuer round-trip). <b>AuthZ:</b> on <i>every</i> request, derive the principal from the token (never trust a client-supplied user/tenant id) and enforce, server-side, that the requested resource belongs to the caller's tenant and that their role permits the action &mdash; e.g. <code>GET /orders/123</code> must check that order 123's tenant == token's tenant, or return 404/403 (defeating <b>IDOR</b>, Scenario's Layer 1). Use RBAC/ABAC for the role check. Crucially, scope every <i>data query</i> by tenant id at the data layer too (defense in depth), so a missed app-level check still can't leak across tenants. The rule: authenticate from the token, authorize every action against the authenticated principal, never the client's claims.</p>
+</div></details>
+
+<h3 id="ex-threat">Threat-model a file-upload endpoint</h3>
+<p>Users upload files that your service stores and later serves. Walk through how it could be attacked and the controls at each layer.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Ask "how could this be abused?" systematically: <b>AuthN/AuthZ</b> &mdash; only authenticated users upload, and only to their own space (avoid <a href="#confused-deputy">IDOR</a> on the resulting object key). <b>Injection/malware</b> &mdash; validate type/size, scan for malware, never trust the filename, serve user content from a separate domain (avoid stored XSS). <b>Resource abuse</b> &mdash; <a href="23.html">rate-limit</a> uploads and cap size (avoid DoS / cost attacks); use <a href="48.html">presigned URLs</a> so bytes don't flow through (and can't overwhelm) your app. <b>Data protection</b> &mdash; encrypt at rest, serve private files via signed URLs with expiry, not public buckets. <b>Secrets/keys</b> &mdash; the signing keys live in a <a href="#impl-secrets">KMS</a>. <b>Defense in depth</b> &mdash; even if one check is bypassed, tenant-scoping + monitoring + least-privilege storage credentials contain it. The method (STRIDE / <a href="#impl-oauth">OWASP</a>) is to enumerate threats per layer rather than hope.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Make a credential leak survivable.</b> Assume a service's secret <i>will</i> leak. Design rotation + least privilege + monitoring so the blast radius is tiny and short-lived. &rarr; <a href="#impl-secrets">secret managers</a>.</li>
+<li><b>Adopt zero-trust for internal services.</b> Replace "internal = trusted" with mutual authentication on every internal call. Design the identity + mTLS scheme. &rarr; <a href="44.html">Microservices &amp; Service Mesh</a>.</li>
+<li><b>Handle PII for GDPR.</b> Design data minimization, encryption/tokenization, access controls, and deletion ("right to be forgotten") for a user-data store. &rarr; <a href="53.html">Multi-Region (residency)</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="53.html">&lsaquo; Prev: Multi-Region &amp; DR</a><a class="nx" href="55.html">Next: Distributed Cache &rsaquo;</a></div>
 </div>
 </div>
 </div>

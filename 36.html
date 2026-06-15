@@ -111,140 +111,188 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Leader Election and Coordination</div>
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Distributed Systems Theory &nbsp;&rsaquo;&nbsp; Leader Election &amp; Coordination</div>
+<h1>Leader Election &amp; Coordination</h1>
+<p class="sub"><em>Almost every distributed system needs to answer "who's in charge right now?" &mdash; which node is the primary, who holds this lock, what's the current config. Doing that correctly is so hard (it's <a href="30.html">consensus</a> underneath) that you don't build it per-app; you stand up one <b>coordination kernel</b> &mdash; ZooKeeper, etcd, Consul &mdash; and everything else asks it. This lesson is the recipes that kernel makes possible, and the one bug (the stale lock) that keeps biting people.</em></p>
 
-<h1>Leader Election and Coordination</h1>
-<p class="sub">The coordination kernel &mdash; ZooKeeper, etcd, and Chubby &mdash; and why almost every &ldquo;distributed lock&rdquo; you&rsquo;ve written is subtly broken.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>No shared truth &amp; partial failure.</b> <span>electing one coordinator, paid in a consensus dependency and failover windows.</span></div>
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>A small, strongly-consistent source of truth for "who/what is current" &mdash; in exchange for putting a consensus cluster on your critical path and accepting that a lock alone never guarantees mutual exclusion.</b> <span>A coordination kernel gives you correct leader election, locks, config and membership. You pay with a consensus cluster's latency and fault ceiling, and you must add fencing tokens because a held lock can always go stale.</span></div>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#why">Why a coordination kernel exists</a></li>
-<li><a href="#zk">ZooKeeper: ZAB, znodes, sessions, watches</a></li>
-<li><a href="#etcd-chubby">etcd and Chubby</a></li>
-<li><a href="#election">Leader election recipes</a></li>
-<li><a href="#locks">Distributed locks and the fencing-token problem</a></li>
-<li><a href="#redlock">The Redlock debate</a></li>
-<li><a href="#discovery">Service discovery, config, and membership</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; every line below is a section you can collapse</div>
+<pre class="tree">
+<b>Leader Election &amp; Coordination</b>
+│
+├─ <a href="#root"><b>What a coordination kernel is</b></a>  &mdash; why it exists at all
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide your answer before you read
+│
+├─ <a href="#ideas"><b>The 5 ideas to understand</b></a>  &mdash; each has a misconception to avoid
+│   ├─ <a href="#i1">1. The kernel &amp; its primitives</a>  trap → <a href="#kernel-trap">"build election in my app"</a>
+│   ├─ <a href="#i2">2. Leader-election recipe</a>       trap → <a href="#herd-trap">"everyone watches one key"</a>
+│   ├─ <a href="#i3">3. Locks &amp; fencing tokens</a>       trap → <a href="#fence-trap">"holding a lock = exclusive"</a>
+│   ├─ <a href="#i4">4. Sessions, leases &amp; watches</a>  trap → <a href="#session-trap">"the lock is held until I release"</a>
+│   └─ <a href="#i5">5. Discovery, config, membership</a> trap → <a href="#registry-trap">"put everything in the kernel"</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; ZooKeeper vs etcd vs Consul
+│
+├─ <a href="#self-check"><b>Self-check</b></a>  &mdash; can you reconstruct the three scenarios?
+│
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>  &mdash; coordination you can rent
+│
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; the kernels, compared
+│   ├─ <a href="#impl-zk">ZooKeeper</a>
+│   ├─ <a href="#impl-etcd">etcd</a>
+│   └─ <a href="#impl-consul">Consul / Chubby</a>
+│
+└─ <a href="#build"><b>Build it yourself</b></a>  &mdash; reason it out, then design
+    ├─ <a href="#ex-election">Build leader election</a>
+    ├─ <a href="#ex-fence">Add fencing tokens</a>
+    └─ <a href="#ex-design">Design-it-yourself</a>
+</pre>
 </div>
 
-<h2 id="why">Why a coordination kernel exists</h2>
-<p>Once you have <a href="30.html">consensus</a>, you rarely want every team to re-implement it. Coordination services package a consensus-replicated log behind a small, opinionated API so that application engineers can do leader election, locking, config distribution, and membership without writing a single Paxos line. The insight from Google&rsquo;s Chubby paper (Burrows, 2006) was that developers asked for a <span class="key">lock service</span>, not a consensus library &mdash; a familiar lock/file abstraction is what people actually reach for, and centralizing it means one well-audited implementation of the hard part.</p>
-<p>These systems share a design shape: an odd-sized ensemble (3 or 5), a strongly-consistent replicated tree or key space, <span class="key">sessions</span> with liveness tied to heartbeats, and <span class="key">watches/notifications</span> so clients react to changes without polling. They are deliberately <span class="pill">CP</span> &mdash; during a partition the minority side stops serving rather than risk divergence. See <a href="11.html">CAP Theorem</a>.</p>
-<div class="callout note"><span class="lbl">Key insight</span>A coordination service is not a database. It is tuned for <em>small amounts of critical metadata read far more than written</em> &mdash; leader pointers, locks, config, membership. Putting bulk data or high write rates through it is the most common abuse and will collapse the ensemble.</div>
-
-<h2 id="zk">ZooKeeper: ZAB, znodes, sessions, watches</h2>
-<p>ZooKeeper exposes a hierarchical namespace of <span class="key">znodes</span> &mdash; like a filesystem where each node holds a small (&le; 1 MB, practically a few KB) data payload and can have children. The whole tree is replicated across the ensemble and kept consistent by <span class="key">ZAB</span> (ZooKeeper Atomic Broadcast), a primary-backup atomic broadcast protocol closely related to Multi-Paxos and discussed alongside <a href="30.html">Raft</a>.</p>
-
-<h3>ZAB in one paragraph</h3>
-<p>One server is the <span class="key">leader</span>; followers forward writes to it. ZAB proceeds in epochs (like Raft terms). On leader failure it runs <span class="key">leader election</span> + <span class="key">recovery</span>: the new leader must hold the highest <code>zxid</code> (a 64-bit id = epoch &lt;&lt; 32 | counter) so no committed transaction is lost, then syncs followers up to it. Writes are totally ordered by <code>zxid</code> and committed once a quorum acks &mdash; identical safety logic to Raft&rsquo;s majority commit.</p>
-
-<h3>Znode flavours that make recipes work</h3>
+<!-- ============ ROOT ============ -->
+<h2 id="root">What a coordination kernel is</h2>
+<p>A <b>coordination kernel</b> is a small, strongly-consistent, highly-available store whose job is to hold the handful of facts a distributed system <i>must</i> agree on: who is the current leader, who holds a lock, what is the live cluster membership, what is the current configuration. ZooKeeper, etcd, and Consul are the canonical ones. Under the hood each runs a <a href="30.html">consensus</a> protocol (ZAB, Raft, Raft respectively), so the hard part &mdash; agreement under failure &mdash; is solved once, in one place, by experts.</p>
+<p>You interact with it through a tiny set of <b>primitives</b>, and build all the higher-level recipes from them:</p>
 <ul>
-<li><span class="key">Persistent</span> &mdash; survives client disconnect; used for config and stable structure.</li>
-<li><span class="key">Ephemeral</span> &mdash; automatically deleted when the creating <em>session</em> ends. This is the linchpin of leader election and membership: liveness becomes a side effect of node existence.</li>
-<li><span class="key">Sequential</span> &mdash; ZooKeeper appends a monotonically increasing counter to the name (<code>/lock/req-0000000042</code>). Server-assigned, so it&rsquo;s a cluster-wide unique, ordered token &mdash; and conveniently a <span class="key">fencing token</span> (see below).</li>
+<li><b>Consistent small data</b> &mdash; a key/value or hierarchical namespace (ZooKeeper's znodes) that every client sees identically.</li>
+<li><b>Ephemeral keys / sessions</b> &mdash; data that vanishes when the client that created it disconnects (the basis of liveness).</li>
+<li><b>Watches</b> &mdash; "notify me when this key changes," so clients react instead of poll.</li>
+<li><b>Compare-and-swap / create-if-absent</b> &mdash; the atomic primitive that makes "exactly one winner" possible.</li>
 </ul>
+<div class="callout tradeoff"><span class="lbl">The one-line frame</span>A coordination kernel trades <b>a consensus cluster on your critical path</b> for <b>a correct, single source of truth about "who/what is current."</b> You centralize the hardest problem so your apps don't reinvent it &mdash; but you inherit consensus's latency and fault ceiling, you must keep the kernel small and reliable, and you must remember that a lock it grants is only safe with a fencing token.</div>
 
-<h3>Sessions and the timing reality</h3>
-<p>A client opens a <span class="key">session</span> with a negotiated timeout and keeps it alive with heartbeats. If heartbeats stop for the timeout, the server expires the session and deletes all its ephemeral nodes. The dangerous subtlety: the client&rsquo;s local view of &ldquo;I still hold the session&rdquo; can lag the server&rsquo;s decision to expire it. A GC pause, a clock jump, or network blip can mean the ensemble has already revoked your ephemeral lock node while your process still believes it&rsquo;s the leader. This gap is the root of nearly every distributed-lock bug.</p>
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
 
-<h3>Watches</h3>
-<p>A watch is a <span class="key">one-shot</span> trigger: a client registers interest in a znode, and on the next change ZooKeeper fires exactly one notification, after which the client must re-register. Watches are ordered relative to the state change (you never see the new data before the watch fires), which is what makes them safe to build recipes on. The one-shot design deliberately avoids the &ldquo;herd&rdquo; of holding millions of standing subscriptions.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>Naive election where every contender watches the single <code>/leader</code> znode creates a <span class="key">herd effect</span>: when the leader dies, all N&minus;1 followers wake, re-read, and stampede the ensemble. The correct recipe (below) has each contender watch only the <em>one</em> node immediately ahead of it.</div>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the Redlock debate, Kleppmann vs antirez (real, ongoing)</span>
+Martin Kleppmann published a teardown of Redis's "Redlock" distributed-lock algorithm; antirez (Redis's creator) rebutted. Kleppmann's core point: a client acquires a lock, then <b>pauses for a long GC</b> &mdash; the lock's lease expires, another client legitimately grabs it, and then the <i>first</i> client wakes up still believing it holds the lock and writes to the shared resource. Two writers, corruption. <b>What single mechanism makes this corruption impossible, and why does no timeout value alone fix it?</b></div>
 
-<h2 id="etcd-chubby">etcd and Chubby</h2>
-<h3>etcd</h3>
-<p>etcd is the modern Go-based equivalent and the brain of Kubernetes (it stores all cluster state). It uses <a href="30.html">Raft</a> directly, exposes a flat sorted key space (not a tree) over gRPC, and replaces ephemeral nodes with explicit <span class="key">leases</span>: a key attached to a lease vanishes when the lease isn&rsquo;t renewed. Election and locking are first-class &mdash; the <code>clientv3/concurrency</code> package gives you <code>Mutex</code> and <code>Election</code> built on lease + revision. Critically, every etcd key carries a <span class="key">monotonic revision</span> (mod_revision), which is a ready-made fencing token. etcd also supports <span class="key">MVCC</span> and multi-key transactions (compare-and-swap via <code>Txn</code>), making it more ergonomic than classic ZooKeeper for compare-then-write coordination.</p>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the thundering herd</span>
+A 500-node cluster does leader election by having every node watch the same "leader" key, so when the leader dies, all 499 wake up and stampede to grab it at once. <b>How do you elect a new leader so that exactly one is chosen and the other 498 barely stir?</b></div>
 
-<h3>Chubby</h3>
-<p>Chubby is Google&rsquo;s internal lock service and the intellectual ancestor of both. Key design choices worth knowing: it uses Paxos for the replicated log; clients hold <span class="key">coarse-grained locks</span> (held for hours/days, e.g. &ldquo;I am the GFS master&rdquo;) rather than fine-grained per-request locks, because coarse locks dramatically reduce load on the lock server and tolerate brief outages; and Chubby explicitly issues a <span class="key">sequencer</span> &mdash; a lock-generation token a client passes to downstream services so a stale lock holder is rejected. That sequencer is exactly the fencing token the open-source world keeps rediscovering.</p>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; the frozen primary</span>
+Your database primary is elected via an ephemeral key in the coordination kernel. The primary's host freezes (GC, or a network hiccup) for longer than its session timeout. The kernel declares its session dead, deletes the ephemeral key, and a standby is elected primary. Then the original host un-freezes. <b>For a brief window, how many nodes believe they're the primary, and what stops the zombie from doing damage?</b></div>
 
+<p style="color:#5b6472;font-size:15px"><i>Scenarios 1 and 3 are the same deep bug &mdash; the <a href="#fence-trap">stale lock / zombie leader</a>, fixed by fencing tokens. Scenario 2 is the <a href="#herd-trap">election recipe that avoids the herd</a>. Each maps to an idea below.</i></p>
+
+<!-- ============ BRANCH 1: THE IDEAS ============ -->
+<h2 id="ideas">The five ideas to understand</h2>
+<p>Theory, not knobs &mdash; ideas to hold correctly, each guarded by a misconception.</p>
+
+<h3 id="i1">Idea 1 &mdash; The kernel and its primitives</h3>
+<p>The reason a coordination kernel exists: correct leader election / locking <i>is</i> consensus, and consensus is hard to implement correctly (FLP, partitions, fencing). So you run <b>one</b> battle-tested consensus cluster and let every service build its coordination on its primitives, rather than embedding a buggy half-Paxos in each app. ZooKeeper pioneered this with its <b>znode</b> namespace + ephemeral nodes + watches; etcd offers the same idea as a flat key/value store with leases and watches.</p>
+<div class="callout warn"><span class="lbl" id="kernel-trap">The misconception to avoid &mdash; "I'll just implement leader election in my service"</span>
+Hand-rolled election (ping each other, highest-IP-wins, etc.) breaks under exactly the cases that matter: a partition gives you two leaders; a GC pause gives you a zombie; a lost message gives you none. <b>Delegate to a kernel that has solved consensus.</b> The only thing you build is the <i>recipe</i> on top of its primitives &mdash; and even that you usually take from a library (Curator for ZooKeeper, etcd's <code>concurrency</code> package).</div>
+
+<h3 id="i2">Idea 2 &mdash; The leader-election recipe (and the herd)</h3>
+<p>The standard ZooKeeper recipe: each candidate creates an <b>ephemeral sequential</b> znode under a common parent (<code>/election/n_0001</code>, <code>/n_0002</code>, …). The lowest sequence number is the leader. Crucially, each node <b>watches only the node immediately ahead of it</b>, not the leader. When a node dies, only its single successor is notified &mdash; it checks if it's now lowest, and if so becomes leader. One leader, one notification.</p>
+<div class="callout warn"><span class="lbl" id="herd-trap">The misconception to avoid &mdash; "everyone watches the leader key"</span>
+This is <b>Scenario 2</b>. If all N nodes watch the same key, a leader death wakes all N at once &mdash; the <span class="gl" data-def="Thundering herd &mdash; a stampede where many clients are woken simultaneously by one event and all contend for the same resource at once, overwhelming it.">thundering herd</span> &mdash; and they hammer the kernel. The sequential-znode + watch-your-predecessor trick turns an O(N) stampede into O(1) notifications: a death wakes exactly one node. The same idea makes fair, queued distributed <i>locks</i> (each waiter watches the holder ahead of it).</div>
+
+<h3 id="i3">Idea 3 &mdash; Locks and the fencing-token problem</h3>
+<p>A distributed lock from the kernel grants you the lock &mdash; but <b>holding a lock does not guarantee you actually have exclusive access to the protected resource</b>, because you can be paused or partitioned and lose the lock <i>without knowing</i>. The fix is a <b>fencing token</b>: the lock service hands each acquisition a <i>monotonically increasing</i> number. The client includes this token with every write to the shared resource, and the resource <b>rejects any write carrying a token lower than the highest it has seen.</b> A zombie holder's stale (lower) token is refused.</p>
+<div class="callout warn"><span class="lbl" id="fence-trap">The misconception to avoid &mdash; "if I hold the lock, I have exclusive access"</span>
+This is <b>Scenarios 1 and 3</b>, and the heart of the Kleppmann/antirez debate. No timeout saves you: too long and a real failure stalls everyone; too short and a GC pause makes you a zombie. The <i>only</i> robust fix is fencing &mdash; the protected resource must enforce the token order, so even if two clients both believe they hold the lock, the one with the stale token gets rejected. Kleppmann's verdict on Redlock: without fencing tokens (and with its timing assumptions), it's unsafe for correctness-critical locking. <b>The lock service can't make a resource safe; the resource must check the token.</b></div>
+
+<h3 id="i4">Idea 4 &mdash; Sessions, leases, and watches</h3>
+<p>Liveness in the kernel is built on <b>sessions/leases</b>: a client maintains a session by sending heartbeats; if it stops (crash, freeze, partition), the session expires and the kernel automatically deletes that client's <span class="gl" data-def="Ephemeral key/node &mdash; a key tied to a client's session that the coordination service deletes automatically when that session ends (crash, timeout); the basis of liveness detection.">ephemeral</span> keys. That's what makes "the leader's key disappears when the leader dies" work without anyone polling. <b>Watches</b> let waiting clients get a callback the instant a key changes, so failover is event-driven and fast.</p>
+<div class="callout warn"><span class="lbl" id="session-trap">The misconception to avoid &mdash; "my lock is held until I explicitly release it"</span>
+A session-backed (ephemeral) lock is held only as long as your <i>session is alive</i> &mdash; a long pause past the session timeout silently releases it (exactly Scenario 3). This is a feature (a dead client can't hold a lock forever) and a hazard (a slow-but-alive client loses its lock without noticing). You must size session timeouts against your worst expected pause, expect to lose leadership on a long stall, and &mdash; for correctness &mdash; back it with fencing. Watches also fire <i>once</i> in ZooKeeper (you must re-arm them) and can lag reality slightly.</div>
+
+<h3 id="i5">Idea 5 &mdash; Service discovery, configuration, and membership</h3>
+<p>Beyond election and locks, the kernel is the natural home for three more coordination facts: <b>service discovery</b> (instances register an ephemeral key on startup; it vanishes when they die, so the directory is self-cleaning), <b>dynamic configuration</b> (store config in a key; watchers get pushed updates without a redeploy), and <b>membership / failure detection</b> (the live set of nodes, kept current by sessions).</p>
+<div class="callout warn"><span class="lbl" id="registry-trap">The misconception to avoid &mdash; "the coordination kernel is a general database"</span>
+The kernel is strongly consistent and therefore <i>expensive and small</i> &mdash; every write is a consensus round-trip, and the whole dataset typically lives in memory. It's for <b>small, critical, low-write metadata</b>, not bulk data, high-write counters, or large blobs. Overload it (huge values, churny writes, thousands of watches) and you put a <a href="30.html">consensus stall</a> on everyone's critical path. For high-volume service discovery many teams now prefer <a href="34.html">gossip-based</a> systems (Consul's Serf layer) over hammering a strongly-consistent store.</div>
+
+<!-- ============ BRANCH 2: AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; ZooKeeper vs etcd vs Consul</h2>
 <table>
-<tr><th></th><th>ZooKeeper</th><th>etcd</th><th>Chubby</th></tr>
-<tr><td>Consensus</td><td>ZAB</td><td>Raft</td><td>Paxos</td></tr>
-<tr><td>Data model</td><td>Znode tree</td><td>Sorted KV + MVCC</td><td>File-like tree</td></tr>
-<tr><td>Liveness handle</td><td>Ephemeral + session</td><td>Lease</td><td>Session + lock-delay</td></tr>
-<tr><td>Fencing token</td><td>Sequential zxid</td><td>mod_revision</td><td>Sequencer</td></tr>
-<tr><td>Notify</td><td>One-shot watch</td><td>Streaming watch</td><td>Event + cache invalidation</td></tr>
+<tr><th>Facet</th><th>ZooKeeper</th><th>etcd</th><th>Consul</th></tr>
+<tr><td>Consensus</td><td>ZAB</td><td><a href="30.html">Raft</a></td><td>Raft (+ Serf gossip for membership)</td></tr>
+<tr><td>Data model</td><td>Hierarchical znodes</td><td>Flat key/value (gRPC)</td><td>Key/value + native service catalog</td></tr>
+<tr><td>Liveness</td><td>Sessions + ephemeral nodes</td><td>Leases</td><td>Sessions + health checks</td></tr>
+<tr><td>Best known for</td><td>Kafka/HBase/Hadoop coordination</td><td>Backing store of Kubernetes</td><td>Service discovery + mesh, multi-DC</td></tr>
+<tr><td>Watches</td><td>One-shot (re-arm)</td><td>Streaming watch</td><td>Blocking queries / watches</td></tr>
 </table>
+<div class="callout note"><span class="lbl">The rule in one line</span>They're more alike than different &mdash; all give you consensus-backed small consistent data + ephemeral/lease liveness + watches. Pick by ecosystem: <b>etcd</b> if you're in Kubernetes, <b>ZooKeeper</b> for the Hadoop/Kafka world, <b>Consul</b> when service discovery and multi-datacenter are first-class needs. The <i>recipes</i> (election, locks, fencing) are identical across them.</div>
 
-<h2 id="election">Leader election recipes</h2>
-<p>The canonical, herd-free ZooKeeper election:</p>
-<pre><code>// 1. Create my candidacy node (ephemeral + sequential)
-myNode = create("/election/n-", EPHEMERAL_SEQUENTIAL)   // e.g. /election/n-0000000007
-
-// 2. List children, sort by sequence number
-children = sortBySeq(getChildren("/election"))
-
-// 3. Am I the lowest? Then I'm the leader.
-if (myNode == children[0]) {
-    becomeLeader()
-} else {
-    // 4. Watch ONLY the node immediately before me (no herd)
-    pred = children[indexOf(myNode) - 1]
-    exists(pred, watch=true)   // when pred's session dies, its ephemeral node
-                               // disappears -> my watch fires -> recheck step 3
-}</code></pre>
-<p>Because each contender watches exactly one predecessor, a leader failure wakes exactly one client. etcd&rsquo;s <code>Election.Campaign()</code> implements the same idea using the lowest create-revision among keys sharing a prefix.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>Winning the election is not the same as <em>being</em> the leader. Between your watch firing and you re-reading the children, the world can change. And a leader can be deposed by a session expiry it hasn&rsquo;t noticed yet. Treat &ldquo;I am leader&rdquo; as a revocable lease, never a permanent fact &mdash; and carry a fencing token into every side effect.</div>
-
-<h2 id="locks">Distributed locks and the fencing-token problem</h2>
-<p>A lock recipe is the election recipe stopping at &ldquo;lowest sequence number holds the lock.&rdquo; The hard part is not acquiring the lock &mdash; it&rsquo;s what happens when the holder <em>thinks</em> it still holds the lock but doesn&rsquo;t. Consider:</p>
-<ol>
-<li>Client A acquires the lock and starts writing to a shared store.</li>
-<li>A pauses (stop-the-world GC, or the host is descheduled) for longer than the session timeout.</li>
-<li>The coordination service expires A&rsquo;s session, deletes its ephemeral node; client B acquires the lock and begins writing.</li>
-<li>A wakes up, unaware it lost the lock, and completes its write &mdash; corrupting state. <span class="key">Two writers, one lock.</span></li>
-</ol>
-<p>No lock service can prevent step 4 by itself, because the danger is in A&rsquo;s already-in-flight effects. The fix is a <span class="key">fencing token</span>: every lock acquisition returns a monotonically increasing number, and the <em>protected resource itself</em> must reject any write carrying a token lower than the highest it has seen.</p>
-<pre><code>// Storage layer enforces monotonicity of the token
-write(data, token):
-    if token &lt; this.lastToken:
-        reject("stale lock holder")     // A (token=33) is fenced out
-    this.lastToken = token
-    apply(data)
-
-// A acquired with token 33, paused. B acquired with token 34.
-// B's write bumps lastToken to 34. A's late write(token=33) is rejected.</code></pre>
-<div class="callout note"><span class="lbl">Key insight</span>A distributed lock is only as safe as the resource it guards. The lock service gives you the <em>token</em> (zxid / mod_revision / sequencer); the resource must <em>enforce</em> it. A lock without a fencing-aware resource provides at most mutual exclusion under the optimistic assumption that no one ever pauses &mdash; which is false in any real system.</div>
-
-<h2 id="redlock">The Redlock debate</h2>
-<p>A naive single-instance Redis lock &mdash; <code>SET lockkey uuid NX PX 30000</code> &mdash; is fast and usually fine for efficiency (avoid duplicate work), but it is <span class="key">not safe</span> for correctness because (a) Redis replication is asynchronous, so a failover can lose the lock key while a client still holds it, and (b) it provides no fencing token. Two clients can both believe they hold the lock.</p>
-<p><span class="key">Redlock</span> was Redis&rsquo;s proposed answer: acquire the lock on a majority of N independent Redis masters with the same TTL. Martin Kleppmann&rsquo;s critique (2016) is the canonical principal-level reading:</p>
+<!-- ============ BRANCH 3: SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the three scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li>Redlock relies on <span class="key">bounded clock drift and bounded pauses</span> across all nodes. A GC pause or NTP step on a client invalidates the TTL reasoning &mdash; the lock can expire while the client thinks it&rsquo;s held.</li>
-<li>It still issues <span class="key">no fencing token</span>, so it cannot protect a resource against a delayed writer regardless of how many Redis nodes agree.</li>
-<li>It conflates an efficiency lock (best-effort, occasional double-work is fine) with a correctness lock (must never allow two writers). Only the latter needs the full machinery, and for that you want a consensus-backed service (ZooKeeper/etcd) <em>plus</em> fencing.</li>
+<li><b>Scenario 1 (Redlock/GC pause):</b> Why does no lease timeout alone prevent two writers, and exactly how does a fencing token make the corruption impossible? Where must the token be checked?</li>
+<li><b>Scenario 2 (thundering herd):</b> How does the sequential-znode + watch-your-predecessor recipe turn an O(N) stampede into O(1) notifications?</li>
+<li><b>Scenario 3 (frozen primary):</b> During the window, how many nodes think they're primary, what mechanism created that window, and what stops the zombie from writing?</li>
+<li>Why is correct leader election really a consensus problem, and why shouldn't you implement it in your app?</li>
+<li>Why must the coordination kernel stay small and low-write?</li>
 </ul>
-<p>Antirez&rsquo;s rebuttal argued the model is sound under reasonable operational assumptions. The principal takeaway is not who &ldquo;won&rdquo;: it&rsquo;s that <span class="key">a lock&rsquo;s safety is a property of the whole system &mdash; client pauses, clock assumptions, and the resource&rsquo;s fencing &mdash; not of the lock algorithm in isolation</span>. We build a real one in <a href="64.html">Designing a Distributed Locking Service</a>.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Redis lock: ~sub-millisecond, no extra infra, but unsafe for correctness. ZooKeeper/etcd lock: a consensus round-trip (single-digit ms within a region), needs an ensemble, but gives ordered fencing tokens and survives failover. Choose by asking: <em>does a double-acquire corrupt data, or merely waste work?</em></div>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> <b>5 ideas</b> &mdash; <a href="#i1">delegate consensus to one kernel</a>, <a href="#i2">elect with sequential znodes (no herd)</a>, <a href="#i3">a lock needs a fencing token</a>, <a href="#i4">sessions/leases give automatic liveness</a>, <a href="#i5">keep the kernel small &amp; critical-only</a> &mdash; each guarded by a misconception.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="30.html">Consensus &amp; Raft</a>, <a href="11.html">CAP Theorem</a>, <a href="34.html">Anti-Entropy &amp; Gossip</a>, <a href="64.html">Distributed Locking</a>, <a href="44.html">Microservices &amp; Service Mesh</a>.</p>
 
-<h2 id="discovery">Service discovery, config, and membership</h2>
-<p>The same primitives power three of the most common production uses:</p>
-<h3>Service discovery</h3>
-<p>Each service instance registers an ephemeral node / lease under a path (<code>/services/payments/inst-42</code>) carrying its host:port. Consumers watch the parent and get a live, self-healing roster &mdash; a crashed instance&rsquo;s ephemeral node vanishes on session expiry, automatically deregistering it. This is the historical pattern; modern stacks often push discovery into the platform &mdash; Kubernetes Services + endpoints (backed by etcd) and the data-plane sidecars of a <a href="44.html">service mesh</a>.</p>
-<h3>Dynamic configuration</h3>
-<p>Store config in znodes/keys; clients watch for changes and hot-reload without redeploy &mdash; feature flags, sharding maps, rate-limit thresholds (cf. <a href="23.html">API Rate Limiter</a>). The strong consistency matters: all consumers converge on the same config version in the same order.</p>
-<h3>Membership and failure detection</h3>
-<p>Ephemeral nodes give you cluster membership for free, with failure detection delegated to session timeouts. The trade-off is sensitivity: short timeouts detect failures fast but flap on transient blips and GC pauses; long timeouts are stable but slow to react. For large, churny fleets where routing membership through one consensus ensemble doesn&rsquo;t scale, systems instead use decentralized <a href="34.html">gossip-based membership (SWIM)</a> &mdash; eventually consistent, but vastly more scalable, and the right tool when you don&rsquo;t need a linearizable view. Scheduling systems lean on these primitives heavily; see <a href="60.html">Designing a Distributed Job Scheduler</a>.</p>
+<!-- ============ BRANCH 4: CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
+<p>You can run a kernel yourself or rent equivalent coordination primitives:</p>
+<table>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Managed coordination cluster</td><td>MSK runs ZooKeeper/KRaft for Kafka; EKS runs etcd</td><td>GKE runs etcd</td><td>AKS runs etcd; HDInsight runs ZooKeeper</td></tr>
+<tr><td>Distributed lock (managed)</td><td>DynamoDB lock client (conditional writes + lease)</td><td>Firestore/Spanner transactions</td><td>Cosmos DB / Blob lease</td></tr>
+<tr><td>Service discovery</td><td>Cloud Map</td><td>Service Directory</td><td>App Configuration</td></tr>
+<tr><td>Dynamic configuration</td><td>AppConfig / Parameter Store</td><td>Runtime Config</td><td>App Configuration</td></tr>
+</table>
+<div class="callout note"><span class="lbl">The takeaway</span>A very common production lock is the <b>DynamoDB lock client</b>: a conditional write claims the lock, a TTL/lease auto-expires it, and you attach a version number as your <a href="#fence-trap">fencing token</a>. It's the same recipe as a ZooKeeper lock, built on a managed database &mdash; and it still needs the resource to check the token.</div>
 
-<div class="callout warn"><span class="lbl">Pitfall</span>Routing every service&rsquo;s health check and discovery lookup through a 3-node ZooKeeper ensemble is a classic scaling cliff. Reads scale (followers serve them), but watch fan-out and write load (registrations, heartbeats) hit the leader. Beyond a few tens of thousands of watches, you need caching, observer nodes, or a gossip layer in front.</div>
+<!-- ============ BRANCH 5: FAMOUS IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>The kernels made concrete. Same facets &mdash; what it is, the coordination model, and the failure to watch.</p>
 
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They never say &ldquo;I&rsquo;ll use a distributed lock&rdquo; without immediately asking whether it&rsquo;s an <em>efficiency</em> lock or a <em>correctness</em> lock, and if correctness, they reach for fencing tokens enforced at the resource. They treat &ldquo;I am the leader&rdquo; as a revocable lease, account for GC pauses and clock skew, and keep the coordination service off the high-throughput data path &mdash; using it only for small, critical, mostly-read metadata.</div>
-<p>Probing questions to ask engineers:</p>
+<h3 id="impl-zk">ZooKeeper</h3>
 <ul>
-<li>&ldquo;Your leader holds a ZooKeeper lock, then GC-pauses for 40 seconds past the session timeout. Walk me through exactly what goes wrong and how a fencing token prevents it.&rdquo;</li>
-<li>&ldquo;Why is a single-instance Redis <code>SETNX</code> lock unsafe for correctness? Would Redlock fix it? What does Redlock still not give you?&rdquo;</li>
-<li>&ldquo;Design a herd-free leader election in ZooKeeper. Why watch the predecessor node and not <code>/leader</code>?&rdquo;</li>
-<li>&ldquo;You have 50,000 instances doing service discovery. Why would a 5-node etcd ensemble fall over, and what would you do instead?&rdquo;</li>
-<li>&ldquo;Compare ephemeral nodes, etcd leases, and gossip-based membership for failure detection. When does each win?&rdquo;</li>
-<li>&ldquo;Why do these systems stop serving the minority side of a partition? When would that be the wrong choice for your use case?&rdquo;</li>
+<li><b>What it is.</b> The original coordination kernel &mdash; a hierarchical znode store on <a href="30.html">ZAB</a> consensus.</li>
+<li><b>Coordination model.</b> Ephemeral + sequential znodes + one-shot watches; the Curator library packages the election/lock/barrier recipes.</li>
+<li><b>The failure to watch.</b> One-shot watches must be re-armed; session-timeout tuning vs GC pauses (Scenario 3); JVM/operational heaviness.</li>
+</ul>
+
+<h3 id="impl-etcd">etcd</h3>
+<ul>
+<li><b>What it is.</b> A flat, gRPC key/value store on <a href="30.html">Raft</a> &mdash; the backing store of all of Kubernetes.</li>
+<li><b>Coordination model.</b> Leases (TTL keys) + streaming watches + atomic compare-and-swap; the <code>concurrency</code> package gives election &amp; locks.</li>
+<li><b>The failure to watch.</b> The Cloudflare-2020 lesson &mdash; a partial partition can cause endless elections and a cluster-wide stall; keep it small (3/5 nodes) and low-latency.</li>
+</ul>
+
+<h3 id="impl-consul">Consul / Chubby</h3>
+<ul>
+<li><b>What it is.</b> Consul = Raft KV + native service catalog + <a href="34.html">Serf gossip</a> for membership; Chubby = Google's coarse-grained lock service (Paxos), the system that inspired ZooKeeper.</li>
+<li><b>Coordination model.</b> Sessions + health checks + KV watches; Consul splits strongly-consistent KV from gossip-based membership so discovery scales without hammering Raft.</li>
+<li><b>The failure to watch.</b> Same consensus fault ceiling for the KV side; mixing the strongly-consistent store with high-churn discovery is the anti-pattern Serf exists to avoid.</li>
+</ul>
+
+<!-- ============ BRANCH 6: BUILD IT YOURSELF (last) ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>These click when you design them. Work each before opening the approach.</p>
+
+<h3 id="ex-election">Build leader election with no thundering herd</h3>
+<p>Using only create-if-absent, ephemeral+sequential keys, and watches, design leader election for a 500-node cluster so exactly one leads, failover is under a few seconds, and a leader death wakes only one node.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Each node creates an <b>ephemeral sequential</b> key under <code>/election/</code> &mdash; the kernel assigns <code>n_0001, n_0002, …</code>. The node with the <i>lowest</i> sequence is leader. Each non-leader watches <b>only the key immediately below its own</b> (its predecessor), not the leader. When any node dies, its session expires, its ephemeral key auto-vanishes, and <i>only its single successor</i> is notified; that successor checks whether it's now the lowest &mdash; if yes it leads, if no it re-watches its new predecessor. Failover time = session timeout + one notification. One leader guaranteed (lowest sequence is unique), O(1) wake-ups, fair FIFO order. The same structure gives a fair distributed lock.</p>
+</div></details>
+
+<h3 id="ex-fence">Add fencing tokens to a distributed lock</h3>
+<p>Take a lease-based lock and make it safe against a GC-paused zombie holder (Scenario 1). Define what the lock returns and what the protected resource must do.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>On each successful acquire, the lock service returns a <b>monotonically increasing fencing token</b> (e.g. ZooKeeper's znode version, etcd's mod-revision, or a counter). The client must send this token with <i>every</i> write to the shared resource (the database, the file store). The resource records the highest token it has accepted and <b>rejects any write with a lower token</b>. Now if client A (token 33) pauses, its lease expires, and client B acquires (token 34) and writes, the resource has seen 34; when zombie A wakes and writes with token 33, the resource rejects it &mdash; corruption impossible. The key insight: <b>the lock service alone can't enforce exclusivity; the resource must validate the token.</b> No timeout value substitutes for this.</p>
+</div></details>
+
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<p>No single right answer &mdash; reason it out, then follow the link.</p>
+<ul>
+<li><b>Make a consensus stall survivable.</b> Your coordination kernel can go unavailable on the minority side of a partition. Design the surrounding system so losing the kernel briefly degrades gracefully instead of taking everything down. &rarr; <a href="30.html">Consensus &amp; Raft</a>, <a href="51.html">Resilience Patterns</a>.</li>
+<li><b>Pick a lock for correctness vs efficiency.</b> Decide where you need a fully-fenced, correctness-grade lock versus a cheap "best-effort" lock (Redis), and justify each by what a stale lock would cost. &rarr; <a href="64.html">Distributed Locking</a>.</li>
+<li><b>Scale service discovery off the kernel.</b> Thousands of instances are churning your strongly-consistent registry. Redesign discovery (gossip layer, caching, TTLs) so it doesn't put a consensus write on every registration. &rarr; <a href="34.html">Anti-Entropy &amp; Gossip</a>, <a href="44.html">Microservices &amp; Service Mesh</a>.</li>
 </ul>
 
 <div class="navfoot"><a href="35.html">&lsaquo; Prev: CRDTs</a><a class="nx" href="37.html">Next: Replication Deep Dive &rsaquo;</a></div>

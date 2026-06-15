@@ -111,175 +111,186 @@
 </div>
 </nav>
 <div class="main">
-<div class="wrap">
-<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Designing a Distributed Message Queue</div>
-
+<div class="wrap tree-doc">
+<div class="crumb"><a href="index.html">&#8962; Course index</a> &nbsp;&rsaquo;&nbsp; Advanced Design Problems &nbsp;&rsaquo;&nbsp; Distributed Message Queue</div>
 <h1>Designing a Distributed Message Queue</h1>
-<p class="sub">Build a Kafka/SQS-class system from scratch &mdash; the partitioned append-only log, replication and ISR, delivery semantics, ordering, and the cost of every guarantee.</p>
-<div class="taxline"><a class="lab" href="01.html">The bottleneck</a> <b>Latency &amp; partial failure.</b> <span>building the log/queue itself — ordering, durability, and delivery semantics as design choices.</span></div>
+<p class="sub"><em>Producers need to hand off work to consumers without waiting, survive bursts, and not lose messages if a consumer crashes &mdash; across many machines. We design a durable, partitioned message queue (think <a href="39.html">Kafka</a>/SQS from scratch): how messages are stored and ordered, how delivery is guaranteed, and the two hardest realities &mdash; you can't have exactly-once delivery, and one bad message can jam everything.</em></p>
 
-<div class="toc">
-<h4>In this lesson</h4>
-<ul>
-<li><a href="#requirements">Requirements and back-of-envelope</a></li>
-<li><a href="#model">Two models: broker-managed queue vs. log</a></li>
-<li><a href="#log">The append-only partitioned log</a></li>
-<li><a href="#api">Producer / consumer APIs and offsets</a></li>
-<li><a href="#groups">Consumer groups and rebalancing</a></li>
-<li><a href="#replication">Replication, ISR and durability</a></li>
-<li><a href="#delivery">Delivery semantics: at-least / at-most / exactly-once</a></li>
-<li><a href="#ordering">Ordering guarantees and their cost</a></li>
-<li><a href="#retention">Retention, compaction and backpressure</a></li>
-<li><a href="#mastery">Principal-level mastery check</a></li>
-</ul>
+<div class="taxline"><a class="lab" href="01.html">The crux</a> <b>Durable, scalable async hand-off that decouples producers from consumers &mdash; in exchange for at-least-once delivery (duplicates), ordering only within a partition, and poison-message handling.</b> <span>A queue lets producers fire-and-forget and absorbs bursts so consumers process at their own pace. You pay by accepting duplicates (and making consumers idempotent), getting order only per-partition, and building dead-letter handling so one unprocessable message can't block the rest.</span></div>
+
+<!-- ============ HOW THIS LESSON IS BUILT ============ -->
+<div class="treebox">
+<div class="treetitle">How this lesson is built &mdash; we walk the design top to bottom, then deep-dive the hard parts</div>
+<pre class="tree">
+<b>Designing a Distributed Message Queue</b>
+│
+├─ <a href="#requirements"><b>1. Requirements</b></a>
+├─ <a href="#capacity"><b>2. Capacity estimate</b></a>
+├─ <a href="#api"><b>3. The API</b></a>  &mdash; send / receive / ack
+├─ <a href="#highlevel"><b>4. High-level design</b></a>  &mdash; partitioned log
+├─ <a href="#datamodel"><b>5. Storage model</b></a>  &mdash; append-only segments
+│
+├─ <a href="#scenarios"><b>Three scenarios</b></a>  &mdash; decide before you read
+│
+├─ <a href="#subproblems"><b>The 4 hard sub-problems</b></a>
+│   ├─ <a href="#s1">1. Durability &amp; how messages are stored</a> fail → <a href="#ack-loss">ack-before-replicate loss</a>
+│   ├─ <a href="#s2">2. Delivery semantics</a>                fail → <a href="#exactly-once">chasing exactly-once delivery</a>
+│   ├─ <a href="#s3">3. Ordering &amp; consumer scaling</a>        fail → <a href="#order-vs-scale">order/parallelism conflict</a>
+│   └─ <a href="#s4">4. Poison messages &amp; visibility</a>     fail → <a href="#poison">the jammed queue</a>
+│
+├─ <a href="#decision-table"><b>At a glance</b></a>  &mdash; log vs traditional queue
+├─ <a href="#self-check"><b>Self-check</b></a>
+├─ <a href="#cloud"><b>Cloud &amp; managed building blocks</b></a>
+├─ <a href="#implementations"><b>Famous implementations</b></a>  &mdash; Kafka / SQS / RabbitMQ
+└─ <a href="#build"><b>Build it yourself</b></a>
+</pre>
 </div>
 
-<h2 id="requirements">Requirements and back-of-envelope</h2>
-<p>Start by pinning down what kind of queue this is. The "design a message queue" problem hides at least three very different products. Force the requirements out before drawing boxes.</p>
-<h3>Functional</h3>
-<ul>
-<li><span class="key">Produce:</span> append messages to a named <span class="key">topic</span> (or queue), keyed or unkeyed.</li>
-<li><span class="key">Consume:</span> one or many independent consumers read messages; support fan-out (pub/sub) and competing consumers (work queue).</li>
-<li><span class="key">Durability:</span> an acknowledged message survives broker crashes and a configurable number of node failures.</li>
-<li><span class="key">Ordering:</span> at least per-key or per-partition ordering.</li>
-<li><span class="key">Retention:</span> keep messages for a time/size window even after delivery (the "replayable log" requirement), or delete on ack (the "transient queue" requirement).</li>
-</ul>
-<h3>Non-functional &amp; sizing</h3>
-<p>Suppose 1&nbsp;M messages/sec, average 1&nbsp;KB each &rarr; <span class="key">1&nbsp;GB/s</span> write throughput, ~86&nbsp;TB/day before replication. With replication factor 3 that is ~260&nbsp;TB/day of disk and ~2&nbsp;GB/s of inter-broker replication network (the leader copies the 1&nbsp;GB/s ingress to RF&minus;1 = 2 followers). No single machine handles this, so the system <em>must</em> partition and the design conversation is really about partitioning + replication, not about a clever in-memory ring buffer.</p>
-<div class="callout note"><span class="lbl">Key insight</span>The single most important architectural fork: is this a <em>transient queue</em> (delete-on-consume, SQS/RabbitMQ-style) or a <em>durable replayable log</em> (Kafka/Kinesis/Pulsar-style)? Almost every later trade-off &mdash; offset tracking, ordering, redelivery, exactly-once &mdash; follows from this choice. State it explicitly at minute one. See <a href="08.html">Queues</a> and <a href="39.html">Kafka and Log-based Messaging</a>.</div>
+<!-- ============ 1. REQUIREMENTS ============ -->
+<h2 id="requirements">1. Requirements</h2>
+<p><b>Functional:</b> producers <code>send</code> messages to a named queue/topic; consumers <code>receive</code> and <code>ack</code> them; messages are <b>durable</b> (survive broker restart); support multiple consumers and (for a log) multiple independent consumer groups; configurable <b>retention</b>.</p>
+<p><b>Non-functional:</b> <b>high throughput</b> (millions of messages/sec), <b>durable</b> (no acknowledged message lost), <b>highly available</b> (survive a broker failure), <b>scalable</b> (add brokers/partitions for more capacity), <b>low end-to-end latency</b>.</p>
 
-<h2 id="model">Two models: broker-managed queue vs. log</h2>
+<!-- ============ 2. CAPACITY ============ -->
+<h2 id="capacity">2. Capacity estimate</h2>
+<p>Say <b>1,000,000 messages/sec</b>, average message <b>1 KB</b>, retained <b>7 days</b>. Work it:</p>
+<ul>
+<li><b>Write throughput:</b> 1M msg/s &times; 1 KB = <b>1 GB/sec</b> of writes. A single broker disk can't take that, so we must <b>partition</b> &mdash; spread across, say, 100 partitions = 10 MB/s each (easy for sequential disk writes). <b>Consequence: partitioning is mandatory, which is what limits ordering to per-partition.</b></li>
+<li><b>Storage:</b> 1 GB/s &times; 86,400 s/day &times; 7 days &asymp; <b>~600 TB</b> (before replication). With 3&times; replication &asymp; <b>1.8 PB</b> &mdash; spread across the broker fleet. <b>Consequence: retention &times; throughput drives your storage bill; tune retention deliberately.</b></li>
+<li><b>Replication bandwidth:</b> every write is copied to 2 followers &rarr; 2 GB/s of inter-broker replication traffic on top of the 1 GB/s ingest. <b>Consequence: the network, not just the disk, is a capacity constraint.</b></li>
+</ul>
+
+<!-- ============ 3. API ============ -->
+<h2 id="api">3. The API</h2>
+<pre class="tree" style="border:none;background:var(--code-bg,#f6f8fa);padding:12px;border-radius:8px">
+send(topic, key, payload)            // key decides the partition (ordering scope)
+receive(group, maxMessages) -> [msg] // pull a batch for a consumer group
+ack(group, offset)                   // mark processed up to this offset
+</pre>
+<p>A <b>pull</b> model (consumers ask for messages) lets each consumer go at its own pace and is naturally back-pressured &mdash; a slow consumer just pulls less, rather than being overwhelmed by a push. The <b>key</b> on send selects the partition (so same-key messages stay ordered), and consumers track an <b>offset</b> (how far they've processed) that they ack.</p>
+
+<!-- ============ 4. HIGH-LEVEL ============ -->
+<h2 id="highlevel">4. High-level design</h2>
+<p>A topic is split into <b>partitions</b>, each an independent <b>append-only log</b> on a broker. Producers append to the tail of a partition (chosen by key hash); each message gets a monotonically increasing <b>offset</b> within that partition. Consumers in a <b>group</b> divide the partitions among themselves (each partition to one consumer) and read forward, committing offsets. Each partition is <b>replicated</b> to other brokers (one leader, N followers) for durability and failover.</p>
+<p>Reading doesn't delete (in the log model) &mdash; messages stay until retention expires, so many consumer groups read independently and you can <b>replay</b>. (A traditional queue like SQS instead deletes on ack and uses a visibility timeout &mdash; we contrast both.)</p>
+
+<!-- ============ 5. STORAGE MODEL ============ -->
+<h2 id="datamodel">5. Storage model &mdash; append-only segments</h2>
+<p>Each partition log is stored as a sequence of <b>segment files</b> on disk, written <b>sequentially</b> (sequential disk I/O is dramatically faster than random &mdash; the key to high throughput). An index maps offset &rarr; file position for fast seeks. Retention deletes whole old segments (or <a href="39.html">compacts</a> them to keep the latest value per key). The OS page cache serves recent reads from memory; the broker can even use zero-copy to send bytes straight from page cache to the network.</p>
+
+<!-- ============ SCENARIOS ============ -->
+<h2 id="scenarios">Three scenarios &mdash; decide before you read</h2>
+<p>Don't scroll past these. Decide first. If you know all three cold, skip to <a href="#decision-table">the comparison</a>.</p>
+<div class="callout warn"><span class="lbl">Scenario 1 &mdash; the acknowledged message that vanished</span>
+A producer sends a message and the broker confirms "received" as soon as the <i>leader</i> has it &mdash; before any replica copies it. The leader broker then crashes. <b>Where did the "successfully sent" message go, and what durability setting would have prevented it &mdash; at what cost?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 2 &mdash; the payment processed twice</span>
+A consumer reads "charge $50," charges the card, then crashes <i>before</i> acking. On restart it re-reads the same message and charges again. <b>Which delivery guarantee causes this, why is "exactly-once delivery" not the fix, and what is?</b></div>
+<div class="callout warn"><span class="lbl">Scenario 3 &mdash; one bad message jams the whole queue (real-pattern incident)</span>
+A malformed message can't be processed. The consumer retries it &mdash; and because it's an ordered partition, retrying that one message <b>blocks every message behind it</b>. (A real payment processor retried one bad message 10,000+ times over 6 hours, halting all payments.) <b>How do you keep one unprocessable message from stopping the line?</b></div>
+<p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#ack-loss">durability</a>. Scenario 2 is <a href="#exactly-once">delivery semantics</a>. Scenario 3 is <a href="#poison">poison messages</a>. Each maps to a sub-problem.</i></p>
+
+<!-- ============ SUB-PROBLEMS ============ -->
+<h2 id="subproblems">The four hard sub-problems</h2>
+<p>Walking the design was the easy part. These four decide whether the queue is trustworthy &mdash; each with a nested failure.</p>
+
+<h3 id="s1">Sub-problem 1 &mdash; Durability: how (and when) a message is safe</h3>
+<p>A message is durable only once it's on stable storage on <i>enough</i> replicas. Each partition has a leader and followers; the producer's durability setting decides when a send is "successful": leader-only (fast, riskier) or all in-sync replicas confirmed (safe, slower). This is the <a href="37.html">synchronous-vs-asynchronous replication</a> knob, expressed for a queue.</p>
+<div class="callout warn"><span class="lbl" id="ack-loss">The failure that happens when you get this wrong &mdash; ack-before-replicate loss</span>
+This is <b>Scenario 1</b>. If the broker acks the producer as soon as the <i>leader</i> has the message (before replication), a leader crash loses it &mdash; the producer was told "sent" but no surviving replica has it. Requiring acknowledgment from a <b>quorum of in-sync replicas</b> (e.g. leader + 1 follower, with <code>min.insync.replicas=2</code>) guarantees an acknowledged message survives a single broker loss, at the cost of higher write latency (waiting for replicas). The trade is durability vs latency &mdash; for a payment queue you wait; for click telemetry you might not. (Same quorum-overlap logic as <a href="30.html">consensus</a>.)</div>
+
+<h3 id="s2">Sub-problem 2 &mdash; Delivery semantics</h3>
+<p>Three possible guarantees, set by <i>when</i> you ack relative to processing: <b>at-most-once</b> (ack before processing &rarr; a crash loses the message; rare), <b>at-least-once</b> (ack after processing &rarr; a crash re-delivers; the common default), and <b>exactly-once</b>. The crucial truth: <b>exactly-once <i>delivery</i> across a network is impossible</b> &mdash; what you actually achieve is exactly-once <i>effect</i>.</p>
+<div class="callout warn"><span class="lbl" id="exactly-once">The failure that happens when you get this wrong &mdash; chasing exactly-once delivery</span>
+This is <b>Scenario 2</b>. At-least-once (the sensible default &mdash; never lose a message) means a crash between processing and ack causes redelivery &rarr; duplicates &rarr; a double charge. The wrong fix is to demand "exactly-once delivery," which is <a href="39.html">provably impossible</a> over an unreliable network. The right fix is <b>idempotent consumers</b>: derive a stable idempotency/dedup key from the message and make reprocessing a no-op (the payment system records executed keys and returns the original result on a repeat). For Kafka-to-Kafka pipelines, Kafka's transactions give exactly-once <i>within Kafka</i> &mdash; but an external side-effect (a card charge) still needs idempotency at that system. Build for at-least-once + idempotency = exactly-once effect.</div>
+
+<h3 id="s3">Sub-problem 3 &mdash; Ordering vs consumer scaling</h3>
+<p>You scale consumers by adding partitions (each partition is consumed by one consumer in a group, so parallelism caps at the partition count). But ordering is guaranteed <i>only within a partition</i>. So there's an inherent tension: to keep related messages ordered they must share a partition (same key) &mdash; which limits how much you can parallelize them.</p>
+<div class="callout warn"><span class="lbl" id="order-vs-scale">The failure that happens when you get this wrong &mdash; the order/parallelism conflict</span>
+This is the design tension. If you demand <b>global</b> total order, you need a single partition &mdash; one consumer, no parallelism, a throughput ceiling. If you partition for parallelism, messages in different partitions have <i>no</i> order relative to each other. The resolution: <b>order only what must be ordered</b>, via the partition key. Example: key by <code>user_id</code> so each user's events stay in order (created&rarr;paid&rarr;shipped), while different users spread across partitions for parallelism. Pick a high-cardinality key to avoid a <a href="39.html">hot partition</a> (one key dominating one partition). You almost never need global order &mdash; you need per-entity order, which the key gives you cheaply.</div>
+
+<h3 id="s4">Sub-problem 4 &mdash; Poison messages &amp; visibility</h3>
+<p>A message that can never be processed (malformed, references deleted data) must not block the queue. Two mechanisms: a <span class="gl" data-def="Visibility timeout &mdash; after a consumer receives a message it becomes invisible to others for a window; if not acked in time it reappears for retry, so a crashed consumer's message is not lost.">visibility timeout</span> (in queue-model brokers like SQS, a received-but-unacked message becomes invisible for a window, then reappears for retry if not acked &mdash; so a crashed consumer's message isn't lost) and a <b>dead-letter queue (DLQ)</b> for messages that fail too many times.</p>
+<div class="callout warn"><span class="lbl" id="poison">The failure that happens when you get this wrong &mdash; the jammed queue</span>
+This is <b>Scenario 3</b>. A <b>poison message</b> that the consumer keeps failing on &mdash; especially in an <i>ordered partition</i> where it blocks everything behind it &mdash; can halt the whole pipeline (the real payment processor: one bad message, 10,000+ retries, 6 hours of stopped payments). The fix: <b>bounded retries with exponential backoff + jitter</b>, and after a max-attempts cap, move the message to a <b>DLQ</b> (preserving it for inspection/replay) and advance past it so the line keeps moving. Classify errors &mdash; retry transient failures (timeouts), but send permanent ones (validation/schema) straight to the DLQ; retrying them is pointless. Alert on DLQ depth so failures aren't silently swallowed. (Covered broadly in <a href="46.html">Event-Driven Architecture</a>.)</div>
+
+<!-- ============ AT A GLANCE ============ -->
+<h2 id="decision-table">At a glance &mdash; log vs traditional queue</h2>
 <table>
-<tr><th>Dimension</th><th>Broker-managed queue (SQS, RabbitMQ)</th><th>Append-only log (Kafka, Kinesis)</th></tr>
-<tr><td>State of "read"</td><td>Broker tracks per-message acks; deletes on ack</td><td>Consumer tracks an <span class="key">offset</span>; broker is dumb</td></tr>
-<tr><td>Redelivery</td><td>Broker redelivers un-acked messages after visibility timeout</td><td>Consumer rewinds its offset</td></tr>
-<tr><td>Fan-out</td><td>Needs N copies / N queues</td><td>Free &mdash; N consumer groups read the same log</td></tr>
-<tr><td>Ordering</td><td>Hard at scale (per-message acks reorder)</td><td>Strict within a partition by construction</td></tr>
-<tr><td>Throughput ceiling</td><td>Per-message bookkeeping is the bottleneck</td><td>Sequential I/O; very high</td></tr>
-<tr><td>Replay / time-travel</td><td>No (message gone after ack)</td><td>Yes (rewind to any retained offset)</td></tr>
+<tr><th>Facet</th><th>Log (Kafka-style)</th><th>Traditional queue (SQS/RabbitMQ)</th></tr>
+<tr><td>After ack</td><td>Retained (replayable)</td><td>Deleted</td></tr>
+<tr><td>Consumers</td><td>Many independent groups</td><td>Usually one (work distribution)</td></tr>
+<tr><td>Ordering</td><td>Per-partition</td><td>Often none under concurrency (FIFO mode for order)</td></tr>
+<tr><td>Failure handling</td><td>Offsets + retention; replay</td><td>Visibility timeout + DLQ</td></tr>
+<tr><td>Best for</td><td>Event streaming, replay, fan-out</td><td>Task queues, decoupling work</td></tr>
 </table>
-<p>The log model wins for high-throughput, multi-consumer, replayable workloads, and is what most "Kafka clone" designs require. The queue model is simpler and better when you need per-message visibility timeouts, dead-letter handling, and selective ack/nack. A principal answer names both and justifies picking one. We design the log model below because it is strictly harder and subsumes the queue model (a queue is a log with retention = "until acked" and a single consumer group).</p>
+<div class="callout note"><span class="lbl">The rule in one line</span>Build a <b>partitioned append-only log</b> for throughput + replay; make writes durable via <b>quorum acks</b>; accept <b>at-least-once + idempotent consumers</b> (exactly-once delivery is impossible); order <b>per-key</b> not globally; and protect the line with <b>retry + DLQ</b>. Choose the <i>log</i> for streaming/fan-out, a <i>traditional queue</i> for simple work distribution (see <a href="68.html">Choosing a Message Broker</a>).</div>
 
-<h2 id="log">The append-only partitioned log</h2>
-<p>A <span class="key">topic</span> is split into <span class="key">partitions</span>; each partition is an ordered, immutable, append-only sequence of records. Partitions are the unit of parallelism, ordering, and placement. A message's position in a partition is its <span class="key">offset</span> &mdash; a monotonically increasing 64-bit integer assigned by the leader.</p>
-<h3>Why append-only is fast</h3>
-<p>Writes are sequential appends to the end of a file, which a modern disk (even spinning rust, certainly NVMe) handles at hundreds of MB/s to GB/s because there are no random seeks. Reads are also sequential and ride the OS page cache, so a recently-written record is often served from RAM without a disk hit. Kafka deliberately keeps data in the kernel page cache and uses <span class="key">zero-copy</span> (<code>sendfile()</code>) to move bytes from page cache straight to the socket, bypassing user space. This is the same insight behind LSM-tree storage &mdash; turn random writes into sequential ones. See <a href="38.html">Storage Engines: LSM vs B-Tree</a>.</p>
-<h3>On-disk layout</h3>
-<p>Each partition is a directory of <span class="key">segment</span> files (e.g. 1&nbsp;GB each). The active segment is appended to; older segments are immutable. Per segment we keep:</p>
+<!-- ============ SELF-CHECK ============ -->
+<h2 id="self-check">Self-check &mdash; can you reconstruct the scenarios?</h2>
+<p style="color:#5b6472;font-size:14.5px">You read the answers above. Close the page and rebuild them.</p>
 <ul>
-<li><code>.log</code> &mdash; the records, framed with length + CRC + offset + timestamp.</li>
-<li><code>.index</code> &mdash; a sparse offset&rarr;byte-position index (every few KB) for O(log n) lookup, then a short scan.</li>
-<li><code>.timeindex</code> &mdash; timestamp&rarr;offset for time-based seeks and retention.</li>
+<li><b>Scenario 1 (vanished message):</b> Why does leader-only ack lose data, and what does quorum-ack buy and cost?</li>
+<li><b>Scenario 2 (double charge):</b> Why is exactly-once <i>delivery</i> impossible, and how do idempotent consumers give exactly-once <i>effect</i>?</li>
+<li><b>Scenario 3 (jammed queue):</b> How do retry caps + a DLQ keep one poison message from blocking the line?</li>
+<li>Why is ordering only per-partition, and how does the key resolve order-vs-parallelism?</li>
+<li>Why is sequential append-only storage the key to throughput?</li>
 </ul>
-<p>Retention deletes whole old segments, which is O(1) and never fragments the active write path.</p>
-<pre><code>partition-0/
-  00000000000000000000.log     # base offset 0
-  00000000000000000000.index
-  00000000000000524288.log     # base offset 524288 (new segment)
-  00000000000000524288.index
-  ...active segment appended here...</code></pre>
-<h3>Partition placement and routing</h3>
-<p>Producers route a record to a partition by <code>hash(key) % numPartitions</code> (keyed) or round-robin (unkeyed). Keyed routing is what gives you <em>per-key ordering</em>: all records for a customer/user land in one partition and are consumed in order. The number of partitions is a capacity knob set at topic creation; growing it later breaks key&ndash;partition affinity, so size for peak. See <a href="05.html">Sharding</a> and <a href="12.html">Consistent Hashing</a>.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span><code>hash(key) % N</code> is not consistent hashing &mdash; changing <code>N</code> reshuffles almost every key. Repartitioning a live topic is a migration, not a config tweak. Either over-provision partitions up front or use a scheme (like Pulsar's bundle splitting) that decouples logical topics from physical placement.</div>
+<p style="margin:14px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:#5b6472"><b>The shape to remember:</b> 4 sub-problems &mdash; <a href="#s1">durability (quorum ack)</a>, <a href="#s2">delivery (at-least-once + idempotency)</a>, <a href="#s3">order vs scale (partition key)</a>, <a href="#s4">poison messages (retry + DLQ)</a>.</p>
+<p style="margin:10px 0 0;font-size:14px;color:#5b6472">Related: <a href="39.html">Kafka</a>, <a href="08.html">Queues</a>, <a href="46.html">Event-Driven Architecture</a>, <a href="68.html">Choosing a Message Broker</a>, <a href="37.html">Replication</a>, <a href="30.html">Consensus</a>.</p>
 
-<h2 id="api">Producer / consumer APIs and offsets</h2>
-<h3>Producer</h3>
-<pre><code>send(topic, key, value, {acks: "all", maxInFlight: 5})
-  &rarr; resolves with (partition, offset) once acked
-
-// Batching: producer accumulates records per partition and
-// flushes when batch.size OR linger.ms is hit &mdash; amortizes
-// per-request overhead and is the single biggest throughput lever.</code></pre>
-<p>The producer talks to the <span class="key">partition leader</span> only. <code>acks</code> controls durability vs. latency (covered below). <code>maxInFlight &gt; 1</code> pipelines requests for throughput but can reorder on retry unless idempotence is enabled.</p>
-<h3>Consumer &mdash; pull, not push</h3>
-<p>Consumers <em>pull</em> via <code>fetch(partition, offset, maxBytes)</code>. Pull (Kafka, Kinesis) lets a slow consumer set its own pace and naturally batches; push (RabbitMQ, classic SQS long-poll is a hybrid) needs broker-side flow control to avoid overwhelming consumers. Pull is the standard answer for a high-throughput log because it makes <span class="key">backpressure</span> trivial &mdash; a busy consumer simply fetches less often.</p>
-<h3>Offset tracking</h3>
-<p>The consumer's read position is just an integer per partition. Where to store it is a real design decision:</p>
-<ul>
-<li><span class="key">In the broker (committed offsets):</span> Kafka stores committed offsets in an internal compacted topic <code>__consumer_offsets</code>, keyed by (group, topic, partition). Survives consumer restarts.</li>
-<li><span class="key">In the consumer / external store:</span> the consumer owns the offset and commits it transactionally with its output (the foundation of exactly-once into a database).</li>
-</ul>
-<p>The <span class="key">commit cadence</span> dictates delivery semantics: commit <em>after</em> processing &rarr; at-least-once; commit <em>before</em> processing &rarr; at-most-once.</p>
-
-<h2 id="groups">Consumer groups and rebalancing</h2>
-<p>A <span class="key">consumer group</span> is the abstraction that delivers both work-queue and pub/sub semantics from one log:</p>
-<ul>
-<li>Each partition is assigned to <em>exactly one</em> consumer within a group &rarr; competing-consumer work queue, scales by adding consumers up to the partition count.</li>
-<li>Multiple groups each get the full stream independently &rarr; pub/sub fan-out.</li>
-</ul>
-<p>The partition count is therefore the <span class="key">maximum parallelism</span> of any single group. Ten partitions &rarr; at most ten useful consumers; the eleventh sits idle.</p>
-<h3>Rebalancing</h3>
-<p>A <span class="key">group coordinator</span> (a broker) tracks membership via heartbeats. When a consumer joins, leaves, or its <code>session.timeout</code> elapses, the coordinator triggers a <span class="key">rebalance</span> &mdash; partitions are reassigned across the surviving members.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>Naive ("stop-the-world" / eager) rebalancing revokes <em>all</em> partitions from <em>all</em> consumers and reassigns from scratch &mdash; the whole group stalls. With large groups and frequent scaling this is a real outage class. Modern designs use <span class="key">cooperative / incremental rebalancing</span> (only the moving partitions pause) and <span class="key">static membership</span> (a restarting pod keeps its assignment, skipping the rebalance entirely). Mentioning this distinguishes a senior answer.</div>
-<p>This is itself a consensus/coordination problem &mdash; group membership and leader/coordinator election sit on the same primitives discussed in <a href="36.html">Leader Election and Coordination</a> and <a href="30.html">Consensus and Raft</a>.</p>
-
-<h2 id="replication">Replication, ISR and durability</h2>
-<p>Each partition has a <span class="key">leader</span> and <code>RF&minus;1</code> followers on different brokers. Producers and consumers talk only to the leader; followers replicate by fetching from it &mdash; this is leader-based replication, the same model analyzed in <a href="37.html">Replication Deep Dive</a> and <a href="09.html">Redundancy and Replication</a>.</p>
-<h3>In-Sync Replicas (ISR)</h3>
-<p>The <span class="key">ISR</span> is the set of replicas caught up to the leader within a lag bound (<code>replica.lag.time.max.ms</code>). The leader advances the <span class="key">high-water mark</span> (the highest offset a consumer may read) only once <em>all</em> ISR members have the record. A follower that falls behind is ejected from the ISR; it must re-catch-up before rejoining.</p>
-<h3>The durability knobs</h3>
+<!-- ============ CLOUD ============ -->
+<h2 id="cloud">Cloud &amp; managed building blocks</h2>
 <table>
-<tr><th>Knob</th><th>Effect</th><th>Cost</th></tr>
-<tr><td><code>acks=0</code></td><td>Fire-and-forget, no ack</td><td>Lose unflushed data on crash</td></tr>
-<tr><td><code>acks=1</code></td><td>Leader persists, acks before replicating</td><td>Lose data if leader dies before followers catch up</td></tr>
-<tr><td><code>acks=all</code> + <code>min.insync.replicas=2</code></td><td>Ack only after the full ISR has it</td><td>Higher latency; rejects writes if ISR shrinks below 2</td></tr>
+<tr><th>Need</th><th>AWS</th><th>GCP</th><th>Azure</th></tr>
+<tr><td>Managed log</td><td>MSK (Kafka) / Kinesis</td><td>Managed Kafka / Pub/Sub</td><td>Event Hubs</td></tr>
+<tr><td>Managed queue</td><td>SQS (+ built-in DLQ)</td><td>Pub/Sub (+ dead-letter topics)</td><td>Service Bus (+ dead-letter)</td></tr>
+<tr><td>FIFO / ordered queue</td><td>SQS FIFO</td><td>Pub/Sub ordering keys</td><td>Service Bus sessions</td></tr>
 </table>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span><code>acks=all</code> alone is not durable if <code>min.insync.replicas=1</code> &mdash; a single in-sync leader satisfies "all", and losing it loses data. The durable configuration is <code>acks=all</code> <em>plus</em> <code>min.insync.replicas&ge;2</code> on RF=3, which tolerates one node loss with zero data loss but <em>rejects producer writes</em> (chooses availability-loss over data-loss) when two replicas are down. That is a deliberate CP choice &mdash; see <a href="11.html">CAP Theorem</a> and <a href="31.html">Consistency Models and PACELC</a>.</div>
-<h3>Leader failover and unclean elections</h3>
-<p>When a leader dies, the coordinator elects a new leader from the ISR &mdash; safe, because every ISR member has all committed records. If the ISR is empty you face <span class="key">unclean leader election</span>: promote an out-of-sync replica (available but loses data) or block until an ISR member returns (consistent but unavailable). The default is to block. Older Kafka stored this metadata in ZooKeeper; KRaft now runs a built-in Raft quorum for the metadata log, removing the external dependency.</p>
+<div class="callout note"><span class="lbl">The takeaway</span>Managed queues give you durability, replication, visibility timeouts, and <b>built-in DLQs</b> &mdash; configure max-receive-count + a dead-letter target and poison-message protection is largely handled. But idempotent consumers and the order-vs-parallelism key choice remain your design decisions. Pick a <i>log</i> (Kafka/Kinesis) for replay/fan-out, a <i>queue</i> (SQS) for work distribution.</div>
 
-<h2 id="delivery">Delivery semantics: at-least / at-most / exactly-once</h2>
-<p>There are three classic guarantees, and the honest framing is that <em>true</em> exactly-once delivery over an unreliable network is impossible &mdash; what systems deliver is <span class="key">exactly-once processing</span> built from at-least-once delivery + idempotence or transactions.</p>
-<h3>At-most-once</h3>
-<p>Commit the offset before processing. A crash mid-process loses the message. Acceptable for metrics/telemetry where loss &lt; duplication cost.</p>
-<h3>At-least-once (the default, sane choice)</h3>
-<p>Commit the offset after processing. A crash after processing but before commit replays the message &rarr; duplicates. The consumer must be <span class="key">idempotent</span> (dedupe by message ID, or use upserts keyed by a natural/idempotency key).</p>
-<h3>Exactly-once processing</h3>
-<p>Achieved by one of two mechanisms:</p>
-<ol>
-<li><span class="key">Idempotent producer:</span> each producer gets a PID; each record carries a per-partition sequence number. The broker rejects a record whose sequence it has already seen, eliminating duplicates from producer retries (which are the common source of dupes).</li>
-<li><span class="key">Transactions / atomic offset commit:</span> the consume&ndash;process&ndash;produce&ndash;commit cycle is wrapped in a transaction so that the output writes <em>and</em> the consumed-offset commit either all happen or none do. Kafka does this with a transaction coordinator and a two-phase commit over the partitions plus the offsets topic. The downstream consumer must read with <code>isolation.level=read_committed</code> to skip aborted records.</li>
-</ol>
-<p>The other route &mdash; effectively-once into an external store &mdash; commits the offset <em>in the same database transaction</em> as the side effect, or writes with an idempotency key so replays are no-ops. This is the realistic pattern in most services and ties into the <a href="40.html">Stream Processing and CDC</a> outbox/transactional-messaging discussion.</p>
-<div class="callout warn"><span class="lbl">Pitfall</span>"Exactly-once" is a marketing-adjacent term. It only holds inside the system's transactional boundary. The moment an effect leaves that boundary &mdash; an email sent, a charge made, an HTTP call to a third party &mdash; you are back to at-least-once and must make that effect idempotent yourself. Say this out loud; it is the crux.</div>
-
-<h2 id="ordering">Ordering guarantees and their cost</h2>
-<p>A log gives <span class="key">total order within a partition</span> and <span class="key">no order across partitions</span>. Every ordering requirement maps onto this:</p>
+<!-- ============ IMPLEMENTATIONS ============ -->
+<h2 id="implementations">Famous implementations</h2>
+<p>Same facets &mdash; model, durability/ordering, and the failure to watch.</p>
+<h3 id="impl-kafka">Kafka</h3>
 <ul>
-<li><span class="key">Global total order:</span> requires a single partition &rarr; throughput capped at one leader, no parallel consumption. Almost never worth it; push ordering down to a key instead.</li>
-<li><span class="key">Per-key order (the usual real requirement):</span> route by key so each key lands in one partition. Order is preserved per key while different keys parallelize across partitions. This is the design sweet spot.</li>
-<li><span class="key">No order:</span> round-robin for maximum spread.</li>
+<li><b>Model.</b> Partitioned, replicated commit log; pull consumers with committed offsets; retained &amp; replayable.</li>
+<li><b>Durability/ordering.</b> <code>acks=all</code> + ISR for durability; per-partition order; transactions for exactly-once within Kafka.</li>
+<li><b>The failure to watch.</b> Rebalance storms on big consumer groups; hot partitions; under-replication on broker loss.</li>
 </ul>
-<p>Ordering is fragile at three points: (1) producer retries with <code>maxInFlight&gt;1</code> can reorder &mdash; fix with the idempotent producer, which preserves order even with pipelining; (2) repartitioning breaks key affinity; (3) a multi-threaded consumer that processes one partition's records concurrently destroys the order the log gave you &mdash; keep per-partition processing single-threaded (or key-affine) if order matters.</p>
-<div class="callout tradeoff"><span class="lbl">Trade-off</span>Ordering and parallelism are in direct tension. More partitions = more parallelism but a coarser ordering domain. The principal move is to choose the <em>narrowest</em> ordering scope the business actually needs (usually per-entity, not global) and partition by that key. Ordering is also why logical clocks matter when you reconstruct cross-partition causality &mdash; see <a href="33.html">Time, Clocks and Ordering</a>.</div>
-
-<h2 id="retention">Retention, compaction and backpressure</h2>
-<h3>Retention</h3>
-<p>Time- or size-based retention (e.g. 7 days, 1&nbsp;TB) deletes whole old segments. Because consumers track their own offsets and the broker is stateless about delivery, retention is fully decoupled from consumption &mdash; that is what makes <span class="key">replay</span> and adding a new consumer group "from the beginning" possible.</p>
-<h3>Log compaction</h3>
-<p>For changelog/state topics you want "keep the latest value per key forever, not the full history." <span class="key">Compaction</span> rewrites segments keeping only the last record per key (a tombstone deletes a key). This turns the log into a durable, replayable <em>materialized view</em> &mdash; the backbone of <a href="46.html">event-driven architectures</a>, event sourcing, and Kafka's <code>__consumer_offsets</code> itself. It is conceptually identical to LSM-tree compaction (<a href="38.html">Storage Engines</a>).</p>
-<h3>Backpressure and failure handling</h3>
+<h3 id="impl-sqs">Amazon SQS</h3>
 <ul>
-<li><span class="key">Slow consumers:</span> with pull-based fetch, a lagging consumer just falls behind (visible as growing <em>consumer lag</em>, the key SLO to alarm on). It catches up later or is replaced &mdash; the broker is unaffected. Contrast with push systems that need credit-based flow control.</li>
-<li><span class="key">Producer overload:</span> bound the producer's in-flight buffer; when full, either block the caller (backpressure upstream) or drop with an error. Never silently buffer unbounded &mdash; that just moves the OOM.</li>
-<li><span class="key">Poison messages:</span> a record that always fails processing stalls its partition (you cannot advance the offset). Use a retry policy with a bounded count then route to a <span class="key">dead-letter topic/queue</span>; never block the partition forever.</li>
-<li><span class="key">Consumer crash:</span> session timeout &rarr; rebalance &rarr; another consumer resumes from the last committed offset (hence at-least-once and the idempotency requirement).</li>
+<li><b>Model.</b> Fully-managed queue; messages deleted on ack; visibility timeout for in-flight messages.</li>
+<li><b>Durability/ordering.</b> Replicated across AZs; standard = best-effort order + at-least-once; FIFO mode = ordering + dedup.</li>
+<li><b>The failure to watch.</b> Standard SQS can duplicate and reorder (design idempotent consumers); visibility-timeout tuning (too short &rarr; double-processing).</li>
 </ul>
-<div class="callout note"><span class="lbl">Key insight</span>The whole system's elegance comes from one decision: <em>make the broker dumb and the consumer smart</em>. The broker only appends and serves byte ranges; consumers own offsets, ordering-per-key, dedupe, and retry. This is what lets a log scale to GB/s, support unlimited replay, and add consumers for free &mdash; at the cost of pushing delivery-semantics complexity into clients.</div>
-
-<h2 id="mastery">Principal-level mastery check</h2>
-<div class="callout ok"><span class="lbl">What strong engineers do</span>They state the queue-vs-log fork in the first two minutes and justify the choice from the requirements, not from familiarity with Kafka. They derive partition count from throughput and the desired consumer parallelism, and they connect every guarantee to a concrete config: per-key ordering &rarr; key-based routing; zero data loss &rarr; <code>acks=all</code> + <code>min.insync.replicas&ge;2</code>; exactly-once &rarr; idempotent producer + transactional offset commit. They are honest that "exactly-once" is exactly-once <em>processing</em> within a transactional boundary and degrades to at-least-once at any external side effect, so consumers must be idempotent. They name the real failure modes &mdash; stop-the-world rebalances, unclean leader election, poison messages stalling a partition, repartitioning breaking key affinity &mdash; and have a mitigation for each. They quantify with consumer lag as the operational SLO.</div>
+<h3 id="impl-rabbit">RabbitMQ</h3>
 <ul>
-<li>You require strict ordering of all events for a given account but also 1&nbsp;M events/sec across accounts. How do you get both, and what is your maximum throughput <em>per account</em>?</li>
-<li>Walk me through exactly what happens to an in-flight, acknowledged message when the partition leader's broker is hard-killed. Under what config do you lose it, and under what config don't you?</li>
-<li>A consumer in the group is stuck on a poison message. What is the blast radius, how do you detect it, and how do you recover without losing or reordering the good messages behind it?</li>
-<li>You need exactly-once delivery of a payment charge to a third-party API that has no idempotency support. Is that achievable? What do you build on the message-queue side and what must live elsewhere?</li>
-<li>Traffic 5x'd and you must double the partitions on a live, keyed topic. What breaks, and how do you migrate without violating per-key ordering for in-flight keys?</li>
-<li>Compare storing committed offsets in the broker vs. in the consumer's own datastore. Which one makes exactly-once-into-a-database possible, and why?</li>
+<li><b>Model.</b> Traditional broker with flexible routing (exchanges/bindings); push or pull; messages removed on ack.</li>
+<li><b>Durability/ordering.</b> Durable queues + publisher confirms; per-queue ordering; mirrored/quorum queues for HA.</li>
+<li><b>The failure to watch.</b> Throughput lower than a log; a backed-up queue (slow consumers) consumes broker memory &mdash; needs flow control / DLQ.</li>
 </ul>
 
-<div class="pdeep"><span class="tag">Cloud services</span><h2>Managed offerings for this component</h2><p>The same concept, by name, across the big three clouds &mdash; so you reach for the right term in a design discussion:</p><table><tr><th>Concern</th><th>AWS</th><th>GCP</th><th>Azure</th></tr><tr><td>Managed queue</td><td>SQS</td><td>Pub/Sub</td><td>Service Bus</td></tr><tr><td>Managed log / stream</td><td>Kinesis, MSK</td><td>Pub/Sub</td><td>Event Hubs</td></tr></table><p style="font-size:13px;color:#7a8aa0;margin:10px 0 0">Managed offerings as a vocabulary aid; cloud product names change &mdash; verify the current name before relying on it in production.</p></div>
-<div class="navfoot"><a href="55.html">&lsaquo; Prev: Designing a Distributed Cache</a><a class="nx" href="57.html">Next: Designing a Key-Value Store &rsaquo;</a></div>
+<!-- ============ BUILD ============ -->
+<h2 id="build">Build it yourself</h2>
+<p>Work each before opening the approach.</p>
+<h3 id="ex-idem">Make a consumer exactly-once-effective</h3>
+<p>Your consumer reads "charge $50" and calls a payment API; at-least-once delivery means it may re-read after a crash. Design so the card is charged at most once.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Don't rely on broker exactly-once &mdash; the side-effect is external. Derive a stable <b>idempotency key</b> from the message (e.g. <code>payment_id</code> or <code>topic-partition-offset</code>) and pass it to the payment API; the payment system records executed keys and, on a repeat, returns the original result instead of charging again. Commit/ack the message <i>only after</i> the charge call succeeds. Now redelivery resends the same key &rarr; recognized &rarr; no second charge. The pattern is at-least-once delivery + idempotent side-effect = exactly-once <i>effect</i> (Scenario 2). See <a href="61.html">Payment System</a> for the ledger side.</p>
+</div></details>
+<h3 id="ex-partition">Choose partitioning for order + scale</h3>
+<p>You process order-lifecycle events (created, paid, shipped) at 500k/sec and must process each order's events in order while spreading load. Design the partitioning.</p>
+<details class="reveal"><summary>Reveal the approach</summary><div class="reveal-body">
+<p>Key by <code>order_id</code>: all events for one order hash to the same partition, preserving their order; different orders spread across partitions for parallelism. Choose partition count &ge; peak consumer count with headroom (a group can't have more active consumers than partitions) &mdash; e.g. 256 partitions for ~128 consumers. Avoid low-cardinality keys (status, region) that create a <a href="39.html">hot partition</a>. You get <i>per-order</i> order (which is all you need) without paying for global order (which would force one partition and cap throughput). This is the order-vs-scale resolution (Scenario's sub-problem 3) in practice.</p>
+</div></details>
+<h3 id="ex-design">Design-it-yourself: the open-ended ones</h3>
+<ul>
+<li><b>Add delayed/scheduled delivery.</b> Support "deliver this message in 1 hour." Design it on top of the log/queue without scanning. &rarr; <a href="60.html">Job Scheduler</a>.</li>
+<li><b>Make it multi-region.</b> Producers in two regions, consumers everywhere. Decide replication topology and ordering across regions. &rarr; <a href="53.html">Multi-Region &amp; DR</a>.</li>
+<li><b>Back a transactional outbox.</b> Design how a service reliably publishes to this queue atomically with its DB write. &rarr; <a href="32.html">Distributed Transactions (outbox)</a>.</li>
+</ul>
+
+<div class="navfoot"><a href="55.html">&lsaquo; Prev: Distributed Cache</a><a class="nx" href="57.html">Next: Key-Value Store &rsaquo;</a></div>
 </div>
 </div>
 </div>
