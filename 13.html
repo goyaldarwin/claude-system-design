@@ -156,7 +156,7 @@ Your chat server holds 1,000,000 mostly-idle WebSocket connections. CPU is near 
 <p style="color:#5b6472;font-size:15px"><i>Scenario 1 is <a href="#opt-sse">SSE</a> (one-way, HTTP-native). Scenario 2 is <a href="#opt-longpoll">long-polling</a> (the fallback). Scenario 3 is the <a href="#trap">connection-state scaling</a> failure.</i></p>
 
 <h2 id="dimensions">The four dimensions that decide</h2>
-<p>Run any feature through these four and the right transport falls out.</p>
+<p>All four are really probing <i>one</i> question: <b>how much "always-on connection" is this feature worth?</b> A held connection buys instant server-push and near-zero per-message overhead &mdash; but you pay for it in connection state (memory and a slot per client), proxy fragility, and a hard scaling ceiling. So each dimension below asks a facet of the same trade: does the server need to push at all (<b>direction</b>), often enough to justify holding the pipe open (<b>frequency</b>), through middleboxes that won't fight you (<b>proxy</b>), and at a connection count you can actually afford (<b>scale</b>)? Run any feature through these four and the right transport &mdash; and the price you're agreeing to pay &mdash; falls out.</p>
 <h3 id="dim-direction">Direction &mdash; one-way or two-way?</h3>
 <p>If only the server pushes (tickers, notifications, log tails, LLM tokens), you want <b>SSE</b> &mdash; simpler than WebSocket and HTTP-native. If the client also sends frequently (chat, games, collaborative editing), you need <b>WebSocket</b>'s full duplex.</p>
 <h3 id="dim-frequency">Frequency &mdash; rare events or a firehose?</h3>

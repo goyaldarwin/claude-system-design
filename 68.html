@@ -167,7 +167,8 @@ An architect mandates Kafka for all messaging &mdash; including a low-volume int
 
 <!-- ============ DIMENSIONS ============ -->
 <h2 id="dimensions">The decision dimensions, resolved in order</h2>
-<p><b>Eliminate</b> on queue-vs-log, <b>narrow</b> on ordering/delivery and throughput/replay, <b>tie-break</b> on managed-vs-self-hosted.</p>
+<p>Every dimension below is really asking <i>one</i> question: <b>how long does a message matter, and to how many readers?</b> A <b>queue</b> says &ldquo;to exactly one worker, for exactly as long as it takes to do the job &mdash; then it's gone.&rdquo; A <b>log</b> says &ldquo;to anyone who cares, for as long as you choose to keep it, replayable from the start.&rdquo; Ordering, throughput, and operations are all <i>downstream</i> of that one answer &mdash; fix it first and half the field disappears. The trap is reaching for the log's &ldquo;keep everything forever, fan out to everyone&rdquo; power when all you ever needed was &ldquo;do this once.&rdquo;</p>
+<p>So resolve them in order: <b>eliminate</b> on queue-vs-log, <b>narrow</b> on ordering/delivery and throughput/replay, <b>tie-break</b> on managed-vs-self-hosted.</p>
 
 <h3 id="d1">Dimension 1 &mdash; Queue or log? (eliminate first)</h3>
 <p>The dichotomy above. Ask: is each message <b>work to be done once and discarded</b> (&rarr; <b>queue</b>: SQS, RabbitMQ), or an <b>event many consumers care about and you may replay</b> (&rarr; <b>log</b>: Kafka, Kinesis, Pulsar)? This eliminates half the field before any other consideration. If you'll never replay and only one consumer does each message once, you want a queue &mdash; full stop.</p>
